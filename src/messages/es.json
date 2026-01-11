@@ -1,0 +1,223 @@
+{
+  "common": {
+    "buttons": {
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "delete": "Eliminar",
+      "edit": "Editar",
+      "close": "Cerrar",
+      "confirm": "Confirmar",
+      "back": "Volver",
+      "next": "Siguiente",
+      "previous": "Anterior",
+      "search": "Buscar",
+      "filter": "Filtrar",
+      "clear": "Limpiar",
+      "apply": "Aplicar",
+      "view": "Ver",
+      "contact": "Contactar",
+      "loading": "Cargando..."
+    },
+    "actions": {
+      "addNew": "Agregar nuevo",
+      "clearFilters": "Limpiar filtros",
+      "viewDetails": "Ver detalles",
+      "showMore": "Mostrar más",
+      "showLess": "Mostrar menos"
+    },
+    "labels": {
+      "all": "Todos",
+      "name": "Nombre",
+      "email": "Email",
+      "phone": "Teléfono",
+      "company": "Empresa",
+      "position": "Cargo",
+      "status": "Estado",
+      "potential": "Potencial Comercial",
+      "channel": "Canal",
+      "value": "Valor",
+      "estimatedValue": "Valor Estimado",
+      "lastContact": "Último contacto",
+      "nextFollowUp": "Próximo seguimiento",
+      "tags": "Etiquetas",
+      "createdAt": "Creado",
+      "updatedAt": "Actualizado"
+    },
+    "messages": {
+      "noData": "No hay datos disponibles",
+      "error": "Ocurrió un error",
+      "success": "Operación exitosa",
+      "loading": "Cargando..."
+    }
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "leads": "Leads",
+    "conversations": "Conversaciones",
+    "agents": "Sub-agentes",
+    "reports": "Reportes",
+    "settings": "Configuración",
+    "comingSoon": "Pronto"
+  },
+  "login": {
+    "title": "Bienvenido de nuevo",
+    "subtitle": "El momento correcto para gestionar tus leads",
+    "emailLabel": "Email",
+    "emailPlaceholder": "tu@email.com",
+    "passwordLabel": "Contraseña",
+    "passwordPlaceholder": "Tu contraseña",
+    "forgotPassword": "Olvidé mi contraseña",
+    "loginButton": "Iniciar sesión",
+    "noAccount": "¿No tienes una cuenta?",
+    "createAccount": "Crear cuenta",
+    "terms": "Términos de servicio",
+    "privacy": "Política de privacidad",
+    "termsText": "Al continuar, aceptas nuestros",
+    "and": "y",
+    "errors": {
+      "emailRequired": "El email es requerido",
+      "emailInvalid": "Ingresa un email válido",
+      "passwordRequired": "La contraseña es requerida",
+      "passwordMinLength": "La contraseña debe tener al menos 6 caracteres"
+    },
+    "success": {
+      "title": "Bienvenido a KAIRO",
+      "message": "Has iniciado sesión correctamente. Redirigiendo al dashboard..."
+    },
+    "error": {
+      "title": "Error de autenticación",
+      "message": "No pudimos verificar tus credenciales. Por favor, intenta nuevamente."
+    },
+    "ariaLabels": {
+      "closeMenu": "Cerrar menú",
+      "showPassword": "Mostrar contraseña",
+      "hidePassword": "Ocultar contraseña",
+      "toggleTheme": "Cambiar a tema {theme}",
+      "changeLanguage": "Cambiar idioma a {language}"
+    },
+    "language": {
+      "es": "ES",
+      "en": "EN",
+      "spanish": "Espanol",
+      "english": "Ingles"
+    }
+  },
+  "leads": {
+    "title": "Leads",
+    "newLead": "Nuevo Lead",
+    "addFirstLead": "Agregar primer lead",
+    "viewGrid": "Vista de cuadrícula",
+    "viewTable": "Vista de tabla",
+    "showing": "Mostrando {filtered} de {total} leads",
+    "filters": {
+      "search": "Buscar por nombre, email, empresa...",
+      "status": "Estado",
+      "potential": "Potencial Comercial",
+      "channel": "Canal",
+      "type": "Tipo",
+      "dateRange": "Último contacto",
+      "moreFilters": "Más filtros",
+      "lessFilters": "Menos filtros"
+    },
+    "type": {
+      "ai_agent": "Agente IA",
+      "manual": "Manual"
+    },
+    "dateRange": {
+      "today": "Hoy",
+      "last7days": "Últimos 7 días",
+      "last30days": "Últimos 30 días",
+      "last90days": "Últimos 90 días",
+      "all": "Todo el tiempo",
+      "custom": "Personalizado"
+    },
+    "stats": {
+      "total": "Total",
+      "new": "Nuevos",
+      "hot": "P. Alto",
+      "warm": "P. Medio",
+      "cold": "P. Bajo",
+      "pipelineValue": "Valor potencial"
+    },
+    "status": {
+      "new": "Nuevo",
+      "contacted": "Contactado",
+      "qualified": "Calificado",
+      "proposal": "Propuesta",
+      "negotiation": "Negociación",
+      "won": "Ganado",
+      "lost": "Perdido"
+    },
+    "potential": {
+      "cold": "Potencial Bajo (lead frío)",
+      "warm": "Potencial Medio (lead tibio)",
+      "hot": "Potencial Alto (lead caliente)"
+    },
+    "potentialShort": {
+      "cold": "Bajo",
+      "warm": "Medio",
+      "hot": "Alto"
+    },
+    "channel": {
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "phone": "Teléfono",
+      "webchat": "Web Chat",
+      "instagram": "Instagram",
+      "facebook": "Facebook",
+      "other": "Otro"
+    },
+    "table": {
+      "name": "Nombre",
+      "company": "Empresa",
+      "status": "Estado",
+      "potential": "Potencial",
+      "channel": "Canal",
+      "value": "Valor",
+      "lastContact": "Último contacto",
+      "actions": "Acciones"
+    },
+    "detail": {
+      "title": "Detalles del Lead",
+      "email": "Email",
+      "phone": "Teléfono",
+      "channel": "Canal",
+      "position": "Cargo",
+      "estimatedValue": "Valor Estimado",
+      "notDefined": "No definido",
+      "tags": "Etiquetas",
+      "lastContact": "Último contacto",
+      "nextFollowUp": "Próximo seguimiento",
+      "createdAt": "Creado",
+      "contact": "Contactar",
+      "edit": "Editar"
+    },
+    "panel": {
+      "conversationHistory": "Historial de Conversación",
+      "internalNotes": "Notas Internas",
+      "activityHistory": "Historial de Actividad",
+      "addNote": "Agregar nota"
+    },
+    "actions": {
+      "changeStatus": "Cambiar estado",
+      "moreOptions": "Más opciones",
+      "editLead": "Editar lead",
+      "assignAgent": "Asignar agente",
+      "scheduleFollowUp": "Programar seguimiento",
+      "archiveLead": "Archivar lead"
+    },
+    "empty": {
+      "noLeads": {
+        "title": "No hay leads aún",
+        "message": "Comienza agregando tu primer lead para empezar a gestionar tus prospectos con KAIRO."
+      },
+      "noResults": {
+        "title": "No se encontraron leads",
+        "message": "No hay leads que coincidan con los filtros seleccionados. Intenta ajustar los criterios de búsqueda."
+      }
+    }
+  },
+  "dashboard": {
+    "systemStatus": "Sistema operativo"
+  }
+}
