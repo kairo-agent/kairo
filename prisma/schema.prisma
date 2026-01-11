@@ -1,0 +1,239 @@
+// ============================================
+// KAIRO - Prisma Schema
+// ============================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  admin
+  manager
+  agent
+  viewer
+}
+
+enum CompanyPlan {
+  free
+  starter
+  professional
+  enterprise
+}
+
+enum LeadStatus {
+  new
+  contacted
+  qualified
+  proposal
+  negotiation
+  won
+  lost
+}
+
+enum LeadTemperature {
+  cold
+  warm
+  hot
+}
+
+enum LeadSource {
+  website
+  referral
+  social_media
+  advertising
+  event
+  other
+}
+
+enum LeadChannel {
+  whatsapp
+  email
+  phone
+  webchat
+  instagram
+  facebook
+  other
+}
+
+enum LeadType {
+  ai_agent
+  manual
+}
+
+enum AIAgentType {
+  sales
+  support
+  qualification
+  appointment
+}
+
+enum CurrencyCode {
+  PEN
+  USD
+  EUR
+  MXN
+}
+
+enum Theme {
+  light
+  dark
+}
+
+enum Locale {
+  es
+  en
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model Company {
+  id                  String         @id @default(cuid())
+  name                String
+  slug                String         @unique
+  logoUrl             String?
+  plan                CompanyPlan    @default(free)
+  defaultCurrency     CurrencyCode   @default(PEN)
+  supportedCurrencies CurrencyCode[] @default([PEN])
+  exchangeRates       Json?          // { "USD_PEN": 3.72, ... }
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  users    User[]
+  leads    Lead[]
+  aiAgents AIAgent[]
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  avatarUrl String?
+  role      UserRole @default(viewer)
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Preferences (embedded as JSON for flexibility)
+  preferences Json @default("{\"language\": \"es\", \"displayCurrency\": \"PEN\", \"timezone\": \"America/Lima\", \"theme\": \"light\"}")
+
+  // Relations
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedLeads Lead[]  @relation("AssignedUser")
+
+  @@index([companyId])
+  @@index([email])
+  @@map("users")
+}
+
+model Lead {
+  id              String          @id @default(cuid())
+  companyId       String
+  firstName       String
+  lastName        String
+  email           String?
+  phone           String?
+  businessName    String?
+  position        String?
+  status          LeadStatus      @default(new)
+  temperature     LeadTemperature @default(cold)
+  source          LeadSource      @default(other)
+  channel         LeadChannel
+  type            LeadType        @default(manual)
+  assignedAgentId String?
+  assignedUserId  String?
+  pipelineStage   String          @default("inbox")
+  estimatedValue  Decimal?        @db.Decimal(12, 2)
+  currency        CurrencyCode    @default(PEN)
+  tags            String[]        @default([])
+  lastContactAt   DateTime?
+  nextFollowUpAt  DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedAgent AIAgent? @relation(fields: [assignedAgentId], references: [id], onDelete: SetNull)
+  assignedUser  User?    @relation("AssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  notes         Note[]
+  activities    Activity[]
+
+  @@index([companyId])
+  @@index([status])
+  @@index([temperature])
+  @@index([assignedAgentId])
+  @@index([assignedUserId])
+  @@index([createdAt])
+  @@map("leads")
+}
+
+model AIAgent {
+  id          String      @id @default(cuid())
+  companyId   String
+  name        String
+  type        AIAgentType
+  description String?
+  avatarUrl   String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Stats (embedded as JSON for flexibility)
+  stats Json @default("{\"totalConversations\": 0, \"totalLeadsGenerated\": 0, \"averageResponseTime\": 0, \"satisfactionScore\": 0}")
+
+  // Relations
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedLeads Lead[]
+
+  @@index([companyId])
+  @@index([type])
+  @@map("ai_agents")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  leadId    String
+  content   String
+  createdBy String?  // User ID who created the note
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@map("notes")
+}
+
+model Activity {
+  id          String   @id @default(cuid())
+  leadId      String
+  type        String   // call, email, meeting, note, status_change, etc.
+  description String
+  metadata    Json?    // Extra data depending on activity type
+  performedBy String?  // User or Agent ID
+  createdAt   DateTime @default(now())
+
+  // Relations
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([type])
+  @@index([createdAt])
+  @@map("activities")
+}
