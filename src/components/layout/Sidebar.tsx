@@ -5,10 +5,12 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/routing';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCurrentUser } from '@/app/[locale]/(dashboard)/DashboardLayoutClient';
 import { cn } from '@/lib/utils';
+import { WorkspaceSelector } from './WorkspaceSelector';
 
 // Navigation item type - href must match pathnames defined in i18n/routing.ts
-type AppPathname = '/' | '/dashboard' | '/leads' | '/conversations' | '/agents' | '/reports' | '/settings';
+type AppPathname = '/' | '/dashboard' | '/leads' | '/conversations' | '/agents' | '/reports' | '/settings' | '/admin';
 
 interface NavItem {
   labelKey: string;
@@ -120,6 +122,23 @@ const SettingsIcon = () => (
   </svg>
 );
 
+// Admin icon (shield with gear) - Only visible for super_admin
+const AdminIcon = () => (
+  <svg
+    width="20"
+    height="20"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+);
+
 // Navigation items configuration (labelKey maps to navigation.* in translations)
 const navigationItems: NavItem[] = [
   { labelKey: 'dashboard', href: '/dashboard', icon: <HomeIcon /> },
@@ -138,10 +157,14 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { theme } = useTheme();
+  const user = useCurrentUser();
   const t = useTranslations('navigation');
   const tDashboard = useTranslations('dashboard');
   const tLogin = useTranslations('login');
   const [isMounted, setIsMounted] = useState(false);
+
+  // Check if user is super_admin
+  const isSuperAdmin = user.systemRole === 'super_admin';
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -208,6 +231,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </Link>
       </div>
 
+      {/* Workspace Selector - Organization & Project */}
+      <WorkspaceSelector />
+
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navigationItems.map((item) => {
@@ -255,6 +281,30 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Admin section - Only visible for super_admin */}
+        {isSuperAdmin && (
+          <>
+            <div className="my-3 border-t border-[var(--border-primary)]" />
+            <Link
+              href="/admin"
+              onClick={onClose}
+              className={cn(
+                'flex items-center gap-3 px-3 py-2.5 rounded-lg relative',
+                'transition-all duration-200',
+                isActive('/admin')
+                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+                  : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+              )}
+            >
+              {isActive('/admin') && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--accent-primary)] rounded-r-full" />
+              )}
+              <span className="flex-shrink-0"><AdminIcon /></span>
+              <span className="text-sm font-medium">{t('admin')}</span>
+            </Link>
+          </>
+        )}
       </nav>
 
       {/* Footer */}

@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useRouter, usePathname } from '@/i18n/routing';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLoading } from '@/contexts/LoadingContext';
 import { cn } from '@/lib/utils';
 import { getInitials } from '@/lib/utils';
+import { signOut } from '@/lib/actions/auth';
 import type { Locale } from '@/types';
 
 // SVG Icons
@@ -155,32 +157,71 @@ const LOCALE_FLAGS: Record<Locale, string> = {
   en: '🇺🇸',
 };
 
+// User type for Header
+interface HeaderUser {
+  firstName: string;
+  lastName: string;
+  email: string;
+  systemRole: string;
+}
+
 interface HeaderProps {
   title: string;
   onMenuClick: () => void;
+  user?: HeaderUser;
 }
 
-// Mock user data - in production this would come from auth context
-const mockUser = {
-  firstName: 'Carlos',
-  lastName: 'Rodriguez',
-  email: 'carlos@kairo.ai',
-  role: 'Admin',
-};
-
-export function Header({ title, onMenuClick }: HeaderProps) {
+export function Header({ title, onMenuClick, user }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
+  const { showLoading } = useLoading();
   const locale = useLocale() as Locale;
+  const t = useTranslations('common');
   const router = useRouter();
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isLocaleDropdownOpen, setIsLocaleDropdownOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const localeDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Fallback user data if not provided
+  const displayUser = user || {
+    firstName: 'Usuario',
+    lastName: '',
+    email: '',
+    systemRole: 'user',
+  };
+
+  // Get role display label
+  const getRoleLabel = (role: string): string => {
+    const roleLabels: Record<string, string> = {
+      super_admin: 'Super Admin',
+      admin: 'Admin',
+      manager: 'Manager',
+      agent: 'Agente',
+      viewer: 'Viewer',
+      user: 'Usuario',
+    };
+    return roleLabels[role] || role;
+  };
+
   const handleLocaleChange = (newLocale: Locale) => {
-    router.replace(pathname, { locale: newLocale });
+    // Use persist=true because language change causes full page reload
+    showLoading(t('messages.loading'), true);
     setIsLocaleDropdownOpen(false);
+    router.replace(pathname, { locale: newLocale });
+  };
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    setIsDropdownOpen(false);
+    try {
+      await signOut();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      setIsLoggingOut(false);
+    }
   };
 
   // Close dropdowns when clicking outside
@@ -339,12 +380,12 @@ export function Header({ title, onMenuClick }: HeaderProps) {
                 'text-sm font-semibold'
               )}
             >
-              {getInitials(mockUser.firstName, mockUser.lastName)}
+              {getInitials(displayUser.firstName, displayUser.lastName)}
             </div>
 
             {/* Name - hidden on mobile */}
             <span className="hidden sm:block text-sm font-medium text-[var(--text-primary)]">
-              {mockUser.firstName}
+              {displayUser.firstName}
             </span>
 
             <ChevronDownIcon />
@@ -364,18 +405,21 @@ export function Header({ title, onMenuClick }: HeaderProps) {
               {/* User info */}
               <div className="px-4 py-3 border-b border-[var(--border-primary)]">
                 <p className="text-sm font-medium text-[var(--text-primary)]">
-                  {mockUser.firstName} {mockUser.lastName}
+                  {displayUser.firstName} {displayUser.lastName}
                 </p>
-                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{mockUser.email}</p>
+                <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{displayUser.email}</p>
                 <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
-                  {mockUser.role}
+                  {getRoleLabel(displayUser.systemRole)}
                 </span>
               </div>
 
               {/* Menu items */}
               <div className="py-1">
                 <button
-                  onClick={() => setIsDropdownOpen(false)}
+                  onClick={() => {
+                    setIsDropdownOpen(false);
+                    router.push('/profile');
+                  }}
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-2',
                     'text-sm text-[var(--text-secondary)]',
@@ -384,26 +428,25 @@ export function Header({ title, onMenuClick }: HeaderProps) {
                   )}
                 >
                   <UserIcon />
-                  <span>Mi perfil</span>
+                  <span>{t('profile.myProfile')}</span>
                 </button>
               </div>
 
               {/* Logout */}
               <div className="py-1 border-t border-[var(--border-primary)]">
                 <button
-                  onClick={() => {
-                    setIsDropdownOpen(false);
-                    // Handle logout
-                  }}
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
                   className={cn(
                     'w-full flex items-center gap-3 px-4 py-2',
                     'text-sm text-[var(--status-lost)]',
                     'hover:bg-red-50 dark:hover:bg-red-900/10',
-                    'transition-colors duration-200'
+                    'transition-colors duration-200',
+                    isLoggingOut && 'opacity-50 cursor-not-allowed'
                   )}
                 >
                   <LogoutIcon />
-                  <span>Cerrar sesion</span>
+                  <span>{isLoggingOut ? t('buttons.loading') : t('profile.logout')}</span>
                 </button>
               </div>
             </div>

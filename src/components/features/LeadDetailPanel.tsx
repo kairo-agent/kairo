@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -13,38 +13,29 @@ import {
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
+import {
+  getLeadNotes,
+  addLeadNote,
+  getLeadActivities,
+  type NoteWithAuthor,
+  type ActivityWithPerformer,
+} from '@/lib/actions/leads';
+import LeadEditModal from './LeadEditModal';
+import LeadChat from './LeadChat';
 
 // ============================================
 // Types
 // ============================================
-
-interface Message {
-  id: string;
-  sender: 'agent' | 'lead';
-  content: string;
-  timestamp: Date;
-}
-
-interface Note {
-  id: string;
-  content: string;
-  author: string;
-  createdAt: Date;
-}
-
-interface Activity {
-  id: string;
-  type: 'status_change' | 'note_added' | 'contact' | 'assignment';
-  description: string;
-  timestamp: Date;
-  user?: string;
-}
 
 interface LeadDetailPanelProps {
   lead: Lead | null;
   isOpen: boolean;
   onClose: () => void;
   onStatusChange?: (lead: Lead, newStatus: LeadStatus) => void;
+  isUpdatingStatus?: boolean;
+  onLeadUpdated?: () => Promise<void>;
+  projectName?: string;
+  organizationName?: string;
 }
 
 // ============================================
@@ -75,12 +66,6 @@ const PhoneIconSmall = () => (
   </svg>
 );
 
-const BriefcaseIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-  </svg>
-);
-
 const ChatIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -105,100 +90,33 @@ const EditIcon = () => (
   </svg>
 );
 
-const ArchiveIcon = () => (
+const PlusIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
   </svg>
 );
 
-// ============================================
-// Mock Data for Demo
-// ============================================
-
-const generateMockMessages = (leadName: string): Message[] => [
-  {
-    id: '1',
-    sender: 'agent',
-    content: `Hola ${leadName}! Soy Luna, tu asistente de ventas. Vi que estabas interesado en nuestros servicios. ¿En qué puedo ayudarte?`,
-    timestamp: new Date(Date.now() - 3600000 * 24 * 2),
-  },
-  {
-    id: '2',
-    sender: 'lead',
-    content: 'Hola Luna! Sí, estoy buscando información sobre sus planes empresariales.',
-    timestamp: new Date(Date.now() - 3600000 * 24 * 2 + 300000),
-  },
-  {
-    id: '3',
-    sender: 'agent',
-    content: 'Excelente! Tenemos varios planes que se adaptan a diferentes necesidades. ¿Podrías contarme un poco más sobre tu empresa y qué solución estás buscando?',
-    timestamp: new Date(Date.now() - 3600000 * 24 * 2 + 600000),
-  },
-  {
-    id: '4',
-    sender: 'lead',
-    content: 'Somos una empresa de comercio electrónico con aproximadamente 50 empleados. Necesitamos automatizar nuestro proceso de atención al cliente.',
-    timestamp: new Date(Date.now() - 3600000 * 24 + 1800000),
-  },
-  {
-    id: '5',
-    sender: 'agent',
-    content: 'Perfecto! Para empresas de tu tamaño, nuestro plan Professional sería ideal. Incluye automatización completa, integración con WhatsApp Business API, y soporte 24/7. ¿Te gustaría agendar una demo?',
-    timestamp: new Date(Date.now() - 3600000 * 24 + 2100000),
-  },
-  {
-    id: '6',
-    sender: 'lead',
-    content: 'Sí, me interesa ver la demo. ¿Cuándo podría ser?',
-    timestamp: new Date(Date.now() - 3600000 * 2),
-  },
-];
-
-const generateMockNotes = (): Note[] => [
-  {
-    id: '1',
-    content: 'Cliente muy interesado, responde rápido a los mensajes.',
-    author: 'Carlos García',
-    createdAt: new Date(Date.now() - 3600000 * 48),
-  },
-  {
-    id: '2',
-    content: 'Mencionó que tiene presupuesto aprobado para Q1.',
-    author: 'María López',
-    createdAt: new Date(Date.now() - 3600000 * 24),
-  },
-];
-
-const generateMockActivity = (leadName: string): Activity[] => [
-  {
-    id: '1',
-    type: 'status_change',
-    description: `Estado cambiado de "Nuevo" a "Contactado"`,
-    timestamp: new Date(Date.now() - 3600000 * 48),
-    user: 'Luna (IA)',
-  },
-  {
-    id: '2',
-    type: 'contact',
-    description: `Mensaje enviado a ${leadName} via WhatsApp`,
-    timestamp: new Date(Date.now() - 3600000 * 24),
-    user: 'Luna (IA)',
-  },
-  {
-    id: '3',
-    type: 'status_change',
-    description: `Estado cambiado de "Contactado" a "Calificado"`,
-    timestamp: new Date(Date.now() - 3600000 * 12),
-    user: 'Carlos García',
-  },
-  {
-    id: '4',
-    type: 'note_added',
-    description: 'Nueva nota agregada',
-    timestamp: new Date(Date.now() - 3600000 * 6),
-    user: 'María López',
-  },
-];
+const SpinnerIcon = ({ className }: { className?: string }) => (
+  <svg
+    className={cn('animate-spin', className)}
+    fill="none"
+    viewBox="0 0 24 24"
+  >
+    <circle
+      className="opacity-25"
+      cx="12"
+      cy="12"
+      r="10"
+      stroke="currentColor"
+      strokeWidth="4"
+    />
+    <path
+      className="opacity-75"
+      fill="currentColor"
+      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+    />
+  </svg>
+);
 
 // ============================================
 // Collapsible Section Component
@@ -245,8 +163,8 @@ function CollapsibleSection({
       </button>
       <div
         className={cn(
-          'overflow-hidden transition-all duration-300 ease-out',
-          isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+          'transition-all duration-300 ease-out',
+          isOpen ? 'opacity-100' : 'max-h-0 opacity-0 overflow-hidden'
         )}
       >
         <div className="p-3 border-t border-[var(--border-primary)]">{children}</div>
@@ -264,15 +182,78 @@ export function LeadDetailPanel({
   isOpen,
   onClose,
   onStatusChange,
+  isUpdatingStatus = false,
+  onLeadUpdated,
+  projectName,
+  organizationName,
 }: LeadDetailPanelProps) {
   const t = useTranslations('leads');
   const panelRef = useRef<HTMLDivElement>(null);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
-  // Mock data
-  const messages = lead ? generateMockMessages(lead.firstName) : [];
-  const notes = generateMockNotes();
-  const activities = lead ? generateMockActivity(lead.firstName) : [];
+  // Real data states
+  const [notes, setNotes] = useState<NoteWithAuthor[]>([]);
+  const [activities, setActivities] = useState<ActivityWithPerformer[]>([]);
+  const [isLoadingNotes, setIsLoadingNotes] = useState(false);
+  const [isLoadingActivities, setIsLoadingActivities] = useState(false);
+
+  // Add note form state
+  const [newNoteContent, setNewNoteContent] = useState('');
+  const [isAddingNote, setIsAddingNote] = useState(false);
+
+  // Edit modal state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Load notes and activities when lead changes
+  const loadNotesAndActivities = useCallback(async () => {
+    if (!lead?.id) return;
+
+    setIsLoadingNotes(true);
+    setIsLoadingActivities(true);
+
+    try {
+      const [notesData, activitiesData] = await Promise.all([
+        getLeadNotes(lead.id),
+        getLeadActivities(lead.id),
+      ]);
+      setNotes(notesData);
+      setActivities(activitiesData);
+    } catch (error) {
+      console.error('Error loading notes and activities:', error);
+    } finally {
+      setIsLoadingNotes(false);
+      setIsLoadingActivities(false);
+    }
+  }, [lead?.id]);
+
+  useEffect(() => {
+    if (isOpen && lead?.id) {
+      loadNotesAndActivities();
+    }
+  }, [isOpen, lead?.id, loadNotesAndActivities]);
+
+  // Handle add note
+  const handleAddNote = async () => {
+    if (!lead?.id || !newNoteContent.trim() || isAddingNote) return;
+
+    setIsAddingNote(true);
+    try {
+      const result = await addLeadNote(lead.id, newNoteContent);
+      if (result.success && result.note) {
+        setNotes((prev) => [result.note!, ...prev]);
+        setNewNoteContent('');
+        // Refresh activities to show the new "note_added" activity
+        const activitiesData = await getLeadActivities(lead.id);
+        setActivities(activitiesData);
+      } else {
+        console.error('Error adding note:', result.error);
+      }
+    } catch (error) {
+      console.error('Error adding note:', error);
+    } finally {
+      setIsAddingNote(false);
+    }
+  };
 
   // Close on escape key
   useEffect(() => {
@@ -320,6 +301,25 @@ export function LeadDetailPanel({
   const handleStatusChange = (newStatus: LeadStatus) => {
     setIsStatusDropdownOpen(false);
     onStatusChange?.(lead, newStatus);
+    // Refresh activities after status change
+    setTimeout(() => {
+      if (lead?.id) {
+        getLeadActivities(lead.id).then(setActivities);
+      }
+    }, 500);
+  };
+
+  const getActivityTypeIcon = (type: string) => {
+    switch (type) {
+      case 'status_change':
+        return '🔄';
+      case 'note_added':
+        return '📝';
+      case 'contact':
+        return '💬';
+      default:
+        return '•';
+    }
   };
 
   return (
@@ -371,9 +371,14 @@ export function LeadDetailPanel({
                   <h2 className="text-xl font-bold text-[var(--text-primary)]">
                     {lead.firstName} {lead.lastName}
                   </h2>
-                  {lead.businessName && (
-                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                      {lead.businessName}
+                  {(organizationName || projectName) && (
+                    <p className="text-sm text-[var(--text-secondary)] mt-0.5 flex items-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      {organizationName && projectName
+                        ? `${organizationName} › ${projectName}`
+                        : projectName || organizationName}
                     </p>
                   )}
                   {lead.position && (
@@ -398,18 +403,25 @@ export function LeadDetailPanel({
               {/* Status with Dropdown */}
               <div className="relative">
                 <button
-                  onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                  onClick={() => !isUpdatingStatus && setIsStatusDropdownOpen(!isStatusDropdownOpen)}
                   className="inline-flex items-center gap-1"
+                  disabled={isUpdatingStatus}
                 >
                   <Badge
                     variant="custom"
                     customColor={statusConfig.color}
                     customBgColor={statusConfig.bgColor}
                     size="md"
-                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                    className={cn(
+                      'cursor-pointer hover:opacity-80 transition-opacity',
+                      isUpdatingStatus && 'opacity-70 cursor-wait'
+                    )}
                   >
+                    {isUpdatingStatus ? (
+                      <SpinnerIcon className="w-3 h-3 mr-1" />
+                    ) : null}
                     {t(`status.${lead.status}`)}
-                    <ChevronDownIcon className="w-3 h-3 ml-1" />
+                    {!isUpdatingStatus && <ChevronDownIcon className="w-3 h-3 ml-1" />}
                   </Badge>
                 </button>
 
@@ -495,81 +507,21 @@ export function LeadDetailPanel({
                 </div>
               </div>
             )}
-
-            {lead.position && (
-              <div className="flex items-center gap-3 p-3 bg-[var(--bg-tertiary)] rounded-lg sm:col-span-2">
-                <div className="p-2 bg-[var(--bg-card)] rounded-lg text-[var(--text-secondary)]">
-                  <BriefcaseIcon />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wide">
-                    {t('detail.position')}
-                  </p>
-                  <p className="text-sm text-[var(--text-primary)] font-medium">
-                    {lead.position}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Tags */}
-          {lead.tags.length > 0 && (
-            <div>
-              <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wide mb-2">
-                {t('detail.tags')}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {lead.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2.5 py-1 text-xs bg-[var(--bg-tertiary)] text-[var(--text-secondary)] rounded-full"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Conversation History */}
+          {/* Conversation History with Chat */}
           <CollapsibleSection
             title={t('panel.conversationHistory')}
             icon={<ChatIcon />}
             defaultOpen={true}
-            badge={messages.length}
           >
-            <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    'flex',
-                    message.sender === 'agent' ? 'justify-start' : 'justify-end'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'max-w-[85%] p-3 rounded-2xl',
-                      message.sender === 'agent'
-                        ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-sm'
-                        : 'bg-[var(--accent-primary)] text-[var(--kairo-midnight)] rounded-br-sm'
-                    )}
-                  >
-                    <p className="text-sm">{message.content}</p>
-                    <p
-                      className={cn(
-                        'text-xs mt-1',
-                        message.sender === 'agent'
-                          ? 'text-[var(--text-tertiary)]'
-                          : 'text-[var(--kairo-midnight)]/70'
-                      )}
-                    >
-                      {formatRelativeTime(message.timestamp)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+            {/* Fixed height container for chat - prevents infinite growth */}
+            <div className="h-[700px]">
+              <LeadChat
+                leadId={lead.id}
+                leadName={`${lead.firstName} ${lead.lastName}`}
+                isOpen={isOpen}
+              />
             </div>
           </CollapsibleSection>
 
@@ -580,23 +532,62 @@ export function LeadDetailPanel({
             badge={notes.length}
           >
             <div className="space-y-3">
-              {notes.map((note) => (
-                <div
-                  key={note.id}
-                  className="p-3 bg-[var(--bg-tertiary)] rounded-lg"
-                >
-                  <p className="text-sm text-[var(--text-primary)]">{note.content}</p>
-                  <div className="flex items-center gap-2 mt-2 text-xs text-[var(--text-tertiary)]">
-                    <span className="font-medium">{note.author}</span>
-                    <span>•</span>
-                    <span>{formatRelativeTime(note.createdAt)}</span>
-                  </div>
+              {isLoadingNotes ? (
+                <div className="flex justify-center py-4">
+                  <SpinnerIcon className="w-6 h-6 text-[var(--accent-primary)]" />
                 </div>
-              ))}
-              <Button variant="ghost" size="sm" className="w-full">
-                <NoteIcon />
-                <span>{t('panel.addNote')}</span>
-              </Button>
+              ) : notes.length === 0 ? (
+                <p className="text-sm text-[var(--text-tertiary)] text-center py-2">
+                  {t('panel.noNotes')}
+                </p>
+              ) : (
+                notes.map((note) => (
+                  <div
+                    key={note.id}
+                    className="p-3 bg-[var(--bg-tertiary)] rounded-lg"
+                  >
+                    <p className="text-sm text-[var(--text-primary)]">{note.content}</p>
+                    <div className="flex items-center gap-2 mt-2 text-xs text-[var(--text-tertiary)]">
+                      <span className="font-medium">
+                        {note.author ? `${note.author.firstName} ${note.author.lastName}` : 'Usuario'}
+                      </span>
+                      <span>•</span>
+                      <span>{formatRelativeTime(note.createdAt)}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Add Note Form */}
+              <div className="flex gap-2 pt-2">
+                <input
+                  type="text"
+                  value={newNoteContent}
+                  onChange={(e) => setNewNoteContent(e.target.value)}
+                  placeholder={t('panel.addNotePlaceholder')}
+                  className="flex-1 px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleAddNote();
+                    }
+                  }}
+                  disabled={isAddingNote}
+                />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleAddNote}
+                  disabled={!newNoteContent.trim() || isAddingNote}
+                  className="px-3"
+                >
+                  {isAddingNote ? (
+                    <SpinnerIcon className="w-4 h-4" />
+                  ) : (
+                    <PlusIcon />
+                  )}
+                </Button>
+              </div>
             </div>
           </CollapsibleSection>
 
@@ -607,30 +598,42 @@ export function LeadDetailPanel({
             badge={activities.length}
           >
             <div className="space-y-3">
-              {activities.map((activity, index) => (
-                <div key={activity.id} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div className="w-2 h-2 rounded-full bg-[var(--accent-primary)]" />
-                    {index < activities.length - 1 && (
-                      <div className="w-px flex-1 bg-[var(--border-primary)] mt-1" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-3">
-                    <p className="text-sm text-[var(--text-primary)]">
-                      {activity.description}
-                    </p>
-                    <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-tertiary)]">
-                      {activity.user && (
-                        <>
-                          <span>{activity.user}</span>
-                          <span>•</span>
-                        </>
+              {isLoadingActivities ? (
+                <div className="flex justify-center py-4">
+                  <SpinnerIcon className="w-6 h-6 text-[var(--accent-primary)]" />
+                </div>
+              ) : activities.length === 0 ? (
+                <p className="text-sm text-[var(--text-tertiary)] text-center py-2">
+                  {t('panel.noActivity')}
+                </p>
+              ) : (
+                activities.map((activity, index) => (
+                  <div key={activity.id} className="flex gap-3">
+                    <div className="flex flex-col items-center">
+                      <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-xs">
+                        {getActivityTypeIcon(activity.type)}
+                      </div>
+                      {index < activities.length - 1 && (
+                        <div className="w-px flex-1 bg-[var(--border-primary)] mt-1" />
                       )}
-                      <span>{formatRelativeTime(activity.timestamp)}</span>
+                    </div>
+                    <div className="flex-1 pb-3">
+                      <p className="text-sm text-[var(--text-primary)]">
+                        {activity.description}
+                      </p>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-[var(--text-tertiary)]">
+                        {activity.performer && (
+                          <>
+                            <span>{activity.performer.firstName} {activity.performer.lastName}</span>
+                            <span>•</span>
+                          </>
+                        )}
+                        <span>{formatRelativeTime(activity.createdAt)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CollapsibleSection>
 
@@ -666,14 +669,15 @@ export function LeadDetailPanel({
         {/* Footer Actions */}
         <div className="flex-shrink-0 border-t border-[var(--border-primary)] p-4 lg:p-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="primary" fullWidth>
-              <ChannelIcon channel={lead.channel} className="w-4 h-4" />
-              <span>{t('detail.contact')}</span>
+            <Button variant="primary" fullWidth disabled>
+              <PhoneIconSmall />
+              <span>{t('detail.call')}</span>
             </Button>
-            <Button variant="secondary" fullWidth>
+            <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(true)}>
               <EditIcon />
               <span>{t('detail.edit')}</span>
             </Button>
+            {/* TODO: Habilitar cuando se implemente archivado de leads
             <Button
               variant="ghost"
               className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
@@ -681,9 +685,38 @@ export function LeadDetailPanel({
               <ArchiveIcon />
               <span className="sm:hidden">{t('actions.archiveLead')}</span>
             </Button>
+            */}
           </div>
         </div>
       </div>
+
+      {/* Edit Lead Modal */}
+      <LeadEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSuccess={async () => {
+          // Refresh activities to show the update
+          if (lead?.id) {
+            const activitiesData = await getLeadActivities(lead.id);
+            setActivities(activitiesData);
+          }
+          // Wait for parent to refresh leads data
+          if (onLeadUpdated) {
+            await onLeadUpdated();
+          }
+        }}
+        lead={lead ? {
+          id: lead.id,
+          firstName: lead.firstName,
+          lastName: lead.lastName,
+          email: lead.email ?? null,
+          phone: lead.phone ?? null,
+          position: lead.position ?? null,
+          temperature: lead.temperature,
+          projectName,
+          organizationName,
+        } : null}
+      />
     </>
   );
 }

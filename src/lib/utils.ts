@@ -4,6 +4,11 @@
 
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import {
+  parsePhoneNumberFromString,
+  isValidPhoneNumber,
+  type CountryCode,
+} from 'libphonenumber-js';
 
 /**
  * Merge Tailwind CSS classes with clsx
@@ -27,18 +32,42 @@ export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOpt
 }
 
 /**
- * Format date to relative time (e.g., "hace 2 horas")
+ * Format date with smart threshold:
+ * - ≤7 days: relative format ("hoy", "ayer", "hace 2 d", "hace 5 d")
+ * - >7 days: absolute date ("7 ene. 2026", "19 dic. 2025")
  */
 export function formatRelativeTime(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - dateObj.getTime()) / 1000);
+  const diffInMs = now.getTime() - dateObj.getTime();
+  const diffInSeconds = Math.floor(diffInMs / 1000);
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
-  if (diffInSeconds < 60) return 'hace un momento';
-  if (diffInSeconds < 3600) return `hace ${Math.floor(diffInSeconds / 60)} min`;
-  if (diffInSeconds < 86400) return `hace ${Math.floor(diffInSeconds / 3600)} h`;
-  if (diffInSeconds < 604800) return `hace ${Math.floor(diffInSeconds / 86400)} d`;
+  // Check if same calendar day (today)
+  const isToday = dateObj.toDateString() === now.toDateString();
+  if (isToday) {
+    // If less than 1 hour ago, show minutes
+    if (diffInSeconds < 3600) {
+      if (diffInSeconds < 60) return 'hace un momento';
+      return `hace ${Math.floor(diffInSeconds / 60)} min`;
+    }
+    // Otherwise show "hoy"
+    return 'hoy';
+  }
 
+  // Check if yesterday
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (dateObj.toDateString() === yesterday.toDateString()) {
+    return 'ayer';
+  }
+
+  // ≤7 days: relative format
+  if (diffInDays <= 7) {
+    return `hace ${diffInDays} d`;
+  }
+
+  // >7 days: absolute date format
   return formatDate(dateObj);
 }
 
@@ -55,14 +84,77 @@ export function formatCurrency(amount: number, currency: string = 'PEN'): string
 }
 
 /**
- * Format phone number for display
+ * Format phone number for display (international format)
+ * Uses libphonenumber-js for proper formatting
+ * @example "+51912345678" → "+51 912 345 678"
  */
 export function formatPhone(phone: string): string {
-  const cleaned = phone.replace(/\D/g, '');
-  if (cleaned.length === 9) {
-    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6)}`;
+  if (!phone) return '';
+
+  try {
+    const parsed = parsePhoneNumberFromString(phone);
+    if (parsed) {
+      return parsed.formatInternational();
+    }
+    return phone;
+  } catch {
+    // If parsing fails, return original
+    return phone;
   }
-  return phone;
+}
+
+/**
+ * Validate phone number using libphonenumber-js
+ * @param phone - Phone number in E.164 format (e.g., "+51912345678")
+ * @param country - Optional country code for validation context
+ * @returns true if valid, false otherwise
+ */
+export function validatePhone(phone: string, country?: CountryCode): boolean {
+  if (!phone) return false;
+
+  try {
+    return isValidPhoneNumber(phone, country);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Parse phone number and extract details
+ * @param phone - Phone number in any format
+ * @param defaultCountry - Default country if not specified in number
+ * @returns Parsed phone object or null if invalid
+ */
+export function parsePhone(phone: string, defaultCountry: CountryCode = 'PE') {
+  if (!phone) return null;
+
+  try {
+    const parsed = parsePhoneNumberFromString(phone, defaultCountry);
+    if (!parsed) return null;
+
+    return {
+      e164: parsed.format('E.164'), // +51912345678
+      international: parsed.formatInternational(), // +51 912 345 678
+      national: parsed.formatNational(), // 912 345 678
+      country: parsed.country, // PE
+      countryCallingCode: parsed.countryCallingCode, // 51
+      nationalNumber: parsed.nationalNumber, // 912345678
+      isValid: parsed.isValid(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Normalize phone number to E.164 format
+ * @param phone - Phone number in any format
+ * @param defaultCountry - Default country if not specified
+ * @returns E.164 format (e.g., "+51912345678") or null if invalid
+ */
+export function normalizePhone(phone: string, defaultCountry: CountryCode = 'PE'): string | null {
+  const parsed = parsePhone(phone, defaultCountry);
+  return parsed?.e164 || null;
 }
 
 /**

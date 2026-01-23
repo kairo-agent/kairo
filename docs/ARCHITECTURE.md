@@ -224,9 +224,160 @@ function MyComponent() {
 
 ---
 
+## Orquestación de Agentes IA (n8n)
+
+> Documentación completa en [N8N-SETUP.md](N8N-SETUP.md)
+
+### Resumen
+
+| Componente | Tecnología | Hosting |
+|------------|------------|---------|
+| Orquestador | n8n (self-hosted) | Railway (~$5-10/mes) |
+| Canal | WhatsApp Cloud API | Meta |
+| IA | OpenAI / Anthropic | API |
+
+### Arquitectura
+
+```
+WhatsApp → n8n (Railway) → KAIRO API → Supabase
+                ↓
+            IA (RAG)
+```
+
+### Desarrollo Local
+
+- Docker + n8n local
+- ngrok (URL dinámica) o Cloudflare Tunnel (URL fija con dominio)
+
+---
+
 ## Seguridad Arquitectónica
 
 1. **No secrets en cliente** - Todo en `.env.local`
 2. **Validación server-side** - Aunque haya validación en cliente
 3. **Sanitización** - Todos los inputs
 4. **CSP Headers** - Configurados en `next.config.ts`
+
+---
+
+## Sistema de Secrets Encriptados (v0.5.0)
+
+### Arquitectura de Encriptación
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SECRETS FLOW                              │
+│                                                             │
+│  [User Input] → [Server Action] → [AES-256-GCM] → [DB]      │
+│                                                             │
+│  Componentes:                                               │
+│  - src/lib/crypto/secrets.ts     # Módulo de encriptación   │
+│  - src/lib/actions/secrets.ts    # Server Actions CRUD      │
+│  - prisma/schema.prisma          # ProjectSecret model      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Algoritmo: AES-256-GCM
+
+| Característica | Valor |
+|----------------|-------|
+| Algoritmo | AES-256-GCM (autenticado) |
+| Clave | 32 bytes (256 bits) desde env |
+| IV | 12 bytes aleatorios por secret |
+| Auth Tag | 16 bytes para verificación |
+
+### Variables de Entorno
+
+```bash
+# Generar clave: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+SECRETS_ENCRYPTION_KEY=<hex_64_chars>
+```
+
+### Modelo de Datos
+
+```prisma
+model ProjectSecret {
+  id             String    @id @default(cuid())
+  projectId      String
+  key            String    // whatsapp_access_token, openai_api_key, etc.
+  encryptedValue String    // Valor encriptado (base64)
+  iv             String    // Vector de inicialización (base64)
+  authTag        String    // Tag de autenticación (base64)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastAccessedAt DateTime?
+
+  project Project @relation(fields: [projectId], references: [id])
+  @@unique([projectId, key])
+}
+
+model SecretAccessLog {
+  id         String   @id @default(cuid())
+  projectId  String
+  secretKey  String
+  userId     String?
+  action     String   // read, write, delete
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+}
+```
+
+### Tipos de Secrets Soportados
+
+```typescript
+type SecretKey =
+  | 'whatsapp_access_token'
+  | 'whatsapp_phone_number_id'
+  | 'whatsapp_business_account_id'
+  | 'openai_api_key'
+  | 'anthropic_api_key';
+```
+
+---
+
+## Gestión de Agentes IA (v0.5.0)
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   AI AGENTS PER PROJECT                      │
+│                                                             │
+│  Project                                                     │
+│    └── AIAgent[] (1 proyecto = N agentes)                   │
+│          ├── Luna (sales) ─────→ Lead[]                      │
+│          ├── Atlas (support) ──→ Lead[]                      │
+│          ├── Nova (qualification) → Lead[]                   │
+│          └── Orion (appointment) → Lead[]                    │
+│                                                             │
+│  Cada lead tiene exactamente 1 agente asignado              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Tipos de Agentes
+
+| Tipo | Emoji | Descripción |
+|------|-------|-------------|
+| `sales` | 💼 | Conversiones y cierre de ventas |
+| `support` | 🎧 | Atención al cliente |
+| `qualification` | 📊 | Calificación y scoring de leads |
+| `appointment` | 📅 | Agendamiento de citas |
+
+### Server Actions
+
+```typescript
+// src/lib/actions/agents.ts
+getProjectAgents(projectId)      // Lista agentes del proyecto
+getAgent(agentId)                // Obtener por ID
+createAgent(input)               // Crear nuevo
+updateAgent(agentId, input)      // Actualizar
+deleteAgent(agentId)             // Eliminar (validación de leads)
+toggleAgentStatus(agentId)       // Activar/desactivar
+```
+
+### Permisos
+
+- Solo usuarios con rol `admin` o `manager` en el proyecto
+- Super admins tienen acceso total
+- No se puede eliminar agente con leads asignados

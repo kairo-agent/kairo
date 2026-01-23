@@ -3,7 +3,7 @@
 import { type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-interface BadgeProps {
+export interface BadgeProps {
   children: ReactNode;
   variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'custom';
   size?: 'sm' | 'md';

@@ -23,8 +23,16 @@ export const routing = defineRouting({
     '/agents': '/agents',
     '/reports': '/reports',
     '/settings': '/settings',
+    '/profile': '/profile',
     '/terms': '/terms',
     '/privacy': '/privacy',
+    // Workspace selection route
+    '/select-workspace': '/select-workspace',
+    // Admin routes
+    '/admin': '/admin',
+    '/admin/organizations': '/admin/organizations',
+    '/admin/projects': '/admin/projects',
+    '/admin/users': '/admin/users',
   }
 });
 

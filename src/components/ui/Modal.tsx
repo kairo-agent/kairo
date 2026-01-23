@@ -4,7 +4,7 @@ import { useEffect, useCallback, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from './Button';
 
-interface ModalProps {
+export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
@@ -113,7 +113,7 @@ export function Modal({
 }
 
 // Alert Modal Component - For success, error, warning, info messages
-interface AlertModalProps {
+export interface AlertModalProps {
   isOpen: boolean;
   onClose: () => void;
   type: 'success' | 'error' | 'warning' | 'info' | 'confirm';

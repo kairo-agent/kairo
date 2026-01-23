@@ -1,22 +1,24 @@
 // ============================================
-// KAIRO - Mock Companies Data
+// KAIRO - Mock Companies (Projects) Data
 // ============================================
 
-import { Company, CompanyPlan } from '@/types';
+import { Company, ProjectPlan } from '@/types';
 
 export const companies: Company[] = [
   {
     id: 'company-001',
+    organizationId: 'org-001',
     name: 'TechCorp SAC',
     slug: 'techcorp-sac',
     logoUrl: '/logos/techcorp.png',
-    plan: CompanyPlan.PROFESSIONAL,
+    plan: ProjectPlan.PROFESSIONAL,
     defaultCurrency: 'PEN',
     supportedCurrencies: ['PEN', 'USD'],
     exchangeRates: {
       'USD_PEN': 3.72,
       'PEN_USD': 0.27,
     },
+    isActive: true,
     createdAt: new Date('2024-01-15'),
     updatedAt: new Date('2024-12-20'),
   },

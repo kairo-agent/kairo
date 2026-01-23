@@ -1,5 +1,6 @@
 // ============================================
 // KAIRO - Type Definitions
+// Multi-tenant: Organization → Project → User
 // ============================================
 
 // UI Base Types (needed early for UserPreferences)
@@ -27,53 +28,135 @@ export const CURRENCY_CONFIG: Record<CurrencyCode, { symbol: string; name: strin
 export const SUPPORTED_LOCALES: Locale[] = ['es', 'en'];
 export const DEFAULT_LOCALE: Locale = 'es';
 
-// User Types
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  avatarUrl?: string;
-  role: UserRole;
-  companyId: string;
-  preferences: UserPreferences;
-  createdAt: Date;
-  updatedAt: Date;
+// ============================================
+// MULTI-TENANT HIERARCHY
+// ============================================
+
+// System Role (global access level)
+export enum SystemRole {
+  SUPER_ADMIN = 'super_admin',
+  USER = 'user'
 }
 
-export enum UserRole {
+// Project Role (within a specific project)
+export enum ProjectRole {
   ADMIN = 'admin',
   MANAGER = 'manager',
   AGENT = 'agent',
   VIEWER = 'viewer'
 }
 
-// Company Types
-export interface Company {
+// Organization Type
+export interface Organization {
   id: string;
   name: string;
   slug: string;
   logoUrl?: string;
-  plan: CompanyPlan;
-  // Currency settings
-  defaultCurrency: CurrencyCode;
-  supportedCurrencies: CurrencyCode[];
-  exchangeRates?: Record<string, number>; // e.g., { 'USD_PEN': 3.72 }
+  description?: string;
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export enum CompanyPlan {
+// Organization Member (links user to org)
+export interface OrganizationMember {
+  id: string;
+  organizationId: string;
+  userId: string;
+  isOwner: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  // Populated relations
+  organization?: Organization;
+  user?: User;
+}
+
+// Project Type (formerly Company)
+export interface Project {
+  id: string;
+  organizationId: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  description?: string;
+  plan: ProjectPlan;
+  defaultCurrency: CurrencyCode;
+  supportedCurrencies: CurrencyCode[];
+  exchangeRates?: Record<string, number>;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  // Populated relations
+  organization?: Organization;
+}
+
+export enum ProjectPlan {
   FREE = 'free',
   STARTER = 'starter',
   PROFESSIONAL = 'professional',
   ENTERPRISE = 'enterprise'
 }
 
-// Lead Types
+// Project Member (links user to project with role)
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: ProjectRole;
+  createdAt: Date;
+  updatedAt: Date;
+  // Populated relations
+  project?: Project;
+  user?: User;
+}
+
+// User Type
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl?: string;
+  systemRole: SystemRole;
+  isActive: boolean;
+  preferences: UserPreferences;
+  createdAt: Date;
+  updatedAt: Date;
+  // Populated relations
+  organizationMemberships?: OrganizationMember[];
+  projectMemberships?: ProjectMember[];
+}
+
+// Full user context (with all memberships)
+export interface UserContext {
+  user: User;
+  currentOrganization?: Organization;
+  currentProject?: Project;
+  currentProjectRole?: ProjectRole;
+  organizations: OrganizationMember[];
+  projects: ProjectMember[];
+}
+
+// ============================================
+// LEGACY ALIASES (for backward compatibility)
+// ============================================
+
+// Keep old UserRole for now, mapping to ProjectRole
+export const UserRole = ProjectRole;
+export type UserRoleType = ProjectRole;
+
+// Company is now Project
+export type Company = Project;
+export const CompanyPlan = ProjectPlan;
+export type CompanyPlanType = ProjectPlan;
+
+// ============================================
+// LEAD TYPES
+// ============================================
+
 export interface Lead {
   id: string;
-  companyId: string;
+  projectId: string; // Changed from companyId
   firstName: string;
   lastName: string;
   email?: string;
@@ -84,17 +167,21 @@ export interface Lead {
   temperature: LeadTemperature;
   source: LeadSource;
   channel: LeadChannel;
-  type: LeadType; // ai_agent or manual
+  type: LeadType;
   assignedAgentId?: string;
   assignedUserId?: string;
   pipelineStage: string;
   estimatedValue?: number;
-  currency: CurrencyCode; // Currency of the estimated value
+  currency: CurrencyCode;
   tags: string[];
   lastContactAt?: Date;
   nextFollowUpAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  // Populated relations
+  project?: Project;
+  assignedAgent?: AIAgent;
+  assignedUser?: User;
 }
 
 export enum LeadStatus {
@@ -124,6 +211,8 @@ export enum LeadSource {
 
 export enum LeadChannel {
   WHATSAPP = 'whatsapp',
+  // Canales adicionales - mantener para compatibilidad con datos existentes
+  // El filtro de canal está oculto en el MVP (solo WhatsApp activo)
   EMAIL = 'email',
   PHONE = 'phone',
   WEBCHAT = 'webchat',
@@ -137,10 +226,13 @@ export enum LeadType {
   MANUAL = 'manual'
 }
 
-// AI Agent Types
+// ============================================
+// AI AGENT TYPES
+// ============================================
+
 export interface AIAgent {
   id: string;
-  companyId: string;
+  projectId: string; // Changed from companyId
   name: string;
   type: AIAgentType;
   description?: string;
@@ -149,6 +241,8 @@ export interface AIAgent {
   stats: AIAgentStats;
   createdAt: Date;
   updatedAt: Date;
+  // Populated relations
+  project?: Project;
 }
 
 export enum AIAgentType {
@@ -165,7 +259,10 @@ export interface AIAgentStats {
   satisfactionScore: number;
 }
 
-// UI Types
+// ============================================
+// UI TYPES
+// ============================================
+
 export interface ModalConfig {
   isOpen: boolean;
   type: 'info' | 'success' | 'warning' | 'error' | 'confirm';
@@ -210,23 +307,69 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: stri
   [LeadStatus.CONTACTED]: { label: 'Contactado', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.1)' },
   [LeadStatus.QUALIFIED]: { label: 'Calificado', color: '#10B981', bgColor: 'rgba(16, 185, 129, 0.1)' },
   [LeadStatus.PROPOSAL]: { label: 'Propuesta', color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.1)' },
-  [LeadStatus.NEGOTIATION]: { label: 'Negociaci\u00f3n', color: '#EC4899', bgColor: 'rgba(236, 72, 153, 0.1)' },
+  [LeadStatus.NEGOTIATION]: { label: 'Negociación', color: '#EC4899', bgColor: 'rgba(236, 72, 153, 0.1)' },
   [LeadStatus.WON]: { label: 'Ganado', color: '#059669', bgColor: 'rgba(5, 150, 105, 0.1)' },
   [LeadStatus.LOST]: { label: 'Perdido', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.1)' },
 };
 
 export const LEAD_TEMPERATURE_CONFIG: Record<LeadTemperature, { label: string; color: string; icon: string }> = {
-  [LeadTemperature.COLD]: { label: 'Fr\u00edo', color: '#3B82F6', icon: '❄️' },
+  [LeadTemperature.COLD]: { label: 'Frío', color: '#3B82F6', icon: '❄️' },
   [LeadTemperature.WARM]: { label: 'Tibio', color: '#F59E0B', icon: '🌤️' },
   [LeadTemperature.HOT]: { label: 'Caliente', color: '#EF4444', icon: '🔥' },
 };
 
 export const LEAD_CHANNEL_CONFIG: Record<LeadChannel, { label: string; icon: string }> = {
   [LeadChannel.WHATSAPP]: { label: 'WhatsApp', icon: '📱' },
+  // Canales adicionales - mantener para compatibilidad con datos existentes
+  // El filtro de canal está oculto en el MVP (solo WhatsApp activo)
   [LeadChannel.EMAIL]: { label: 'Email', icon: '📧' },
-  [LeadChannel.PHONE]: { label: 'Tel\u00e9fono', icon: '📞' },
+  [LeadChannel.PHONE]: { label: 'Teléfono', icon: '📞' },
   [LeadChannel.WEBCHAT]: { label: 'Web Chat', icon: '💬' },
   [LeadChannel.INSTAGRAM]: { label: 'Instagram', icon: '📷' },
   [LeadChannel.FACEBOOK]: { label: 'Facebook', icon: '👤' },
   [LeadChannel.OTHER]: { label: 'Otro', icon: '📌' },
+};
+
+// ============================================
+// PAGINATION TYPES
+// ============================================
+
+export interface PaginationParams {
+  page: number; // 1-based
+  limit: number; // items per page
+}
+
+export interface PaginationInfo {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  pagination: PaginationInfo;
+}
+
+// Pagination constants
+export const DEFAULT_PAGE_SIZE = 25;
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100] as const;
+export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
+
+// ============================================
+// ROLE CONFIGS
+// ============================================
+
+export const SYSTEM_ROLE_CONFIG: Record<SystemRole, { label: string; description: string }> = {
+  [SystemRole.SUPER_ADMIN]: { label: 'Super Admin', description: 'Acceso total al sistema' },
+  [SystemRole.USER]: { label: 'Usuario', description: 'Acceso según membresías' },
+};
+
+export const PROJECT_ROLE_CONFIG: Record<ProjectRole, { label: string; description: string; color: string }> = {
+  [ProjectRole.ADMIN]: { label: 'Administrador', description: 'Control total del proyecto', color: '#EF4444' },
+  [ProjectRole.MANAGER]: { label: 'Manager', description: 'Gestión de equipo y leads', color: '#F59E0B' },
+  [ProjectRole.AGENT]: { label: 'Agente', description: 'Gestión de leads asignados', color: '#3B82F6' },
+  [ProjectRole.VIEWER]: { label: 'Visualizador', description: 'Solo lectura', color: '#6B7280' },
 };

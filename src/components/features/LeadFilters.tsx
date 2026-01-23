@@ -291,17 +291,19 @@ export function LeadFilters({
       });
     }
 
-    if (filters.channel !== 'all') {
-      const color = CHANNEL_ICON_COLORS[filters.channel];
-      active.push({
-        key: 'channel',
-        label: t('filters.channel'),
-        value: t(`channel.${filters.channel}`),
-        color: color,
-        bgColor: `${color}20`,
-        onRemove: () => onFiltersChange({ ...filters, channel: 'all' }),
-      });
-    }
+    // Channel filter oculto para MVP (solo WhatsApp)
+    // TODO: Habilitar cuando se agreguen más canales
+    // if (filters.channel !== 'all') {
+    //   const color = CHANNEL_ICON_COLORS[filters.channel];
+    //   active.push({
+    //     key: 'channel',
+    //     label: t('filters.channel'),
+    //     value: t(`channel.${filters.channel}`),
+    //     color: color,
+    //     bgColor: `${color}20`,
+    //     onRemove: () => onFiltersChange({ ...filters, channel: 'all' }),
+    //   });
+    // }
 
     if (filters.type !== 'all') {
       const config = LEAD_TYPE_CONFIG[filters.type];
@@ -468,7 +470,7 @@ export function LeadFilters({
       <div
         className={cn(
           'grid gap-4 transition-all duration-300 ease-out overflow-hidden',
-          'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5',
+          'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
           isExpanded
             ? 'opacity-100 max-h-[500px] pb-4'
             : 'opacity-0 max-h-0 pointer-events-none'
@@ -533,7 +535,8 @@ export function LeadFilters({
           ))}
         </FilterSection>
 
-        {/* Channel Filter */}
+        {/* Channel Filter - Oculto para MVP (solo WhatsApp por ahora) */}
+        {/* TODO: Habilitar cuando se agreguen más canales (email, phone, webchat, instagram, facebook)
         <FilterSection title={t('filters.channel')}>
           <FilterChip
             label={tCommon('labels.all')}
@@ -556,6 +559,7 @@ export function LeadFilters({
             />
           ))}
         </FilterSection>
+        */}
 
         {/* Type Filter */}
         <FilterSection title={t('filters.type')}>

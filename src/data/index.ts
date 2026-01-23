@@ -2,7 +2,7 @@
 // KAIRO - Mock Data Exports
 // ============================================
 
-// Companies
+// Companies (Projects)
 export {
   companies,
   getCompanyById,
@@ -13,7 +13,7 @@ export {
 export {
   users,
   getUserById,
-  getUsersByCompany,
+  getUsersByProject,
   currentUser,
 } from './users';
 
@@ -22,7 +22,7 @@ export {
   agents,
   getAgentById,
   getActiveAgents,
-  getAgentsByCompany,
+  getAgentsByProject,
   getAgentsByType,
 } from './agents';
 

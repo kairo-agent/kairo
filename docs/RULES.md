@@ -65,6 +65,54 @@ No usar inputs básicos. Preferir:
 - Máscaras de input (teléfono, RUC, etc.)
 - Validación en tiempo real
 
+#### 9.1 Teléfonos Internacionales - PhoneInput Obligatorio
+**SIEMPRE usar el componente `PhoneInput`** para campos de teléfono:
+
+```typescript
+// ❌ MAL - Input básico de texto
+<Input
+  type="tel"
+  value={phone}
+  onChange={(e) => setPhone(e.target.value)}
+/>
+
+// ✅ BIEN - Componente PhoneInput con i18n
+import { PhoneInput, type E164Number } from '@/components/ui/PhoneInput';
+
+<PhoneInput
+  label="Teléfono"
+  value={phone}
+  onChange={(value) => setPhone(value)}
+  defaultCountry="PE"
+  error={phoneError}
+/>
+```
+
+**Características del componente:**
+- Selector de país con banderas SVG y búsqueda
+- Nombres de países en el idioma actual (es/en) automáticamente
+- Formato E.164 estándar (`+51912345678`)
+- Usuario NO puede escribir código de país manualmente
+- Validación integrada con `libphonenumber-js`
+
+**Validación en servidor:**
+```typescript
+import { validatePhone, normalizePhone } from '@/lib/utils';
+
+// Validar antes de guardar
+if (phone && !validatePhone(phone)) {
+  return { success: false, error: 'Número de teléfono inválido' };
+}
+
+// Normalizar a E.164
+const normalizedPhone = normalizePhone(phone) || phone;
+```
+
+**Archivos de referencia:**
+- `src/components/ui/PhoneInput.tsx` - Componente con i18n
+- `src/lib/utils.ts` - Funciones `validatePhone`, `normalizePhone`, `formatPhone`
+- `src/components/features/LeadEditModal.tsx` - Ejemplo de uso
+
 ### 10. Modales, No Alerts
 ```typescript
 // ❌ MAL
@@ -158,6 +206,60 @@ credentials/
 - Mensajes descriptivos
 - Un commit por feature/fix
 - No commits con secrets
+
+---
+
+---
+
+## Regla 13. Orquestación de Desarrollo con Sub-agentes
+
+**Adan (Claude) actúa como Project Leader** del proyecto KAIRO y debe:
+
+### ⚠️ ANÁLISIS PREVIO OBLIGATORIO
+**ANTES de comenzar cualquier tarea**, Adan debe:
+1. **Analizar qué sub-agentes utilizar** para la tarea específica
+2. **Identificar tareas paralelizables** y ejecutarlas en paralelo cuando sea posible
+3. **Planificar la secuencia** de tareas que dependen entre sí
+4. **Solo asumir tareas personalmente** cuando NO exista un sub-agente adecuado
+
+> **Principio:** No hacer todo uno mismo. Delegar eficientemente a los sub-agentes especializados disponibles.
+
+### Uso de Sub-agentes (Plugins)
+- Utilizar los sub-agentes instalados de forma **eficaz y eficiente**
+- Paralelizar tareas cuando sea posible sin generar conflictos
+- Si no se puede paralelizar, orquestar secuencialmente de la forma más eficiente
+- **Trasladar TODOS los principios y reglas del proyecto** a los sub-agentes para mantener coherencia
+
+### Comunicación y Coordinación
+- Mantener comunicación constante sobre qué se está desarrollando
+- Evitar conflictos entre cambios paralelos
+- Proteger el código ya funcional - no dañar lo que ya está avanzado
+- Respetar el enfoque general y arquitectura del proyecto
+
+### Validación Obligatoria
+- Usar **Playwright MCP** para validar:
+  - Avances incrementales
+  - Updates a features existentes
+  - Nuevas features y módulos
+- **Solo confirmar como "completado" cuando haya certeza 100%** de que funciona correctamente
+- No asumir que funciona - demostrarlo con validación real
+
+### Estándares de Calidad
+- Mantener buen **UX/UI** en todo momento
+- **Mobile-first** obligatorio con mejores prácticas de UX/UI
+- Responsive design en todos los componentes
+- Código limpio y mantenible
+
+### Principios a Trasladar a Sub-agentes
+1. Validación con Playwright MCP
+2. Ciberseguridad prioritaria
+3. Mobile-first responsive
+4. UX para "usuarios idiotas"
+5. Código auditable
+6. Variables semánticas
+7. Modales elegantes (no alerts)
+8. i18n con `@/i18n/routing`
+9. Theme system (light default)
 
 ---
 

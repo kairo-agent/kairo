@@ -2,11 +2,22 @@
 
 > **Kairos** (griego): El momento oportuno, el instante exacto donde actuar cambia el resultado.
 
+---
+
+## Identidad del Equipo
+
+| Rol | Nombre | Descripción |
+|-----|--------|-------------|
+| **Usuario** | **Leo** | Fundador y líder del proyecto KAIRO |
+| **Asistente IA** | **Adan** | Project Leader técnico (Claude), orquestador de sub-agentes |
+
+> **IMPORTANTE**: Esta información debe persistir entre sesiones y compactaciones de contexto. Adan siempre debe dirigirse al usuario como "Leo".
+
 ## Quick Context
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** MVP Frontend completado, iniciando Backend (Supabase + Prisma)
+**Estado actual:** Backend 98% completo, Frontend 82% - Auth real, CRUD leads (R/U), WhatsApp webhook, paginación server-side, gestión agentes IA
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 
@@ -29,10 +40,19 @@ KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes d
 | `/` | Redirect a `/[locale]/leads` | ✅ |
 | `/[locale]/dashboard` | `src/app/[locale]/(dashboard)/dashboard/page.tsx` | ✅ Placeholder |
 | `/[locale]/leads` | `src/app/[locale]/(dashboard)/leads/page.tsx` | ✅ Completado |
+| `/[locale]/profile` | `src/app/[locale]/(dashboard)/profile/page.tsx` | ✅ Completado |
 | `/[locale]/conversations` | - | Pendiente |
 | `/[locale]/agents` | - | Pendiente |
 | `/[locale]/reports` | - | Pendiente |
 | `/[locale]/settings` | - | Pendiente |
+
+### Páginas de Administración (Solo Super Admin)
+| Ruta | Archivo | Estado |
+|------|---------|--------|
+| `/[locale]/admin` | `src/app/[locale]/(admin)/admin/page.tsx` | ✅ Completado |
+| `/[locale]/admin/organizations` | Integrado en admin/page.tsx (tabs) | ✅ |
+| `/[locale]/admin/projects` | Integrado en admin/page.tsx (tabs) | ✅ |
+| `/[locale]/admin/users` | Integrado en admin/page.tsx (tabs) | ✅ |
 
 ---
 
@@ -78,13 +98,24 @@ kairo-dashboard/
 │   │   ├── ui/                  # Componentes base
 │   │   │   ├── Button.tsx
 │   │   │   ├── Input.tsx
+│   │   │   ├── PhoneInput.tsx   # ⚠️ OBLIGATORIO para teléfonos (i18n)
 │   │   │   ├── Modal.tsx        # Modal + AlertModal
 │   │   │   ├── Card.tsx
-│   │   │   └── Badge.tsx
+│   │   │   ├── Badge.tsx
+│   │   │   ├── LoadingOverlay.tsx
+│   │   │   ├── Pagination.tsx
+│   │   │   └── index.ts         # Re-exports
 │   │   ├── layout/              # Estructura
 │   │   │   ├── Sidebar.tsx
 │   │   │   ├── Header.tsx
+│   │   │   ├── WorkspaceSelector.tsx
 │   │   │   └── index.ts
+│   │   ├── admin/               # Componentes de administración
+│   │   │   ├── OrganizationModal.tsx
+│   │   │   ├── ProjectModal.tsx
+│   │   │   ├── ProjectSettingsModal.tsx # Config de secretos WhatsApp/n8n
+│   │   │   ├── UserModal.tsx
+│   │   │   └── DeleteConfirmModal.tsx
 │   │   └── features/            # Componentes de dominio
 │   │       ├── LeadCard.tsx
 │   │       ├── LeadTable.tsx
@@ -93,7 +124,9 @@ kairo-dashboard/
 │   │
 │   ├── contexts/
 │   │   ├── ThemeContext.tsx     # Light/Dark theme
-│   │   └── ModalContext.tsx     # Sistema de modales
+│   │   ├── ModalContext.tsx     # Sistema de modales
+│   │   ├── WorkspaceContext.tsx # Org/Project seleccionado
+│   │   └── LoadingContext.tsx   # Estado de carga global
 │   │
 │   ├── i18n/                    # Configuración i18n
 │   │   ├── routing.ts           # Locales y rutas
@@ -104,7 +137,18 @@ kairo-dashboard/
 │   │   └── en.json              # English
 │   │
 │   ├── lib/
-│   │   └── utils.ts             # Helpers (cn, formatDate, formatCurrency, etc.)
+│   │   ├── utils.ts             # Helpers (cn, formatDate, formatCurrency, etc.)
+│   │   ├── rbac.ts              # Role-Based Access Control helpers
+│   │   ├── crypto/              # Funciones de encriptación
+│   │   │   └── secrets.ts       # AES-256-GCM para secrets
+│   │   ├── supabase/            # Configuración Supabase + Prisma
+│   │   │   ├── client.ts        # Cliente browser
+│   │   │   └── server.ts        # Cliente server + Prisma singleton
+│   │   └── actions/             # Server Actions
+│   │       ├── admin.ts         # CRUD Organizations, Projects, Users
+│   │       ├── agents.ts        # CRUD AIAgent por proyecto
+│   │       ├── leads.ts         # CRUD Leads
+│   │       └── secrets.ts       # CRUD Project Secrets (encriptados)
 │   │
 │   ├── middleware.ts            # Detección de locale
 │   │
@@ -197,49 +241,250 @@ npm run lint     # Verificar código
 10. Modales elegantes (no alerts)
 11. Theme light por defecto
 12. **⚠️ i18n CRÍTICO**: Usar `Link` de `@/i18n/routing`, NUNCA de `next/link` (causa loop infinito)
+13. **Orquestación con Sub-agentes**: Adan (Claude) como Project Leader, usar plugins eficientemente, validar al 100% con Playwright antes de confirmar
+14. **⚠️ PhoneInput OBLIGATORIO**: Para campos de teléfono usar SIEMPRE `PhoneInput` de `@/components/ui/PhoneInput` (formato E.164, i18n automático, validación con libphonenumber-js)
 
 ---
 
-## Estado del MVP
+## Estado del MVP (Actualizado Enero 2026)
 
 ### ✅ Completado
 - [x] Sistema de documentación (CLAUDE.md + /docs)
 - [x] Proyecto Next.js 15 + TypeScript + Tailwind
 - [x] Sistema de themes (light/dark con toggle)
-- [x] Componentes UI base (Button, Input, Modal, Card, Badge)
-- [x] Página de login con validación
+- [x] Componentes UI base (Button, Input, Modal, Card, Badge, PhoneInput, Pagination)
+- [x] **Autenticación real con Supabase Auth** - Login/logout/sesión funcional
+- [x] **Middleware de seguridad** - Verificación de sesión, roles, protección OWASP
 - [x] Dashboard layout (Sidebar + Header responsive)
-- [x] Vista de leads en grid (LeadCard)
-- [x] Vista de leads en tabla (LeadTable)
-- [x] Filtros (estado, temperatura, canal, agente)
-- [x] Data mock (25 leads, 4 agentes, 3 usuarios)
+- [x] Vista de leads en grid (LeadCard) y tabla (LeadTable)
+- [x] **Paginación server-side** - 25 leads/página con metadata completa
+- [x] **Filtros server-side** - Status, temperature, channel, búsqueda full-text, rango de fechas
 - [x] Toggle vista grid/tabla persistido
 - [x] **Internacionalización (i18n)** - Español/Inglés con next-intl
-- [x] **Filtros colapsables** - Diseño compacto con badge flotante expandible
+- [x] **PhoneInput con i18n** - Selector de país, banderas, nombres en es/en, formato E.164
 - [x] **Panel de detalle de lead** - LeadDetailPanel con historial y notas
+- [x] **Backend con Supabase + Prisma** - Modelos multi-tenant completos
+- [x] **Panel de Administración** - CRUD completo para Orgs, Projects, Users
+- [x] **Arquitectura multi-tenant** - Organization → Project → User con RBAC
+- [x] **Página de Perfil** - Editar perfil, cambiar contraseña, ver membresías
+- [x] **Validación de contraseña avanzada** - Requisitos en tiempo real, barra de fortaleza
+- [x] **CRUD Leads (Read/Update)** - Conectado a BD Prisma
+- [x] **Sistema de Notas** - Crear/listar notas por lead con auditoría
+- [x] **Historial de Actividad** - Registro completo de cambios por lead
+- [x] **Workspace Selector** - Cambio dinámico de Org/Project
+- [x] **Sub-Agentes IA en BD** - Modelo AIAgent con asignación a leads
+- [x] **API Routes** - /api/auth/verify-admin, /api/admin/stats, /api/webhooks/n8n
+- [x] **Integración n8n** - Webhook para eventos de conversación
+- [x] **WhatsApp Cloud API** - Webhook directo para recibir mensajes, crear leads automáticamente
+- [x] **Botón Refresh Leads** - Actualización manual de grilla (ahorro de requests vs polling)
+- [x] **Project Secrets (AES-256-GCM)** - Almacenamiento seguro de tokens WhatsApp/API keys
+- [x] **ProjectSettingsModal** - UI para configurar secretos por proyecto en Admin
+- [x] **Gestión de Agentes IA** - CRUD completo en ProjectSettingsModal (crear, editar, eliminar, toggle status)
+- [x] **Server Actions Agents** - `src/lib/actions/agents.ts` con validación de permisos
 
-### En Progreso
-- [ ] Backend con Supabase + Prisma (iniciando)
-- [ ] Autenticación real con Supabase Auth
+### 🔄 Parcial
+- [ ] **Conversaciones/Chat** - Backend 100% listo (getLeadConversation, sendMessage, toggleHandoffMode), frontend por verificar
+- [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
 
-### Pendiente
-- [ ] CRUD completo de leads
-- [ ] Página de detalle de lead
-- [ ] Módulo de conversaciones
-- [ ] Módulo de sub-agentes IA
-- [ ] Reportes y analytics
-- [ ] Moneda dinámica según configuración de empresa
+### ❌ Pendiente
+- [ ] **Crear Lead** - No hay server action ni UI
+- [ ] **Archivar Lead** - Usar status `archived` en lugar de eliminar (ver nota abajo)
+- [ ] **Página de Reportes** - No existe ruta /reports
+- [ ] **Página de Settings** - No existe ruta /settings
+- [ ] **Página de Agentes** - No existe ruta /agents (solo asignación en cards)
+- [ ] Moneda dinámica según configuración de organización
 - [ ] Deploy en Vercel
+
+---
+
+## Arquitectura Multi-Tenant
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        SYSTEM                                │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │ Users (systemRole: SUPER_ADMIN | USER)                  │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     ORGANIZATION                             │
+│  - defaultTimezone (IANA string)                            │
+│  - defaultLocale (es-PE, en-US, etc.)                       │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │ OrganizationMember (isOwner: boolean)                   │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                       PROJECT                                │
+│  - plan: FREE | STARTER | PROFESSIONAL | ENTERPRISE         │
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │ ProjectMember (role: ADMIN | MANAGER | AGENT | VIEWER)  │ │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                        LEADS                                 │
+│  - Pertenecen a un Project                                  │
+│  - Asignados a un Agent (AIAgent)                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Roles y Permisos
+
+| Rol | Alcance | Capacidades |
+|-----|---------|-------------|
+| `SUPER_ADMIN` | Sistema | Todo: CRUD orgs, projects, users, leads |
+| `USER` | Sistema | Acceso según membresías |
+| `Owner` | Organización | Admin de org + todos sus projects |
+| `ADMIN` | Proyecto | CRUD leads, asignar agentes, config |
+| `MANAGER` | Proyecto | Gestión de leads, reportes |
+| `AGENT` | Proyecto | Ver/editar leads asignados |
+| `VIEWER` | Proyecto | Solo lectura |
 
 ---
 
 ## Notas para Contexto Futuro
 
 - El ecosistema "Lead & Click" es nombre temporal
-- Supabase se usará SOLO como DB (no exponer al cliente inicialmente)
-- Auth preparada para Supabase Auth + RLS en el futuro
-- Data fake permite validar diseño antes de backend
+- Supabase se usa como DB con Prisma ORM (Server Actions)
+- **Auth con Supabase Auth ya implementada** - Login/logout funcional, middleware verifica sesión
+- Timezone/Locale se configuran a nivel de organización (12 zonas IANA curadas para Latam/USA)
 - Los sub-agentes IA son: Luna (ventas), Atlas (soporte), Nova (calificación), Orion (citas)
+- **Teléfonos en formato E.164** - Todos los leads tienen prefijo +51 (Perú)
+- **n8n Webhooks** - Integración lista en project.n8nWebhookUrl para eventos de chat
+- **WhatsApp Webhook** - `/api/webhooks/whatsapp` recibe mensajes y crea leads automáticamente
+
+---
+
+## Decisiones de Negocio
+
+### ⚠️ NO Eliminar Leads (Decisión Enero 2026)
+
+**Decisión:** No implementar funcionalidad de eliminación de leads.
+
+**Razones comerciales:**
+1. **Remarketing futuro** - Lead "frío" hoy puede convertirse en cliente en 6 meses
+2. **Análisis de datos** - Histórico completo para métricas de conversión, CAC, tiempo de cierre
+3. **Auditoría** - Trazabilidad de todas las interacciones para compliance
+4. **Machine Learning** - Más datos = mejores predicciones de scoring a futuro
+
+**Alternativa implementar:**
+- Usar estado `archived` (ya existe en enum `LeadStatus`)
+- Lead archivado desaparece de vista activa pero se conserva en BD
+- Puede recuperarse si es necesario
+- Cuenta para reportes históricos
+
+**TODO pendiente:**
+- [ ] UI para cambiar lead a status `archived` desde LeadDetailPanel
+- [ ] Filtro para mostrar/ocultar leads archivados
+- [ ] Acción batch para archivar múltiples leads
+
+---
+
+### Arquitectura Híbrida con n8n (Decisión Enero 2026)
+
+**Decisión:** Usar n8n para la capa de IA y orquestación de agentes, manteniendo KAIRO para webhooks, almacenamiento y UI.
+
+**Análisis realizado:**
+- Sin n8n: 7-12 días de desarrollo, prompts hardcodeados, cada cambio requiere deploy
+- Con n8n: 5-8 días de desarrollo, prompts editables sin deploy, multi-canal fácil
+
+**Arquitectura definida:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    KAIRO (Next.js)                          │
+│                                                             │
+│  ✓ Webhooks de entrada (WhatsApp, FB, Instagram)           │
+│  ✓ Almacenamiento de mensajes/leads (Prisma + Supabase)    │
+│  ✓ Dashboard y UI de chat                                   │
+│  ✓ CRUD de leads y configuración                           │
+│  ✓ Envío de mensajes a WhatsApp (API)                      │
+│                                                             │
+│  → Trigger a n8n cuando modo BOT activo                    │
+└─────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      n8n Workflows                          │
+│                                                             │
+│  → Lógica de agentes IA (prompts de Luna, Atlas, Nova...)  │
+│  → Orquestación entre agentes (escalado, routing)          │
+│  → Nodos nativos: OpenAI, Claude, Memory, Tools            │
+│  → Prompts editables sin deploy                            │
+│  → Notificaciones (email, Slack)                           │
+│  → Integraciones futuras (CRM, calendarios)                │
+│                                                             │
+│  ← Responde via API de KAIRO (/api/whatsapp/send)          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Soporte multi-canal en n8n:**
+
+| Canal | Soporte n8n | Método |
+|-------|-------------|--------|
+| WhatsApp | ✅ HTTP Request | Meta Cloud API |
+| Facebook Messenger | ✅ Nodo nativo | Plug-and-play |
+| Instagram DM | ⚠️ HTTP Request | Meta Graph API |
+
+**Ventajas clave:**
+1. **Prompts editables** - Ajustar agentes IA sin deploy
+2. **Multi-canal** - Un workflow sirve para todos los canales
+3. **Observabilidad** - Ver cada ejecución paso a paso
+4. **Demo-friendly** - Flujo visual para mostrar a clientes
+5. **Costo** - ~$20/mes n8n Cloud vs horas de desarrollo
+
+**TODO implementar:**
+- [ ] Endpoint `/api/whatsapp/send` para que n8n envíe mensajes
+- [ ] Trigger a n8n en webhook cuando `handoffMode === 'BOT'`
+- [ ] Setup n8n Cloud ($20/mes) o self-hosted
+- [ ] Workflow "KAIRO - AI Agent Handler" con prompts por agente
+- [ ] Conectar webhooks bidireccionales
+
+---
+
+## Panel de Administración Quick Reference
+
+```typescript
+// Acceso: Solo usuarios con systemRole === 'super_admin'
+// Ruta: /[locale]/admin
+
+// Server Actions disponibles (src/lib/actions/admin.ts)
+import {
+  // Organizations
+  createOrganization,   // { name, slug, description?, logoUrl?, defaultTimezone?, defaultLocale? }
+  updateOrganization,   // (id, { name?, slug?, description?, logoUrl?, isActive?, defaultTimezone?, defaultLocale? })
+  deleteOrganization,   // (id)
+
+  // Projects
+  createProject,        // { organizationId, name, slug, description?, logoUrl? }
+  updateProject,        // (id, { name?, slug?, description?, logoUrl?, plan?, isActive? })
+  deleteProject,        // (id)
+
+  // Users
+  createUser,           // { email, firstName, lastName, systemRole, generatePassword?, password?, organizationId?, isOrgOwner?, projectId?, projectRole? }
+  updateUser,           // (id, { firstName?, lastName?, systemRole?, isActive?, avatarUrl? })
+  deleteUser,           // (id)
+
+  // Memberships
+  joinOrganization,     // (orgId) - unirse como miembro
+  joinProject,          // (projectId) - unirse con rol VIEWER
+
+  // Data fetching
+  getAdminOverviewData, // (filters) - returns stats + entities
+} from '@/lib/actions/admin';
+```
+
+### Componentes de Admin
+- `OrganizationModal`: Crear/Editar orgs con timezone/locale
+- `ProjectModal`: Crear/Editar projects con plan
+- `UserModal`: Crear/Editar users con password generation
+- `DeleteConfirmModal`: Confirmación de eliminación reutilizable
 
 ---
 
@@ -285,3 +530,171 @@ import { Link, usePathname, useRouter, redirect } from '@/i18n/routing';
 **Consideraciones pendientes:**
 - `formatCurrency()` usa PEN/es-PE fijo → Migrar a backend cuando se implemente
 - `formatDate()` usa es-PE fijo → Considerar `useFormatter()` de next-intl
+
+---
+
+## Project Secrets (Encriptación AES-256-GCM)
+
+Sistema de almacenamiento seguro para tokens y API keys por proyecto.
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    SECRETS STORAGE                           │
+├─────────────────────────────────────────────────────────────┤
+│  ProjectSecret (prisma/schema.prisma)                       │
+│  - projectId: String                                         │
+│  - key: "whatsapp_access_token" | "openai_api_key" | etc.   │
+│  - encryptedValue: String (AES-256-GCM encrypted)           │
+│  - iv: String (Initialization Vector)                       │
+│  - authTag: String (Authentication tag)                     │
+│  - keyVersion: Int (for key rotation)                       │
+├─────────────────────────────────────────────────────────────┤
+│  SecretAccessLog (audit trail)                              │
+│  - action: "read" | "write" | "delete"                      │
+│  - userId, ipAddress, userAgent, timestamp                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Uso
+
+```typescript
+// Guardar secretos (solo admin del proyecto)
+import { setProjectSecrets } from '@/lib/actions/secrets';
+
+await setProjectSecrets(projectId, {
+  whatsapp_access_token: 'EAAGm...',
+  whatsapp_phone_number_id: '123456789',
+  whatsapp_business_account_id: '987654321',
+});
+
+// Leer secreto (solo server-side, uso interno)
+import { getProjectSecret } from '@/lib/actions/secrets';
+const token = await getProjectSecret(projectId, 'whatsapp_access_token');
+
+// Verificar qué secretos están configurados
+import { getProjectSecretsStatus } from '@/lib/actions/secrets';
+const { configured } = await getProjectSecretsStatus(projectId);
+// { whatsapp_access_token: true, openai_api_key: false, ... }
+```
+
+### Seguridad
+
+- **Encriptación**: AES-256-GCM (confidencialidad + integridad)
+- **IV único**: Cada encriptación genera un IV aleatorio de 128 bits
+- **Auth tag**: Detecta cualquier manipulación de datos
+- **Key en env**: `SECRETS_ENCRYPTION_KEY` (64 hex chars = 32 bytes)
+- **Audit log**: Cada acceso queda registrado con IP, user agent, timestamp
+
+### Configuración
+
+Variable de entorno requerida:
+```bash
+# Generar con: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+SECRETS_ENCRYPTION_KEY=<64_caracteres_hexadecimales>
+```
+
+### UI Admin
+
+En el Panel de Administración → tab Proyectos → botón "Configurar" (icono de bot):
+- **WhatsApp**: Access Token, Phone Number ID, Business Account ID
+- **Agentes IA**: CRUD completo de sub-agentes por proyecto
+- **Webhooks**: n8n webhook URL
+
+---
+
+## WhatsApp Cloud API Integration
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 WHATSAPP MESSAGE FLOW                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   WhatsApp User                                              │
+│       │                                                      │
+│       ▼                                                      │
+│   Meta Cloud API                                             │
+│       │                                                      │
+│       ▼                                                      │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │  /api/webhooks/whatsapp                              │   │
+│   │  ├── GET: Verificación de Meta                       │   │
+│   │  └── POST: Recibir mensajes                          │   │
+│   └─────────────────────────────────────────────────────┘   │
+│       │                                                      │
+│       ▼                                                      │
+│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐   │
+│   │ Find Project│────▶│ Find/Create │────▶│ Store       │   │
+│   │ by PhoneID  │     │ Lead        │     │ Message     │   │
+│   └─────────────┘     └─────────────┘     └─────────────┘   │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Endpoint
+
+```typescript
+// GET - Verificación de webhook (Meta)
+GET /api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=...&hub.challenge=...
+
+// POST - Recibir mensajes
+POST /api/webhooks/whatsapp
+Content-Type: application/json
+{
+  "object": "whatsapp_business_account",
+  "entry": [{
+    "changes": [{
+      "value": {
+        "metadata": { "phone_number_id": "123..." },
+        "messages": [{ "from": "51999888777", "text": {...} }]
+      }
+    }]
+  }]
+}
+```
+
+### Variables de Entorno
+
+```bash
+# Token de verificación (cualquier string, debe coincidir con Meta)
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=kairo_wh_v3r1fy_2026
+```
+
+### Desarrollo Local con ngrok
+
+```bash
+# Terminal 1: KAIRO
+npm run dev
+
+# Terminal 2: ngrok
+ngrok http 3000
+
+# Configurar en Meta:
+# URL: https://xxx.ngrok-free.dev/api/webhooks/whatsapp
+# Token: kairo_wh_v3r1fy_2026
+```
+
+### Tipos de Mensaje Soportados
+
+| Tipo | Campo | Soportado |
+|------|-------|-----------|
+| Texto | `text.body` | ✅ |
+| Imagen | `image.id` + `caption` | ✅ |
+| Audio | `audio.id` | ✅ |
+| Video | `video.id` + `caption` | ✅ |
+| Documento | `document.id` + `filename` | ✅ |
+| Ubicación | `location.latitude/longitude` | ⏳ |
+| Contactos | `contacts[].name` | ⏳ |
+
+### Flujo de Lead Nuevo
+
+1. Mensaje entrante de número desconocido
+2. Sistema busca proyecto por `phone_number_id` (desencriptado)
+3. Busca lead existente por `phone` en ese proyecto
+4. Si no existe → Crea lead con datos del contacto (nombre de WhatsApp)
+5. Crea/actualiza conversación
+6. Almacena mensaje con metadata
+7. UI muestra lead al hacer clic en botón refresh

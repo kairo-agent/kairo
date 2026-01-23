@@ -381,3 +381,251 @@ tr.lead-row-normal {
 tr.lead-row-normal:hover {
   background: var(--bg-hover) !important;
 }
+
+/* ============================================
+   Loading Overlay Animations
+   Modern pulse, glow, shimmer effects
+   ============================================ */
+
+/* Logo pulse animation - gentle scale */
+@keyframes loading-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.9;
+  }
+}
+
+.animate-loading-pulse {
+  animation: loading-pulse 2s ease-in-out infinite;
+}
+
+/* Outer glow animation - expands outward */
+@keyframes loading-glow-outer {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+    opacity: 0.6;
+  }
+}
+
+.animate-loading-glow-outer {
+  animation: loading-glow-outer 3s ease-in-out infinite;
+}
+
+/* Inner glow animation - slightly faster */
+@keyframes loading-glow-inner {
+  0%, 100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+.animate-loading-glow-inner {
+  animation: loading-glow-inner 2s ease-in-out infinite;
+}
+
+/* Shimmer effect - sweeps across */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-loading-shimmer {
+  overflow: hidden;
+}
+
+.animate-loading-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 229, 255, 0.1) 25%,
+    rgba(0, 229, 255, 0.2) 50%,
+    rgba(0, 229, 255, 0.1) 75%,
+    transparent 100%
+  );
+  animation: shimmer 2.5s ease-in-out infinite;
+}
+
+/* Animated dots - bouncing effect */
+@keyframes loading-dot {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-loading-dot-1 {
+  animation: loading-dot 1.4s ease-in-out infinite;
+  animation-delay: 0s;
+}
+
+.animate-loading-dot-2 {
+  animation: loading-dot 1.4s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+
+.animate-loading-dot-3 {
+  animation: loading-dot 1.4s ease-in-out infinite;
+  animation-delay: 0.4s;
+}
+
+/* ============================================
+   Phone Input - International Phone Number Input
+   Styles for react-phone-number-input
+   ============================================ */
+
+/* Container wrapper */
+.phone-input-wrapper {
+  width: 100%;
+}
+
+/* Main phone input container */
+.kairo-phone-input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-base);
+}
+
+.kairo-phone-input:focus-within {
+  outline: none;
+  ring: 2px;
+  ring-color: var(--accent-primary);
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--accent-primary);
+}
+
+.kairo-phone-input--error {
+  border-color: var(--status-lost);
+}
+
+.kairo-phone-input--error:focus-within {
+  box-shadow: 0 0 0 2px var(--status-lost);
+}
+
+.kairo-phone-input--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-tertiary);
+}
+
+/* Country select button */
+.kairo-phone-input .PhoneInputCountry {
+  display: flex;
+  align-items: center;
+  padding: 0.625rem 0.75rem;
+  border-right: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.kairo-phone-input .PhoneInputCountry:hover {
+  background: var(--bg-hover);
+}
+
+/* Country select dropdown */
+.kairo-phone-input .PhoneInputCountrySelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* Country flag icon */
+.kairo-phone-input .PhoneInputCountryIcon {
+  width: 1.5rem;
+  height: 1.125rem;
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.kairo-phone-input .PhoneInputCountryIcon--border {
+  box-shadow: 0 0 0 1px var(--border-secondary);
+}
+
+/* Country select arrow */
+.kairo-phone-input .PhoneInputCountrySelectArrow {
+  display: block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: 0.5rem;
+  border-style: solid;
+  border-width: 0 1px 1px 0;
+  border-color: var(--text-secondary);
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+/* Phone number input field */
+.kairo-phone-input .PhoneInputInput {
+  flex: 1;
+  padding: 0.625rem 1rem;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.kairo-phone-input .PhoneInputInput::placeholder {
+  color: var(--text-tertiary);
+}
+
+.kairo-phone-input .PhoneInputInput:disabled {
+  cursor: not-allowed;
+}
+
+/* Country calling code (shown after flag) */
+.kairo-phone-input .PhoneInputCountryIconImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Override default library styles for dark mode compatibility */
+.PhoneInputCountrySelect option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+/* Ensure proper flag display */
+.PhoneInputCountryIcon svg {
+  width: 100%;
+  height: 100%;
+}

@@ -14,6 +14,7 @@ import {
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 // Icons as SVG components for better performance
 const EyeIcon = () => (
@@ -41,6 +42,12 @@ const ClockIcon = () => (
   </svg>
 );
 
+const BuildingIcon = () => (
+  <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+  </svg>
+);
+
 interface LeadCardProps {
   lead: Lead;
   onClick?: (lead: Lead) => void;
@@ -60,6 +67,7 @@ export function LeadCard({
 }: LeadCardProps) {
   const t = useTranslations('leads');
   const tCommon = useTranslations('common');
+  const { selectedOrganization, selectedProject } = useWorkspace();
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
@@ -69,6 +77,11 @@ export function LeadCard({
   const temperatureConfig = LEAD_TEMPERATURE_CONFIG[lead.temperature];
   const channelColor = CHANNEL_ICON_COLORS[lead.channel];
   const isHot = lead.temperature === LeadTemperature.HOT;
+
+  // Build workspace display text: "Org > Project" or just "Org" if no specific project
+  const workspaceText = selectedProject?.name
+    ? `${selectedOrganization?.name} \u203A ${selectedProject.name}`
+    : selectedOrganization?.name || '';
 
   // Get avatar background color based on temperature
   const getAvatarColor = () => {
@@ -157,14 +170,15 @@ export function LeadCard({
           {getInitials(lead.firstName, lead.lastName)}
         </div>
 
-        {/* Name and Company */}
+        {/* Name and Workspace */}
         <div className="flex-1 min-w-0">
           <h3 className="font-semibold text-[var(--text-primary)] truncate leading-tight">
             {fullName}
           </h3>
-          {lead.businessName && (
-            <p className="text-sm text-[var(--text-secondary)] truncate mt-0.5">
-              {lead.businessName}
+          {workspaceText && (
+            <p className="text-sm text-[var(--text-secondary)] truncate mt-0.5 flex items-center gap-1">
+              <BuildingIcon />
+              <span>{workspaceText}</span>
             </p>
           )}
         </div>

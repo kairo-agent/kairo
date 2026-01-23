@@ -8,6 +8,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useModal } from '@/contexts/ModalContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { signIn } from '@/lib/actions/auth';
 
 // Numero de pulsos simultaneos
 const NUM_PULSES = 8;
@@ -126,16 +127,35 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Simular llamada a API
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const result = await signIn(email, password);
 
-      // Para el MVP, cualquier email/password valido funciona
-      showSuccess(t('success.title'), t('success.message'));
+      if (result.success && result.redirectTo) {
+        showSuccess(t('success.title'), t('success.message'));
 
-      // Aqui iria la redireccion al dashboard
-      // router.push('/dashboard');
+        // Determine redirect destination
+        let finalRedirect = result.redirectTo;
+
+        // For super_admin: check if org is already selected in localStorage
+        if (result.user?.systemRole === 'super_admin') {
+          const savedOrg = localStorage.getItem('kairo-selected-org');
+          if (savedOrg) {
+            // Already has org selected, go directly to leads
+            finalRedirect = '/leads';
+          }
+          // Otherwise, redirectTo is already /select-workspace
+        }
+
+        // Small delay to show success message before redirect
+        setTimeout(() => {
+          router.push(finalRedirect as '/select-workspace' | '/leads');
+        }, 500);
+      } else if (result.error) {
+        // Use the error code to get translated message
+        const errorMessage = t(`errors.${result.error}`);
+        showError(t('error.title'), errorMessage);
+      }
     } catch {
-      showError(t('error.title'), t('error.message'));
+      showError(t('error.title'), t('errors.server_error'));
     } finally {
       setIsLoading(false);
     }
@@ -466,7 +486,11 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Separador */}
+            {/* Separador y Link a registro - OCULTO temporalmente
+                Solo super_admin puede crear cuentas por ahora.
+                Para habilitar registro público, descomentar este bloque.
+            */}
+            {/*
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-gray-600" />
@@ -478,7 +502,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Link a registro */}
             <p className="text-center text-sm text-gray-400">
               {t('noAccount')}{' '}
               <Link
@@ -488,6 +511,7 @@ export default function LoginPage() {
                 {t('createAccount')}
               </Link>
             </p>
+            */}
           </div>
 
           {/* Footer */}

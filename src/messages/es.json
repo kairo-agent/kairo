@@ -1,7 +1,12 @@
 {
   "common": {
+    "profile": {
+      "myProfile": "Mi perfil",
+      "logout": "Cerrar sesión"
+    },
     "buttons": {
       "save": "Guardar",
+      "saving": "Guardando...",
       "cancel": "Cancelar",
       "delete": "Eliminar",
       "edit": "Editar",
@@ -16,7 +21,9 @@
       "apply": "Aplicar",
       "view": "Ver",
       "contact": "Contactar",
-      "loading": "Cargando..."
+      "loading": "Cargando...",
+      "understood": "Entendido",
+      "refresh": "Actualizar"
     },
     "actions": {
       "addNew": "Agregar nuevo",
@@ -41,7 +48,8 @@
       "nextFollowUp": "Próximo seguimiento",
       "tags": "Etiquetas",
       "createdAt": "Creado",
-      "updatedAt": "Actualizado"
+      "updatedAt": "Actualizado",
+      "actions": "Acciones"
     },
     "messages": {
       "noData": "No hay datos disponibles",
@@ -57,6 +65,7 @@
     "agents": "Sub-agentes",
     "reports": "Reportes",
     "settings": "Configuración",
+    "admin": "Gestionar",
     "comingSoon": "Pronto"
   },
   "login": {
@@ -78,11 +87,16 @@
       "emailRequired": "El email es requerido",
       "emailInvalid": "Ingresa un email válido",
       "passwordRequired": "La contraseña es requerida",
-      "passwordMinLength": "La contraseña debe tener al menos 6 caracteres"
+      "passwordMinLength": "La contraseña debe tener al menos 6 caracteres",
+      "invalid_credentials": "Email o contraseña incorrectos",
+      "email_not_confirmed": "Por favor confirma tu email antes de iniciar sesión",
+      "user_not_found": "Usuario no encontrado en el sistema",
+      "user_inactive": "Tu cuenta ha sido desactivada. Contacta al administrador",
+      "server_error": "Error del servidor. Por favor intenta más tarde"
     },
     "success": {
       "title": "Bienvenido a KAIRO",
-      "message": "Has iniciado sesión correctamente. Redirigiendo al dashboard..."
+      "message": "Has iniciado sesión correctamente. Redirigiendo..."
     },
     "error": {
       "title": "Error de autenticación",
@@ -105,6 +119,7 @@
   "leads": {
     "title": "Leads",
     "newLead": "Nuevo Lead",
+    "refreshLeads": "Actualizar ingreso de leads",
     "addFirstLead": "Agregar primer lead",
     "viewGrid": "Vista de cuadrícula",
     "viewTable": "Vista de tabla",
@@ -190,13 +205,56 @@
       "nextFollowUp": "Próximo seguimiento",
       "createdAt": "Creado",
       "contact": "Contactar",
+      "call": "Llamar",
       "edit": "Editar"
     },
     "panel": {
       "conversationHistory": "Historial de Conversación",
       "internalNotes": "Notas Internas",
       "activityHistory": "Historial de Actividad",
-      "addNote": "Agregar nota"
+      "addNote": "Agregar nota",
+      "noNotes": "No hay notas",
+      "noActivity": "No hay actividad registrada",
+      "addNotePlaceholder": "Escribir una nota..."
+    },
+    "chat": {
+      "aiMode": "Modo IA",
+      "humanMode": "Modo Humano",
+      "takeControl": "Tomar control",
+      "returnToAI": "Devolver a IA",
+      "placeholder": "Escribe tu mensaje...",
+      "send": "Enviar",
+      "noMessages": "No hay mensajes en esta conversación",
+      "aiModeNotice": "La IA está atendiendo esta conversación. Toma el control para responder.",
+      "sendError": "Error al enviar mensaje",
+      "loadError": "Error al cargar conversación",
+      "attachImage": "Adjuntar imagen",
+      "attachVideo": "Adjuntar video",
+      "attachFile": "Adjuntar archivo",
+      "attachLink": "Adjuntar enlace",
+      "emoji": "Emojis",
+      "removeAttachment": "Eliminar adjunto",
+      "linkPlaceholder": "Ingresa la URL del enlace",
+      "linkAdd": "Agregar enlace",
+      "linkCancel": "Cancelar",
+      "attachmentPreview": "Vista previa del adjunto",
+      "linkAttached": "Enlace",
+      "messageRequired": "Escribe un mensaje o adjunta un archivo",
+      "realtimeConnected": "Conectado en tiempo real",
+      "realtimeConnecting": "Conectando..."
+    },
+    "editModal": {
+      "title": "Editar Lead",
+      "projectContext": "Proyecto",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Correo electrónico",
+      "phone": "Teléfono",
+      "phoneInvalid": "Número de teléfono inválido",
+      "position": "Cargo",
+      "potential": "Potencial Comercial",
+      "potentialHint": "Este valor normalmente es definido por el agente IA",
+      "syncing": "Actualizando..."
     },
     "actions": {
       "changeStatus": "Cambiar estado",
@@ -219,5 +277,300 @@
   },
   "dashboard": {
     "systemStatus": "Sistema operativo"
+  },
+  "workspace": {
+    "organization": "Organización",
+    "project": "Proyecto",
+    "selectOrganization": "Seleccionar organización",
+    "selectProject": "Seleccionar proyecto",
+    "allProjects": "Todos los proyectos"
+  },
+  "selectWorkspace": {
+    "title": "Selecciona tu espacio de trabajo",
+    "subtitle": "Elige una organización y proyecto para comenzar",
+    "welcomeBack": "Bienvenido de nuevo",
+    "organizationLabel": "Organización",
+    "organizationPlaceholder": "Selecciona una organización",
+    "projectLabel": "Proyecto",
+    "projectPlaceholder": "Selecciona un proyecto",
+    "allProjectsOption": "Todos los proyectos",
+    "continueButton": "Continuar al Dashboard",
+    "selectOrgFirst": "Primero selecciona una organización",
+    "noOrganizations": "No tienes organizaciones asignadas",
+    "noProjects": "No hay proyectos en esta organización",
+    "loading": "Cargando...",
+    "errorLoading": "Error al cargar los datos"
+  },
+  "pagination": {
+    "page": "Página",
+    "of": "de",
+    "items": "leads",
+    "showing": "Mostrando",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "perPage": "por página",
+    "pageInput": "Ir a página",
+    "noItems": "Sin resultados"
+  },
+  "profile": {
+    "title": "Mi Perfil",
+    "subtitle": "Gestiona tu información personal y preferencias",
+    "tabs": {
+      "profile": "Perfil",
+      "password": "Contraseña",
+      "memberships": "Membresías"
+    },
+    "fields": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Email",
+      "avatarUrl": "URL del Avatar",
+      "avatarPlaceholder": "https://ejemplo.com/avatar.jpg",
+      "timezone": "Zona Horaria",
+      "locale": "Idioma/Región",
+      "useOrgDefault": "Usar configuración de la organización"
+    },
+    "changePassword": {
+      "title": "Cambiar Contraseña",
+      "subtitle": "Actualiza tu contraseña de acceso",
+      "current": "Contraseña actual",
+      "new": "Nueva contraseña",
+      "confirm": "Confirmar nueva contraseña",
+      "button": "Cambiar contraseña",
+      "generate": "Generar contraseña segura",
+      "showPassword": "Mostrar",
+      "hidePassword": "Ocultar",
+      "copied": "Copiada!",
+      "requirements": {
+        "title": "Requisitos de contraseña",
+        "minLength": "Mínimo 8 caracteres",
+        "uppercase": "Al menos una mayúscula",
+        "lowercase": "Al menos una minúscula",
+        "number": "Al menos un número",
+        "special": "Al menos un carácter especial (!@#$%^&*)"
+      },
+      "strength": {
+        "label": "Fortaleza",
+        "weak": "Débil",
+        "fair": "Aceptable",
+        "good": "Buena",
+        "strong": "Fuerte"
+      }
+    },
+    "memberships": {
+      "organizations": "Organizaciones",
+      "projects": "Proyectos",
+      "noOrganizations": "No perteneces a ninguna organización",
+      "noProjects": "No perteneces a ningún proyecto",
+      "owner": "Owner",
+      "member": "Miembro"
+    },
+    "messages": {
+      "profileUpdated": "Perfil actualizado correctamente",
+      "passwordMismatch": "Las contraseñas no coinciden",
+      "passwordMatch": "Las contraseñas coinciden",
+      "passwordTooShort": "La contraseña no cumple todos los requisitos",
+      "passwordChanged": "Contraseña actualizada correctamente",
+      "errorLoading": "Error al cargar el perfil",
+      "errorUpdating": "Error al actualizar el perfil"
+    }
+  },
+  "admin": {
+    "title": "Panel de Administración",
+    "nav": {
+      "overview": "Resumen",
+      "organizations": "Organizaciones",
+      "projects": "Proyectos",
+      "users": "Usuarios",
+      "backToDashboard": "Volver al Dashboard"
+    },
+    "modals": {
+      "timezone": "Zona horaria",
+      "locale": "Idioma/Región",
+      "initialMembership": "Membresía inicial (opcional)",
+      "noOrganization": "Sin organización",
+      "noProject": "Sin proyecto",
+      "isOrgOwner": "Es Owner de la organización",
+      "projectRole": "Rol en proyecto",
+      "passwordNote": "Usuario creado exitosamente. Guarda esta contraseña, no se mostrará nuevamente."
+    },
+    "overview": {
+      "title": "Resumen del Sistema",
+      "totalOrganizations": "Total Organizaciones",
+      "totalProjects": "Total Proyectos",
+      "totalUsers": "Total Usuarios",
+      "totalLeads": "Total Leads",
+      "recentActivity": "Actividad Reciente"
+    },
+    "organizations": {
+      "title": "Organizaciones",
+      "new": "Nueva Organización",
+      "edit": "Editar Organización",
+      "delete": "Eliminar Organización",
+      "name": "Nombre",
+      "slug": "Slug",
+      "description": "Descripción",
+      "logo": "Logo URL",
+      "status": "Estado",
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "projects": "Proyectos",
+      "members": "Miembros",
+      "created": "Creada",
+      "empty": "No hay organizaciones",
+      "confirmDelete": "¿Estás seguro de eliminar esta organización? Se eliminarán todos los proyectos y datos asociados."
+    },
+    "projects": {
+      "title": "Proyectos",
+      "new": "Nuevo Proyecto",
+      "edit": "Editar Proyecto",
+      "delete": "Eliminar Proyecto",
+      "name": "Nombre",
+      "slug": "Slug",
+      "description": "Descripción",
+      "organization": "Organización",
+      "selectOrg": "Seleccionar organización",
+      "plan": "Plan",
+      "status": "Estado",
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "members": "Miembros",
+      "leads": "Leads",
+      "agents": "Agentes IA",
+      "created": "Creado",
+      "empty": "No hay proyectos",
+      "confirmDelete": "¿Estás seguro de eliminar este proyecto? Se eliminarán todos los leads y datos asociados."
+    },
+    "users": {
+      "title": "Usuarios",
+      "new": "Nuevo Usuario",
+      "edit": "Editar Usuario",
+      "delete": "Eliminar Usuario",
+      "name": "Nombre",
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "email": "Email",
+      "systemRole": "Rol del Sistema",
+      "superAdmin": "Super Admin",
+      "regularUser": "Usuario",
+      "status": "Estado",
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "memberships": "Membresías",
+      "organization": "Organización",
+      "organizations": "Organizaciones",
+      "projects": "Proyectos",
+      "created": "Creado",
+      "empty": "No hay usuarios",
+      "password": {
+        "label": "Contraseña",
+        "generate": "Generar automáticamente",
+        "manual": "Ingresar manualmente",
+        "generated": "Contraseña generada",
+        "copy": "Copiar",
+        "copied": "Copiada!",
+        "reset": "Resetear contraseña",
+        "newPassword": "Nueva contraseña"
+      },
+      "confirmDelete": "¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer."
+    },
+    "roles": {
+      "admin": "Administrador",
+      "manager": "Manager",
+      "agent": "Agente",
+      "viewer": "Visualizador"
+    },
+    "systemRoles": {
+      "super_admin": "Super Admin",
+      "user": "Usuario"
+    },
+    "plans": {
+      "free": "Gratis",
+      "starter": "Starter",
+      "professional": "Profesional",
+      "enterprise": "Empresarial"
+    },
+    "filters": {
+      "allOrganizations": "Todas las organizaciones",
+      "allProjects": "Todos los proyectos"
+    },
+    "actions": {
+      "join": "Unirme",
+      "joined": "Miembro",
+      "configure": "Configurar"
+    },
+    "settings": {
+      "title": "Configuración del Proyecto",
+      "agents": "Agentes IA",
+      "whatsappDescription": "Configura las credenciales de WhatsApp Business API para este proyecto. Los valores se guardan encriptados.",
+      "agentsDescription": "Gestiona los agentes de IA asignados a este proyecto.",
+      "webhooksDescription": "Configura la URL del webhook de n8n para recibir eventos de conversación.",
+      "currentStatus": "Estado actual",
+      "configured": "Configurado",
+      "notConfigured": "No configurado",
+      "enterToken": "Ingresa el Access Token",
+      "enterPhoneNumberId": "Ingresa el Phone Number ID",
+      "enterBusinessAccountId": "Ingresa el Business Account ID",
+      "noChanges": "No hay cambios para guardar",
+      "savedSuccessfully": "Configuración guardada correctamente",
+      "saveFailed": "Error al guardar la configuración",
+      "webhookUrlHelp": "URL del webhook de n8n para recibir notificaciones de conversación",
+      "agentsComingSoon": "Gestión de agentes próximamente",
+      "keepCurrent": "Dejar valor actual",
+      "leaveEmptyToKeep": "Deja vacío para mantener el valor actual",
+      "revealSecret": "Revelar valor (15s)",
+      "hideSecret": "Ocultar valor",
+      "revealFailed": "Error al revelar el valor",
+      "copySecret": "Copiar valor",
+      "copied": "Copiado!"
+    },
+    "agentSettings": {
+      "title": "Agentes IA",
+      "newAgent": "Nuevo Agente",
+      "editAgent": "Editar Agente",
+      "deleteAgent": "Eliminar Agente",
+      "name": "Nombre del agente",
+      "namePlaceholder": "Ej: Luna, Atlas, Nova...",
+      "type": "Tipo de agente",
+      "description": "Descripción",
+      "descriptionPlaceholder": "¿Qué hace este agente?",
+      "avatarUrl": "URL del Avatar",
+      "status": "Estado",
+      "active": "Activo",
+      "inactive": "Inactivo",
+      "leadsAssigned": "Leads asignados",
+      "noAgents": "No hay agentes configurados",
+      "noAgentsMessage": "Crea tu primer agente IA para comenzar a automatizar la atención de leads.",
+      "createFirst": "Crear primer agente",
+      "agentTypes": {
+        "sales": "Ventas",
+        "support": "Soporte",
+        "qualification": "Calificación",
+        "appointment": "Citas"
+      },
+      "agentTypeDescriptions": {
+        "sales": "Especializado en conversiones y cierre de ventas",
+        "support": "Atención al cliente y resolución de problemas",
+        "qualification": "Calificación y scoring de leads",
+        "appointment": "Agendamiento de citas y reuniones"
+      },
+      "confirmDelete": "¿Estás seguro de eliminar este agente? Esta acción no se puede deshacer.",
+      "cannotDeleteHasLeads": "No se puede eliminar. Este agente tiene {count} lead(s) asignados. Reasígnalos primero.",
+      "createSuccess": "Agente creado exitosamente",
+      "updateSuccess": "Agente actualizado exitosamente",
+      "deleteSuccess": "Agente eliminado exitosamente",
+      "duplicateName": "Ya existe un agente con este nombre en el proyecto"
+    },
+    "messages": {
+      "createSuccess": "Creado exitosamente",
+      "updateSuccess": "Actualizado exitosamente",
+      "deleteSuccess": "Eliminado exitosamente",
+      "error": "Ocurrió un error",
+      "unauthorized": "No autorizado",
+      "cannotDeleteOrgHasProjects": "No se puede eliminar. Primero elimina los {count} proyecto(s) asociados.",
+      "cannotDeleteOrgHasMembers": "No se puede eliminar. Primero elimina los {count} miembro(s) asociados.",
+      "cannotDeleteProjectHasMembers": "No se puede eliminar. Primero elimina los {count} miembro(s) asociados.",
+      "cannotDeleteProjectHasLeads": "No se puede eliminar. Primero elimina los {count} lead(s) asociados."
+    }
   }
 }

@@ -7,7 +7,7 @@ import { AIAgent, AIAgentType } from '@/types';
 export const agents: AIAgent[] = [
   {
     id: 'agent-luna',
-    companyId: 'company-001',
+    projectId: 'company-001',
     name: 'Luna',
     type: AIAgentType.SALES,
     description:
@@ -25,7 +25,7 @@ export const agents: AIAgent[] = [
   },
   {
     id: 'agent-atlas',
-    companyId: 'company-001',
+    projectId: 'company-001',
     name: 'Atlas',
     type: AIAgentType.SUPPORT,
     description:
@@ -43,7 +43,7 @@ export const agents: AIAgent[] = [
   },
   {
     id: 'agent-nova',
-    companyId: 'company-001',
+    projectId: 'company-001',
     name: 'Nova',
     type: AIAgentType.QUALIFICATION,
     description:
@@ -61,7 +61,7 @@ export const agents: AIAgent[] = [
   },
   {
     id: 'agent-orion',
-    companyId: 'company-001',
+    projectId: 'company-001',
     name: 'Orion',
     type: AIAgentType.APPOINTMENT,
     description:
@@ -89,9 +89,9 @@ export const getActiveAgents = (): AIAgent[] => {
   return agents.filter((agent) => agent.isActive);
 };
 
-// Get agents by company
-export const getAgentsByCompany = (companyId: string): AIAgent[] => {
-  return agents.filter((agent) => agent.companyId === companyId);
+// Get agents by project
+export const getAgentsByProject = (projectId: string): AIAgent[] => {
+  return agents.filter((agent) => agent.projectId === projectId);
 };
 
 // Get agents by type
