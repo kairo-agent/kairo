@@ -130,7 +130,8 @@ export async function sendMessage(
   leadId: string,
   content: string,
   mediaUrl?: string,
-  mediaType?: 'image' | 'video' | 'document'
+  mediaType?: 'image' | 'video' | 'document',
+  filename?: string
 ): Promise<{ success: boolean; message?: MessageWithSender; error?: string }> {
   try {
     const user = await getCurrentUser();
@@ -218,6 +219,7 @@ export async function sendMessage(
           message: content.trim(),
           messageType: mediaUrl ? mediaType || 'image' : 'text',
           mediaUrl: mediaUrl || null,
+          filename: filename || null, // For documents: original filename
           timestamp: new Date().toISOString(),
           // WhatsApp API credentials for n8n to send directly
           accessToken: accessToken || '',

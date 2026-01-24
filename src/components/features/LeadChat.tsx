@@ -379,7 +379,9 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
           : `[${mediaLabel}: ${attachment.name}]`;
       }
 
-      const result = await sendMessage(leadId, content, mediaUrl, mediaType);
+      // Pass filename for documents (WhatsApp needs it to display the name)
+      const filename = attachment?.type === 'file' ? attachment.name : undefined;
+      const result = await sendMessage(leadId, content, mediaUrl, mediaType, filename);
 
       if (result.success && result.message) {
         // Marcar como procesado para tracking interno
