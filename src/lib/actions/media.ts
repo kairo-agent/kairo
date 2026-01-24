@@ -8,8 +8,8 @@
  *
  * Bucket: media
  * Path structure: {projectId}/{year}/{month}/{uuid}.{extension}
- * Max size: 3MB
- * Allowed types: image/jpeg, image/png, image/webp
+ * Max size: 3MB (images), 16MB (videos)
+ * Allowed types: image/jpeg, image/png, image/webp, video/mp4, video/webm
  */
 
 import { createClient } from '@/lib/supabase/server';
@@ -19,10 +19,16 @@ import { randomUUID } from 'crypto';
 
 // Configuration constants
 const BUCKET_NAME = 'media';
-const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB in bytes
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB for images
+const MAX_VIDEO_SIZE = 16 * 1024 * 1024; // 16MB for videos (WhatsApp limit)
+
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const VIDEO_TYPES = ['video/mp4', 'video/webm'] as const;
+const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES] as const;
 
 type AllowedMimeType = (typeof ALLOWED_TYPES)[number];
+type ImageMimeType = (typeof IMAGE_TYPES)[number];
+type VideoMimeType = (typeof VIDEO_TYPES)[number];
 
 interface UploadMediaResult {
   success: boolean;
@@ -37,6 +43,13 @@ interface DeleteMediaResult {
 }
 
 /**
+ * Checks if MIME type is a video
+ */
+function isVideoType(mimeType: string): mimeType is VideoMimeType {
+  return VIDEO_TYPES.includes(mimeType as VideoMimeType);
+}
+
+/**
  * Maps MIME type to file extension
  */
 function getExtensionFromMimeType(mimeType: AllowedMimeType): string {
@@ -44,6 +57,8 @@ function getExtensionFromMimeType(mimeType: AllowedMimeType): string {
     'image/jpeg': 'jpg',
     'image/png': 'png',
     'image/webp': 'webp',
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
   };
   return extensions[mimeType];
 }
@@ -52,19 +67,20 @@ function getExtensionFromMimeType(mimeType: AllowedMimeType): string {
  * Validates file before upload
  */
 function validateFile(file: File): { valid: boolean; error?: string } {
-  // Check file size
-  if (file.size > MAX_FILE_SIZE) {
-    return {
-      valid: false,
-      error: `El archivo excede el tamaño máximo de ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
-    };
-  }
-
-  // Check file type
+  // Check file type first
   if (!ALLOWED_TYPES.includes(file.type as AllowedMimeType)) {
     return {
       valid: false,
       error: `Tipo de archivo no permitido. Tipos aceptados: ${ALLOWED_TYPES.join(', ')}`,
+    };
+  }
+
+  // Check file size based on type
+  const maxSize = isVideoType(file.type) ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: `El archivo excede el tamaño máximo de ${maxSize / (1024 * 1024)}MB`,
     };
   }
 
