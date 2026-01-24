@@ -6,6 +6,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Link, useRouter, usePathname } from '@/i18n/routing';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useModal } from '@/contexts/ModalContext';
+import { useLoading } from '@/contexts/LoadingContext';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { signIn } from '@/lib/actions/auth';
@@ -53,7 +54,8 @@ const generateRandomPulse = (id: number, key: number): Pulse => {
 
 export default function LoginPage() {
   const { theme, toggleTheme } = useTheme();
-  const { showError, showSuccess } = useModal();
+  const { showError } = useModal();
+  const { showLoading } = useLoading();
   const t = useTranslations('login');
   const tCommon = useTranslations('common');
   const locale = useLocale();
@@ -130,8 +132,6 @@ export default function LoginPage() {
       const result = await signIn(email, password);
 
       if (result.success && result.redirectTo) {
-        showSuccess(t('success.title'), t('success.message'));
-
         // Determine redirect destination
         let finalRedirect = result.redirectTo;
 
@@ -145,10 +145,9 @@ export default function LoginPage() {
           // Otherwise, redirectTo is already /select-workspace
         }
 
-        // Small delay to show success message before redirect
-        setTimeout(() => {
-          router.push(finalRedirect as '/select-workspace' | '/leads');
-        }, 500);
+        // Show loading overlay and redirect immediately
+        showLoading(t('success.message'), true);
+        router.push(finalRedirect as '/select-workspace' | '/leads');
       } else if (result.error) {
         // Use the error code to get translated message
         const errorMessage = t(`errors.${result.error}`);

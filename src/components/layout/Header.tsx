@@ -215,6 +215,8 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
   const handleLogout = async () => {
     setIsLoggingOut(true);
     setIsDropdownOpen(false);
+    // Show loading overlay while signing out
+    showLoading(t('messages.loading'), true);
     try {
       await signOut();
       router.push('/login');
