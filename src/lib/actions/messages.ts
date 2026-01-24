@@ -158,16 +158,26 @@ export async function sendMessage(
     // n8n will handle the routing based on mode and send to WhatsApp
     if (lead.whatsappId && lead.project.n8nWebhookUrl) {
       try {
+        // Get WhatsApp credentials for n8n to call WhatsApp API directly
+        const [accessToken, phoneNumberId] = await Promise.all([
+          getProjectSecret(lead.projectId, 'whatsapp_access_token'),
+          getProjectSecret(lead.projectId, 'whatsapp_phone_number_id'),
+        ]);
+
         const n8nPayload = {
           projectId: lead.projectId,
           conversationId,
           leadId: lead.id,
           leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
           leadPhone: lead.phone,
+          to: lead.whatsappId, // WhatsApp recipient number
           mode: 'human', // Human agent sending message
           message: content.trim(),
           messageType: 'text',
           timestamp: new Date().toISOString(),
+          // WhatsApp API credentials for n8n to send directly
+          accessToken: accessToken || '',
+          phoneNumberId: phoneNumberId || '',
           metadata: {
             agentId: user.id,
             agentName: `${user.firstName} ${user.lastName}`,

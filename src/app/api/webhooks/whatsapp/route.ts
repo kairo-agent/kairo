@@ -16,6 +16,7 @@ import {
   MessageSender,
 } from '@prisma/client';
 import { decryptSecret } from '@/lib/crypto/secrets';
+import { getProjectSecret } from '@/lib/actions/secrets';
 
 // ============================================
 // Types for WhatsApp Cloud API Webhooks
@@ -471,7 +472,7 @@ async function handleIncomingMessage(
 
 async function triggerN8nWorkflow(
   projectId: string,
-  lead: { id: string; firstName: string; lastName: string | null; phone: string | null; conversation: { id: string } | null },
+  lead: { id: string; firstName: string; lastName: string | null; phone: string | null; whatsappId?: string | null; conversation: { id: string } | null },
   messageContent: string,
   messageType: string
 ) {
@@ -489,16 +490,26 @@ async function triggerN8nWorkflow(
     return;
   }
 
+  // Get WhatsApp credentials for n8n to call WhatsApp API directly
+  const [accessToken, phoneNumberId] = await Promise.all([
+    getProjectSecret(projectId, 'whatsapp_access_token'),
+    getProjectSecret(projectId, 'whatsapp_phone_number_id'),
+  ]);
+
   const payload = {
     projectId,
     conversationId: lead.conversation?.id,
     leadId: lead.id,
     leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
     leadPhone: lead.phone,
+    to: lead.whatsappId || lead.phone, // WhatsApp recipient number
     mode: 'ai', // AI mode - n8n will generate response
     message: messageContent,
     messageType,
     timestamp: new Date().toISOString(),
+    // WhatsApp API credentials for n8n to send directly
+    accessToken: accessToken || '',
+    phoneNumberId: phoneNumberId || '',
   };
 
   try {
