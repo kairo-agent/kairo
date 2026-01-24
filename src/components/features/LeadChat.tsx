@@ -676,6 +676,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
               onSendMessage={handleSendMessage}
               onEmojiClick={() => setShowEmojiPicker(!showEmojiPicker)}
               disabled={isSending}
+              isSending={isSending}
             />
           </div>
         </div>

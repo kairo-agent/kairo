@@ -224,6 +224,7 @@
       "returnToAI": "Devolver a IA",
       "placeholder": "Escribe tu mensaje...",
       "send": "Enviar",
+      "sending": "Enviando",
       "noMessages": "No hay mensajes en esta conversación",
       "aiModeNotice": "La IA está atendiendo esta conversación. Toma el control para responder.",
       "sendError": "Error al enviar mensaje",

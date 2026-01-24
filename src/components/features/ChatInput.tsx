@@ -18,6 +18,7 @@ interface ChatInputProps {
   onEmojiClick?: () => void;
   disabled?: boolean;
   placeholder?: string;
+  isSending?: boolean;
 }
 
 export interface ChatInputRef {
@@ -114,6 +115,35 @@ const SendIcon = () => (
   </svg>
 );
 
+const SendingDotsIcon = () => (
+  <div className="flex items-center justify-center gap-1">
+    <span
+      className="w-1.5 h-1.5 rounded-full animate-bounce"
+      style={{
+        backgroundColor: 'currentColor',
+        animationDelay: '0ms',
+        animationDuration: '600ms',
+      }}
+    />
+    <span
+      className="w-1.5 h-1.5 rounded-full animate-bounce"
+      style={{
+        backgroundColor: 'currentColor',
+        animationDelay: '150ms',
+        animationDuration: '600ms',
+      }}
+    />
+    <span
+      className="w-1.5 h-1.5 rounded-full animate-bounce"
+      style={{
+        backgroundColor: 'currentColor',
+        animationDelay: '300ms',
+        animationDuration: '600ms',
+      }}
+    />
+  </div>
+);
+
 const CloseIcon = () => (
   <svg
     width="16"
@@ -159,7 +189,7 @@ function getFileIcon(type: ChatAttachment['type']): React.ReactNode {
 // ============================================
 
 const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
-  { onSendMessage, onEmojiClick, disabled = false, placeholder },
+  { onSendMessage, onEmojiClick, disabled = false, placeholder, isSending = false },
   ref
 ) {
   const t = useTranslations('leads.chat');
@@ -504,19 +534,19 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
         <button
           type="button"
           onClick={handleSend}
-          disabled={disabled || !hasContent}
+          disabled={disabled || !hasContent || isSending}
           className="flex items-center justify-center w-10 h-10 rounded-lg transition-all disabled:opacity-50"
           style={{
-            backgroundColor: hasContent
+            backgroundColor: hasContent || isSending
               ? 'var(--accent-primary)'
               : 'var(--bg-tertiary)',
-            color: hasContent
+            color: hasContent || isSending
               ? 'var(--kairo-midnight)'
               : 'var(--text-tertiary)',
           }}
-          aria-label={t('send')}
+          aria-label={isSending ? t('sending') : t('send')}
         >
-          <SendIcon />
+          {isSending ? <SendingDotsIcon /> : <SendIcon />}
         </button>
       </div>
     </div>

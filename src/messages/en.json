@@ -224,6 +224,7 @@
       "returnToAI": "Return to AI",
       "placeholder": "Type your message...",
       "send": "Send",
+      "sending": "Sending",
       "noMessages": "No messages in this conversation",
       "aiModeNotice": "AI is handling this conversation. Take control to respond.",
       "sendError": "Error sending message",
