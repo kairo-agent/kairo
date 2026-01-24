@@ -3,7 +3,9 @@
 import { type ReactNode } from 'react';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ModalProvider } from '@/contexts/ModalContext';
+import { LoadingProvider } from '@/contexts/LoadingContext';
 import { AlertModal } from '@/components/ui/Modal';
+import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
 import { useModal } from '@/contexts/ModalContext';
 
 interface AuthLayoutProps {
@@ -40,7 +42,10 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <ThemeProvider>
       <ModalProvider>
-        <AuthLayoutContent>{children}</AuthLayoutContent>
+        <LoadingProvider>
+          <AuthLayoutContent>{children}</AuthLayoutContent>
+          <LoadingOverlay />
+        </LoadingProvider>
       </ModalProvider>
     </ThemeProvider>
   );
