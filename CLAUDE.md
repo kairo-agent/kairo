@@ -17,9 +17,10 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** Backend 98% completo, Frontend 82% - Auth real, CRUD leads (R/U), WhatsApp webhook, paginación server-side, gestión agentes IA
+**Estado actual:** Backend 100% completo, Frontend 85% - Auth real, CRUD leads (R/U), WhatsApp webhook + imagen envío, paginación server-side, gestión agentes IA
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
+**Producción:** https://app.kairoagent.com/
 
 ---
 
@@ -159,7 +160,8 @@ kairo-dashboard/
 │   │       ├── agents.ts        # CRUD AIAgent por proyecto
 │   │       ├── auth.ts          # signIn, signOut, getCurrentUser, getSession
 │   │       ├── leads.ts         # CRUD Leads
-│   │       ├── messages.ts      # Chat, handoff, markAsRead
+│   │       ├── media.ts         # Upload/delete media a Supabase Storage
+│   │       ├── messages.ts      # Chat, handoff, markAsRead, mediaUrl
 │   │       ├── profile.ts       # getProfile, updateProfile, changePassword
 │   │       ├── secrets.ts       # CRUD Project Secrets (encriptados)
 │   │       └── workspace.ts     # getOrganizations, getProjects (selector)
@@ -303,6 +305,9 @@ npm run lint     # Verificar código
 - [x] **Seguridad API /api/messages/confirm** - Shared secret via header X-N8N-Secret
 - [x] **Seguridad Webhook WhatsApp** - Verificación HMAC-SHA256 (X-Hub-Signature-256)
 - [x] **Index.ts completos** - Exports centralizados en layout/, admin/, features/
+- [x] **Deploy en Vercel** - Producción en https://app.kairoagent.com/
+- [x] **Envío de imágenes WhatsApp** - Upload a Supabase Storage + compresión + envío via n8n
+- [x] **Media Cleanup Cron** - Eliminación automática de archivos >24h (Vercel Cron)
 
 ### 🔄 Parcial
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
@@ -314,7 +319,6 @@ npm run lint     # Verificar código
 - [ ] **Página de Settings** - No existe ruta /settings
 - [ ] **Página de Agentes** - No existe ruta /agents (solo asignación en cards)
 - [ ] Moneda dinámica según configuración de organización
-- [ ] Deploy en Vercel
 
 ---
 
@@ -692,6 +696,9 @@ WHATSAPP_APP_SECRET=<tu_app_secret_de_meta>
 # Secret compartido para callbacks de n8n
 N8N_CALLBACK_SECRET=<tu_secret_para_n8n>
 
+# Vercel Cron Jobs (media cleanup)
+CRON_SECRET=<tu_secret_para_cron>
+
 # Solo desarrollo (NO usar en producción):
 BYPASS_AUTH_DEV=true           # Bypass auth en /api/whatsapp/send
 WEBHOOK_BYPASS_SIGNATURE=true  # Bypass verificación HMAC en webhook
@@ -823,3 +830,121 @@ WEBHOOK_BYPASS_SIGNATURE=true  # Permite webhooks sin firma válida
 ```
 
 ⚠️ **NUNCA** usar estos flags en producción
+
+---
+
+## Media Upload (Imágenes WhatsApp)
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  IMAGE UPLOAD FLOW                           │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   Usuario selecciona imagen en ChatInput                     │
+│       │                                                      │
+│       ▼                                                      │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │  browser-image-compression                          │   │
+│   │  - Si imagen > 1MB → comprimir a máx 1MB            │   │
+│   │  - maxWidthOrHeight: 1920px                          │   │
+│   └─────────────────────────────────────────────────────┘   │
+│       │                                                      │
+│       ▼                                                      │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │  uploadMedia() → Supabase Storage                   │   │
+│   │  - Bucket: "media" (público)                         │   │
+│   │  - Path: {projectId}/{year}/{month}/{uuid}.{ext}    │   │
+│   │  - Max: 3MB, tipos: jpeg, png, webp                  │   │
+│   └─────────────────────────────────────────────────────┘   │
+│       │                                                      │
+│       ▼                                                      │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │  sendMessage() con mediaUrl y messageType           │   │
+│   │  - content: "[Imagen: nombre.png]" (ligero en BD)   │   │
+│   │  - mediaUrl: URL pública de Supabase                │   │
+│   │  - messageType: "image" | "video" | "document"       │   │
+│   └─────────────────────────────────────────────────────┘   │
+│       │                                                      │
+│       ▼                                                      │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │  n8n "Send to WhatsApp"                              │   │
+│   │  - Detecta messageType === 'image'                   │   │
+│   │  - Envía formato WhatsApp: { type: "image",          │   │
+│   │    image: { link: mediaUrl } }                       │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Archivos Clave
+
+| Archivo | Propósito |
+|---------|-----------|
+| `src/lib/actions/media.ts` | Server action para upload/delete en Supabase Storage |
+| `src/components/features/LeadChat.tsx` | Compresión + upload antes de enviar |
+| `src/components/features/ChatInput.tsx` | UI de selección de archivos |
+| `src/lib/actions/messages.ts` | `sendMessage()` con mediaUrl y messageType |
+| `src/app/api/cron/cleanup-media/route.ts` | Cron job para limpiar archivos >24h |
+| `vercel.json` | Configuración del cron (3am UTC diario) |
+
+### Supabase Storage Setup
+
+**Bucket creado:** `media`
+- Public: ✅
+- File size limit: 3MB
+- Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`
+
+**Políticas RLS (ejecutar en SQL Editor):**
+
+```sql
+CREATE POLICY "Allow authenticated uploads" ON storage.objects
+FOR INSERT TO authenticated WITH CHECK (bucket_id = 'media');
+
+CREATE POLICY "Allow public read" ON storage.objects
+FOR SELECT TO anon, authenticated USING (bucket_id = 'media');
+
+CREATE POLICY "Allow authenticated delete" ON storage.objects
+FOR DELETE TO authenticated USING (bucket_id = 'media');
+```
+
+### Media Cleanup (Retención 24h)
+
+Para mantener el storage limpio, un cron job elimina archivos de más de 24 horas:
+
+- **Endpoint:** `/api/cron/cleanup-media`
+- **Schedule:** `0 3 * * *` (3am UTC diariamente)
+- **Autenticación:** Header `Authorization: Bearer {CRON_SECRET}`
+
+**Variable de entorno requerida:**
+```bash
+# Generar con: node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+CRON_SECRET=<tu_secret_para_cron>
+```
+
+### Flujo n8n para Imágenes
+
+El nodo "Send to WhatsApp" detecta el tipo de mensaje:
+
+```javascript
+// Si messageType === 'image'
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "to": "{{to}}",
+  "type": "image",
+  "image": { "link": "{{mediaUrl}}" }
+}
+
+// Si messageType === 'text' (default)
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "to": "{{to}}",
+  "type": "text",
+  "text": { "body": "{{message}}" }
+}
+```
+
+Los nodos "Prepare Human Response" y "Prepare AI Response" pasan `messageType` y `mediaUrl` al nodo de envío
