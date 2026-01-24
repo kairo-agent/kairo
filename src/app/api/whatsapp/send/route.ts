@@ -17,6 +17,8 @@ interface SendMessageRequest {
   to: string; // Phone number in E.164 format (e.g., "51999888777")
   message: string;
   projectId: string;
+  messageType?: 'text' | 'image' | 'video'; // Type of message (default: text)
+  mediaUrl?: string; // URL for image or video media
 }
 
 interface WhatsAppApiResponse {
@@ -47,14 +49,35 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body
     const body: SendMessageRequest = await request.json();
-    const { to, message, projectId } = body;
+    const { to, message, projectId, messageType = 'text', mediaUrl } = body;
 
     // Validate required fields
-    if (!to || !message || !projectId) {
+    if (!to || !projectId) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: to, message, projectId',
+          error: 'Missing required fields: to, projectId',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Validate message type and required fields
+    if (messageType === 'text' && !message) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing required field: message (required for text messages)',
+        },
+        { status: 400 }
+      );
+    }
+
+    if ((messageType === 'image' || messageType === 'video') && !mediaUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Missing required field: mediaUrl (required for ${messageType} messages)`,
         },
         { status: 400 }
       );
@@ -192,20 +215,59 @@ export async function POST(request: NextRequest) {
     // Send message via WhatsApp Cloud API
     const whatsappApiUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 
+    // Build the request body based on message type
+    let whatsappBody: Record<string, unknown>;
+
+    switch (messageType) {
+      case 'image':
+        whatsappBody = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'image',
+          image: {
+            link: mediaUrl,
+            ...(message && { caption: message }),
+          },
+        };
+        break;
+
+      case 'video':
+        whatsappBody = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'video',
+          video: {
+            link: mediaUrl,
+            ...(message && { caption: message }),
+          },
+        };
+        break;
+
+      case 'text':
+      default:
+        whatsappBody = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanPhone,
+          type: 'text',
+          text: {
+            body: message,
+          },
+        };
+        break;
+    }
+
+    console.log(`[WhatsApp Send] Sending ${messageType} message to ${cleanPhone}`);
+
     const whatsappResponse = await fetch(whatsappApiUrl, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: cleanPhone,
-        type: 'text',
-        text: {
-          body: message,
-        },
-      }),
+      body: JSON.stringify(whatsappBody),
     });
 
     const responseData = await whatsappResponse.json();
