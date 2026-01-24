@@ -21,7 +21,6 @@ export const prisma =
   });
 
 // Ensure connections are properly managed in serverless
-// @ts-expect-error - prisma doesn't expose this but it exists
 if (typeof prisma.$on === 'function') {
   prisma.$on('beforeExit', async () => {
     await prisma.$disconnect();
