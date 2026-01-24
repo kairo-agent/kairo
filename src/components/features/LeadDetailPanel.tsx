@@ -267,14 +267,18 @@ export function LeadDetailPanel({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, onClose]);
 
-  // Prevent body scroll when panel is open on mobile
+  // Prevent body scroll when panel is open (block window scroll completely)
   useEffect(() => {
     if (isOpen) {
+      // Block scroll on both html and body for cross-browser support
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
     } else {
+      document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
     }
     return () => {
+      document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
     };
   }, [isOpen]);
