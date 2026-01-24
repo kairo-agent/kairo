@@ -18,7 +18,8 @@ const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB for images
 const MAX_VIDEO_SIZE = 16 * 1024 * 1024; // 16MB for videos
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
-const VIDEO_TYPES = ['video/mp4', 'video/webm'] as const;
+// WhatsApp only supports MP4 (H.264 + AAC) - WebM is NOT supported
+const VIDEO_TYPES = ['video/mp4'] as const;
 const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES] as const;
 
 type AllowedMimeType = (typeof ALLOWED_TYPES)[number];
@@ -48,7 +49,6 @@ function getExtensionFromMimeType(mimeType: AllowedMimeType): string {
     'image/png': 'png',
     'image/webp': 'webp',
     'video/mp4': 'mp4',
-    'video/webm': 'webm',
   };
   return extensions[mimeType];
 }

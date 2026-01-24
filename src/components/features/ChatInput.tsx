@@ -490,10 +490,11 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
           >
             <VideoIcon />
           </button>
+          {/* WhatsApp only supports MP4 (H.264 + AAC) - WebM is NOT supported */}
           <input
             ref={videoInputRef}
             type="file"
-            accept="video/*"
+            accept="video/mp4"
             onChange={(e) => handleFileSelect(e, 'video')}
             className="hidden"
           />
