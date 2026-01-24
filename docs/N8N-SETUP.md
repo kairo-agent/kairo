@@ -351,11 +351,192 @@ Forwarding    https://abc123.ngrok-free.dev -> http://localhost:3000
 
 ---
 
+## Envío de Multimedia a WhatsApp (v0.6.0)
+
+> Documentación completa en [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md)
+
+### Payload de KAIRO a n8n
+
+Cuando un usuario envía multimedia desde KAIRO, el payload incluye campos adicionales:
+
+```json
+{
+  "projectId": "cm50s9z8j0001l70827o3h27q",
+  "conversationId": "cm5abc123...",
+  "leadId": "cm5lead456...",
+  "to": "51987654321",
+  "mode": "human",
+  "message": "Aquí está el documento que pediste",
+  "messageType": "document",
+  "mediaUrl": "https://abc.supabase.co/storage/v1/object/public/media/proj123/2026/01/uuid.pdf",
+  "filename": "Contrato_2026.pdf",
+  "caption": "Aquí está el documento que pediste",
+  "timestamp": "2026-01-24T10:30:00.000Z",
+  "accessToken": "EAAB...",
+  "phoneNumberId": "123456789",
+  "metadata": {
+    "agentId": "user123",
+    "agentName": "Juan Pérez",
+    "messageDbId": "msg789"
+  }
+}
+```
+
+### Nodo n8n: Prepare Human Response
+
+**Propósito**: Transformar payload de KAIRO al formato de WhatsApp Cloud API.
+
+**Código JavaScript**:
+
+```javascript
+const mode = $json.mode || 'ai';
+const messageType = $json.messageType || 'text';
+const mediaUrl = $json.mediaUrl;
+const caption = $json.caption || null;
+const filename = $json.filename || null;
+
+let responsePayload = {
+  messaging_product: "whatsapp",
+  to: $json.to,
+};
+
+// Imagen con caption opcional
+if (messageType === 'image' && mediaUrl) {
+  responsePayload.type = 'image';
+  responsePayload.image = {
+    link: mediaUrl,
+  };
+  if (caption) {
+    responsePayload.image.caption = caption;
+  }
+}
+
+// Video con caption opcional
+else if (messageType === 'video' && mediaUrl) {
+  responsePayload.type = 'video';
+  responsePayload.video = {
+    link: mediaUrl,
+  };
+  if (caption) {
+    responsePayload.video.caption = caption;
+  }
+}
+
+// Documento con filename y caption opcionales
+else if (messageType === 'document' && mediaUrl) {
+  responsePayload.type = 'document';
+  responsePayload.document = {
+    link: mediaUrl,
+  };
+  if (filename) {
+    responsePayload.document.filename = filename;
+  }
+  if (caption) {
+    responsePayload.document.caption = caption;
+  }
+}
+
+// Mensaje de texto puro
+else {
+  responsePayload.type = 'text';
+  responsePayload.text = {
+    body: $json.message || 'Sin mensaje',
+  };
+}
+
+return {
+  json: {
+    payload: responsePayload,
+    phoneNumberId: $json.phoneNumberId,
+    accessToken: $json.accessToken,
+  }
+};
+```
+
+### Nodo n8n: Send to WhatsApp
+
+**Método**: POST
+
+**URL**: `https://graph.facebook.com/v17.0/{{$json.phoneNumberId}}/messages`
+
+**Headers**:
+- `Authorization`: `Bearer {{$json.accessToken}}`
+- `Content-Type`: `application/json`
+
+**Body**: `{{$json.payload}}`
+
+### Tipos de Mensajes Multimedia
+
+#### 1. Imagen con Caption
+
+```json
+{
+  "messaging_product": "whatsapp",
+  "to": "51987654321",
+  "type": "image",
+  "image": {
+    "link": "https://abc.supabase.co/.../image.jpg",
+    "caption": "Mira esta foto del producto"
+  }
+}
+```
+
+#### 2. Video con Caption
+
+```json
+{
+  "messaging_product": "whatsapp",
+  "to": "51987654321",
+  "type": "video",
+  "video": {
+    "link": "https://abc.supabase.co/.../video.mp4",
+    "caption": "Tutorial de uso"
+  }
+}
+```
+
+#### 3. Documento con Filename y Caption
+
+```json
+{
+  "messaging_product": "whatsapp",
+  "to": "51987654321",
+  "type": "document",
+  "document": {
+    "link": "https://abc.supabase.co/.../contrato.pdf",
+    "filename": "Contrato_2026.pdf",
+    "caption": "Contrato firmado y escaneado"
+  }
+}
+```
+
+### Tipos de Archivos Soportados
+
+| Tipo | Formatos WhatsApp | Implementado en KAIRO |
+|------|-------------------|----------------------|
+| Imagen | JPG, PNG, WebP | ✅ JPG, PNG, WebP |
+| Video | MP4 (H.264 + AAC) | ✅ MP4 únicamente |
+| Documento | PDF, DOC, DOCX, XLS, XLSX, TXT | ✅ Todos |
+| Audio | MP3, OGG, M4A, AMR | ❌ Pendiente |
+
+### Limitaciones
+
+| Campo | Límite WhatsApp | Validación KAIRO |
+|-------|-----------------|------------------|
+| Caption | 1024 caracteres | Truncado a 1024 |
+| Filename | 256 caracteres | Sin validación (WhatsApp maneja) |
+| Imagen | 5 MB | 3 MB (optimización) |
+| Video | 16 MB | 16 MB (solo MP4) |
+| Documento | 100 MB | 16 MB (práctico) |
+
+---
+
 ## Referencias
 
 - [n8n Documentation](https://docs.n8n.io/)
 - [Railway Templates](https://railway.app/templates)
 - [WhatsApp Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api)
 - [WhatsApp Webhooks](https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks)
+- [WhatsApp Media Messages](https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages#media-messages)
 - [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/)
 - [ngrok](https://ngrok.com/docs)

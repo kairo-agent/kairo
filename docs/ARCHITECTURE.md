@@ -12,6 +12,8 @@
 | Database | Supabase (PostgreSQL) | - |
 | ORM | Prisma | 5.x |
 | Auth | Supabase Auth | - |
+| Storage | Supabase Storage | - |
+| Image Compression | browser-image-compression | 2.x |
 | Deploy | Vercel | - |
 | Repo | GitHub (kairo-agent/kairo) | - |
 
@@ -381,3 +383,163 @@ toggleAgentStatus(agentId)       // Activar/desactivar
 - Solo usuarios con rol `admin` o `manager` en el proyecto
 - Super admins tienen acceso total
 - No se puede eliminar agente con leads asignados
+
+---
+
+## Sistema de Envío de Archivos Multimedia (v0.6.0)
+
+> Documentación completa en [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md)
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│               FLUJO DE MULTIMEDIA A WHATSAPP                     │
+│                                                                  │
+│  Browser → Supabase Storage → KAIRO DB → n8n → WhatsApp API     │
+│                                                                  │
+│  Bypass: Límite de 4.5MB de Vercel Server Actions               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Características Principales
+
+| Funcionalidad | Descripción |
+|---------------|-------------|
+| **Upload Directo** | Browser → Supabase Storage (sin pasar por Vercel) |
+| **Compresión Automática** | Imágenes >1MB se comprimen a <1MB |
+| **Seguridad RLS** | Solo ProjectMembers pueden subir archivos |
+| **Tipos Soportados** | Imágenes, Video MP4, PDF, Word, Excel, TXT |
+| **Tamaños Máximos** | Imágenes: 3MB, Videos: 16MB, Documentos: 16MB |
+| **Filename Preservation** | Documentos mantienen nombre original en WhatsApp |
+| **Caption Support** | Texto del usuario acompaña a multimedia |
+
+### Componentes Principales
+
+| Componente | Archivo | Responsabilidad |
+|------------|---------|-----------------|
+| ChatInput | `src/components/features/ChatInput.tsx` | UI de selección de archivos |
+| useMediaUpload | `src/hooks/useMediaUpload.ts` | Upload directo a Supabase |
+| LeadChat | `src/components/features/LeadChat.tsx` | Orquestación y compresión |
+| sendMessage | `src/lib/actions/messages.ts` | Server Action: DB + n8n |
+| n8n Workflow | Railway | Envío a WhatsApp Cloud API |
+
+### Tipos de Archivos
+
+```typescript
+// Imágenes (máx 3MB)
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Video (máx 16MB) - Solo MP4
+const VIDEO_TYPES = ['video/mp4']; // WhatsApp solo acepta H.264 + AAC
+
+// Documentos (máx 16MB)
+const DOCUMENT_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+];
+```
+
+### Rutas de Almacenamiento
+
+**Bucket**: `media` (público)
+
+**Path**: `{projectId}/{year}/{month}/{uuid}.{ext}`
+
+**Ejemplo**: `cm50s9z8j0001l70827o3h27q/2026/01/a3f7b9c1-4d2e-4f5a-8b6c-1d3e5f7a9b2c.jpg`
+
+### Seguridad
+
+#### Row-Level Security (RLS)
+
+```sql
+-- Policy: Solo ProjectMembers pueden subir
+CREATE POLICY "Users can upload to their projects"
+ON storage.objects FOR INSERT
+WITH CHECK (
+  bucket_id = 'media'
+  AND split_part(name, '/', 1) IN (
+    SELECT "projectId" FROM "ProjectMember"
+    WHERE "userId" = auth.uid()
+  )
+);
+```
+
+#### Validación Multi-Capa
+
+1. **Cliente**: HTML5 `accept` attribute
+2. **Hook**: Validación de tipo y tamaño
+3. **RLS**: Verificación de permisos en Supabase
+
+### Implementaciones Específicas (2026-01-24)
+
+#### 1. Soporte de Documentos
+
+Agregado soporte para PDF, Word, Excel y TXT con validación específica.
+
+**Archivos modificados**:
+- `src/hooks/useMediaUpload.ts`
+- `src/lib/actions/media.ts`
+- `src/components/features/ChatInput.tsx`
+
+#### 2. Filename para Documentos
+
+Los documentos ahora mantienen su nombre original al llegar a WhatsApp.
+
+**Flujo**:
+1. `ChatInput` captura `file.name`
+2. `LeadChat` extrae filename
+3. `sendMessage` pasa filename a n8n
+4. n8n mapea filename en payload de WhatsApp
+
+**Archivos modificados**:
+- `src/components/features/LeadChat.tsx`
+- `src/lib/actions/messages.ts`
+- n8n: Nodo "Prepare Human Response"
+
+#### 3. Caption para Multimedia
+
+El texto del usuario ahora acompaña a imágenes, videos y documentos.
+
+**Flujo**:
+1. Usuario escribe texto y adjunta archivo
+2. `LeadChat` separa texto original (caption) del content de DB
+3. `sendMessage` pasa caption a n8n
+4. n8n incluye caption en payload de WhatsApp
+
+**Archivos modificados**:
+- `src/components/features/LeadChat.tsx`
+- `src/lib/actions/messages.ts`
+- n8n: Nodos "Prepare Human Response" y "Send to WhatsApp"
+
+#### 4. Restricción de Video a MP4
+
+WhatsApp solo acepta MP4 con H.264 + AAC. WebM y otros formatos no están soportados.
+
+**Cambio**:
+```typescript
+// Antes: accept="video/*"
+// Después: accept="video/mp4"
+<input type="file" accept="video/mp4" />
+```
+
+### Limitaciones de WhatsApp
+
+| Tipo | Límite WhatsApp | Límite KAIRO |
+|------|-----------------|--------------|
+| Imagen | 5 MB | 3 MB |
+| Video | 16 MB | 16 MB (solo MP4) |
+| Documento | 100 MB | 16 MB |
+| Caption | 1024 caracteres | 1024 caracteres |
+
+### Roadmap
+
+- [ ] Soporte de audio (MP3, OGG, M4A)
+- [ ] Preview avanzado de multimedia
+- [ ] Drag & Drop de archivos
+- [ ] Progress bar de upload
+- [ ] Gestión de cuota de Storage por proyecto
