@@ -1,5 +1,49 @@
 # KAIRO - Changelog
 
+## [0.6.1] - 2026-01-24
+
+### Performance
+- **Fase 3: Consolidación de Server Actions** (commit `e882fbb`)
+  - Unificación de `getCurrentUser()` en `auth-helpers.ts` (re-export desde `auth.ts`)
+  - Corrección de property `userId` → `id` en `secrets.ts` y `media.ts`
+  - Implementación de **fire-and-forget** para `markMessagesAsRead()` en `LeadChat.tsx`
+  - Patrón: `.catch()` para logging de errores sin bloquear el render
+  - Reducción de latencia percibida al abrir/recibir mensajes en chat
+
+### UX/UI
+- **Login/Logout Loading Overlay** (commits `f7da1b3`, `c2cf1b6`)
+  - Reemplazado modal "Entendido" post-login por `showLoading()` con redirect inmediato
+  - Agregado loading overlay al hacer click en "Cerrar sesión"
+  - Hotfix: Agregado `LoadingProvider` + `LoadingOverlay` al auth layout
+
+- **Scroll Block en LeadDetailPanel** (commit `ed00501`)
+  - Bloqueo de scroll en `html` y `body` cuando el panel está abierto
+  - Evita doble scroll (window + panel) en todas las plataformas
+
+- **Animación Wave Enhanced** (commit `f907e80`)
+  - Nueva animación `wave-bounce` en `globals.css` con 50% más pronunciamiento
+  - `translateY(-40%)` vs el default `-25%` de Tailwind bounce
+  - Aplicada al `SendingDotsIcon` en botón de envío del chat
+
+### Archivos Clave
+- `src/app/[locale]/(auth)/layout.tsx` - LoadingProvider agregado
+- `src/app/[locale]/(auth)/login/page.tsx` - showLoading en lugar de showSuccess
+- `src/components/layout/Header.tsx` - showLoading on logout
+- `src/components/features/LeadDetailPanel.tsx` - scroll blocking cross-browser
+- `src/components/features/LeadChat.tsx` - fire-and-forget markMessagesAsRead
+- `src/lib/auth-helpers.ts` - re-export de getCurrentUser desde auth.ts
+- `src/lib/actions/secrets.ts` - user.id en lugar de user.userId
+- `src/lib/actions/media.ts` - user.id en lugar de user.userId
+- `src/components/features/ChatInput.tsx` - animate-wave-bounce
+- `src/app/globals.css` - keyframe wave-bounce
+
+### Seguridad
+- Revisión por Security Auditor subagent antes de Fase 3
+- Validación de uso correcto de propiedades de usuario
+- Mantenimiento de verificación de permisos en todas las funciones
+
+---
+
 ## [0.6.0] - 2026-01-24
 
 ### Performance

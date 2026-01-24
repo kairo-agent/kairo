@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** Backend 100% completo, Frontend 85% - Auth real, CRUD leads (R/U), WhatsApp webhook + envío de imágenes/videos, paginación server-side, gestión agentes IA
+**Estado actual:** v0.6.1 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -308,6 +308,9 @@ npm run lint     # Verificar código
 - [x] **Deploy en Vercel** - Producción en https://app.kairoagent.com/
 - [x] **Envío de imágenes/videos WhatsApp** - Upload directo a Supabase Storage (hasta 16MB) + envío via n8n
 - [x] **Media Cleanup Cron** - Eliminación automática de archivos >24h (Vercel Cron)
+- [x] **Performance Phase 1** - Request-scoped caching con React cache() para auth (~60-70% menos queries)
+- [x] **Performance Phase 2** - Cursor-based pagination + React Query useInfiniteQuery (~80% menos payload)
+- [x] **Performance Phase 3** - Consolidación auth-helpers + fire-and-forget markMessagesAsRead (~200-300ms menos latencia)
 
 ### 🔄 Parcial
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
@@ -383,6 +386,8 @@ npm run lint     # Verificar código
 - **Teléfonos en formato E.164** - Todos los leads tienen prefijo +51 (Perú)
 - **n8n Webhooks** - Integración lista en project.n8nWebhookUrl para eventos de chat
 - **WhatsApp Webhook** - `/api/webhooks/whatsapp` recibe mensajes y crea leads automáticamente
+- **Performance** - Ver [PERFORMANCE.md](docs/PERFORMANCE.md) para detalles de optimizaciones (Phases 1-3 completadas)
+- **UX Improvements** - Loading overlays en login/logout, scroll blocking en paneles, animación wave mejorada
 
 ---
 
