@@ -20,13 +20,6 @@ export const prisma =
     },
   });
 
-// Ensure connections are properly managed in serverless
-if (typeof prisma.$on === 'function') {
-  prisma.$on('beforeExit', async () => {
-    await prisma.$disconnect();
-  });
-}
-
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
