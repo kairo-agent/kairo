@@ -479,6 +479,22 @@ tr.lead-row-normal:hover {
   }
 }
 
+/* Wave bounce - 50% more pronounced than default bounce */
+@keyframes wave-bounce {
+  0%, 100% {
+    transform: translateY(-40%);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+  }
+  50% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
+.animate-wave-bounce {
+  animation: wave-bounce 600ms infinite;
+}
+
 .animate-loading-dot-1 {
   animation: loading-dot 1.4s ease-in-out infinite;
   animation-delay: 0s;

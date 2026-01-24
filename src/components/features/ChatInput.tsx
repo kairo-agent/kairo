@@ -118,27 +118,24 @@ const SendIcon = () => (
 const SendingDotsIcon = () => (
   <div className="flex items-center justify-center gap-1">
     <span
-      className="w-1.5 h-1.5 rounded-full animate-bounce"
+      className="w-1.5 h-1.5 rounded-full animate-wave-bounce"
       style={{
         backgroundColor: 'currentColor',
         animationDelay: '0ms',
-        animationDuration: '600ms',
       }}
     />
     <span
-      className="w-1.5 h-1.5 rounded-full animate-bounce"
+      className="w-1.5 h-1.5 rounded-full animate-wave-bounce"
       style={{
         backgroundColor: 'currentColor',
         animationDelay: '150ms',
-        animationDuration: '600ms',
       }}
     />
     <span
-      className="w-1.5 h-1.5 rounded-full animate-bounce"
+      className="w-1.5 h-1.5 rounded-full animate-wave-bounce"
       style={{
         backgroundColor: 'currentColor',
         animationDelay: '300ms',
-        animationDuration: '600ms',
       }}
     />
   </div>
