@@ -379,9 +379,12 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
           : `[${mediaLabel}: ${attachment.name}]`;
       }
 
-      // Pass filename for documents (WhatsApp needs it to display the name)
+      // For documents: pass filename and original message as caption
       const filename = attachment?.type === 'file' ? attachment.name : undefined;
-      const result = await sendMessage(leadId, content, mediaUrl, mediaType, filename);
+      // Caption = original user message (for WhatsApp media captions)
+      // Only send caption if there's actual text (not just the file label)
+      const caption = attachment && message.trim() ? message.trim() : undefined;
+      const result = await sendMessage(leadId, content, mediaUrl, mediaType, filename, caption);
 
       if (result.success && result.message) {
         // Marcar como procesado para tracking interno
