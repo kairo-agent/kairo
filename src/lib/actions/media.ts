@@ -8,8 +8,8 @@
  *
  * Bucket: media
  * Path structure: {projectId}/{year}/{month}/{uuid}.{extension}
- * Max size: 3MB (images), 16MB (videos)
- * Allowed types: image/jpeg, image/png, image/webp, video/mp4
+ * Max size: 3MB (images), 16MB (videos), 16MB (documents)
+ * Allowed types: image/jpeg, image/png, image/webp, video/mp4, PDF, Word, Excel, TXT
  * Note: WhatsApp only supports MP4 (H.264 + AAC) - WebM is NOT supported
  */
 
@@ -22,15 +22,26 @@ import { randomUUID } from 'crypto';
 const BUCKET_NAME = 'media';
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB for images
 const MAX_VIDEO_SIZE = 16 * 1024 * 1024; // 16MB for videos (WhatsApp limit)
+const MAX_DOCUMENT_SIZE = 16 * 1024 * 1024; // 16MB for documents
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 // WhatsApp only supports MP4 (H.264 + AAC) - WebM is NOT supported
 const VIDEO_TYPES = ['video/mp4'] as const;
-const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES] as const;
+// WhatsApp supported document types
+const DOCUMENT_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+] as const;
+const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES, ...DOCUMENT_TYPES] as const;
 
 type AllowedMimeType = (typeof ALLOWED_TYPES)[number];
 type ImageMimeType = (typeof IMAGE_TYPES)[number];
 type VideoMimeType = (typeof VIDEO_TYPES)[number];
+type DocumentMimeType = (typeof DOCUMENT_TYPES)[number];
 
 interface UploadMediaResult {
   success: boolean;
@@ -52,6 +63,22 @@ function isVideoType(mimeType: string): mimeType is VideoMimeType {
 }
 
 /**
+ * Checks if MIME type is a document
+ */
+function isDocumentType(mimeType: string): mimeType is DocumentMimeType {
+  return DOCUMENT_TYPES.includes(mimeType as DocumentMimeType);
+}
+
+/**
+ * Gets max file size based on MIME type
+ */
+function getMaxSizeForType(mimeType: string): number {
+  if (isVideoType(mimeType)) return MAX_VIDEO_SIZE;
+  if (isDocumentType(mimeType)) return MAX_DOCUMENT_SIZE;
+  return MAX_IMAGE_SIZE;
+}
+
+/**
  * Maps MIME type to file extension
  */
 function getExtensionFromMimeType(mimeType: AllowedMimeType): string {
@@ -60,6 +87,12 @@ function getExtensionFromMimeType(mimeType: AllowedMimeType): string {
     'image/png': 'png',
     'image/webp': 'webp',
     'video/mp4': 'mp4',
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'text/plain': 'txt',
   };
   return extensions[mimeType];
 }
@@ -72,12 +105,12 @@ function validateFile(file: File): { valid: boolean; error?: string } {
   if (!ALLOWED_TYPES.includes(file.type as AllowedMimeType)) {
     return {
       valid: false,
-      error: `Tipo de archivo no permitido. Tipos aceptados: ${ALLOWED_TYPES.join(', ')}`,
+      error: `Tipo de archivo no permitido. Tipos aceptados: imágenes, video MP4, PDF, Word, Excel, TXT`,
     };
   }
 
   // Check file size based on type
-  const maxSize = isVideoType(file.type) ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  const maxSize = getMaxSizeForType(file.type);
   if (file.size > maxSize) {
     return {
       valid: false,

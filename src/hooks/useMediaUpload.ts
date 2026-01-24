@@ -16,11 +16,21 @@ import { createClient } from '@/lib/supabase/client';
 const BUCKET_NAME = 'media';
 const MAX_IMAGE_SIZE = 3 * 1024 * 1024; // 3MB for images
 const MAX_VIDEO_SIZE = 16 * 1024 * 1024; // 16MB for videos
+const MAX_DOCUMENT_SIZE = 16 * 1024 * 1024; // 16MB for documents
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 // WhatsApp only supports MP4 (H.264 + AAC) - WebM is NOT supported
 const VIDEO_TYPES = ['video/mp4'] as const;
-const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES] as const;
+// WhatsApp supported document types
+const DOCUMENT_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+] as const;
+const ALLOWED_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES, ...DOCUMENT_TYPES] as const;
 
 type AllowedMimeType = (typeof ALLOWED_TYPES)[number];
 
@@ -43,12 +53,22 @@ function isVideoType(mimeType: string): boolean {
   return VIDEO_TYPES.includes(mimeType as (typeof VIDEO_TYPES)[number]);
 }
 
+function isDocumentType(mimeType: string): boolean {
+  return DOCUMENT_TYPES.includes(mimeType as (typeof DOCUMENT_TYPES)[number]);
+}
+
 function getExtensionFromMimeType(mimeType: AllowedMimeType): string {
   const extensions: Record<AllowedMimeType, string> = {
     'image/jpeg': 'jpg',
     'image/png': 'png',
     'image/webp': 'webp',
     'video/mp4': 'mp4',
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'text/plain': 'txt',
   };
   return extensions[mimeType];
 }
@@ -61,17 +81,23 @@ function generateUUID(): string {
   });
 }
 
+function getMaxSizeForType(mimeType: string): number {
+  if (isVideoType(mimeType)) return MAX_VIDEO_SIZE;
+  if (isDocumentType(mimeType)) return MAX_DOCUMENT_SIZE;
+  return MAX_IMAGE_SIZE;
+}
+
 function validateFile(file: File): { valid: boolean; error?: string } {
   // Check file type
   if (!ALLOWED_TYPES.includes(file.type as AllowedMimeType)) {
     return {
       valid: false,
-      error: `Tipo de archivo no permitido. Tipos aceptados: ${ALLOWED_TYPES.join(', ')}`,
+      error: `Tipo de archivo no permitido. Tipos aceptados: imágenes, video MP4, PDF, Word, Excel, TXT`,
     };
   }
 
   // Check file size based on type
-  const maxSize = isVideoType(file.type) ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
+  const maxSize = getMaxSizeForType(file.type);
   if (file.size > maxSize) {
     return {
       valid: false,
