@@ -4,6 +4,7 @@
 
 'use server';
 
+import { cache } from 'react';
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { prisma } from '@/lib/prisma';
@@ -101,7 +102,12 @@ export async function signOut(): Promise<void> {
   revalidatePath('/', 'layout');
 }
 
-export async function getCurrentUser() {
+/**
+ * Get current authenticated user with full membership data
+ * PERFORMANCE: Uses React cache() to deduplicate within a single request
+ * Multiple calls to getCurrentUser() in the same request will only hit DB once
+ */
+export const getCurrentUser = cache(async () => {
   try {
     const supabase = await createServerClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -131,7 +137,7 @@ export async function getCurrentUser() {
     console.error('Get current user error:', error);
     return null;
   }
-}
+});
 
 export async function getSession() {
   const supabase = await createServerClient();

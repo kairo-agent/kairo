@@ -1,6 +1,7 @@
 // ============================================
 // KAIRO - WhatsApp Webhook Endpoints
 // Receives messages directly from Meta WhatsApp Cloud API
+// PERFORMANCE: In-memory cache for phoneNumberId → projectId mapping
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -17,6 +18,48 @@ import {
 } from '@prisma/client';
 import { decryptSecret } from '@/lib/crypto/secrets';
 import { getProjectSecret } from '@/lib/actions/secrets';
+
+// ============================================
+// In-Memory Cache for phoneNumberId → Project
+// TTL: 5 minutes (300000ms)
+// ============================================
+
+interface CachedProject {
+  project: { id: string; name: string } | null;
+  timestamp: number;
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const phoneNumberIdCache = new Map<string, CachedProject>();
+
+function getCachedProject(phoneNumberId: string): { id: string; name: string } | null | undefined {
+  const cached = phoneNumberIdCache.get(phoneNumberId);
+  if (!cached) return undefined; // Not in cache
+
+  // Check if expired
+  if (Date.now() - cached.timestamp > CACHE_TTL_MS) {
+    phoneNumberIdCache.delete(phoneNumberId);
+    return undefined; // Expired
+  }
+
+  return cached.project;
+}
+
+function setCachedProject(phoneNumberId: string, project: { id: string; name: string } | null): void {
+  phoneNumberIdCache.set(phoneNumberId, {
+    project,
+    timestamp: Date.now(),
+  });
+}
+
+// Allow manual cache invalidation (e.g., when project settings change)
+export function invalidatePhoneNumberCache(phoneNumberId?: string): void {
+  if (phoneNumberId) {
+    phoneNumberIdCache.delete(phoneNumberId);
+  } else {
+    phoneNumberIdCache.clear();
+  }
+}
 
 // ============================================
 // Types for WhatsApp Cloud API Webhooks
@@ -275,10 +318,22 @@ async function processMessagesChange(value: WhatsAppValue, businessAccountId: st
 
 // ============================================
 // Find Project by Phone Number ID
+// PERFORMANCE: Uses in-memory cache with 5-minute TTL
 // ============================================
 
 async function findProjectByPhoneNumberId(phoneNumberId: string) {
-  console.log(`🔍 Looking for project with phone_number_id: ${phoneNumberId}`);
+  // Check cache first
+  const cachedResult = getCachedProject(phoneNumberId);
+  if (cachedResult !== undefined) {
+    if (cachedResult) {
+      console.log(`⚡ Cache hit for phone_number_id: ${phoneNumberId} → ${cachedResult.name}`);
+    } else {
+      console.log(`⚡ Cache hit (no project) for phone_number_id: ${phoneNumberId}`);
+    }
+    return cachedResult;
+  }
+
+  console.log(`🔍 Cache miss - Looking for project with phone_number_id: ${phoneNumberId}`);
 
   // Get all projects with whatsapp_phone_number_id configured
   const secrets = await prisma.projectSecret.findMany({
@@ -286,7 +341,9 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
       key: 'whatsapp_phone_number_id',
     },
     include: {
-      project: true,
+      project: {
+        select: { id: true, name: true },
+      },
     },
   });
 
@@ -301,6 +358,8 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
 
       if (decryptedPhoneNumberId === phoneNumberId) {
         console.log(`✅ Found project: ${secret.project.name} (${secret.projectId})`);
+        // Cache the successful match
+        setCachedProject(phoneNumberId, secret.project);
         return secret.project;
       }
     } catch (error) {
@@ -318,6 +377,9 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
   if (fallbackProject) {
     console.log(`📍 Using fallback project: ${fallbackProject.name}`);
   }
+
+  // Cache the result (including null for no match)
+  setCachedProject(phoneNumberId, fallbackProject);
 
   return fallbackProject;
 }

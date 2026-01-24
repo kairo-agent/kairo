@@ -2,22 +2,25 @@
 // KAIRO - Auth Helpers
 // Secure authentication utilities
 // SECURITY: Always verifies with source of truth (Supabase + DB)
+// PERFORMANCE: Uses React cache() for request-scoped deduplication
 // ============================================
 
+import { cache } from 'react';
 import { createServerClient } from '@/lib/supabase';
 import prisma from '@/lib/prisma';
 
 /**
  * Verify super admin status - used by server actions
  * SECURITY: Always verifies directly with Supabase Auth and database
+ * PERFORMANCE: Uses React cache() for request-scoped deduplication
  * Never trusts client-provided headers or cookies alone
  *
  * @returns Object with userId and isAdmin status
  */
-export async function verifySuperAdmin(): Promise<{
+export const verifySuperAdmin = cache(async (): Promise<{
   userId: string | null;
   isAdmin: boolean;
-}> {
+}> => {
   try {
     // Always verify with source of truth
     const supabase = await createServerClient();
@@ -49,20 +52,21 @@ export async function verifySuperAdmin(): Promise<{
     console.error('Error verifying super admin:', error);
     return { userId: null, isAdmin: false };
   }
-}
+});
 
 /**
- * Get current authenticated user info
+ * Get current authenticated user info (lightweight version)
  * SECURITY: Always verifies with Supabase Auth
+ * PERFORMANCE: Uses React cache() for request-scoped deduplication
  *
  * @returns User info or null if not authenticated
  */
-export async function getCurrentUser(): Promise<{
+export const getCurrentUser = cache(async (): Promise<{
   userId: string;
   email: string;
   systemRole: string;
   isActive: boolean;
-} | null> {
+} | null> => {
   try {
     const supabase = await createServerClient();
     const { data: { user }, error } = await supabase.auth.getUser();
@@ -95,4 +99,4 @@ export async function getCurrentUser(): Promise<{
     console.error('Error getting current user:', error);
     return null;
   }
-}
+});
