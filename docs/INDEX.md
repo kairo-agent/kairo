@@ -6,6 +6,7 @@
 |-----------|-------------|---------------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Stack, estructura y decisiones técnicas | 2026-01-24 |
 | [PERFORMANCE.md](PERFORMANCE.md) | Optimizaciones de rendimiento y caching | 2026-01-24 |
+| [RAG-AGENTS.md](RAG-AGENTS.md) | RAG para agentes IA con pgvector | 2026-01-25 |
 | [N8N-SETUP.md](N8N-SETUP.md) | Configuración n8n para agentes IA (WhatsApp) | 2026-01-19 |
 | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) | Sistema de envío de archivos multimedia a WhatsApp | 2026-01-24 |
 | [COMPONENTS.md](COMPONENTS.md) | Catálogo de componentes UI | 2024-12-31 |
