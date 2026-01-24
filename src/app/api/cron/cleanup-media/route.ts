@@ -1,7 +1,7 @@
 'use server';
 
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const BUCKET_NAME = 'media';
 const MAX_AGE_HOURS = 24;
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
 }
 
 async function getOldFiles(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   projectId: string,
   cutoffDate: Date
 ): Promise<string[]> {
