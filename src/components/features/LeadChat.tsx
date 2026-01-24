@@ -189,7 +189,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
    * 4. Marcar como leído si es del lead
    */
   const handleRealtimeMessage = useCallback(
-    async (realtimeMsg: RealtimeMessage) => {
+    (realtimeMsg: RealtimeMessage) => {
       // Evitar duplicados - verificar si ya procesamos este mensaje
       if (processedMessageIds.current.has(realtimeMsg.id)) {
         console.log(`📨 [Realtime] Mensaje duplicado ignorado: ${realtimeMsg.id}`);
@@ -245,13 +245,11 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         }
       );
 
-      // Si es mensaje del lead, marcarlo como leído automáticamente
+      // Si es mensaje del lead, marcarlo como leído automáticamente (fire-and-forget)
       if (realtimeMsg.sender === 'lead' && leadId) {
-        try {
-          await markMessagesAsRead(leadId);
-        } catch (err) {
-          console.error('Error marcando mensaje como leído:', err);
-        }
+        markMessagesAsRead(leadId).catch(err => {
+          console.error('[KAIRO] markMessagesAsRead failed:', err instanceof Error ? err.message : err);
+        });
       }
     },
     [leadId, queryClient]
@@ -355,11 +353,11 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     }
   }, [isOpen, leadId, loadHandoffStatus]);
 
-  // Marcar mensajes como leídos cuando se carga la conversación
+  // Marcar mensajes como leídos cuando se carga la conversación (fire-and-forget)
   useEffect(() => {
     if (conversation && leadId) {
-      markMessagesAsRead(leadId).catch((err) => {
-        console.error('Error marcando mensajes como leídos:', err);
+      markMessagesAsRead(leadId).catch(err => {
+        console.error('[KAIRO] markMessagesAsRead failed:', err instanceof Error ? err.message : err);
       });
     }
   }, [conversation, leadId]);

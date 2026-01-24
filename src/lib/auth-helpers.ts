@@ -9,6 +9,10 @@ import { cache } from 'react';
 import { createServerClient } from '@/lib/supabase';
 import prisma from '@/lib/prisma';
 
+// Re-export getCurrentUser from auth.ts (full version with projectMemberships)
+// This ensures all consumers use the same cached, complete user data
+export { getCurrentUser } from '@/lib/actions/auth';
+
 /**
  * Verify super admin status - used by server actions
  * SECURITY: Always verifies directly with Supabase Auth and database
@@ -51,52 +55,5 @@ export const verifySuperAdmin = cache(async (): Promise<{
   } catch (error) {
     console.error('Error verifying super admin:', error);
     return { userId: null, isAdmin: false };
-  }
-});
-
-/**
- * Get current authenticated user info (lightweight version)
- * SECURITY: Always verifies with Supabase Auth
- * PERFORMANCE: Uses React cache() for request-scoped deduplication
- *
- * @returns User info or null if not authenticated
- */
-export const getCurrentUser = cache(async (): Promise<{
-  userId: string;
-  email: string;
-  systemRole: string;
-  isActive: boolean;
-} | null> => {
-  try {
-    const supabase = await createServerClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-
-    if (error || !user) {
-      return null;
-    }
-
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        id: true,
-        email: true,
-        systemRole: true,
-        isActive: true,
-      },
-    });
-
-    if (!dbUser) {
-      return null;
-    }
-
-    return {
-      userId: dbUser.id,
-      email: dbUser.email,
-      systemRole: dbUser.systemRole,
-      isActive: dbUser.isActive,
-    };
-  } catch (error) {
-    console.error('Error getting current user:', error);
-    return null;
   }
 });

@@ -191,7 +191,7 @@ export async function uploadMedia(
     }
 
     // Verify user has access to the project
-    const hasAccess = await verifyProjectAccess(user.userId, projectId);
+    const hasAccess = await verifyProjectAccess(user.id, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -280,7 +280,7 @@ export async function deleteMedia(path: string): Promise<DeleteMediaResult> {
     const projectId = pathSegments[0];
 
     // Verify user has access to the project
-    const hasAccess = await verifyProjectAccess(user.userId, projectId);
+    const hasAccess = await verifyProjectAccess(user.id, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para eliminar este archivo' };
     }
@@ -347,7 +347,7 @@ export async function deleteMediaBatch(
     }
 
     for (const projectId of projectIds) {
-      const hasAccess = await verifyProjectAccess(user.userId, projectId);
+      const hasAccess = await verifyProjectAccess(user.id, projectId);
       if (!hasAccess) {
         return {
           success: false,

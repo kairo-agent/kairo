@@ -59,7 +59,7 @@ export async function setProjectSecret(
     }
 
     // Verify user has admin access to this project
-    const hasAccess = await verifyProjectAdminAccess(user.userId, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -88,7 +88,7 @@ export async function setProjectSecret(
     });
 
     // Audit log
-    await logSecretAccess(projectId, key, user.userId, 'write');
+    await logSecretAccess(projectId, key, user.id, 'write');
 
     return { success: true };
   } catch (error) {
@@ -160,7 +160,7 @@ export async function getProjectSecretForUser(
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.userId, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -172,7 +172,7 @@ export async function getProjectSecretForUser(
     }
 
     // Log user access
-    await logSecretAccess(projectId, key, user.userId, 'read');
+    await logSecretAccess(projectId, key, user.id, 'read');
 
     return { success: true, value };
   } catch (error) {
@@ -198,7 +198,7 @@ export async function deleteProjectSecret(
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.userId, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -209,7 +209,7 @@ export async function deleteProjectSecret(
       },
     });
 
-    await logSecretAccess(projectId, key, user.userId, 'delete');
+    await logSecretAccess(projectId, key, user.id, 'delete');
 
     return { success: true };
   } catch (error) {
@@ -234,7 +234,7 @@ export async function getProjectSecretsStatus(
       return { success: false, configured: {} as Record<SecretKey, boolean>, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.userId, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
     if (!hasAccess) {
       return { success: false, configured: {} as Record<SecretKey, boolean>, error: 'Sin permisos' };
     }
@@ -283,7 +283,7 @@ export async function setProjectSecrets(
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.userId, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -310,7 +310,7 @@ export async function setProjectSecrets(
             authTag: encrypted.authTag,
           },
         });
-        await logSecretAccess(projectId, key, user.userId, 'write');
+        await logSecretAccess(projectId, key, user.id, 'write');
       }
     }
 
