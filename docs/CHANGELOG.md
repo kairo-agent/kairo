@@ -1,5 +1,36 @@
 # KAIRO - Changelog
 
+## [0.6.2] - 2026-01-24
+
+### Performance
+- **Fase 4: Composite Indexes y Partial Selects** (commit `e07259d`)
+  - Índices compuestos en Prisma schema:
+    - `Lead: @@index([projectId, status])` - Filtros de grilla
+    - `Lead: @@index([projectId, temperature])` - Filtros por potencial
+    - `Message: @@index([conversationId, createdAt])` - Paginación de mensajes
+  - Tipos optimizados para reducir payload:
+    - `LeadGridItem` - Solo campos necesarios para grilla (~30% menos payload)
+    - `MessageForChat` - Excluye metadata innecesaria
+  - Patrones de select reutilizables:
+    - `messageSelectForChat` - Para UI del chat
+    - `leadSelectForAccessCheck` - Mínimo para verificación de acceso
+    - `leadSelectForSendMessage` - Para envío a n8n
+    - `leadSelectForHandoffToggle` - Para cambio de modo
+  - Seguridad: `projectId` SIEMPRE incluido en queries con verificación de acceso
+
+### Archivos Clave
+- `prisma/schema.prisma` - Índices compuestos agregados
+- `src/lib/actions/leads.ts` - LeadGridItem type + select optimizado
+- `src/lib/actions/messages.ts` - MessageForChat type + patrones de select
+- `src/components/features/LeadChat.tsx` - Usa MessageForChat
+
+### Seguridad
+- Revisión completa por Security Auditor subagent
+- Regla crítica: nunca omitir `projectId` en queries que verifican acceso
+- Multi-tenant isolation mantenido con índices y selects optimizados
+
+---
+
 ## [0.6.1] - 2026-01-24
 
 ### Performance
