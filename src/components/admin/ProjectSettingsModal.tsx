@@ -28,6 +28,7 @@ import {
   type AIAgentType,
   type AIAgentData
 } from '@/lib/actions/agents';
+import { updateProject } from '@/lib/actions/admin';
 
 interface Project {
   id: string;
@@ -499,7 +500,15 @@ export default function ProjectSettingsModal({
     setSuccessMessage('');
 
     try {
-      // TODO: Save n8n webhook URL to project (not encrypted, just regular field)
+      const result = await updateProject(project.id, {
+        n8nWebhookUrl: n8nWebhookUrl || null,
+      });
+
+      if ('error' in result && result.error) {
+        setError(result.error);
+        return;
+      }
+
       setSuccessMessage(t('settings.savedSuccessfully'));
       onSuccess();
     } catch (err) {
