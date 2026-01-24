@@ -4,6 +4,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import * as crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import {
@@ -84,6 +85,41 @@ interface WhatsAppStatus {
 }
 
 // ============================================
+// Webhook Signature Verification (Security)
+// Verifies X-Hub-Signature-256 header from Meta
+// https://developers.facebook.com/docs/graph-api/webhooks/getting-started#verification-requests
+// ============================================
+
+function verifyWebhookSignature(
+  rawBody: string,
+  signature: string | null,
+  appSecret: string
+): boolean {
+  if (!signature) {
+    return false;
+  }
+
+  // La firma viene como "sha256=abc123..."
+  const expectedSignature = crypto
+    .createHmac('sha256', appSecret)
+    .update(rawBody, 'utf8')
+    .digest('hex');
+
+  const providedSignature = signature.replace('sha256=', '');
+
+  try {
+    // Usar timingSafeEqual para prevenir ataques de timing
+    return crypto.timingSafeEqual(
+      Buffer.from(providedSignature, 'hex'),
+      Buffer.from(expectedSignature, 'hex')
+    );
+  } catch {
+    // Si los buffers tienen diferente longitud, timingSafeEqual lanza error
+    return false;
+  }
+}
+
+// ============================================
 // GET Handler - Webhook Verification
 // Meta sends a GET request to verify the webhook URL
 // ============================================
@@ -131,14 +167,58 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const payload: WhatsAppWebhookPayload = await request.json();
+    // IMPORTANTE: Leer body raw ANTES de cualquier otra cosa
+    // Necesitamos el texto crudo para verificar la firma HMAC
+    const rawBody = await request.text();
+
+    // ============================================
+    // Verificar firma de Meta (X-Hub-Signature-256)
+    // ============================================
+    const signature = request.headers.get('X-Hub-Signature-256');
+    const appSecret = process.env.WHATSAPP_APP_SECRET;
+
+    const isDev = process.env.NODE_ENV === 'development';
+    const bypassSignature = process.env.WEBHOOK_BYPASS_SIGNATURE === 'true';
+
+    if (!isDev || !bypassSignature) {
+      // Produccion o desarrollo sin bypass: verificar firma obligatoriamente
+      if (!appSecret) {
+        console.error('[WhatsApp Webhook] WHATSAPP_APP_SECRET not configured');
+        // Retornar 200 para no exponer error de configuracion a posibles atacantes
+        return NextResponse.json({ success: true });
+      }
+
+      if (!verifyWebhookSignature(rawBody, signature, appSecret)) {
+        console.warn('[WhatsApp Webhook] Invalid signature - possible spoofing attempt', {
+          hasSignature: !!signature,
+          timestamp: new Date().toISOString(),
+          ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+        });
+        // Retornar 200 para no dar pistas a atacantes (security by obscurity)
+        return NextResponse.json({ success: true });
+      }
+
+      console.log('[WhatsApp Webhook] Signature verified successfully');
+    } else {
+      console.warn('[WhatsApp Webhook] DEV MODE: Signature verification bypassed');
+    }
+
+    // ============================================
+    // Parsear JSON despues de verificar firma
+    // ============================================
+    let payload: WhatsAppWebhookPayload;
+    try {
+      payload = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error('[WhatsApp Webhook] Invalid JSON payload:', parseError);
+      // Retornar 200 para no exponer errores
+      return NextResponse.json({ success: true });
+    }
 
     // Validate it's from WhatsApp
     if (payload.object !== 'whatsapp_business_account') {
-      return NextResponse.json(
-        { error: 'Invalid payload' },
-        { status: 400 }
-      );
+      console.warn('[WhatsApp Webhook] Invalid payload object:', payload.object);
+      return NextResponse.json({ success: true });
     }
 
     // Process each entry
@@ -154,7 +234,7 @@ export async function POST(request: NextRequest) {
     // Meta expects response within 20 seconds
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('WhatsApp webhook error:', error);
+    console.error('[WhatsApp Webhook] Unexpected error:', error);
     // Still return 200 to prevent Meta from retrying
     return NextResponse.json({ success: true });
   }

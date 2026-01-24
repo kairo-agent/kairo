@@ -1,5 +1,44 @@
 # KAIRO - Changelog
 
+## [0.5.3] - 2026-01-23
+
+### Seguridad
+- **API /api/whatsapp/send** - Autenticación reforzada
+  - Verificación de sesión Supabase Auth
+  - Verificación de membresía en proyecto
+  - Variable `BYPASS_AUTH_DEV` para desarrollo local
+
+- **API /api/messages/confirm** - Shared secret para callbacks n8n
+  - Validación de header `X-N8N-Secret`
+  - Variable `N8N_CALLBACK_SECRET` requerida
+  - Previene callbacks no autorizados
+
+- **Webhook /api/webhooks/whatsapp** - Verificación HMAC-SHA256
+  - Función `verifyWebhookSignature()` con crypto nativo
+  - Valida header `X-Hub-Signature-256` de Meta
+  - Variable `WHATSAPP_APP_SECRET` (App Secret de Meta, no Access Token)
+  - Variable `WEBHOOK_BYPASS_SIGNATURE` para desarrollo con ngrok
+
+### Mejorado
+- **Exports centralizados** - Index.ts completados
+  - `src/components/layout/index.ts` - WorkspaceSelector agregado
+  - `src/components/admin/index.ts` - ProjectSettingsModal agregado
+  - `src/components/features/index.ts` - Archivo creado con todos los exports
+
+### Documentación
+- **CLAUDE.md actualizado**
+  - Nueva sección "Seguridad de APIs" con tabla resumen
+  - Documentación de variables de entorno de seguridad
+  - Guía de configuración para producción vs desarrollo
+
+### Testing
+- **Flujo WhatsApp verificado end-to-end**
+  - Webhook recibe mensajes via ngrok
+  - Mensajes aparecen en tiempo real en chat
+  - Modo Human funcional con envío de respuestas
+
+---
+
 ## [0.5.2] - 2026-01-22
 
 ### Agregado

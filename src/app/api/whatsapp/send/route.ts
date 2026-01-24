@@ -4,6 +4,8 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
 
@@ -57,6 +59,77 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // ============================================
+    // Authentication & Authorization
+    // ============================================
+
+    // Create Supabase server client
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+        },
+      }
+    );
+
+    // Verify authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    // Development bypass check
+    const isDev = process.env.NODE_ENV === 'development';
+    const bypassAuth = process.env.BYPASS_AUTH_DEV === 'true';
+
+    if (!user && !(isDev && bypassAuth)) {
+      console.log('[WhatsApp Send] Unauthorized request - no authenticated user');
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized - Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    if (!user && isDev && bypassAuth) {
+      console.log('[WhatsApp Send] Dev mode: Auth bypass enabled, proceeding without user');
+    }
+
+    // If user exists, verify access to project
+    if (user) {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { systemRole: true }
+      });
+
+      // Super admin has access to everything
+      const isSuperAdmin = dbUser?.systemRole === 'super_admin';
+
+      if (!isSuperAdmin) {
+        const membership = await prisma.projectMember.findFirst({
+          where: {
+            projectId,
+            userId: user.id,
+          },
+        });
+
+        if (!membership) {
+          console.log(`[WhatsApp Send] User ${user.id} denied access to project ${projectId}`);
+          return NextResponse.json(
+            { success: false, error: 'Forbidden - No access to this project' },
+            { status: 403 }
+          );
+        }
+      }
+
+      console.log(`[WhatsApp Send] User ${user.id} authorized for project ${projectId}`);
+    }
+
+    // ============================================
+    // Input Validation
+    // ============================================
 
     // Validate phone number format (basic validation)
     const cleanPhone = to.replace(/[^0-9]/g, '');

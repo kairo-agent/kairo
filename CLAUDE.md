@@ -41,6 +41,7 @@ KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes d
 | `/[locale]/dashboard` | `src/app/[locale]/(dashboard)/dashboard/page.tsx` | ✅ Placeholder |
 | `/[locale]/leads` | `src/app/[locale]/(dashboard)/leads/page.tsx` | ✅ Completado |
 | `/[locale]/profile` | `src/app/[locale]/(dashboard)/profile/page.tsx` | ✅ Completado |
+| `/[locale]/select-workspace` | `src/app/[locale]/select-workspace/page.tsx` | ✅ Completado |
 | `/[locale]/conversations` | - | Pendiente |
 | `/[locale]/agents` | - | Pendiente |
 | `/[locale]/reports` | - | Pendiente |
@@ -104,6 +105,7 @@ kairo-dashboard/
 │   │   │   ├── Badge.tsx
 │   │   │   ├── LoadingOverlay.tsx
 │   │   │   ├── Pagination.tsx
+│   │   │   ├── DateRangePicker.tsx # Selector de rango de fechas
 │   │   │   └── index.ts         # Re-exports
 │   │   ├── layout/              # Estructura
 │   │   │   ├── Sidebar.tsx
@@ -111,16 +113,22 @@ kairo-dashboard/
 │   │   │   ├── WorkspaceSelector.tsx
 │   │   │   └── index.ts
 │   │   ├── admin/               # Componentes de administración
+│   │   │   ├── AdminSidebar.tsx # Sidebar específico para admin
 │   │   │   ├── OrganizationModal.tsx
 │   │   │   ├── ProjectModal.tsx
 │   │   │   ├── ProjectSettingsModal.tsx # Config de secretos WhatsApp/n8n
 │   │   │   ├── UserModal.tsx
 │   │   │   └── DeleteConfirmModal.tsx
+│   │   ├── icons/               # Iconos personalizados
+│   │   │   └── ChannelIcons.tsx # Iconos de canales (WhatsApp, etc.)
 │   │   └── features/            # Componentes de dominio
 │   │       ├── LeadCard.tsx
 │   │       ├── LeadTable.tsx
 │   │       ├── LeadFilters.tsx  # Filtros colapsables con badge flotante
-│   │       └── LeadDetailPanel.tsx # Panel lateral de detalle de lead
+│   │       ├── LeadDetailPanel.tsx # Panel lateral de detalle de lead
+│   │       ├── LeadEditModal.tsx # Modal para editar lead
+│   │       ├── LeadChat.tsx     # Chat WhatsApp con status indicators
+│   │       └── ChatInput.tsx    # Input de chat con emojis y adjuntos
 │   │
 │   ├── contexts/
 │   │   ├── ThemeContext.tsx     # Light/Dark theme
@@ -144,11 +152,17 @@ kairo-dashboard/
 │   │   ├── supabase/            # Configuración Supabase + Prisma
 │   │   │   ├── client.ts        # Cliente browser
 │   │   │   └── server.ts        # Cliente server + Prisma singleton
+│   │   ├── auth-helpers.ts      # verifySuperAdmin, getCurrentUser
+│   │   ├── rate-limit.ts        # Rate limiting (memoria/Redis)
 │   │   └── actions/             # Server Actions
 │   │       ├── admin.ts         # CRUD Organizations, Projects, Users
 │   │       ├── agents.ts        # CRUD AIAgent por proyecto
+│   │       ├── auth.ts          # signIn, signOut, getCurrentUser, getSession
 │   │       ├── leads.ts         # CRUD Leads
-│   │       └── secrets.ts       # CRUD Project Secrets (encriptados)
+│   │       ├── messages.ts      # Chat, handoff, markAsRead
+│   │       ├── profile.ts       # getProfile, updateProfile, changePassword
+│   │       ├── secrets.ts       # CRUD Project Secrets (encriptados)
+│   │       └── workspace.ts     # getOrganizations, getProjects (selector)
 │   │
 │   ├── middleware.ts            # Detección de locale
 │   │
@@ -281,9 +295,16 @@ npm run lint     # Verificar código
 - [x] **ProjectSettingsModal** - UI para configurar secretos por proyecto en Admin
 - [x] **Gestión de Agentes IA** - CRUD completo en ProjectSettingsModal (crear, editar, eliminar, toggle status)
 - [x] **Server Actions Agents** - `src/lib/actions/agents.ts` con validación de permisos
+- [x] **Conversaciones/Chat** - Backend y frontend completos con Realtime
+- [x] **Endpoint /api/whatsapp/send** - Proxy directo a WhatsApp Cloud API para n8n
+- [x] **Trigger a n8n** - Webhook dispara n8n cuando `handoffMode === 'ai'`
+- [x] **API /api/messages/confirm** - Callback de n8n para confirmar envío
+- [x] **Seguridad API /api/whatsapp/send** - Auth Supabase + verificación de membresía
+- [x] **Seguridad API /api/messages/confirm** - Shared secret via header X-N8N-Secret
+- [x] **Seguridad Webhook WhatsApp** - Verificación HMAC-SHA256 (X-Hub-Signature-256)
+- [x] **Index.ts completos** - Exports centralizados en layout/, admin/, features/
 
 ### 🔄 Parcial
-- [ ] **Conversaciones/Chat** - Backend 100% listo (getLeadConversation, sendMessage, toggleHandoffMode), frontend por verificar
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
 
 ### ❌ Pendiente
@@ -440,11 +461,11 @@ npm run lint     # Verificar código
 5. **Costo** - ~$20/mes n8n Cloud vs horas de desarrollo
 
 **TODO implementar:**
-- [ ] Endpoint `/api/whatsapp/send` para que n8n envíe mensajes
-- [ ] Trigger a n8n en webhook cuando `handoffMode === 'BOT'`
+- [x] Endpoint `/api/whatsapp/send` para que n8n envíe mensajes ✅
+- [x] Trigger a n8n en webhook cuando `handoffMode === 'ai'` ✅
+- [x] Callback `/api/messages/confirm` para confirmar envío desde n8n ✅
 - [ ] Setup n8n Cloud ($20/mes) o self-hosted
 - [ ] Workflow "KAIRO - AI Agent Handler" con prompts por agente
-- [ ] Conectar webhooks bidireccionales
 
 ---
 
@@ -483,8 +504,10 @@ import {
 ### Componentes de Admin
 - `OrganizationModal`: Crear/Editar orgs con timezone/locale
 - `ProjectModal`: Crear/Editar projects con plan
+- `ProjectSettingsModal`: Config de secretos WhatsApp/n8n + CRUD Agentes IA
 - `UserModal`: Crear/Editar users con password generation
 - `DeleteConfirmModal`: Confirmación de eliminación reutilizable
+- `AdminSidebar`: Sidebar específico para panel admin
 
 ---
 
@@ -661,6 +684,17 @@ Content-Type: application/json
 ```bash
 # Token de verificación (cualquier string, debe coincidir con Meta)
 WHATSAPP_WEBHOOK_VERIFY_TOKEN=kairo_wh_v3r1fy_2026
+
+# App Secret de Meta (para verificación HMAC de webhooks)
+# Lo encuentras en: Meta Developer Console → Tu App → Settings → Basic → App Secret
+WHATSAPP_APP_SECRET=<tu_app_secret_de_meta>
+
+# Secret compartido para callbacks de n8n
+N8N_CALLBACK_SECRET=<tu_secret_para_n8n>
+
+# Solo desarrollo (NO usar en producción):
+BYPASS_AUTH_DEV=true           # Bypass auth en /api/whatsapp/send
+WEBHOOK_BYPASS_SIGNATURE=true  # Bypass verificación HMAC en webhook
 ```
 
 ### Desarrollo Local con ngrok
@@ -698,3 +732,94 @@ ngrok http 3000
 5. Crea/actualiza conversación
 6. Almacena mensaje con metadata
 7. UI muestra lead al hacer clic en botón refresh
+
+---
+
+## Seguridad de APIs (Actualizado Enero 2026)
+
+### Resumen de Protecciones
+
+| Endpoint | Protección | Variable de Entorno |
+|----------|------------|---------------------|
+| `/api/whatsapp/send` | Supabase Auth + Project Membership | `BYPASS_AUTH_DEV` (dev only) |
+| `/api/messages/confirm` | Shared Secret Header | `N8N_CALLBACK_SECRET` |
+| `/api/webhooks/whatsapp` | HMAC-SHA256 Signature | `WHATSAPP_APP_SECRET` |
+
+### V1: `/api/whatsapp/send` - Autenticación de Usuario
+
+**Propósito:** Proxy para enviar mensajes a WhatsApp Cloud API (usado por n8n y UI).
+
+**Protección implementada:**
+- Verificación de sesión Supabase Auth
+- Verificación de membresía en el proyecto
+- Solo usuarios autenticados con acceso al proyecto pueden enviar mensajes
+
+```typescript
+// Bypass para desarrollo local (NO usar en producción)
+BYPASS_AUTH_DEV=true
+```
+
+**Archivo:** `src/app/api/whatsapp/send/route.ts`
+
+### V2: `/api/messages/confirm` - Callback de n8n
+
+**Propósito:** Callback que n8n usa para confirmar que envió un mensaje.
+
+**Protección implementada:**
+- Header `X-N8N-Secret` con shared secret
+- Valida que el request viene de n8n autorizado
+
+```typescript
+// Configurar el mismo secret en n8n y KAIRO
+N8N_CALLBACK_SECRET=k4ir0-prod-secret-change-me
+
+// En n8n, agregar header:
+// X-N8N-Secret: k4ir0-prod-secret-change-me
+```
+
+**Archivo:** `src/app/api/messages/confirm/route.ts`
+
+### V3: `/api/webhooks/whatsapp` - Webhook de Meta
+
+**Propósito:** Recibir mensajes entrantes de WhatsApp.
+
+**Protección implementada:**
+- Verificación HMAC-SHA256 del header `X-Hub-Signature-256`
+- Usa el App Secret de Meta (no el Access Token)
+- Previene inyección de mensajes falsos
+
+```typescript
+// App Secret de Meta Developer Console
+// Settings → Basic → App Secret (Show)
+WHATSAPP_APP_SECRET=36120c60ba5bbc2a4c9156daa7620b98
+
+// Bypass para desarrollo con ngrok (NO usar en producción)
+WEBHOOK_BYPASS_SIGNATURE=true
+```
+
+**Archivo:** `src/app/api/webhooks/whatsapp/route.ts`
+
+### Configuración para Producción
+
+```bash
+# .env.production (valores de ejemplo - cambiar)
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=kairo_wh_v3r1fy_2026
+WHATSAPP_APP_SECRET=<app_secret_real_de_meta>
+N8N_CALLBACK_SECRET=<secret_fuerte_generado>
+
+# NO incluir en producción:
+# BYPASS_AUTH_DEV=true
+# WEBHOOK_BYPASS_SIGNATURE=true
+```
+
+### Desarrollo Local con ngrok
+
+Para testing local, las protecciones pueden bypassearse:
+
+```bash
+# .env.local
+BYPASS_AUTH_DEV=true           # Permite enviar sin auth
+WEBHOOK_BYPASS_SIGNATURE=true  # Permite webhooks sin firma válida
+```
+
+⚠️ **NUNCA** usar estos flags en producción

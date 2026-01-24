@@ -24,6 +24,38 @@ interface ConfirmMessageRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    // === VERIFICACIÓN DE SEGURIDAD (Shared Secret) ===
+    const n8nSecret = request.headers.get('X-N8N-Secret');
+    const expectedSecret = process.env.N8N_CALLBACK_SECRET;
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (!isDev) {
+      // En producción, el secret es OBLIGATORIO
+      if (!expectedSecret) {
+        console.error('[messages/confirm] N8N_CALLBACK_SECRET not configured in production');
+        return NextResponse.json(
+          { success: false, error: 'Server configuration error' },
+          { status: 500 }
+        );
+      }
+
+      if (n8nSecret !== expectedSecret) {
+        console.warn('[messages/confirm] Invalid or missing X-N8N-Secret header');
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+    } else {
+      // En desarrollo, advertir si no hay secret pero permitir
+      if (!expectedSecret) {
+        console.warn('[messages/confirm] DEV MODE: N8N_CALLBACK_SECRET not configured - requests allowed without auth');
+      } else if (n8nSecret !== expectedSecret) {
+        console.warn('[messages/confirm] DEV MODE: Invalid X-N8N-Secret but allowing request');
+      }
+    }
+    // === FIN VERIFICACIÓN DE SEGURIDAD ===
+
     // Parsear el body del request
     const body: ConfirmMessageRequest = await request.json();
     const { messageId, whatsappMsgId, success, error } = body;
@@ -168,6 +200,12 @@ export async function GET() {
     service: 'KAIRO Message Confirmation',
     endpoint: 'POST /api/messages/confirm',
     description: 'Recibe callback de n8n después de enviar mensaje a WhatsApp',
+    authentication: {
+      header: 'X-N8N-Secret',
+      description: 'Shared secret para autenticar callbacks desde n8n',
+      required: 'Obligatorio en producción, opcional en desarrollo',
+      envVar: 'N8N_CALLBACK_SECRET',
+    },
     request: {
       messageId: 'string (requerido) - ID del mensaje en KAIRO',
       whatsappMsgId: 'string (requerido si success=true) - ID del mensaje en WhatsApp',
@@ -179,7 +217,6 @@ export async function GET() {
       message: 'string (en caso de éxito)',
       error: 'string (en caso de error)',
     },
-    // TODO: Agregar autenticación con API key
-    security: 'Sin autenticación (por ahora)',
+    security: 'Autenticación via shared secret (X-N8N-Secret header)',
   });
 }
