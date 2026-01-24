@@ -23,7 +23,7 @@ import {
   type MessageWithSender,
   type ConversationWithMessages,
 } from '@/lib/actions/messages';
-import { uploadMedia } from '@/lib/actions/media';
+import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useRealtimeMessages, type RealtimeMessage, type MessageStatusUpdate } from '@/hooks/useRealtimeMessages';
 import ChatInput, { type ChatAttachment, type ChatInputRef } from './ChatInput';
 
@@ -92,6 +92,9 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
+
+  // Direct upload hook (bypasses Vercel 4.5MB limit)
+  const { upload: uploadMedia, isUploading } = useMediaUpload();
 
   // State
   const [conversation, setConversation] = useState<ConversationWithMessages | null>(null);
@@ -353,7 +356,8 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
           }
         }
 
-        // Upload to Supabase
+        // Upload directly to Supabase (bypasses Vercel 4.5MB limit)
+        // RLS policies verify ProjectMember access server-side
         const uploadResult = await uploadMedia(projectResult.projectId, fileToUpload);
         if (!uploadResult.success || !uploadResult.url) {
           setError(uploadResult.error || 'Error al subir archivo');
@@ -675,8 +679,8 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
               ref={chatInputRef}
               onSendMessage={handleSendMessage}
               onEmojiClick={() => setShowEmojiPicker(!showEmojiPicker)}
-              disabled={isSending}
-              isSending={isSending}
+              disabled={isSending || isUploading}
+              isSending={isSending || isUploading}
             />
           </div>
         </div>

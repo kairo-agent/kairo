@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** Backend 100% completo, Frontend 85% - Auth real, CRUD leads (R/U), WhatsApp webhook + imagen envío, paginación server-side, gestión agentes IA
+**Estado actual:** Backend 100% completo, Frontend 85% - Auth real, CRUD leads (R/U), WhatsApp webhook + envío de imágenes/videos, paginación server-side, gestión agentes IA
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -306,7 +306,7 @@ npm run lint     # Verificar código
 - [x] **Seguridad Webhook WhatsApp** - Verificación HMAC-SHA256 (X-Hub-Signature-256)
 - [x] **Index.ts completos** - Exports centralizados en layout/, admin/, features/
 - [x] **Deploy en Vercel** - Producción en https://app.kairoagent.com/
-- [x] **Envío de imágenes WhatsApp** - Upload a Supabase Storage + compresión + envío via n8n
+- [x] **Envío de imágenes/videos WhatsApp** - Upload directo a Supabase Storage (hasta 16MB) + envío via n8n
 - [x] **Media Cleanup Cron** - Eliminación automática de archivos >24h (Vercel Cron)
 
 ### 🔄 Parcial
@@ -833,36 +833,42 @@ WEBHOOK_BYPASS_SIGNATURE=true  # Permite webhooks sin firma válida
 
 ---
 
-## Media Upload (Imágenes WhatsApp)
+## Media Upload (Imágenes y Videos WhatsApp)
 
 ### Arquitectura
 
+Upload directo desde navegador a Supabase Storage, bypassing Vercel's 4.5MB Server Action limit.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  IMAGE UPLOAD FLOW                           │
+│                  MEDIA UPLOAD FLOW                           │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│   Usuario selecciona imagen en ChatInput                     │
+│   Usuario selecciona imagen/video en ChatInput               │
 │       │                                                      │
 │       ▼                                                      │
 │   ┌─────────────────────────────────────────────────────┐   │
-│   │  browser-image-compression                          │   │
+│   │  Solo imágenes: browser-image-compression           │   │
 │   │  - Si imagen > 1MB → comprimir a máx 1MB            │   │
 │   │  - maxWidthOrHeight: 1920px                          │   │
+│   │  (Videos no se comprimen - hasta 16MB)               │   │
 │   └─────────────────────────────────────────────────────┘   │
 │       │                                                      │
 │       ▼                                                      │
 │   ┌─────────────────────────────────────────────────────┐   │
-│   │  uploadMedia() → Supabase Storage                   │   │
+│   │  useMediaUpload() → Upload DIRECTO a Supabase       │   │
+│   │  - Bypass Vercel 4.5MB limit (navegador → Supabase) │   │
+│   │  - RLS policies verifican ProjectMember access      │   │
 │   │  - Bucket: "media" (público)                         │   │
 │   │  - Path: {projectId}/{year}/{month}/{uuid}.{ext}    │   │
-│   │  - Max: 3MB, tipos: jpeg, png, webp                  │   │
+│   │  - Imágenes: max 3MB (jpeg, png, webp)               │   │
+│   │  - Videos: max 16MB (mp4, webm)                      │   │
 │   └─────────────────────────────────────────────────────┘   │
 │       │                                                      │
 │       ▼                                                      │
 │   ┌─────────────────────────────────────────────────────┐   │
 │   │  sendMessage() con mediaUrl y messageType           │   │
-│   │  - content: "[Imagen: nombre.png]" (ligero en BD)   │   │
+│   │  - content: "[Imagen/Video: nombre.ext]"            │   │
 │   │  - mediaUrl: URL pública de Supabase                │   │
 │   │  - messageType: "image" | "video" | "document"       │   │
 │   └─────────────────────────────────────────────────────┘   │
@@ -870,9 +876,7 @@ WEBHOOK_BYPASS_SIGNATURE=true  # Permite webhooks sin firma válida
 │       ▼                                                      │
 │   ┌─────────────────────────────────────────────────────┐   │
 │   │  n8n "Send to WhatsApp"                              │   │
-│   │  - Detecta messageType === 'image'                   │   │
-│   │  - Envía formato WhatsApp: { type: "image",          │   │
-│   │    image: { link: mediaUrl } }                       │   │
+│   │  - Detecta messageType y envía formato correcto     │   │
 │   └─────────────────────────────────────────────────────┘   │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
@@ -882,31 +886,44 @@ WEBHOOK_BYPASS_SIGNATURE=true  # Permite webhooks sin firma válida
 
 | Archivo | Propósito |
 |---------|-----------|
-| `src/lib/actions/media.ts` | Server action para upload/delete en Supabase Storage |
-| `src/components/features/LeadChat.tsx` | Compresión + upload antes de enviar |
-| `src/components/features/ChatInput.tsx` | UI de selección de archivos |
+| `src/hooks/useMediaUpload.ts` | Hook para upload directo navegador→Supabase |
+| `src/lib/actions/media.ts` | Validación de tipos y tamaños (backup/referencia) |
+| `src/components/features/LeadChat.tsx` | Compresión imágenes + upload directo |
+| `src/components/features/ChatInput.tsx` | UI de selección de archivos + indicador enviando |
 | `src/lib/actions/messages.ts` | `sendMessage()` con mediaUrl y messageType |
 | `src/app/api/cron/cleanup-media/route.ts` | Cron job para limpiar archivos >24h |
-| `vercel.json` | Configuración del cron (3am UTC diario) |
+| `scripts/secure-storage-rls.sql` | Políticas RLS seguras para storage |
 
 ### Supabase Storage Setup
 
-**Bucket creado:** `media`
+**Bucket:** `media`
 - Public: ✅
-- File size limit: 3MB
-- Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`
+- File size limit: **16MB** (para videos WhatsApp)
+- Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `video/mp4`, `video/webm`
 
-**Políticas RLS (ejecutar en SQL Editor):**
+**Políticas RLS Seguras (ejecutar `scripts/secure-storage-rls.sql`):**
 
 ```sql
-CREATE POLICY "Allow authenticated uploads" ON storage.objects
-FOR INSERT TO authenticated WITH CHECK (bucket_id = 'media');
+-- Función que verifica acceso al proyecto via ProjectMember
+CREATE OR REPLACE FUNCTION storage.user_has_project_access(file_path TEXT)
+RETURNS BOOLEAN AS $$
+  -- Extrae projectId del path y verifica membresía
+  -- Ver scripts/secure-storage-rls.sql para implementación completa
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE POLICY "Allow public read" ON storage.objects
+-- Solo miembros del proyecto pueden subir
+CREATE POLICY "Project members can upload" ON storage.objects
+FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'media' AND storage.user_has_project_access(name));
+
+-- Lectura pública (URLs son públicas para WhatsApp)
+CREATE POLICY "Public read access" ON storage.objects
 FOR SELECT TO anon, authenticated USING (bucket_id = 'media');
 
-CREATE POLICY "Allow authenticated delete" ON storage.objects
-FOR DELETE TO authenticated USING (bucket_id = 'media');
+-- Solo miembros del proyecto pueden eliminar
+CREATE POLICY "Project members can delete" ON storage.objects
+FOR DELETE TO authenticated
+USING (bucket_id = 'media' AND storage.user_has_project_access(name));
 ```
 
 ### Media Cleanup (Retención 24h)
@@ -919,11 +936,10 @@ Para mantener el storage limpio, un cron job elimina archivos de más de 24 hora
 
 **Variable de entorno requerida:**
 ```bash
-# Generar con: node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 CRON_SECRET=<tu_secret_para_cron>
 ```
 
-### Flujo n8n para Imágenes
+### Flujo n8n para Media
 
 El nodo "Send to WhatsApp" detecta el tipo de mensaje:
 
@@ -934,7 +950,16 @@ El nodo "Send to WhatsApp" detecta el tipo de mensaje:
   "recipient_type": "individual",
   "to": "{{to}}",
   "type": "image",
-  "image": { "link": "{{mediaUrl}}" }
+  "image": { "link": "{{mediaUrl}}", "caption": "{{message}}" }
+}
+
+// Si messageType === 'video'
+{
+  "messaging_product": "whatsapp",
+  "recipient_type": "individual",
+  "to": "{{to}}",
+  "type": "video",
+  "video": { "link": "{{mediaUrl}}", "caption": "{{message}}" }
 }
 
 // Si messageType === 'text' (default)
