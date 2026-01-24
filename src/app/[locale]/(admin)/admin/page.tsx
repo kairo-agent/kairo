@@ -233,8 +233,8 @@ export default function AdminOverviewPage() {
       if ('stats' in result && result.stats) setStats(result.stats);
       if ('organizationsList' in result && result.organizationsList) setOrganizationsList(result.organizationsList);
       if ('projectsList' in result && result.projectsList) setProjectsList(result.projectsList);
-      if ('myOrgIds' in result && result.myOrgIds) setMyOrgIds(result.myOrgIds);
-      if ('myProjectIds' in result && result.myProjectIds) setMyProjectIds(result.myProjectIds);
+      if ('myOrgIds' in result && result.myOrgIds) setMyOrgIds(result.myOrgIds as string[]);
+      if ('myProjectIds' in result && result.myProjectIds) setMyProjectIds(result.myProjectIds as string[]);
       if ('organizations' in result && result.organizations) setOrganizations(result.organizations as Organization[]);
       if ('projects' in result && result.projects) setProjects(result.projects as Project[]);
       if ('users' in result && result.users) setUsers(result.users as User[]);
