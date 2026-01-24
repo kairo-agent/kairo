@@ -6,10 +6,11 @@
 // Con Supabase Realtime para mensajes en modo Human
 // ============================================
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
 import imageCompression from 'browser-image-compression';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn, formatRelativeTime } from '@/lib/utils';
@@ -21,7 +22,7 @@ import {
   markMessagesAsRead,
   getLeadProjectId,
   type MessageWithSender,
-  type ConversationWithMessages,
+  type PaginatedConversation,
 } from '@/lib/actions/messages';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useRealtimeMessages, type RealtimeMessage, type MessageStatusUpdate } from '@/hooks/useRealtimeMessages';
@@ -90,15 +91,51 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
   const t = useTranslations('leads');
   const tCommon = useTranslations('common');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<ChatInputRef>(null);
+  const queryClient = useQueryClient();
 
   // Direct upload hook (bypasses Vercel 4.5MB limit)
   const { upload: uploadMedia, isUploading } = useMediaUpload();
 
-  // State
-  const [conversation, setConversation] = useState<ConversationWithMessages | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  // ============================================
+  // React Query - Infinite Query for messages
+  // ============================================
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useInfiniteQuery({
+    queryKey: ['conversation', leadId],
+    queryFn: async ({ pageParam }) => {
+      return getLeadConversation(leadId, { cursor: pageParam, limit: 50 });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage?.pagination?.nextCursor ?? undefined,
+    enabled: isOpen && !!leadId,
+    staleTime: 30000, // 30 segundos
+    gcTime: 5 * 60 * 1000, // 5 minutos
+  });
+
+  // Combinar mensajes de todas las páginas (orden cronológico)
+  const allMessages = useMemo(() => {
+    if (!data?.pages) return [];
+    // Las páginas vienen con mensajes ordenados cronológicamente
+    // Página 0 = mensajes más recientes, páginas siguientes = más antiguos
+    // Necesitamos invertir el orden de páginas para que los más antiguos estén primero
+    const reversedPages = [...data.pages].reverse();
+    return reversedPages.flatMap(page => page?.conversation?.messages ?? []);
+  }, [data?.pages]);
+
+  // La conversación base (para ID, etc.)
+  const conversation = data?.pages[0]?.conversation ?? null;
+
+  // State (reducido - ya no necesitamos isLoading ni conversation como state)
   const [isSending, setIsSending] = useState(false);
   const [isTogglingHandoff, setIsTogglingHandoff] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -147,7 +184,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
    * Callback cuando llega un nuevo mensaje via Realtime
    * Se encarga de:
    * 1. Verificar que no sea duplicado
-   * 2. Agregarlo al estado local
+   * 2. Agregarlo al cache de React Query
    * 3. Hacer scroll al final
    * 4. Marcar como leído si es del lead
    */
@@ -181,21 +218,32 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         sentByUser: null, // No tenemos esta info en el payload de Realtime
       };
 
-      // Agregar al estado local
-      setConversation((prev) => {
-        if (!prev) return prev;
+      // Agregar al cache de React Query (primera página = mensajes más recientes)
+      queryClient.setQueryData(
+        ['conversation', leadId],
+        (oldData: { pages: PaginatedConversation[]; pageParams: (string | undefined)[] } | undefined) => {
+          if (!oldData?.pages?.[0]?.conversation) return oldData;
 
-        // Verificar que no exista ya en la lista
-        const exists = prev.messages.some((m) => m.id === newMessage.id);
-        if (exists) {
-          return prev;
+          // Verificar que no exista ya en la primera página
+          const firstPageMessages = oldData.pages[0].conversation.messages;
+          const exists = firstPageMessages.some((m) => m.id === newMessage.id);
+          if (exists) return oldData;
+
+          // Agregar mensaje al final de la primera página (mensajes más recientes)
+          const updatedFirstPage: PaginatedConversation = {
+            ...oldData.pages[0],
+            conversation: {
+              ...oldData.pages[0].conversation,
+              messages: [...firstPageMessages, newMessage],
+            },
+          };
+
+          return {
+            ...oldData,
+            pages: [updatedFirstPage, ...oldData.pages.slice(1)],
+          };
         }
-
-        return {
-          ...prev,
-          messages: [...prev.messages, newMessage],
-        };
-      });
+      );
 
       // Si es mensaje del lead, marcarlo como leído automáticamente
       if (realtimeMsg.sender === 'lead' && leadId) {
@@ -206,7 +254,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         }
       }
     },
-    [leadId]
+    [leadId, queryClient]
   );
 
   // Hook de Supabase Realtime
@@ -216,30 +264,45 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
    * Callback cuando un mensaje se actualiza (delivered/read status)
    */
   const handleMessageStatusUpdate = useCallback((update: MessageStatusUpdate) => {
-    setConversation((prev) => {
-      if (!prev) return prev;
+    queryClient.setQueryData(
+      ['conversation', leadId],
+      (oldData: { pages: PaginatedConversation[]; pageParams: (string | undefined)[] } | undefined) => {
+        if (!oldData?.pages) return oldData;
 
-      // Buscar y actualizar el mensaje
-      const updatedMessages = prev.messages.map((msg) => {
-        if (msg.id === update.id) {
+        // Actualizar el mensaje en todas las páginas
+        const updatedPages = oldData.pages.map((page) => {
+          if (!page?.conversation?.messages) return page;
+
+          const updatedMessages = page.conversation.messages.map((msg) => {
+            if (msg.id === update.id) {
+              return {
+                ...msg,
+                isDelivered: update.isDelivered,
+                deliveredAt: update.deliveredAt ? new Date(update.deliveredAt) : null,
+                isRead: update.isRead,
+                readAt: update.readAt ? new Date(update.readAt) : null,
+                whatsappMsgId: update.whatsappMsgId,
+              };
+            }
+            return msg;
+          });
+
           return {
-            ...msg,
-            isDelivered: update.isDelivered,
-            deliveredAt: update.deliveredAt ? new Date(update.deliveredAt) : null,
-            isRead: update.isRead,
-            readAt: update.readAt ? new Date(update.readAt) : null,
-            whatsappMsgId: update.whatsappMsgId,
+            ...page,
+            conversation: {
+              ...page.conversation,
+              messages: updatedMessages,
+            },
           };
-        }
-        return msg;
-      });
+        });
 
-      return {
-        ...prev,
-        messages: updatedMessages,
-      };
-    });
-  }, []);
+        return {
+          ...oldData,
+          pages: updatedPages,
+        };
+      }
+    );
+  }, [leadId, queryClient]);
 
   useRealtimeMessages({
     conversationId: conversation?.id || null,
@@ -265,56 +328,58 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     processedMessageIds.current.clear();
   }, [leadId]);
 
-  // Actualizar IDs procesados cuando se carga la conversación
+  // Actualizar IDs procesados cuando se cargan mensajes
   useEffect(() => {
-    if (conversation?.messages) {
-      conversation.messages.forEach((msg) => {
+    if (allMessages.length > 0) {
+      allMessages.forEach((msg) => {
         processedMessageIds.current.add(msg.id);
       });
     }
-  }, [conversation?.messages]);
+  }, [allMessages]);
 
-  // Load conversation
-  const loadConversation = useCallback(async () => {
+  // Cargar handoff status separadamente (React Query maneja los mensajes)
+  const loadHandoffStatus = useCallback(async () => {
     if (!leadId) return;
-
-    setIsLoading(true);
-    setError('');
-
     try {
-      const [conv, status] = await Promise.all([
-        getLeadConversation(leadId),
-        getLeadHandoffStatus(leadId),
-      ]);
-
-      setConversation(conv);
+      const status = await getLeadHandoffStatus(leadId);
       setHandoffStatus(status);
-
-      // Mark messages as read
-      if (conv) {
-        await markMessagesAsRead(leadId);
-      }
     } catch (err) {
-      console.error('Error loading conversation:', err);
-      setError('Error al cargar conversación');
-    } finally {
-      setIsLoading(false);
+      console.error('Error loading handoff status:', err);
     }
   }, [leadId]);
 
-  // Load on mount and when isOpen changes
+  // Load handoff status on mount and when isOpen changes
   useEffect(() => {
     if (isOpen && leadId) {
-      loadConversation();
+      loadHandoffStatus();
     }
-  }, [isOpen, leadId, loadConversation]);
+  }, [isOpen, leadId, loadHandoffStatus]);
 
-  // Scroll to bottom when messages change
+  // Marcar mensajes como leídos cuando se carga la conversación
   useEffect(() => {
-    if (messagesEndRef.current) {
+    if (conversation && leadId) {
+      markMessagesAsRead(leadId).catch((err) => {
+        console.error('Error marcando mensajes como leídos:', err);
+      });
+    }
+  }, [conversation, leadId]);
+
+  // Scroll to bottom when messages change (solo para mensajes nuevos, no al cargar antiguos)
+  const prevMessagesLength = useRef(0);
+  useEffect(() => {
+    // Solo hacer scroll si hay más mensajes que antes (mensaje nuevo)
+    if (allMessages.length > prevMessagesLength.current && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [conversation?.messages]);
+    prevMessagesLength.current = allMessages.length;
+  }, [allMessages.length]);
+
+  // Handler para refresh manual
+  const handleRefresh = useCallback(() => {
+    setError('');
+    refetch();
+    loadHandoffStatus();
+  }, [refetch, loadHandoffStatus]);
 
   // Send message handler
   const handleSendMessage = async (message: string, attachment?: ChatAttachment | null) => {
@@ -473,7 +538,14 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     }
   };
 
-  // Render empty state
+  // Sincronizar error de query con estado local
+  useEffect(() => {
+    if (queryError) {
+      setError('Error al cargar conversación');
+    }
+  }, [queryError]);
+
+  // Render loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -481,8 +553,6 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
       </div>
     );
   }
-
-  const messages = conversation?.messages || [];
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -524,7 +594,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
 
         <div className="flex items-center gap-2">
           <button
-            onClick={loadConversation}
+            onClick={handleRefresh}
             className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
             title={tCommon('buttons.refresh') || 'Refresh'}
           >
@@ -549,8 +619,27 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
-        {messages.length === 0 ? (
+      <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
+        {/* Load More Button - al inicio de la lista de mensajes */}
+        {hasNextPage && (
+          <div className="flex justify-center py-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="text-xs"
+            >
+              {isFetchingNextPage ? (
+                <SpinnerIcon className="w-4 h-4" />
+              ) : (
+                'Cargar mensajes anteriores'
+              )}
+            </Button>
+          </div>
+        )}
+
+        {allMessages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className="w-12 h-12 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center mb-3">
               <RobotIcon />
@@ -560,7 +649,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
             </p>
           </div>
         ) : (
-          messages.map((message) => {
+          allMessages.map((message) => {
             const senderInfo = getSenderInfo(message);
             return (
               <div

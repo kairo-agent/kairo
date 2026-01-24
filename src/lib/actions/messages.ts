@@ -27,13 +27,26 @@ export type ConversationWithMessages = Conversation & {
   messages: MessageWithSender[];
 };
 
+export type PaginatedConversation = {
+  conversation: ConversationWithMessages | null;
+  pagination: {
+    hasMore: boolean;
+    nextCursor: string | null; // ID del mensaje más antiguo
+    totalCount: number;
+  };
+};
+
 // ============================================
 // GET CONVERSATION FOR A LEAD
 // ============================================
 
 export async function getLeadConversation(
-  leadId: string
-): Promise<ConversationWithMessages | null> {
+  leadId: string,
+  options?: {
+    cursor?: string;  // ID del mensaje desde donde cargar (excluido)
+    limit?: number;   // Máximo 100, default 50
+  }
+): Promise<PaginatedConversation | null> {
   try {
     const user = await getCurrentUser();
 
@@ -60,22 +73,76 @@ export async function getLeadConversation(
       }
     }
 
-    // Get conversation with messages
+    // Get conversation first (without messages)
     const conversation = await prisma.conversation.findUnique({
       where: { leadId },
-      include: {
-        messages: {
-          include: {
-            sentByUser: {
-              select: { id: true, firstName: true, lastName: true },
-            },
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-      },
+      select: { id: true, leadId: true, createdAt: true, updatedAt: true },
     });
 
-    return conversation;
+    if (!conversation) {
+      return {
+        conversation: null,
+        pagination: {
+          hasMore: false,
+          nextCursor: null,
+          totalCount: 0,
+        },
+      };
+    }
+
+    // Calculate limit (max 100, default 50)
+    const limit = Math.min(options?.limit || 50, 100);
+
+    // Get total count for pagination info
+    const totalCount = await prisma.message.count({
+      where: { conversationId: conversation.id },
+    });
+
+    // Get messages with pagination (most recent first, then reverse for chronological order)
+    const messages = await prisma.message.findMany({
+      where: { conversationId: conversation.id },
+      include: {
+        sentByUser: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },  // Most recent first for cursor pagination
+      take: limit + 1,  // +1 to check if there are more
+      ...(options?.cursor && {
+        cursor: { id: options.cursor },
+        skip: 1,  // Exclude the cursor message
+      }),
+    });
+
+    // Check if there are more messages
+    const hasMore = messages.length > limit;
+    if (hasMore) {
+      messages.pop();  // Remove the extra message
+    }
+
+    // Reverse to get chronological order (oldest first)
+    messages.reverse();
+
+    // Next cursor is the ID of the oldest message in the current batch
+    const nextCursor = hasMore ? messages[0]?.id ?? null : null;
+
+    // Build the full conversation object with messages
+    const conversationWithMessages: ConversationWithMessages = {
+      id: conversation.id,
+      leadId: conversation.leadId,
+      createdAt: conversation.createdAt,
+      updatedAt: conversation.updatedAt,
+      messages,
+    };
+
+    return {
+      conversation: conversationWithMessages,
+      pagination: {
+        hasMore,
+        nextCursor,
+        totalCount,
+      },
+    };
   } catch (error) {
     console.error('Error fetching conversation:', error);
     return null;
