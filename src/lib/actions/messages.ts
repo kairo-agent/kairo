@@ -15,6 +15,9 @@ import { MessageSender, HandoffMode } from '@prisma/client';
 // Types
 // ============================================
 
+/**
+ * Full Message type with sender info (used for message creation responses)
+ */
 export type MessageWithSender = Message & {
   sentByUser: {
     id: string;
@@ -23,8 +26,104 @@ export type MessageWithSender = Message & {
   } | null;
 };
 
+/**
+ * Optimized Message type for chat display (Phase 4 Performance)
+ * Excludes large fields not needed for rendering:
+ * - metadata: JSON field, only needed for debugging/advanced features
+ * - deliveredAt/readAt: timestamps not shown in UI, isDelivered/isRead flags are sufficient
+ */
+export type MessageForChat = {
+  id: string;
+  conversationId: string;
+  sender: Message['sender'];
+  content: string;
+  createdAt: Date;
+  sentByUserId: string | null;
+  whatsappMsgId: string | null;
+  isDelivered: boolean;
+  isRead: boolean;
+  sentByUser: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+};
+
+// ============================================
+// Optimized Select Patterns (Phase 4 Performance)
+// ============================================
+
+/**
+ * Optimized select for chat display.
+ * Excludes large fields not needed for rendering:
+ * - metadata: JSON field, only needed for debugging/advanced features
+ * - deliveredAt/readAt: timestamps not shown in UI, isDelivered/isRead flags are sufficient
+ */
+const messageSelectForChat = {
+  id: true,
+  conversationId: true,
+  sender: true,
+  content: true,
+  createdAt: true,
+  sentByUserId: true,
+  whatsappMsgId: true,
+  isDelivered: true,
+  isRead: true,
+  // Exclude: metadata, deliveredAt, readAt (not needed for display)
+  sentByUser: {
+    select: { id: true, firstName: true, lastName: true },
+  },
+} as const;
+
+/**
+ * Minimal select for Lead access verification.
+ * Only fetches projectId needed for permission check.
+ */
+const leadSelectForAccessCheck = {
+  projectId: true,
+} as const;
+
+/**
+ * Select for Lead when sending messages.
+ * Includes only fields needed for message delivery.
+ */
+const leadSelectForSendMessage = {
+  id: true,
+  projectId: true,
+  firstName: true,
+  lastName: true,
+  phone: true,
+  whatsappId: true,
+  project: {
+    select: {
+      id: true,
+      n8nWebhookUrl: true,
+      // whatsappPhoneNumber not needed - credentials fetched from secrets
+    },
+  },
+  conversation: {
+    select: { id: true },
+  },
+} as const;
+
+/**
+ * Select for Lead when toggling handoff mode.
+ * Only needs projectId for access check and n8nWebhookUrl for notification.
+ */
+const leadSelectForHandoffToggle = {
+  id: true,
+  projectId: true,
+  whatsappId: true,
+  project: {
+    select: { n8nWebhookUrl: true },
+  },
+} as const;
+
+/**
+ * Conversation type with optimized messages for chat display
+ */
 export type ConversationWithMessages = Conversation & {
-  messages: MessageWithSender[];
+  messages: MessageForChat[];
 };
 
 export type PaginatedConversation = {
@@ -55,9 +154,10 @@ export async function getLeadConversation(
     }
 
     // Verify user has access to the lead's project
+    // Uses optimized select - only fetches projectId needed for permission check
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { projectId: true },
+      select: leadSelectForAccessCheck,
     });
 
     if (!lead) {
@@ -99,13 +199,10 @@ export async function getLeadConversation(
     });
 
     // Get messages with pagination (most recent first, then reverse for chronological order)
+    // Uses optimized select to exclude large fields not needed for chat display
     const messages = await prisma.message.findMany({
       where: { conversationId: conversation.id },
-      include: {
-        sentByUser: {
-          select: { id: true, firstName: true, lastName: true },
-        },
-      },
+      select: messageSelectForChat,
       orderBy: { createdAt: 'desc' },  // Most recent first for cursor pagination
       take: limit + 1,  // +1 to check if there are more
       ...(options?.cursor && {
@@ -163,9 +260,10 @@ export async function getLeadProjectId(
       return { success: false, error: 'No autorizado' };
     }
 
+    // Uses optimized select - only fetches projectId for access check
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { projectId: true },
+      select: leadSelectForAccessCheck,
     });
 
     if (!lead) {
@@ -214,18 +312,10 @@ export async function sendMessage(
     }
 
     // Get lead with project info
+    // Uses optimized select - only fetches fields needed for message delivery
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      include: {
-        project: {
-          select: {
-            id: true,
-            n8nWebhookUrl: true,
-            whatsappPhoneNumber: true,
-          },
-        },
-        conversation: true,
-      },
+      select: leadSelectForSendMessage,
     });
 
     if (!lead) {
@@ -375,13 +465,10 @@ export async function toggleHandoffMode(
     }
 
     // Get lead with project info
+    // Uses optimized select - only fetches fields needed for handoff toggle
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      include: {
-        project: {
-          select: { n8nWebhookUrl: true },
-        },
-      },
+      select: leadSelectForHandoffToggle,
     });
 
     if (!lead) {
@@ -462,14 +549,15 @@ export async function getLeadHandoffStatus(
       return null;
     }
 
+    // Optimized select - only fetches fields needed for handoff status display
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: {
-        projectId: true,
-        handoffMode: true,
-        handoffAt: true,
+        projectId: true,      // Required for access check
+        handoffMode: true,    // Status to return
+        handoffAt: true,      // Timestamp to return
         handoffUser: {
-          select: { firstName: true, lastName: true },
+          select: { firstName: true, lastName: true },  // User name only
         },
       },
     });
@@ -478,7 +566,7 @@ export async function getLeadHandoffStatus(
       return null;
     }
 
-    // Check access
+    // Check access (projectId included in select above)
     if (user.systemRole !== 'super_admin') {
       const hasAccess = user.projectMemberships?.some(
         (m) => m.projectId === lead.projectId
@@ -516,15 +604,16 @@ export async function markMessagesAsRead(
     }
 
     // Get conversation with lead info
+    // Optimized select - only fetches fields needed for read receipt logic
     const conversation = await prisma.conversation.findUnique({
       where: { leadId },
       select: {
-        id: true,
+        id: true,              // Conversation ID for message queries
         lead: {
           select: {
-            id: true,
-            projectId: true,
-            handoffMode: true,
+            id: true,          // Lead ID (for logging)
+            projectId: true,   // Required for access check and WhatsApp credentials
+            handoffMode: true, // Determines if WhatsApp receipts should be sent
           },
         },
       },
@@ -547,6 +636,7 @@ export async function markMessagesAsRead(
     }
 
     // Get unread messages from lead that have WhatsApp IDs
+    // Optimized select - only fetches id and whatsappMsgId needed for read receipts
     const unreadMessages = await prisma.message.findMany({
       where: {
         conversationId: conversation.id,
@@ -555,8 +645,8 @@ export async function markMessagesAsRead(
         whatsappMsgId: { not: null },
       },
       select: {
-        id: true,
-        whatsappMsgId: true,
+        id: true,           // Message ID (for reference)
+        whatsappMsgId: true, // WhatsApp message ID for sending read receipt
       },
     });
 

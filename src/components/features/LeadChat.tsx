@@ -21,7 +21,7 @@ import {
   getLeadHandoffStatus,
   markMessagesAsRead,
   getLeadProjectId,
-  type MessageWithSender,
+  type MessageForChat,
   type PaginatedConversation,
 } from '@/lib/actions/messages';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
@@ -201,8 +201,8 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
 
       console.log(`📨 [Realtime] Procesando nuevo mensaje: ${realtimeMsg.id}`);
 
-      // Transformar a MessageWithSender (sin datos del usuario por ahora)
-      const newMessage: MessageWithSender = {
+      // Transformar a MessageForChat (optimizado, sin campos grandes innecesarios)
+      const newMessage: MessageForChat = {
         id: realtimeMsg.id,
         conversationId: realtimeMsg.conversationId,
         sender: realtimeMsg.sender,
@@ -210,11 +210,8 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         createdAt: new Date(realtimeMsg.createdAt),
         sentByUserId: realtimeMsg.sentByUserId,
         whatsappMsgId: realtimeMsg.whatsappMsgId,
-        metadata: realtimeMsg.metadata,
         isDelivered: realtimeMsg.isDelivered,
-        deliveredAt: realtimeMsg.deliveredAt ? new Date(realtimeMsg.deliveredAt) : null,
         isRead: realtimeMsg.isRead,
-        readAt: realtimeMsg.readAt ? new Date(realtimeMsg.readAt) : null,
         sentByUser: null, // No tenemos esta info en el payload de Realtime
       };
 
@@ -505,7 +502,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
 
   // Get sender display info
   // WhatsApp style: lead messages on LEFT, our messages (ai/human) on RIGHT
-  const getSenderInfo = (message: MessageWithSender) => {
+  const getSenderInfo = (message: MessageForChat) => {
     switch (message.sender) {
       case 'ai':
         return {

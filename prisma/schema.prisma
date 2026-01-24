@@ -155,6 +155,9 @@ model Lead {
   @@index([handoffMode])
   @@index([whatsappId])
   @@index([createdAt])
+  // Composite indexes for optimized filtered queries (Phase 4 optimization)
+  @@index([projectId, status])
+  @@index([projectId, temperature])
   @@map("leads")
 }
 
@@ -242,6 +245,8 @@ model Message {
   @@index([sender])
   @@index([createdAt])
   @@index([whatsappMsgId])
+  // Composite index for optimized paginated message queries (Phase 4 optimization)
+  @@index([conversationId, createdAt])
   @@map("messages")
 }
 
