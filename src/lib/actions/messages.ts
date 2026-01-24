@@ -83,12 +83,54 @@ export async function getLeadConversation(
 }
 
 // ============================================
+// GET LEAD PROJECT ID (for client-side media upload)
+// ============================================
+
+export async function getLeadProjectId(
+  leadId: string
+): Promise<{ success: boolean; projectId?: string; error?: string }> {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { projectId: true },
+    });
+
+    if (!lead) {
+      return { success: false, error: 'Lead no encontrado' };
+    }
+
+    // Check user has access
+    if (user.systemRole !== 'super_admin') {
+      const hasAccess = user.projectMemberships?.some(
+        (m) => m.projectId === lead.projectId
+      );
+      if (!hasAccess) {
+        return { success: false, error: 'Sin acceso a este lead' };
+      }
+    }
+
+    return { success: true, projectId: lead.projectId };
+  } catch (error) {
+    console.error('Error getting lead project ID:', error);
+    return { success: false, error: 'Error al obtener proyecto' };
+  }
+}
+
+// ============================================
 // SEND MESSAGE (Human → Lead via n8n)
 // ============================================
 
 export async function sendMessage(
   leadId: string,
-  content: string
+  content: string,
+  mediaUrl?: string,
+  mediaType?: 'image' | 'video' | 'document'
 ): Promise<{ success: boolean; message?: MessageWithSender; error?: string }> {
   try {
     const user = await getCurrentUser();
@@ -97,7 +139,8 @@ export async function sendMessage(
       return { success: false, error: 'No autorizado' };
     }
 
-    if (!content.trim()) {
+    // Allow empty content if there's a mediaUrl (image-only message)
+    if (!content.trim() && !mediaUrl) {
       return { success: false, error: 'El mensaje no puede estar vacío' };
     }
 
@@ -173,7 +216,8 @@ export async function sendMessage(
           to: lead.whatsappId, // WhatsApp recipient number
           mode: 'human', // Human agent sending message
           message: content.trim(),
-          messageType: 'text',
+          messageType: mediaUrl ? mediaType || 'image' : 'text',
+          mediaUrl: mediaUrl || null,
           timestamp: new Date().toISOString(),
           // WhatsApp API credentials for n8n to send directly
           accessToken: accessToken || '',

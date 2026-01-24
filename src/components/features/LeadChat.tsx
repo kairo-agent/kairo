@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import dynamic from 'next/dynamic';
+import imageCompression from 'browser-image-compression';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn, formatRelativeTime } from '@/lib/utils';
@@ -18,9 +19,11 @@ import {
   toggleHandoffMode,
   getLeadHandoffStatus,
   markMessagesAsRead,
+  getLeadProjectId,
   type MessageWithSender,
   type ConversationWithMessages,
 } from '@/lib/actions/messages';
+import { uploadMedia } from '@/lib/actions/media';
 import { useRealtimeMessages, type RealtimeMessage, type MessageStatusUpdate } from '@/hooks/useRealtimeMessages';
 import ChatInput, { type ChatAttachment, type ChatInputRef } from './ChatInput';
 
@@ -318,15 +321,61 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     setError('');
 
     try {
-      // TODO: Handle attachment upload to storage when backend is ready
-      // For now, we send the message with attachment info in the content
       let content = message.trim();
+      let mediaUrl: string | undefined;
+      let mediaType: 'image' | 'video' | 'document' | undefined;
+
+      // Handle attachment upload
       if (attachment?.file) {
-        // Placeholder for file upload - will be implemented with storage
-        content = content ? `${content}\n[Archivo: ${attachment.name}]` : `[Archivo: ${attachment.name}]`;
+        // Get projectId for upload
+        const projectResult = await getLeadProjectId(leadId);
+        if (!projectResult.success || !projectResult.projectId) {
+          setError(projectResult.error || 'Error al obtener proyecto');
+          setIsSending(false);
+          return;
+        }
+
+        let fileToUpload = attachment.file;
+
+        // Compress image if it's larger than 1MB
+        if (attachment.type === 'image' && attachment.file.size > 1024 * 1024) {
+          try {
+            const compressionOptions = {
+              maxSizeMB: 1,
+              maxWidthOrHeight: 1920,
+              useWebWorker: true,
+            };
+            fileToUpload = await imageCompression(attachment.file, compressionOptions);
+            console.log(`📷 Imagen comprimida: ${attachment.file.size} → ${fileToUpload.size} bytes`);
+          } catch (compressionError) {
+            console.error('Error comprimiendo imagen:', compressionError);
+            // Continue with original file if compression fails
+          }
+        }
+
+        // Upload to Supabase
+        const uploadResult = await uploadMedia(projectResult.projectId, fileToUpload);
+        if (!uploadResult.success || !uploadResult.url) {
+          setError(uploadResult.error || 'Error al subir archivo');
+          setIsSending(false);
+          return;
+        }
+
+        mediaUrl = uploadResult.url;
+        mediaType = attachment.type === 'image' ? 'image'
+          : attachment.type === 'video' ? 'video'
+          : 'document';
+
+        // Content for DB: lightweight reference
+        const mediaLabel = attachment.type === 'image' ? 'Imagen'
+          : attachment.type === 'video' ? 'Video'
+          : 'Archivo';
+        content = content
+          ? `${content}\n[${mediaLabel}: ${attachment.name}]`
+          : `[${mediaLabel}: ${attachment.name}]`;
       }
 
-      const result = await sendMessage(leadId, content);
+      const result = await sendMessage(leadId, content, mediaUrl, mediaType);
 
       if (result.success && result.message) {
         // Marcar como procesado para tracking interno
