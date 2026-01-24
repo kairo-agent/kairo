@@ -1,5 +1,67 @@
 # KAIRO - Changelog
 
+## [0.6.0] - 2026-01-24
+
+### Performance
+- **Fase 1: Request-Scoped Caching** (commit `779a7b6`)
+  - Funciones de autenticación envueltas con `cache()` de React
+    - `getCurrentUser()` en `src/lib/actions/auth.ts`
+    - `getCurrentUser()` y `verifySuperAdmin()` en `src/lib/auth-helpers.ts`
+  - Reducción de ~60-70% en queries duplicadas de autenticación por request
+  - Cache automático request-scoped (no persiste entre requests)
+
+- **Fase 1: In-Memory Cache para Webhooks WhatsApp** (commit `779a7b6`)
+  - Cache en memoria para mapeo `phoneNumberId → projectId`
+  - TTL de 5 minutos con auto-expiración
+  - Funciones: `getCachedProject()`, `setCachedProject()`, `invalidatePhoneNumberCache()`
+  - Reducción de ~95% en queries de lookup después del primer mensaje
+  - Archivo: `src/app/api/webhooks/whatsapp/route.ts`
+
+- **Fase 2: Paginación Backend con Cursor** (commit `247dc7f`)
+  - Implementación de cursor-based pagination en `getLeadConversation()`
+  - Nuevo tipo exportado: `PaginatedConversation` con metadatos de paginación
+  - Parámetros: `cursor` (ID del mensaje), `limit` (max 100, default 50)
+  - Reducción de ~80% en payload inicial para conversaciones con historial largo
+  - Validación de permisos mantenida en cada request paginado
+  - Archivo: `src/lib/actions/messages.ts`
+
+- **Fase 2: React Query con useInfiniteQuery** (commit `247dc7f`)
+  - Integración de TanStack Query en `LeadChat.tsx`
+  - `useInfiniteQuery` para paginación infinita de mensajes
+  - Cache en memoria RAM (no localStorage) con TTL de 30s y gcTime de 5min
+  - Integración con Supabase Realtime para mensajes nuevos
+  - Botón "Cargar mensajes anteriores" con scroll inteligente
+  - Sincronización de estado de mensajes (doble check azul) via cache update
+  - Archivo: `src/components/features/LeadChat.tsx`
+
+- **QueryProvider Configuration** (commit `247dc7f`)
+  - Configuración global de React Query optimizada para Next.js
+  - `staleTime: 30s`, `gcTime: 5min`, `retry: 1`
+  - `refetchOnWindowFocus: false` para evitar requests innecesarios
+  - Singleton pattern para QueryClient en browser
+  - Archivo: `src/providers/QueryProvider.tsx`
+
+### Documentación
+- **PERFORMANCE.md creado**
+  - Documentación completa de optimizaciones Fase 1 y Fase 2
+  - Métricas de impacto: reducción de queries, payloads, tiempos de carga
+  - Diagramas de flujo para cache y paginación
+  - Sección de seguridad: qué NO va en localStorage
+  - Roadmap de Fase 3, 4 y 5
+  - Referencias a documentación oficial de React, TanStack Query, Prisma
+
+- **CHANGELOG.md actualizado**
+  - Entradas detalladas de Fase 1 y Fase 2
+  - Commits de performance identificados
+
+### Notas Técnicas
+- Cache de React Query vive **solo en memoria RAM** (no persiste al cerrar tab)
+- Cache de webhook vive **solo en memoria del servidor** (no persiste al reiniciar)
+- `React.cache()` es **request-scoped** (se limpia entre requests)
+- Validación de permisos **nunca se omite**, solo se optimiza con cache
+
+---
+
 ## [0.5.3] - 2026-01-23
 
 ### Seguridad

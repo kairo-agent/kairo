@@ -4,14 +4,15 @@
 
 | Documento | Descripción | Última actualización |
 |-----------|-------------|---------------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Stack, estructura y decisiones técnicas | 2026-01-19 |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Stack, estructura y decisiones técnicas | 2026-01-24 |
+| [PERFORMANCE.md](PERFORMANCE.md) | Optimizaciones de rendimiento y caching | 2026-01-24 |
 | [N8N-SETUP.md](N8N-SETUP.md) | Configuración n8n para agentes IA (WhatsApp) | 2026-01-19 |
 | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) | Sistema de envío de archivos multimedia a WhatsApp | 2026-01-24 |
 | [COMPONENTS.md](COMPONENTS.md) | Catálogo de componentes UI | 2024-12-31 |
 | [DATA-MODELS.md](DATA-MODELS.md) | Modelos de datos y tipos | 2024-12-31 |
 | [I18N.md](I18N.md) | Internacionalización, traducciones, moneda | 2026-01-11 |
 | [RULES.md](RULES.md) | Reglas obligatorias del proyecto | 2024-12-31 |
-| [CHANGELOG.md](CHANGELOG.md) | Historial de cambios | 2026-01-11 |
+| [CHANGELOG.md](CHANGELOG.md) | Historial de cambios | 2026-01-24 |
 
 ## Brandbook
 
