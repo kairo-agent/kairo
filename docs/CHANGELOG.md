@@ -1,5 +1,30 @@
 # KAIRO - Changelog
 
+## [0.7.0] - 2026-01-29
+
+### Features
+- **RAG (Retrieval Augmented Generation) para Agentes IA**
+  - Infraestructura pgvector en Supabase para embeddings
+  - Tabla `agent_knowledge` con vector de 1536 dimensiones
+  - Función `search_agent_knowledge` para búsqueda semántica
+  - Server Actions: `addAgentKnowledge`, `deleteAgentKnowledge`, `listAgentKnowledge`, `searchAgentKnowledge`
+  - Integración OpenAI `text-embedding-3-small` para embeddings
+  - Chunking inteligente de textos largos (~1000 chars con 200 overlap)
+  - Aislamiento multi-tenant (projectId + agentId)
+
+### Archivos Nuevos
+- `src/lib/openai/embeddings.ts` - Helper para generar embeddings con OpenAI
+- `src/lib/utils/chunking.ts` - Utilidad para dividir textos largos
+- `src/lib/actions/knowledge.ts` - Server Actions para gestión de conocimiento
+- `scripts/create-insert-knowledge-function.sql` - Función SQL para insertar conocimiento
+- `scripts/enable-rls-all-tables.sql` - RLS habilitado en todas las tablas
+- `docs/RAG-AGENTS.md` - Documentación del sistema RAG
+
+### Dependencies
+- `openai` package added for embeddings generation
+
+---
+
 ## [0.6.2] - 2026-01-24
 
 ### Performance

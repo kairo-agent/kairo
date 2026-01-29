@@ -2,7 +2,7 @@
 
 > **Estado:** PLANIFICADO - Pendiente de implementación
 > **Fecha de planificación:** 2026-01-25
-> **Última actualización:** 2026-01-25
+> **Última actualización:** 2026-01-29
 
 ---
 
@@ -348,42 +348,108 @@ $$;
 
 ---
 
+## Métodos de Alimentación del RAG
+
+### Decisión de Alcance (2026-01-29)
+
+| Fase | Método | Estado |
+|------|--------|--------|
+| **MVP** | Texto manual (editor) | Implementar ahora |
+| **Futura** | Archivos (PDF, TXT, DOCX) | Implementar después |
+
+### Flujo de Alimentación
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                  FLUJO DE ALIMENTACIÓN RAG                               │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. ENTRADA (MVP: Solo texto manual)                                     │
+│     └─ Admin pega texto en formulario                                    │
+│     └─ Selecciona agente destino (Luna, Atlas, etc.)                    │
+│     └─ Opcionalmente agrega título                                       │
+│                                                                          │
+│  2. CHUNKING (si es necesario)                                           │
+│     └─ Si texto > 1000 tokens → dividir en fragmentos                   │
+│     └─ Mantener overlap de ~100 tokens entre chunks                     │
+│     └─ Guardar chunk_index para reconstrucción                          │
+│                                                                          │
+│  3. EMBEDDING                                                            │
+│     └─ Enviar cada chunk a OpenAI API                                   │
+│     └─ Modelo: text-embedding-3-small                                   │
+│     └─ Resultado: vector de 1536 dimensiones                            │
+│                                                                          │
+│  4. GUARDAR EN BD                                                        │
+│     INSERT INTO agent_knowledge (                                        │
+│       agent_id,      -- Agente específico (Luna, Atlas...)              │
+│       project_id,    -- Aislamiento multi-tenant                        │
+│       content,       -- Texto original del chunk                        │
+│       embedding,     -- Vector [1536 dims]                              │
+│       source,        -- 'manual' (MVP) | 'pdf' | 'url' (futuro)        │
+│       title,         -- Título descriptivo (opcional)                   │
+│       chunk_index    -- Índice si fue dividido                          │
+│     )                                                                    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Fase Futura: Soporte de Archivos
+
+Cuando se implemente el soporte de archivos:
+
+| Tipo | Librería | Notas |
+|------|----------|-------|
+| PDF | `pdf-parse` | Extrae texto plano |
+| TXT | Nativo | Lectura directa |
+| DOCX | `mammoth` | Convierte a texto |
+| CSV | `papaparse` | Cada fila = 1 documento |
+
+---
+
 ## Implementación por Fases
 
-### Fase 1: Infraestructura Base
+### Fase 1: Infraestructura Base (BD + pgvector)
 **Duración estimada:** 2-3 horas
 
 - [ ] Habilitar extensión pgvector en Supabase
 - [ ] Crear tabla `agent_knowledge` con SQL
 - [ ] Crear función `search_agent_knowledge`
 - [ ] Crear índices (relacional + vectorial)
-- [ ] Agregar relación en Prisma schema (sin tipo VECTOR)
+- [ ] Habilitar RLS en tabla `agent_knowledge`
 - [ ] Probar query básica desde Supabase dashboard
 
 ### Fase 2: API de Gestión de Conocimiento
 **Duración estimada:** 3-4 horas
 
-- [ ] Server Action: `addAgentKnowledge(agentId, content, source)`
+- [ ] Server Action: `addAgentKnowledge(agentId, content, title?)`
 - [ ] Server Action: `deleteAgentKnowledge(knowledgeId)`
 - [ ] Server Action: `listAgentKnowledge(agentId)`
+- [ ] Server Action: `searchAgentKnowledge(agentId, query)` - para testing
 - [ ] Integración con OpenAI para generar embeddings
-- [ ] Validación de permisos (solo admin del proyecto)
+- [ ] Lógica de chunking para textos largos
+- [ ] Validación de permisos (solo admin/manager del proyecto)
 
-### Fase 3: UI Admin para RAG
+### Fase 3: UI Admin para RAG (Solo Texto Manual)
 **Duración estimada:** 4-5 horas
 
-- [ ] Tab "Conocimiento" en ProjectSettingsModal
-- [ ] Formulario para agregar conocimiento manualmente
-- [ ] Lista de documentos con opción de eliminar
-- [ ] Upload de archivos (PDF, TXT, CSV) - opcional MVP
-- [ ] Indicador de cantidad de documentos por agente
+- [ ] Tab "Conocimiento" en ProjectSettingsModal (por agente)
+- [ ] Formulario para agregar conocimiento:
+  - [ ] Campo título (opcional)
+  - [ ] Textarea para contenido (texto plano)
+  - [ ] Botón "Agregar" con loading state
+- [ ] Lista de documentos existentes con:
+  - [ ] Título y preview del contenido
+  - [ ] Fecha de creación
+  - [ ] Botón eliminar con confirmación
+- [ ] Contador de documentos por agente
+- [ ] Mensaje vacío si no hay conocimiento
 
 ### Fase 4: Workflow n8n
 **Duración estimada:** 2-3 horas
 
 - [ ] Crear workflow "KAIRO - AI Agent RAG Handler"
-- [ ] Configurar nodo OpenAI para embeddings
-- [ ] Configurar nodo HTTP para query a Supabase
+- [ ] Configurar nodo OpenAI para embeddings de query
+- [ ] Configurar nodo HTTP para buscar en Supabase (RPC)
 - [ ] Configurar nodo LLM (Claude/GPT) con prompt estricto
 - [ ] Configurar nodo de respuesta via API KAIRO
 - [ ] Probar flujo completo end-to-end
@@ -393,10 +459,22 @@ $$;
 
 - [ ] Probar aislamiento entre agentes (A no ve B)
 - [ ] Probar aislamiento entre proyectos
-- [ ] Ajustar threshold de similitud
-- [ ] Ajustar cantidad de documentos (3 vs 5)
+- [ ] Ajustar threshold de similitud (default 0.7)
+- [ ] Ajustar cantidad de documentos retornados (3 vs 5)
 - [ ] Refinar prompt del LLM para mejores respuestas
 - [ ] Documentar configuración final
+
+### Fase 6: Soporte de Archivos (FUTURA)
+**Duración estimada:** 4-6 horas
+**Estado:** Pendiente - Se implementará después del MVP
+
+- [ ] Upload de archivos a Supabase Storage
+- [ ] Extracción de texto de PDF (`pdf-parse`)
+- [ ] Extracción de texto de DOCX (`mammoth`)
+- [ ] Procesamiento de CSV (una fila = un documento)
+- [ ] UI de upload con drag & drop
+- [ ] Progress bar para archivos grandes
+- [ ] Límites de tamaño (ej: max 10MB por archivo)
 
 ---
 
@@ -498,3 +576,4 @@ $$;
 | Fecha | Cambio | Autor |
 |-------|--------|-------|
 | 2026-01-25 | Documento inicial creado | Adan (Claude) |
+| 2026-01-29 | Definido alcance MVP: solo texto manual. Archivos en fase futura | Leo + Adan |
