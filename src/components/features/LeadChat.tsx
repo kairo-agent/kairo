@@ -660,7 +660,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                   className={cn(
                     'max-w-[85%] p-3 rounded-2xl',
                     senderInfo.isRight
-                      ? 'bg-[#7FEFFF] text-[var(--kairo-midnight)] rounded-br-sm'
+                      ? 'bg-[#BFF7FF] text-[var(--kairo-midnight)] rounded-br-sm'
                       : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-sm'
                   )}
                 >
