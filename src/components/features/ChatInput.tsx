@@ -181,6 +181,17 @@ function getFileIcon(type: ChatAttachment['type']): React.ReactNode {
   }
 }
 
+function getMaxSizeForType(type: ChatAttachment['type']): number {
+  switch (type) {
+    case 'image':
+      return 3; // 3MB
+    case 'video':
+    case 'file':
+    default:
+      return 16; // 16MB
+  }
+}
+
 // ============================================
 // ChatInput Component
 // ============================================
@@ -358,7 +369,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
                 className="text-xs"
                 style={{ color: 'var(--text-tertiary)' }}
               >
-                {formatFileSize(attachment.file.size)}
+                {formatFileSize(attachment.file.size)} / {getMaxSizeForType(attachment.type)} MB {t('maxSize')}
               </p>
             )}
           </div>
@@ -451,7 +462,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
-            title={t('attachImage')}
+            title={`${t('attachImage')} (${t('max')} 3MB)`}
             aria-label={t('attachImage')}
           >
             <ImageIcon />
@@ -482,7 +493,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
-            title={t('attachVideo')}
+            title={`${t('attachVideo')} (${t('max')} 16MB)`}
             aria-label={t('attachVideo')}
           >
             <VideoIcon />
@@ -514,7 +525,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
-            title={t('attachFile')}
+            title={`${t('attachFile')} (${t('max')} 16MB)`}
             aria-label={t('attachFile')}
           >
             <FileIcon />

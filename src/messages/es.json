@@ -242,7 +242,9 @@
       "linkAttached": "Enlace",
       "messageRequired": "Escribe un mensaje o adjunta un archivo",
       "realtimeConnected": "Conectado en tiempo real",
-      "realtimeConnecting": "Conectando..."
+      "realtimeConnecting": "Conectando...",
+      "max": "máx.",
+      "maxSize": "máx"
     },
     "editModal": {
       "title": "Editar Lead",
