@@ -108,6 +108,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isRefetching,
     error: queryError,
     refetch,
   } = useInfiniteQuery({
@@ -590,10 +591,11 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleRefresh}
-            className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors"
+            disabled={isRefetching}
+            className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50"
             title={tCommon('buttons.refresh') || 'Refresh'}
           >
-            <RefreshIcon />
+            {isRefetching ? <SpinnerIcon className="w-4 h-4" /> : <RefreshIcon />}
           </button>
           <Button
             variant={isHumanMode ? 'ghost' : 'primary'}
