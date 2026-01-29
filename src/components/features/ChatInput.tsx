@@ -158,6 +158,70 @@ const CloseIcon = () => (
 );
 
 // ============================================
+// Tooltip Component (CSS-only, modern style)
+// ============================================
+
+interface TooltipButtonProps {
+  children: React.ReactNode;
+  tooltip: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  ariaLabel: string;
+  className?: string;
+  style?: React.CSSProperties;
+  onMouseEnter?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onMouseLeave?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+}
+
+const TooltipButton = ({
+  children,
+  tooltip,
+  onClick,
+  disabled = false,
+  ariaLabel,
+  className,
+  style,
+  onMouseEnter,
+  onMouseLeave,
+}: TooltipButtonProps) => (
+  <div className="group relative inline-flex">
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={className}
+      style={style}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+      aria-label={ariaLabel}
+    >
+      {children}
+    </button>
+    <div
+      className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 text-xs font-medium rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-50"
+      style={{
+        backgroundColor: 'var(--bg-primary)',
+        color: 'var(--text-primary)',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        border: '1px solid var(--border-primary)',
+      }}
+    >
+      {tooltip}
+      <div
+        className="absolute top-full left-1/2 -translate-x-1/2 -mt-px"
+        style={{
+          width: 0,
+          height: 0,
+          borderLeft: '6px solid transparent',
+          borderRight: '6px solid transparent',
+          borderTop: '6px solid var(--border-primary)',
+        }}
+      />
+    </div>
+  </div>
+);
+
+// ============================================
 // Helper functions
 // ============================================
 
@@ -445,10 +509,11 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
           </button>
 
           {/* Image Button */}
-          <button
-            type="button"
+          <TooltipButton
             onClick={() => imageInputRef.current?.click()}
             disabled={disabled || attachment !== null}
+            tooltip={`${t('attachImage')} (${t('max')} 3MB)`}
+            ariaLabel={t('attachImage')}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:opacity-80 disabled:opacity-50"
             style={{
               color: 'var(--text-secondary)',
@@ -462,11 +527,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
-            title={`${t('attachImage')} (${t('max')} 3MB)`}
-            aria-label={t('attachImage')}
           >
             <ImageIcon />
-          </button>
+          </TooltipButton>
           <input
             ref={imageInputRef}
             type="file"
@@ -476,10 +539,11 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
           />
 
           {/* Video Button */}
-          <button
-            type="button"
+          <TooltipButton
             onClick={() => videoInputRef.current?.click()}
             disabled={disabled || attachment !== null}
+            tooltip={`${t('attachVideo')} (${t('max')} 16MB)`}
+            ariaLabel={t('attachVideo')}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:opacity-80 disabled:opacity-50"
             style={{
               color: 'var(--text-secondary)',
@@ -493,11 +557,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
-            title={`${t('attachVideo')} (${t('max')} 16MB)`}
-            aria-label={t('attachVideo')}
           >
             <VideoIcon />
-          </button>
+          </TooltipButton>
           {/* WhatsApp only supports MP4 (H.264 + AAC) - WebM is NOT supported */}
           <input
             ref={videoInputRef}
@@ -508,10 +570,11 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
           />
 
           {/* File/Document Button */}
-          <button
-            type="button"
+          <TooltipButton
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || attachment !== null}
+            tooltip={`${t('attachFile')} (${t('max')} 16MB)`}
+            ariaLabel={t('attachFile')}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:opacity-80 disabled:opacity-50"
             style={{
               color: 'var(--text-secondary)',
@@ -525,11 +588,9 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent';
             }}
-            title={`${t('attachFile')} (${t('max')} 16MB)`}
-            aria-label={t('attachFile')}
           >
             <FileIcon />
-          </button>
+          </TooltipButton>
           <input
             ref={fileInputRef}
             type="file"

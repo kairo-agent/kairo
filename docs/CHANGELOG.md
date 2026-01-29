@@ -1,24 +1,96 @@
 # KAIRO - Changelog
 
+## [0.7.1] - 2026-01-29
+
+### Features
+- **Migración de n8n a Railway (producción)**
+  - Deploy de n8n + PostgreSQL en Railway usando template oficial
+  - URL de producción: `n8n-production-5d42.up.railway.app`
+  - Variables de entorno configuradas (POSTGRES_PASSWORD, POSTGRES_USER, POSTGRES_DB)
+  - Importación exitosa del workflow "KAIRO - Basic Response" desde n8n local
+
+- **Integración KAIRO ↔ n8n Railway**
+  - Actualización de N8N_CALLBACK_SECRET en Vercel para sincronizar con Railway
+  - Configuración de n8nWebhookUrl via KAIRO Admin UI (ProjectSettingsModal)
+  - Header X-N8N-Secret configurado en workflow de n8n
+  - Flujo end-to-end validado: WhatsApp → KAIRO webhook → n8n → respuesta a WhatsApp
+
+### Corregido
+- **Bug crítico: Supabase Realtime no enviaba broadcasts**
+  - **Problema**: RLS habilitado en tabla `messages` pero sin políticas SELECT
+  - **Causa raíz**: Supabase Realtime respeta RLS - sin política SELECT, no hay broadcasts
+  - **Solución**: Políticas RLS completas (SELECT/INSERT/UPDATE) con función helper
+  - **Impacto**: Mensajes de chat ahora actualizan en tiempo real correctamente
+  - Script SQL ejecutado: `scripts/rls-messages-realtime.sql`
+
+- **Botón refresh sin feedback visual en LeadChat**
+  - Agregado spinner y estado `isRefetching` del hook useInfiniteQuery
+  - Botón se deshabilita mientras refresca con animación spin
+  - Mejora UX al hacer clic en "Cargar mensajes anteriores"
+
+### UX/UI
+- **Indicadores de tamaño máximo para archivos**
+  - Tooltips mejorados en ChatInput: "Adjuntar imagen (máx. 3MB)", "Adjuntar video (máx. 16MB)"
+  - Preview del archivo muestra tamaño actual vs máximo permitido: "1.2 MB / 3 MB máx"
+  - Traducciones agregadas en es.json y en.json (namespace `leads.chat`)
+
+### Archivos Nuevos
+- `scripts/rls-messages-realtime.sql` - Políticas RLS para soporte Realtime
+
+### Archivos Modificados
+- `src/components/features/LeadChat.tsx` - Spinner en botón refresh
+- `src/components/features/ChatInput.tsx` - Tooltips y preview con límites
+- `src/messages/es.json` - Keys: `maxSize`, `attachImage`, `attachVideo`, `attachDocument`
+- `src/messages/en.json` - Keys: `maxSize`, `attachImage`, `attachVideo`, `attachDocument`
+
+### Técnico
+- **Función SQL**: `public.user_has_conversation_access(conv_id TEXT)`
+  - Verifica si usuario es super_admin O miembro del proyecto
+  - Usado en políticas RLS de SELECT, INSERT, UPDATE
+  - Security definer para acceso consistente
+
+### Validación
+- Pruebas end-to-end con WhatsApp Business + n8n Railway
+- Conversaciones actualizan en tiempo real en UI de KAIRO
+- Mensajes de respuesta automática funcionales
+- Refresh de mensajes con feedback visual
+
+---
+
 ## [0.7.0] - 2026-01-29
 
 ### Features
-- **RAG (Retrieval Augmented Generation) para Agentes IA**
-  - Infraestructura pgvector en Supabase para embeddings
-  - Tabla `agent_knowledge` con vector de 1536 dimensiones
-  - Función `search_agent_knowledge` para búsqueda semántica
-  - Server Actions: `addAgentKnowledge`, `deleteAgentKnowledge`, `listAgentKnowledge`, `searchAgentKnowledge`
-  - Integración OpenAI `text-embedding-3-small` para embeddings
-  - Chunking inteligente de textos largos (~1000 chars con 200 overlap)
-  - Aislamiento multi-tenant (projectId + agentId)
+- **RAG (Retrieval Augmented Generation) para Agentes IA - Fases 1-3 completadas**
+  - **Fase 1 - Infraestructura BD:**
+    - Extensión pgvector habilitada en Supabase
+    - Tabla `agent_knowledge` con vector de 1536 dimensiones
+    - Funciones RPC: `insert_agent_knowledge`, `search_agent_knowledge`
+    - Índices ivfflat para búsqueda semántica
+    - RLS policies para aislamiento multi-tenant
+  - **Fase 2 - Backend:**
+    - Server Actions completas: `addAgentKnowledge`, `deleteAgentKnowledge`, `listAgentKnowledge`, `searchAgentKnowledge`, `getAgentKnowledgeStats`
+    - Integración OpenAI `text-embedding-3-small` para embeddings
+    - Chunking inteligente (~1000 chars con 200 overlap)
+    - Validación de permisos por proyecto
+  - **Fase 3 - UI Admin:**
+    - Nueva tab "Conocimiento" en ProjectSettingsModal
+    - Selector de agente para filtrar conocimiento
+    - Formulario para agregar conocimiento (título + contenido)
+    - Lista de documentos con preview y eliminación
+    - Traducciones i18n completas (es/en)
+  - **Fase 4 pendiente:** Workflow n8n para usar RAG en respuestas
 
 ### Archivos Nuevos
 - `src/lib/openai/embeddings.ts` - Helper para generar embeddings con OpenAI
 - `src/lib/utils/chunking.ts` - Utilidad para dividir textos largos
 - `src/lib/actions/knowledge.ts` - Server Actions para gestión de conocimiento
-- `scripts/create-insert-knowledge-function.sql` - Función SQL para insertar conocimiento
-- `scripts/enable-rls-all-tables.sql` - RLS habilitado en todas las tablas
-- `docs/RAG-AGENTS.md` - Documentación del sistema RAG
+- `scripts/create-insert-knowledge-function.sql` - Función SQL para insertar conocimiento + RLS
+- `docs/RAG-AGENTS.md` - Documentación completa del sistema RAG
+
+### Archivos Modificados
+- `src/components/admin/ProjectSettingsModal.tsx` - Nueva tab Conocimiento
+- `src/messages/es.json` - Traducciones `knowledgeSettings`
+- `src/messages/en.json` - Traducciones `knowledgeSettings`
 
 ### Dependencies
 - `openai` package added for embeddings generation
