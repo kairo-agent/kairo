@@ -855,28 +855,32 @@ export default function ProjectSettingsModal({
       size="lg"
     >
       <div className="space-y-6">
-        {/* Tabs */}
+        {/* Tabs - Solo el tab activo muestra texto */}
         <div className="flex border-b border-[var(--border-primary)]">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => {
-                setActiveTab(tab.id);
-                setError('');
-                setSuccessMessage('');
-                resetAgentForm();
-              }}
-              className={cn(
-                'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
-                activeTab === tab.id
-                  ? 'border-[var(--kairo-cyan)] text-[var(--kairo-cyan)]'
-                  : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              )}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  setError('');
+                  setSuccessMessage('');
+                  resetAgentForm();
+                }}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
+                  isActive
+                    ? 'border-[var(--kairo-cyan)] text-[var(--kairo-cyan)]'
+                    : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                )}
+                title={tab.label}
+              >
+                {tab.icon}
+                {isActive && <span>{tab.label}</span>}
+              </button>
+            );
+          })}
         </div>
 
         {/* Error/Success Messages */}

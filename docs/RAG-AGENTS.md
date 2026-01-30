@@ -1,8 +1,9 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** PLANIFICADO - Pendiente de implementación
+> **Estado:** EN PROGRESO - Fases 1-3 completadas ✅
 > **Fecha de planificación:** 2026-01-25
 > **Última actualización:** 2026-01-29
+> **Próximo paso:** Configurar n8n en Railway, luego Fase 4
 
 ---
 
@@ -80,47 +81,50 @@ Implementar un sistema RAG (Retrieval Augmented Generation) que permita a cada a
 
 ### Tabla: agent_knowledge
 
+> **Nota:** Usamos camelCase con comillas dobles para compatibilidad con Prisma ORM.
+> Las columnas `project_id`, `agent_id` se escriben como `"projectId"`, `"agentId"`.
+
 ```sql
 -- Habilitar extensión pgvector (una sola vez)
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Tabla principal de conocimiento
+-- Tabla principal de conocimiento (columnas camelCase para Prisma)
 CREATE TABLE agent_knowledge (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- === RELACIONES (aislamiento multi-tenant) ===
-  project_id UUID NOT NULL,
-  agent_id UUID NOT NULL,
+  "projectId" TEXT NOT NULL,       -- ID del proyecto (cuid)
+  "agentId" TEXT NOT NULL,         -- ID del agente (cuid)
 
   -- === CONTENIDO ===
   title VARCHAR(255),              -- Título del documento (opcional)
   content TEXT NOT NULL,           -- Texto del documento (chunk)
   source VARCHAR(100),             -- Origen: 'manual', 'pdf', 'website', 'csv'
-  source_url TEXT,                 -- URL o path del archivo original
+  "sourceUrl" TEXT,                -- URL o path del archivo original
 
   -- === METADATA ===
   metadata JSONB DEFAULT '{}',     -- Info adicional (página, sección, etc.)
-  chunk_index INT DEFAULT 0,       -- Índice si el doc fue dividido en chunks
+  "chunkIndex" INT DEFAULT 0,      -- Índice si el doc fue dividido en chunks
 
   -- === VECTOR ===
-  embedding VECTOR(1536),          -- Embedding (1536 = OpenAI ada-002/3-small)
+  embedding VECTOR(1536),          -- Embedding (1536 = OpenAI text-embedding-3-small)
 
   -- === AUDITORÍA ===
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  created_by UUID,                 -- Usuario que subió el conocimiento
+  "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+  "updatedAt" TIMESTAMPTZ DEFAULT NOW(),
+  "createdBy" TEXT,                -- Usuario que subió el conocimiento (cuid)
 
   -- === CONSTRAINTS ===
-  CONSTRAINT fk_project FOREIGN KEY (project_id) REFERENCES "Project"(id) ON DELETE CASCADE,
-  CONSTRAINT fk_agent FOREIGN KEY (agent_id) REFERENCES "AIAgent"(id) ON DELETE CASCADE
+  CONSTRAINT fk_project FOREIGN KEY ("projectId") REFERENCES projects(id) ON DELETE CASCADE,
+  CONSTRAINT fk_agent FOREIGN KEY ("agentId") REFERENCES ai_agents(id) ON DELETE CASCADE
 );
 
 -- === ÍNDICES ===
 
 -- Índice para filtrado relacional (CRÍTICO para aislamiento)
-CREATE INDEX idx_knowledge_agent ON agent_knowledge(agent_id);
-CREATE INDEX idx_knowledge_project ON agent_knowledge(project_id);
-CREATE INDEX idx_knowledge_agent_project ON agent_knowledge(agent_id, project_id);
+CREATE INDEX idx_knowledge_agent ON agent_knowledge("agentId");
+CREATE INDEX idx_knowledge_project ON agent_knowledge("projectId");
+CREATE INDEX idx_knowledge_agent_project ON agent_knowledge("agentId", "projectId");
 
 -- Índice vectorial para búsqueda semántica
 -- ivfflat: Bueno para datasets < 1M vectores, balance velocidad/precisión
@@ -181,11 +185,11 @@ model AgentKnowledge {
 ### Query Principal: Búsqueda Semántica con Aislamiento
 
 ```sql
--- Función para buscar conocimiento relevante
+-- Función para buscar conocimiento relevante (columnas camelCase)
 CREATE OR REPLACE FUNCTION search_agent_knowledge(
-  p_agent_id UUID,
-  p_project_id UUID,
-  p_query_embedding VECTOR(1536),
+  p_agent_id TEXT,               -- TEXT porque usamos cuid()
+  p_project_id TEXT,             -- TEXT porque usamos cuid()
+  p_query_embedding TEXT,        -- TEXT con formato '[0.1,0.2,...]', casteado internamente a vector
   p_match_count INT DEFAULT 5,
   p_match_threshold FLOAT DEFAULT 0.7
 )
@@ -205,12 +209,12 @@ BEGIN
     ak.content,
     ak.title,
     ak.source,
-    1 - (ak.embedding <=> p_query_embedding) AS similarity
+    (1 - (ak.embedding <=> p_query_embedding::vector(1536)))::FLOAT AS similarity
   FROM agent_knowledge ak
-  WHERE ak.agent_id = p_agent_id           -- AISLAMIENTO: Solo este agente
-    AND ak.project_id = p_project_id       -- AISLAMIENTO: Solo este proyecto
-    AND 1 - (ak.embedding <=> p_query_embedding) > p_match_threshold
-  ORDER BY ak.embedding <=> p_query_embedding
+  WHERE ak."agentId" = p_agent_id           -- AISLAMIENTO: Solo este agente
+    AND ak."projectId" = p_project_id       -- AISLAMIENTO: Solo este proyecto
+    AND (1 - (ak.embedding <=> p_query_embedding::vector(1536))) > p_match_threshold
+  ORDER BY ak.embedding <=> p_query_embedding::vector(1536)
   LIMIT p_match_count;
 END;
 $$;
@@ -408,41 +412,58 @@ Cuando se implemente el soporte de archivos:
 
 ## Implementación por Fases
 
-### Fase 1: Infraestructura Base (BD + pgvector)
+### Fase 1: Infraestructura Base (BD + pgvector) ✅ COMPLETADA
 **Duración estimada:** 2-3 horas
 
-- [ ] Habilitar extensión pgvector en Supabase
-- [ ] Crear tabla `agent_knowledge` con SQL
-- [ ] Crear función `search_agent_knowledge`
-- [ ] Crear índices (relacional + vectorial)
-- [ ] Habilitar RLS en tabla `agent_knowledge`
-- [ ] Probar query básica desde Supabase dashboard
+- [x] Habilitar extensión pgvector en Supabase
+- [x] Crear tabla `agent_knowledge` con SQL (columnas camelCase para Prisma)
+- [x] Crear función `search_agent_knowledge` (RPC para búsqueda semántica)
+- [x] Crear función `insert_agent_knowledge` (RPC para inserción con vector)
+- [x] Crear índices (relacional + vectorial ivfflat)
+- [x] Habilitar RLS en tabla `agent_knowledge`
+- [x] Políticas RLS: select/delete para miembros del proyecto
 
-### Fase 2: API de Gestión de Conocimiento
+**Archivos SQL creados:**
+- `scripts/create-insert-knowledge-function.sql` - Función de inserción + políticas RLS
+
+### Fase 2: API de Gestión de Conocimiento ✅ COMPLETADA
 **Duración estimada:** 3-4 horas
 
-- [ ] Server Action: `addAgentKnowledge(agentId, content, title?)`
-- [ ] Server Action: `deleteAgentKnowledge(knowledgeId)`
-- [ ] Server Action: `listAgentKnowledge(agentId)`
-- [ ] Server Action: `searchAgentKnowledge(agentId, query)` - para testing
-- [ ] Integración con OpenAI para generar embeddings
-- [ ] Lógica de chunking para textos largos
-- [ ] Validación de permisos (solo admin/manager del proyecto)
+- [x] Server Action: `addAgentKnowledge(input)` - Chunking + embedding + inserción
+- [x] Server Action: `deleteAgentKnowledge(id, projectId)` - Elimina chunks relacionados
+- [x] Server Action: `listAgentKnowledge(agentId, projectId)` - Agrupa por título
+- [x] Server Action: `searchAgentKnowledge(input)` - Búsqueda semántica con threshold
+- [x] Server Action: `getAgentKnowledgeStats(agentId, projectId)` - Estadísticas
+- [x] Integración con OpenAI para generar embeddings (`text-embedding-3-small`)
+- [x] Lógica de chunking para textos largos (~1000 chars, 200 overlap)
+- [x] Validación de permisos (verifyProjectAccess + super_admin)
 
-### Fase 3: UI Admin para RAG (Solo Texto Manual)
+**Archivos creados:**
+- `src/lib/actions/knowledge.ts` - Server Actions completas
+- `src/lib/openai/embeddings.ts` - Helper para OpenAI embeddings
+- `src/lib/utils/chunking.ts` - Utilidad de chunking semántico
+
+### Fase 3: UI Admin para RAG (Solo Texto Manual) ✅ COMPLETADA
 **Duración estimada:** 4-5 horas
 
-- [ ] Tab "Conocimiento" en ProjectSettingsModal (por agente)
-- [ ] Formulario para agregar conocimiento:
-  - [ ] Campo título (opcional)
-  - [ ] Textarea para contenido (texto plano)
-  - [ ] Botón "Agregar" con loading state
-- [ ] Lista de documentos existentes con:
-  - [ ] Título y preview del contenido
-  - [ ] Fecha de creación
-  - [ ] Botón eliminar con confirmación
-- [ ] Contador de documentos por agente
-- [ ] Mensaje vacío si no hay conocimiento
+- [x] Tab "Conocimiento" en ProjectSettingsModal (por agente)
+- [x] Selector de agente para filtrar conocimiento
+- [x] Formulario para agregar conocimiento:
+  - [x] Campo título (opcional)
+  - [x] Textarea para contenido (texto plano)
+  - [x] Botón "Agregar Conocimiento" con loading state
+- [x] Lista de documentos existentes con:
+  - [x] Título y preview del contenido (primeros 150 chars)
+  - [x] Badge de fuente (manual)
+  - [x] Fecha de creación formateada
+  - [x] Botón eliminar con confirmación modal
+- [x] Estado vacío con mensaje descriptivo
+- [x] Traducciones es/en completas
+
+**Archivos modificados:**
+- `src/components/admin/ProjectSettingsModal.tsx` - Nueva tab Conocimiento
+- `src/messages/es.json` - Traducciones knowledgeSettings
+- `src/messages/en.json` - Traducciones knowledgeSettings
 
 ### Fase 4: Workflow n8n
 **Duración estimada:** 2-3 horas
@@ -554,11 +575,11 @@ Cuando se implemente el soporte de archivos:
 
 ## Checklist Pre-Implementación
 
-- [ ] Cuenta de OpenAI con API key
-- [ ] n8n Cloud o self-hosted configurado
-- [ ] Supabase con pgvector habilitado
-- [ ] Documentos de prueba para RAG inicial
-- [ ] Definir agente de prueba (Luna ventas)
+- [x] Cuenta de OpenAI con API key (se configura por proyecto en Project Secrets)
+- [ ] n8n Cloud o self-hosted configurado → **PRÓXIMO PASO: Railway**
+- [x] Supabase con pgvector habilitado
+- [x] Documentos de prueba para RAG inicial (se agregan desde UI)
+- [x] Definir agente de prueba (cualquier agente del proyecto)
 
 ---
 
@@ -577,3 +598,8 @@ Cuando se implemente el soporte de archivos:
 |-------|--------|-------|
 | 2026-01-25 | Documento inicial creado | Adan (Claude) |
 | 2026-01-29 | Definido alcance MVP: solo texto manual. Archivos en fase futura | Leo + Adan |
+| 2026-01-29 | **Fase 1 completada**: pgvector, tablas, funciones RPC, RLS | Adan (Claude) |
+| 2026-01-29 | **Fase 2 completada**: Server Actions, embeddings, chunking | Adan (Claude) |
+| 2026-01-29 | **Fase 3 completada**: UI en ProjectSettingsModal, traducciones i18n | Adan (Claude) |
+| 2026-01-29 | Pausa antes de Fase 4 - Pendiente: configurar n8n en Railway | Leo + Adan |
+| 2026-01-29 | **Corrección `search_agent_knowledge`**: Parámetro `p_query_embedding` cambiado a TEXT (consistencia con insert_agent_knowledge) | Adan (Claude) |

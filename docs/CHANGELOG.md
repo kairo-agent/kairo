@@ -1,5 +1,38 @@
 # KAIRO - Changelog
 
+## [0.7.2] - 2026-01-29
+
+### Corregido
+- **Función SQL `search_agent_knowledge` corregida**
+  - **Problema**: Parámetro `p_query_embedding` estaba definido como `vector` causando error de tipo
+  - **Solución**: Cambiado a `TEXT` para consistencia con `insert_agent_knowledge`
+  - El parámetro ahora recibe string con formato `'[0.1,0.2,...]'` y castea internamente a `vector(1536)`
+  - Mantiene compatibilidad con `formatEmbeddingForPg()` usado en `knowledge.ts`
+  - Script actualizado: `scripts/create-search-knowledge-function.sql`
+
+### Mejorado
+- **Limpieza de datos de prueba**
+  - Eliminados leads fake de la base de datos
+  - Quedan solo 3 leads de prueba representativos:
+    - 1 lead de temperatura HOT (potencial alto)
+    - 1 lead de temperatura WARM (potencial medio)
+    - 1 lead de temperatura COLD (potencial bajo)
+  - Lead principal de prueba: "Leo D Leon" (real user)
+
+### Estado del Proyecto
+- **RAG Fases 1-3**: ✅ Completamente funcionales
+  - Fase 1: pgvector + tablas + funciones RPC + RLS
+  - Fase 2: Server Actions + embeddings OpenAI + chunking
+  - Fase 3: UI en ProjectSettingsModal + traducciones i18n
+- **RAG Fase 4**: ⏳ Pendiente - Workflow n8n para usar conocimiento en respuestas
+
+### Archivos Clave
+- `scripts/create-search-knowledge-function.sql` - Función corregida con parámetro TEXT
+- `docs/RAG-AGENTS.md` - Documentación actualizada con firma correcta
+- Base de datos - Solo leads de prueba representativos
+
+---
+
 ## [0.7.1] - 2026-01-29
 
 ### Features

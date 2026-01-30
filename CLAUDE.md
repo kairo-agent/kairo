@@ -17,10 +17,11 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.6.1 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada
+**Estado actual:** v0.7.2 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-3 completadas y funcionales**, **n8n en Railway (producción)**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
+**n8n:** n8n-production-5d42.up.railway.app
 
 ---
 
@@ -69,6 +70,7 @@ KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes d
 | [/docs/I18N.md](docs/I18N.md) | Internacionalización, traducciones, moneda |
 | [/docs/RULES.md](docs/RULES.md) | Reglas obligatorias del proyecto |
 | [/docs/CHANGELOG.md](docs/CHANGELOG.md) | Historial de cambios |
+| [/docs/RAG-AGENTS.md](docs/RAG-AGENTS.md) | Sistema RAG para agentes IA |
 | [/brand/BRANDBOOK.md](brand/BRANDBOOK.md) | Identidad visual oficial |
 
 ---
@@ -153,12 +155,17 @@ kairo-dashboard/
 │   │   ├── supabase/            # Configuración Supabase + Prisma
 │   │   │   ├── client.ts        # Cliente browser
 │   │   │   └── server.ts        # Cliente server + Prisma singleton
+│   │   ├── openai/              # Integraciones OpenAI
+│   │   │   └── embeddings.ts    # Generación de embeddings (RAG)
+│   │   ├── utils/               # Utilidades adicionales
+│   │   │   └── chunking.ts      # Chunking de texto para RAG
 │   │   ├── auth-helpers.ts      # verifySuperAdmin, getCurrentUser
 │   │   ├── rate-limit.ts        # Rate limiting (memoria/Redis)
 │   │   └── actions/             # Server Actions
 │   │       ├── admin.ts         # CRUD Organizations, Projects, Users
 │   │       ├── agents.ts        # CRUD AIAgent por proyecto
 │   │       ├── auth.ts          # signIn, signOut, getCurrentUser, getSession
+│   │       ├── knowledge.ts     # CRUD Agent Knowledge (RAG)
 │   │       ├── leads.ts         # CRUD Leads
 │   │       ├── media.ts         # Upload/delete media a Supabase Storage
 │   │       ├── messages.ts      # Chat, handoff, markAsRead, mediaUrl
@@ -189,6 +196,7 @@ kairo-dashboard/
 │   ├── COMPONENTS.md
 │   ├── DATA-MODELS.md
 │   ├── I18N.md                  # Guía de internacionalización
+│   ├── RAG-AGENTS.md            # Sistema RAG para agentes IA
 │   ├── RULES.md
 │   └── CHANGELOG.md
 │
@@ -311,11 +319,18 @@ npm run lint     # Verificar código
 - [x] **Performance Phase 1** - Request-scoped caching con React cache() para auth (~60-70% menos queries)
 - [x] **Performance Phase 2** - Cursor-based pagination + React Query useInfiniteQuery (~80% menos payload)
 - [x] **Performance Phase 3** - Consolidación auth-helpers + fire-and-forget markMessagesAsRead (~200-300ms menos latencia)
+- [x] **RAG Fase 1** - pgvector + tabla agent_knowledge + funciones RPC (insert/search)
+- [x] **RAG Fase 2** - Server Actions knowledge.ts + embeddings OpenAI + chunking
+- [x] **RAG Fase 3** - UI en ProjectSettingsModal (tab Conocimiento) con i18n
+- [x] **RAG Fix** - search_agent_knowledge corregida (parámetro TEXT consistente con insert_agent_knowledge)
+- [x] **n8n en Producción (Railway)** - Deploy de n8n + PostgreSQL con template oficial
+- [x] **Supabase Realtime Fix** - RLS policies SELECT para broadcasts en tabla messages
 
 ### 🔄 Parcial
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
 
 ### ❌ Pendiente
+- [ ] **RAG Fase 4** - Workflow n8n para usar conocimiento en respuestas (integración pendiente)
 - [ ] **Crear Lead** - No hay server action ni UI
 - [ ] **Archivar Lead** - Usar status `archived` en lugar de eliminar (ver nota abajo)
 - [ ] **Página de Reportes** - No existe ruta /reports
@@ -473,8 +488,71 @@ npm run lint     # Verificar código
 - [x] Endpoint `/api/whatsapp/send` para que n8n envíe mensajes ✅
 - [x] Trigger a n8n en webhook cuando `handoffMode === 'ai'` ✅
 - [x] Callback `/api/messages/confirm` para confirmar envío desde n8n ✅
-- [ ] Setup n8n Cloud ($20/mes) o self-hosted
-- [ ] Workflow "KAIRO - AI Agent Handler" con prompts por agente
+- [x] Setup n8n en Railway (producción) ✅
+- [x] Workflow "KAIRO - Basic Response" funcional ✅
+- [ ] Workflow "KAIRO - AI Agent Handler" con prompts por agente (RAG pendiente)
+
+---
+
+## n8n en Railway (Producción)
+
+### Información del Deploy
+
+- **Plataforma:** Railway (https://railway.app/)
+- **Template:** n8n + PostgreSQL (template oficial)
+- **URL:** n8n-production-5d42.up.railway.app
+- **Base de datos:** PostgreSQL 16 (Railway internal service)
+
+### Variables de Entorno (Railway)
+
+```bash
+# PostgreSQL (auto-configuradas por Railway)
+POSTGRES_DB=railway
+POSTGRES_HOST=postgres.railway.internal
+POSTGRES_PASSWORD=<generado_por_railway>
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+DB_TYPE=postgresdb
+
+# n8n Configuration
+N8N_HOST=n8n-production-5d42.up.railway.app
+N8N_PORT=5678
+N8N_PROTOCOL=https
+NODE_ENV=production
+WEBHOOK_URL=https://n8n-production-5d42.up.railway.app/
+```
+
+### Sincronización con KAIRO
+
+**En Vercel (KAIRO):**
+```bash
+N8N_CALLBACK_SECRET=<shared_secret>
+```
+
+**En Railway (n8n workflow):**
+- Nodo "Confirm to KAIRO": Header `X-N8N-Secret: <shared_secret>`
+
+**En KAIRO Admin UI:**
+- ProjectSettingsModal → Tab Webhooks → n8nWebhookUrl
+- Formato: `https://n8n-production-5d42.up.railway.app/webhook/<webhook_id>`
+
+### Workflows Actuales
+
+| Workflow | Descripción | Estado |
+|----------|-------------|--------|
+| KAIRO - Basic Response | Respuesta automática simple a mensajes WhatsApp | ✅ Activo |
+| KAIRO - AI Agent Handler | Orquestación de agentes con RAG | ⏳ Pendiente |
+
+### Acceso a n8n
+
+- **URL Admin:** https://n8n-production-5d42.up.railway.app/
+- **Credenciales:** Configuradas en Railway (no en repo)
+
+### Backup y Mantenimiento
+
+- **Workflows exportados:** Guardar localmente como `.json` antes de cambios críticos
+- **Base de datos:** Railway hace backups automáticos (retención según plan)
+- **Monitoreo:** Railway Dashboard muestra logs en tiempo real
 
 ---
 
@@ -978,3 +1056,65 @@ El nodo "Send to WhatsApp" detecta el tipo de mensaje:
 ```
 
 Los nodos "Prepare Human Response" y "Prepare AI Response" pasan `messageType` y `mediaUrl` al nodo de envío
+
+---
+
+## Supabase Realtime + RLS (Actualizado Enero 2026)
+
+### Problema Resuelto
+
+**Síntoma:** Mensajes de chat no actualizaban en tiempo real aunque Realtime estaba suscrito.
+
+**Causa raíz:** RLS habilitado en tabla `messages` pero sin políticas SELECT. Supabase Realtime respeta RLS, por lo tanto sin política SELECT no hay broadcasts.
+
+**Solución:** Políticas RLS completas con función helper de verificación de acceso.
+
+### Script de RLS
+
+Archivo: `scripts/rls-messages-realtime.sql`
+
+**Función helper:**
+```sql
+CREATE OR REPLACE FUNCTION public.user_has_conversation_access(conv_id TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  -- Super admins tienen acceso a todo
+  IF EXISTS (
+    SELECT 1 FROM users
+    WHERE id = auth.uid()::TEXT AND "systemRole" = 'super_admin'
+  ) THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Verificar membresía en proyecto vía conversación → lead → project
+  RETURN EXISTS (
+    SELECT 1
+    FROM conversations c
+    JOIN leads l ON c."leadId" = l.id
+    JOIN project_members pm ON l."projectId" = pm."projectId"
+    WHERE c.id = conv_id AND pm."userId" = auth.uid()::TEXT
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+**Políticas:**
+- `SELECT`: CRÍTICA para Realtime - permite leer mensajes de conversaciones con acceso
+- `INSERT`: Permite crear mensajes solo en conversaciones propias
+- `UPDATE`: Permite actualizar estado de mensajes (delivered, read)
+
+### Verificación
+
+```sql
+-- Ver políticas instaladas
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual
+FROM pg_policies
+WHERE tablename = 'messages';
+```
+
+### Importante
+
+- **Sin política SELECT, Realtime NO funciona** aunque RLS esté habilitado
+- La función usa `SECURITY DEFINER` para acceso consistente a las tablas
+- Super admins bypasean la verificación de membresía
+- Las políticas verifican acceso a través de la cadena: message → conversation → lead → project → project_member
