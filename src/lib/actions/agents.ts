@@ -362,6 +362,7 @@ export async function deleteAgent(agentId: string): Promise<{
 
 // ============================================
 // TOGGLE: Activar/desactivar agente
+// Solo 1 agente puede estar activo por proyecto
 // ============================================
 
 export async function toggleAgentStatus(agentId: string): Promise<{
@@ -383,9 +384,23 @@ export async function toggleAgentStatus(agentId: string): Promise<{
       return { success: false, error: 'Unauthorized' };
     }
 
+    const willBeActive = !agent.isActive;
+
+    // Si se está ACTIVANDO este agente, desactivar todos los demás del proyecto
+    if (willBeActive) {
+      await prisma.aIAgent.updateMany({
+        where: {
+          projectId: agent.projectId,
+          id: { not: agentId },
+          isActive: true
+        },
+        data: { isActive: false }
+      });
+    }
+
     const updated = await prisma.aIAgent.update({
       where: { id: agentId },
-      data: { isActive: !agent.isActive },
+      data: { isActive: willBeActive },
       include: {
         _count: {
           select: { assignedLeads: true }
