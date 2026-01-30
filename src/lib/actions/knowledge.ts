@@ -151,7 +151,14 @@ export async function addAgentKnowledge(
 
       if (error) {
         console.error('Failed to insert knowledge chunk:', error);
-        // Continue with other chunks even if one fails
+        // If first chunk fails, return the specific error
+        if (i === 0) {
+          return {
+            success: false,
+            error: `Error en Supabase: ${error.message || error.code || 'Error desconocido'}`
+          };
+        }
+        // Continue with other chunks if not the first one
         continue;
       }
 
@@ -161,7 +168,7 @@ export async function addAgentKnowledge(
     }
 
     if (createdIds.length === 0) {
-      return { success: false, error: 'No se pudo guardar el conocimiento' };
+      return { success: false, error: 'No se pudo guardar el conocimiento - revisa los logs' };
     }
 
     return {
@@ -173,8 +180,17 @@ export async function addAgentKnowledge(
     };
   } catch (error) {
     console.error('Failed to add agent knowledge:', error);
-    const message = error instanceof Error ? error.message : 'Error interno';
-    return { success: false, error: message };
+    if (error instanceof Error) {
+      // Check for specific OpenAI errors
+      if (error.message.includes('API key')) {
+        return { success: false, error: 'API key de OpenAI inválida o no configurada' };
+      }
+      if (error.message.includes('insufficient_quota')) {
+        return { success: false, error: 'Sin créditos en tu cuenta de OpenAI' };
+      }
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Error interno desconocido' };
   }
 }
 
