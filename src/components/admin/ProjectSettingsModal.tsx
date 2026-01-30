@@ -141,9 +141,13 @@ const BookIcon = () => (
 );
 
 // ============================================
-// Agent Type Config
+// Agent Icon Options (visual only, not type)
 // ============================================
 
+const agentIcons = ['🤖', '💼', '🎧', '📊', '📅', '💬', '🎯', '🌟', '🚀', '👤'];
+const defaultAgentIcon = '🤖';
+
+// Legacy mapping for backwards compatibility
 const agentTypeConfig: Record<AIAgentType, { icon: string; color: string }> = {
   sales: { icon: '💼', color: 'bg-blue-500/20 text-blue-400' },
   support: { icon: '🎧', color: 'bg-green-500/20 text-green-400' },
@@ -173,6 +177,7 @@ export default function ProjectSettingsModal({
   const [showAgentForm, setShowAgentForm] = useState(false);
   const [editingAgent, setEditingAgent] = useState<AIAgentData | null>(null);
   const [deletingAgent, setDeletingAgent] = useState<AIAgentData | null>(null);
+  const [togglingAgentId, setTogglingAgentId] = useState<string | null>(null);
 
   // Knowledge state
   const [selectedAgentForKnowledge, setSelectedAgentForKnowledge] = useState<string>('');
@@ -187,6 +192,7 @@ export default function ProjectSettingsModal({
   // Agent form
   const [agentName, setAgentName] = useState('');
   const [agentType, setAgentType] = useState<AIAgentType>('sales');
+  const [agentIcon, setAgentIcon] = useState(defaultAgentIcon);
   const [agentDescription, setAgentDescription] = useState('');
   const [agentAvatarUrl, setAgentAvatarUrl] = useState('');
 
@@ -292,6 +298,7 @@ export default function ProjectSettingsModal({
   const resetAgentForm = () => {
     setAgentName('');
     setAgentType('sales');
+    setAgentIcon(defaultAgentIcon);
     setAgentDescription('');
     setAgentAvatarUrl('');
     setShowAgentForm(false);
@@ -303,8 +310,11 @@ export default function ProjectSettingsModal({
     setEditingAgent(agent);
     setAgentName(agent.name);
     setAgentType(agent.type);
+    // Si avatarUrl es un emoji (no es URL), usarlo como icono
+    const isEmoji = agent.avatarUrl && !agent.avatarUrl.startsWith('http');
+    setAgentIcon(isEmoji ? agent.avatarUrl : defaultAgentIcon);
     setAgentDescription(agent.description || '');
-    setAgentAvatarUrl(agent.avatarUrl || '');
+    setAgentAvatarUrl('');
     setShowAgentForm(true);
   };
 
@@ -322,7 +332,7 @@ export default function ProjectSettingsModal({
           name: agentName.trim(),
           type: agentType,
           description: agentDescription.trim() || undefined,
-          avatarUrl: agentAvatarUrl.trim() || undefined
+          avatarUrl: agentIcon // Guardar emoji como avatarUrl
         });
 
         if (result.success) {
@@ -340,7 +350,7 @@ export default function ProjectSettingsModal({
           name: agentName.trim(),
           type: agentType,
           description: agentDescription.trim() || undefined,
-          avatarUrl: agentAvatarUrl.trim() || undefined
+          avatarUrl: agentIcon // Guardar emoji como avatarUrl
         });
 
         if (result.success) {
@@ -395,6 +405,7 @@ export default function ProjectSettingsModal({
   };
 
   const handleToggleAgentStatus = async (agent: AIAgentData) => {
+    setTogglingAgentId(agent.id);
     try {
       const result = await toggleAgentStatus(agent.id);
       if (result.success) {
@@ -403,6 +414,8 @@ export default function ProjectSettingsModal({
       }
     } catch (err) {
       console.error('Error toggling agent status:', err);
+    } finally {
+      setTogglingAgentId(null);
     }
   };
 
@@ -687,31 +700,30 @@ export default function ProjectSettingsModal({
         />
       </div>
 
-      {/* Type */}
+      {/* Icon selector */}
       <div>
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-          {t('agentSettings.type')} *
+          {t('agentSettings.icon')}
         </label>
-        <div className="grid grid-cols-2 gap-2">
-          {(['sales', 'support', 'qualification', 'appointment'] as AIAgentType[]).map((type) => (
+        <div className="flex flex-wrap gap-2">
+          {agentIcons.map((icon) => (
             <button
-              key={type}
+              key={icon}
               type="button"
-              onClick={() => setAgentType(type)}
+              onClick={() => setAgentIcon(icon)}
               className={cn(
-                'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors',
-                agentType === type
-                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
-                  : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+                'w-10 h-10 flex items-center justify-center rounded-lg border text-xl transition-colors',
+                agentIcon === icon
+                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10'
+                  : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--text-muted)]'
               )}
             >
-              <span>{agentTypeConfig[type].icon}</span>
-              <span>{t(`agentSettings.agentTypes.${type}`)}</span>
+              {icon}
             </button>
           ))}
         </div>
         <p className="text-xs text-[var(--text-muted)] mt-1">
-          {t(`agentSettings.agentTypeDescriptions.${agentType}`)}
+          {t('agentSettings.iconDescription')}
         </p>
       </div>
 
@@ -775,15 +787,15 @@ export default function ProjectSettingsModal({
     >
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          {/* Avatar */}
+          {/* Avatar/Icon */}
           <div className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center text-lg',
-            agentTypeConfig[agent.type].color
+            'w-10 h-10 rounded-full flex items-center justify-center text-xl',
+            'bg-[var(--bg-tertiary)]'
           )}>
-            {agent.avatarUrl ? (
+            {agent.avatarUrl && agent.avatarUrl.startsWith('http') ? (
               <img src={agent.avatarUrl} alt={agent.name} className="w-full h-full rounded-full object-cover" />
             ) : (
-              agentTypeConfig[agent.type].icon
+              agent.avatarUrl || defaultAgentIcon
             )}
           </div>
 
@@ -816,17 +828,26 @@ export default function ProjectSettingsModal({
         <div className="flex items-center gap-1">
           <button
             onClick={() => handleToggleAgentStatus(agent)}
+            disabled={togglingAgentId === agent.id}
             className={cn(
               'p-2 rounded-lg transition-colors',
               agent.isActive
                 ? 'text-green-400 hover:bg-green-500/10'
-                : 'text-gray-400 hover:bg-gray-500/10'
+                : 'text-red-400 hover:bg-red-500/10',
+              togglingAgentId === agent.id && 'opacity-50 cursor-not-allowed'
             )}
-            title={agent.isActive ? t('agentSettings.inactive') : t('agentSettings.active')}
+            title={agent.isActive ? t('agentSettings.deactivate') : t('agentSettings.activate')}
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={agent.isActive ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M5 13l4 4L19 7"} />
-            </svg>
+            {togglingAgentId === agent.id ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={agent.isActive ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M5 13l4 4L19 7"} />
+              </svg>
+            )}
           </button>
           <button
             onClick={() => handleEditAgent(agent)}
