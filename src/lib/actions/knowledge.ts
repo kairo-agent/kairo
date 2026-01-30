@@ -220,29 +220,20 @@ export async function deleteAgentKnowledge(
 
     const supabase = await createClient();
 
-    // Get the entry to find its title (to delete related chunks)
-    const { data: entry } = await supabase
-      .from('agent_knowledge')
-      .select('title, agent_id')
-      .eq('id', id)
-      .eq('project_id', projectId)
-      .single();
+    // Use RPC to bypass RLS (function is SECURITY DEFINER)
+    const { data, error } = await supabase.rpc('delete_agent_knowledge', {
+      p_id: id,
+      p_project_id: projectId,
+    });
 
-    if (!entry) {
-      return { success: false, error: 'Entrada no encontrada' };
+    if (error) {
+      console.error('Failed to delete knowledge:', error);
+      return { success: false, error: `Error al eliminar: ${error.message}` };
     }
 
-    // If has title, delete all chunks with same title and agent
-    if (entry.title) {
-      await supabase
-        .from('agent_knowledge')
-        .delete()
-        .eq('title', entry.title)
-        .eq('agent_id', entry.agent_id)
-        .eq('project_id', projectId);
-    } else {
-      // Just delete this single entry
-      await supabase.from('agent_knowledge').delete().eq('id', id);
+    const deletedCount = Array.isArray(data) ? data[0]?.deleted_count : data?.deleted_count;
+    if (deletedCount === 0) {
+      return { success: false, error: 'Entrada no encontrada' };
     }
 
     return { success: true };
