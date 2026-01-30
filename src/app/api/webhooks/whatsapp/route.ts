@@ -440,6 +440,9 @@ async function handleIncomingMessage(
     },
     include: {
       conversation: true,
+      assignedAgent: {
+        select: { id: true, name: true },
+      },
     },
   });
 
@@ -448,6 +451,13 @@ async function handleIncomingMessage(
     const nameParts = contactName.split(' ');
     const firstName = nameParts[0] || 'Sin nombre';
     const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Find default agent for the project (first active agent)
+    const defaultAgent = await prisma.aIAgent.findFirst({
+      where: { projectId, isActive: true },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+    });
 
     // Create new lead with conversation
     lead = await prisma.lead.create({
@@ -463,6 +473,7 @@ async function handleIncomingMessage(
         temperature: LeadTemperature.cold,
         handoffMode: HandoffMode.ai,
         lastContactAt: new Date(),
+        assignedAgentId: defaultAgent?.id || null,
         conversation: {
           create: {
             messages: {
@@ -478,6 +489,9 @@ async function handleIncomingMessage(
       },
       include: {
         conversation: true,
+        assignedAgent: {
+          select: { id: true, name: true },
+        },
       },
     });
 
@@ -534,18 +548,25 @@ async function handleIncomingMessage(
 
 async function triggerN8nWorkflow(
   projectId: string,
-  lead: { id: string; firstName: string; lastName: string | null; phone: string | null; whatsappId?: string | null; conversation: { id: string } | null },
+  lead: {
+    id: string;
+    firstName: string;
+    lastName: string | null;
+    phone: string | null;
+    whatsappId?: string | null;
+    conversation: { id: string } | null;
+    assignedAgent?: { id: string; name: string } | null;
+  },
   messageContent: string,
   messageType: string
 ) {
-  // Get n8n webhook URL from project settings
+  // Get n8n webhook URL and project name
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { n8nWebhookUrl: true, name: true },
   });
 
-  // Default to local n8n if no URL configured
-  const n8nUrl = project?.n8nWebhookUrl || 'http://localhost:5678/webhook/kairo-incoming';
+  const n8nUrl = project?.n8nWebhookUrl;
 
   if (!n8nUrl) {
     console.log('⚠️ No n8n webhook URL configured, skipping AI trigger');
@@ -569,6 +590,10 @@ async function triggerN8nWorkflow(
     message: messageContent,
     messageType,
     timestamp: new Date().toISOString(),
+    // Agent info for RAG
+    agentId: lead.assignedAgent?.id || null,
+    agentName: lead.assignedAgent?.name || 'Asistente',
+    companyName: project?.name || 'KAIRO',
     // WhatsApp API credentials for n8n to send directly
     accessToken: accessToken || '',
     phoneNumberId: phoneNumberId || '',
