@@ -1470,9 +1470,10 @@ export default function ProjectSettingsModal({
                 </label>
                 <div className="relative">
                   <input
-                    type="password"
+                    type="text"
                     value={openaiApiKey}
                     onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    autoComplete="off"
                     placeholder={
                       revealedSecrets.openai_api_key
                         ? revealedSecrets.openai_api_key
