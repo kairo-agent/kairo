@@ -29,6 +29,17 @@
   - Mejora UX al hacer clic en "Cargar mensajes anteriores"
 
 ### UX/UI
+- **Tooltips modernos CSS (reemplazo de tooltips nativos del navegador)**
+  - Nuevo componente `TooltipButton` con animación fade-in
+  - Diseño elegante con sombra, borde y flecha indicadora
+  - Soporte automático para dark/light theme via CSS variables
+  - Aplicado a botones de imagen, video y documento en ChatInput
+
+- **Color de burbuja de mensajes enviados optimizado**
+  - Cambiado de `var(--accent-primary)` a `#BFF7FF` (cyan muy claro)
+  - Doble check azul de WhatsApp ahora claramente visible
+  - Contraste mejorado en ambos temas (light/dark)
+
 - **Indicadores de tamaño máximo para archivos**
   - Tooltips mejorados en ChatInput: "Adjuntar imagen (máx. 3MB)", "Adjuntar video (máx. 16MB)"
   - Preview del archivo muestra tamaño actual vs máximo permitido: "1.2 MB / 3 MB máx"
