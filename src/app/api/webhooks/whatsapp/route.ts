@@ -527,11 +527,39 @@ async function handleIncomingMessage(
       },
     });
 
-    // Update last contact
-    await prisma.lead.update({
-      where: { id: lead.id },
-      data: { lastContactAt: new Date() },
-    });
+    // If lead has no assigned agent, assign the first active agent
+    if (!lead.assignedAgent) {
+      const defaultAgent = await prisma.aIAgent.findFirst({
+        where: { projectId, isActive: true },
+        select: { id: true, name: true },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (defaultAgent) {
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: {
+            lastContactAt: new Date(),
+            assignedAgentId: defaultAgent.id,
+          },
+        });
+        // Update lead object for n8n trigger
+        lead.assignedAgent = defaultAgent;
+        console.log(`✅ Assigned agent ${defaultAgent.name} to existing lead: ${lead.id}`);
+      } else {
+        // Just update last contact
+        await prisma.lead.update({
+          where: { id: lead.id },
+          data: { lastContactAt: new Date() },
+        });
+      }
+    } else {
+      // Update last contact
+      await prisma.lead.update({
+        where: { id: lead.id },
+        data: { lastContactAt: new Date() },
+      });
+    }
 
     console.log(`✅ Message added to lead: ${lead.id}`);
   }
