@@ -1,5 +1,45 @@
 # KAIRO - Changelog
 
+## [0.7.3] - 2026-01-29
+
+### Features
+- **Webhook WhatsApp envía datos del agente a n8n**
+  - Payload ahora incluye: `agentId`, `agentName`, `companyName`
+  - Auto-asignación de agente a leads nuevos (primer agente activo del proyecto)
+  - Preparación para RAG Fase 4 - n8n tiene toda la info para buscar conocimiento
+
+- **Restricción: Solo 1 agente activo por proyecto**
+  - Comportamiento radio button: al activar un agente, los demás se desactivan
+  - Simplifica la lógica de asignación de leads y RAG
+  - Implementado en `toggleAgentStatus()` en `agents.ts`
+
+### UX/UI
+- **Gestión de agentes mejorada en ProjectSettingsModal**
+  - Selector de iconos (10 emojis) reemplaza selector de tipo de agente
+  - Iconos disponibles: 🤖 💼 🎧 📊 📅 💬 🎯 🌟 🚀 👤
+  - Icono por defecto: 🤖 (robot)
+  - Toggle de estado: verde cuando activo, rojo cuando inactivo
+  - Spinner de carga durante cambio de estado
+
+### Corregido
+- **Error TypeScript en ProjectSettingsModal**
+  - `agent.avatarUrl` podía ser `null` pero no se verificaba correctamente
+  - Solución: Doble verificación `isEmoji && agent.avatarUrl`
+
+### Traducciones
+- Nuevas keys en `agentSettings`:
+  - `activate`, `deactivate` - Labels para toggle
+  - `icon`, `iconDescription` - Selector de iconos
+
+### Archivos Modificados
+- `src/app/api/webhooks/whatsapp/route.ts` - Payload con agentId para n8n
+- `src/lib/actions/agents.ts` - Restricción de 1 agente activo
+- `src/components/admin/ProjectSettingsModal.tsx` - UI de iconos y toggle
+- `src/messages/es.json` - Traducciones agentSettings
+- `src/messages/en.json` - Traducciones agentSettings
+
+---
+
 ## [0.7.2] - 2026-01-29
 
 ### Corregido

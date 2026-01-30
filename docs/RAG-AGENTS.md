@@ -1,9 +1,9 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** EN PROGRESO - Fases 1-3 completadas ✅
+> **Estado:** EN PROGRESO - Fases 1-3 completadas ✅, Webhook listo para Fase 4
 > **Fecha de planificación:** 2026-01-25
 > **Última actualización:** 2026-01-29
-> **Próximo paso:** Configurar n8n en Railway, luego Fase 4
+> **Próximo paso:** Fase 4 - Crear workflow n8n con RAG (n8n ya está en Railway)
 
 ---
 
@@ -576,10 +576,12 @@ Cuando se implemente el soporte de archivos:
 ## Checklist Pre-Implementación
 
 - [x] Cuenta de OpenAI con API key (se configura por proyecto en Project Secrets)
-- [ ] n8n Cloud o self-hosted configurado → **PRÓXIMO PASO: Railway**
+- [x] n8n en Railway configurado → `n8n-production-5d42.up.railway.app`
 - [x] Supabase con pgvector habilitado
 - [x] Documentos de prueba para RAG inicial (se agregan desde UI)
 - [x] Definir agente de prueba (cualquier agente del proyecto)
+- [x] Webhook WhatsApp envía `agentId`, `agentName`, `companyName` a n8n
+- [x] Restricción: Solo 1 agente activo por proyecto
 
 ---
 
@@ -603,3 +605,6 @@ Cuando se implemente el soporte de archivos:
 | 2026-01-29 | **Fase 3 completada**: UI en ProjectSettingsModal, traducciones i18n | Adan (Claude) |
 | 2026-01-29 | Pausa antes de Fase 4 - Pendiente: configurar n8n en Railway | Leo + Adan |
 | 2026-01-29 | **Corrección `search_agent_knowledge`**: Parámetro `p_query_embedding` cambiado a TEXT (consistencia con insert_agent_knowledge) | Adan (Claude) |
+| 2026-01-29 | **Webhook WhatsApp actualizado**: Envía `agentId`, `agentName`, `companyName` a n8n | Adan (Claude) |
+| 2026-01-29 | **Restricción 1 agente activo**: Solo un agente puede estar activo por proyecto | Leo + Adan |
+| 2026-01-29 | **Auto-asignación de agente**: Leads nuevos reciben primer agente activo del proyecto | Adan (Claude) |

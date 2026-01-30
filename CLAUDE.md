@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.2 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-3 completadas y funcionales**, **n8n en Railway (producción)**
+**Estado actual:** v0.7.3 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-3 completadas**, **n8n en Railway (producción)**, **Webhook envía agentId a n8n**, **Solo 1 agente activo por proyecto**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -325,6 +325,10 @@ npm run lint     # Verificar código
 - [x] **RAG Fix** - search_agent_knowledge corregida (parámetro TEXT consistente con insert_agent_knowledge)
 - [x] **n8n en Producción (Railway)** - Deploy de n8n + PostgreSQL con template oficial
 - [x] **Supabase Realtime Fix** - RLS policies SELECT para broadcasts en tabla messages
+- [x] **Webhook WhatsApp → n8n mejorado** - Envía `agentId`, `agentName`, `companyName` para RAG
+- [x] **Auto-asignación de agente** - Leads nuevos reciben primer agente activo del proyecto
+- [x] **Restricción 1 agente activo** - Solo un agente puede estar activo por proyecto (radio button)
+- [x] **UI Gestión de Agentes mejorada** - Selector de iconos (emojis), toggle rojo/verde, spinner de carga
 
 ### 🔄 Parcial
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
