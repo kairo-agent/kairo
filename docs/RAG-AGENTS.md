@@ -1,9 +1,9 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** EN PROGRESO - Fases 1-3 completadas ✅, Webhook listo para Fase 4
+> **Estado:** EN PROGRESO - Fases 1-3 completadas ✅, Fase 4 en desarrollo 🔄
 > **Fecha de planificación:** 2026-01-25
-> **Última actualización:** 2026-01-29
-> **Próximo paso:** Fase 4 - Crear workflow n8n con RAG (n8n ya está en Railway)
+> **Última actualización:** 2026-01-30
+> **Próximo paso:** Fase 4 - Completar workflow n8n con integración a endpoint `/api/rag/search`
 
 ---
 
@@ -220,10 +220,55 @@ END;
 $$;
 ```
 
-### Uso desde n8n (HTTP Request a Supabase)
+### Uso desde n8n (HTTP Request a KAIRO)
+
+**Opción recomendada: Endpoint KAIRO `/api/rag/search`** (Arquitectura Opción B)
 
 ```javascript
 // En nodo HTTP Request de n8n
+// POST https://app.kairoagent.com/api/rag/search
+// Headers: X-N8N-Secret: <shared_secret>
+
+{
+  "agentId": "{{$json.agentId}}",
+  "projectId": "{{$json.projectId}}",
+  "query": "{{$json.message}}",  // Pregunta del usuario
+  "limit": 5,                     // Opcional (default: 5, max: 20)
+  "threshold": 0.7                // Opcional (default: 0.7, range: 0-1)
+}
+
+// Response:
+{
+  "success": true,
+  "results": [
+    {
+      "id": "uuid",
+      "content": "Texto del documento...",
+      "title": "Título del documento",
+      "source": "manual",
+      "similarity": 0.892
+    }
+  ],
+  "metadata": {
+    "agentId": "...",
+    "agentName": "Luna",
+    "projectId": "...",
+    "projectName": "TechCorp SAC",
+    "queryLength": 45,
+    "resultsCount": 3,
+    "threshold": 0.7,
+    "timing": {
+      "embedding": 150,
+      "search": 45,
+      "total": 210
+    }
+  }
+}
+```
+
+**Alternativa: Supabase RPC directo** (Opción A - menos segura)
+
+```javascript
 // POST https://<project>.supabase.co/rest/v1/rpc/search_agent_knowledge
 
 {
@@ -234,6 +279,8 @@ $$;
   "p_match_threshold": 0.7
 }
 ```
+
+**Decisión de arquitectura:** Usar Opción B (vía KAIRO) por seguridad - n8n solo tiene shared secret, no credenciales de Supabase.
 
 ---
 
@@ -465,14 +512,23 @@ Cuando se implemente el soporte de archivos:
 - `src/messages/es.json` - Traducciones knowledgeSettings
 - `src/messages/en.json` - Traducciones knowledgeSettings
 
-### Fase 4: Workflow n8n
+### Fase 4: Workflow n8n 🔄 EN PROGRESO
 **Duración estimada:** 2-3 horas
 
-- [ ] Crear workflow "KAIRO - AI Agent RAG Handler"
-- [ ] Configurar nodo OpenAI para embeddings de query
-- [ ] Configurar nodo HTTP para buscar en Supabase (RPC)
+- [x] Endpoint `/api/rag/search` creado en KAIRO ✅
+  - Autenticación: Header `X-N8N-Secret` (shared secret)
+  - Request body: `{ agentId, projectId, query, limit?, threshold? }`
+  - Response: `{ success, results[], metadata }`
+  - Features: Validación de agente/proyecto, generación de embeddings, búsqueda semántica
+  - Logging detallado con timings (embedding, search, total)
+  - Health check endpoint (GET) con documentación
+- [ ] Modificar workflow n8n para usar endpoint KAIRO en lugar de Supabase directo
+  - [ ] Reemplazar nodo "Generar Embedding" por llamada a `/api/rag/search`
+  - [ ] Eliminar nodo "Buscar en RAG (Supabase)"
+  - [ ] Agregar header `X-N8N-Secret` en HTTP Request
+  - [ ] Parsear respuesta con formato `results[]` del endpoint
 - [ ] Configurar nodo LLM (Claude/GPT) con prompt estricto
-- [ ] Configurar nodo de respuesta via API KAIRO
+- [ ] Configurar nodo de respuesta via API KAIRO (`/api/whatsapp/send`)
 - [ ] Probar flujo completo end-to-end
 
 ### Fase 5: Testing y Refinamiento
@@ -608,3 +664,4 @@ Cuando se implemente el soporte de archivos:
 | 2026-01-29 | **Webhook WhatsApp actualizado**: Envía `agentId`, `agentName`, `companyName` a n8n | Adan (Claude) |
 | 2026-01-29 | **Restricción 1 agente activo**: Solo un agente puede estar activo por proyecto | Leo + Adan |
 | 2026-01-29 | **Auto-asignación de agente**: Leads nuevos reciben primer agente activo del proyecto | Adan (Claude) |
+| 2026-01-30 | **Fase 4 en progreso**: Endpoint `/api/rag/search` creado - Decisión Opción B (n8n vía KAIRO por seguridad) | Adan (Claude) |

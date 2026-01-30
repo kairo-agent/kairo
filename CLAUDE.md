@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.3 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-3 completadas**, **n8n en Railway (producción)**, **Webhook envía agentId a n8n**, **Solo 1 agente activo por proyecto**
+**Estado actual:** v0.7.4 (en desarrollo) - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-3 completadas**, **RAG Fase 4 en progreso (endpoint `/api/rag/search` listo)**, **n8n en Railway (producción)**, **Webhook envía agentId a n8n**, **Solo 1 agente activo por proyecto**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -172,6 +172,19 @@ kairo-dashboard/
 │   │       ├── profile.ts       # getProfile, updateProfile, changePassword
 │   │       ├── secrets.ts       # CRUD Project Secrets (encriptados)
 │   │       └── workspace.ts     # getOrganizations, getProjects (selector)
+│   │
+│   ├── app/api/
+│   │   ├── auth/verify-admin/   # Verificar si usuario es super_admin
+│   │   ├── admin/stats/         # Estadísticas del panel admin
+│   │   ├── webhooks/
+│   │   │   ├── whatsapp/        # Recibir mensajes de WhatsApp Cloud API
+│   │   │   └── n8n/             # Webhook para eventos de conversación
+│   │   ├── whatsapp/
+│   │   │   ├── send/            # Enviar mensajes a WhatsApp (proxy para n8n/UI)
+│   │   │   └── mark-read/       # Marcar mensajes como leídos (read receipts)
+│   │   ├── messages/confirm/    # Callback de n8n para confirmar envío
+│   │   ├── rag/search/          # Búsqueda semántica RAG para n8n
+│   │   └── cron/cleanup-media/  # Limpieza automática de archivos >24h
 │   │
 │   ├── middleware.ts            # Detección de locale
 │   │
@@ -331,10 +344,10 @@ npm run lint     # Verificar código
 - [x] **UI Gestión de Agentes mejorada** - Selector de iconos (emojis), toggle rojo/verde, spinner de carga
 
 ### 🔄 Parcial
+- [ ] **RAG Fase 4** - Endpoint `/api/rag/search` creado ✅, workflow n8n pendiente de modificar
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
 
 ### ❌ Pendiente
-- [ ] **RAG Fase 4** - Workflow n8n para usar conocimiento en respuestas (integración pendiente)
 - [ ] **Crear Lead** - No hay server action ni UI
 - [ ] **Archivar Lead** - Usar status `archived` en lugar de eliminar (ver nota abajo)
 - [ ] **Página de Reportes** - No existe ruta /reports
@@ -838,6 +851,7 @@ ngrok http 3000
 | `/api/whatsapp/send` | Supabase Auth + Project Membership | `BYPASS_AUTH_DEV` (dev only) |
 | `/api/messages/confirm` | Shared Secret Header | `N8N_CALLBACK_SECRET` |
 | `/api/webhooks/whatsapp` | HMAC-SHA256 Signature | `WHATSAPP_APP_SECRET` |
+| `/api/rag/search` | Shared Secret Header | `N8N_CALLBACK_SECRET` |
 
 ### V1: `/api/whatsapp/send` - Autenticación de Usuario
 
@@ -892,6 +906,61 @@ WEBHOOK_BYPASS_SIGNATURE=true
 ```
 
 **Archivo:** `src/app/api/webhooks/whatsapp/route.ts`
+
+### V4: `/api/rag/search` - Búsqueda Semántica para n8n
+
+**Propósito:** Endpoint para que n8n realice búsquedas RAG en la base de conocimiento.
+
+**Protección implementada:**
+- Header `X-N8N-Secret` con shared secret (mismo que `/api/messages/confirm`)
+- Validación de agente y proyecto activos
+- Límites en query (max 8000 caracteres) y resultados (max 20)
+
+```typescript
+// Configurar el mismo secret en n8n y KAIRO
+N8N_CALLBACK_SECRET=k4ir0-prod-secret-change-me
+
+// En n8n, usar header:
+// X-N8N-Secret: k4ir0-prod-secret-change-me
+
+// Request body:
+{
+  "agentId": "agent_123",
+  "projectId": "project_456",
+  "query": "¿Cuáles son los horarios?",
+  "limit": 5,         // opcional (1-20, default: 5)
+  "threshold": 0.7    // opcional (0-1, default: 0.7)
+}
+
+// Response:
+{
+  "success": true,
+  "results": [
+    {
+      "id": "uuid",
+      "content": "Texto relevante...",
+      "title": "Título del documento",
+      "source": "manual",
+      "similarity": 0.892
+    }
+  ],
+  "metadata": {
+    "agentId": "...",
+    "agentName": "Luna",
+    "projectId": "...",
+    "projectName": "TechCorp SAC",
+    "resultsCount": 3,
+    "timing": { "embedding": 150, "search": 45, "total": 210 }
+  }
+}
+```
+
+**Archivo:** `src/app/api/rag/search/route.ts`
+
+**Decisión de arquitectura:** n8n accede al RAG vía endpoint KAIRO (Opción B) en lugar de conectar directamente a Supabase (Opción A). Razones:
+- **Seguridad**: n8n solo tiene shared secret, no credenciales de base de datos
+- **Aislamiento multi-tenant**: Validación de permisos centralizada en KAIRO
+- **Superficie de ataque reducida**: Un solo punto de acceso con logging completo
 
 ### Configuración para Producción
 

@@ -201,6 +201,9 @@ export default function ProjectSettingsModal({
   const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState('');
   const [whatsappBusinessAccountId, setWhatsappBusinessAccountId] = useState('');
 
+  // OpenAI form
+  const [openaiApiKey, setOpenaiApiKey] = useState('');
+
   // Reveal secrets with timer (15 seconds)
   const [revealedSecrets, setRevealedSecrets] = useState<Record<SecretKey, string | null>>({
     whatsapp_access_token: null,
@@ -496,6 +499,9 @@ export default function ProjectSettingsModal({
       if (whatsappBusinessAccountId.trim()) {
         secrets.whatsapp_business_account_id = whatsappBusinessAccountId.trim();
       }
+      if (openaiApiKey.trim()) {
+        secrets.openai_api_key = openaiApiKey.trim();
+      }
 
       if (Object.keys(secrets).length === 0) {
         setError(t('settings.noChanges'));
@@ -510,6 +516,7 @@ export default function ProjectSettingsModal({
         setWhatsappToken('');
         setWhatsappPhoneNumberId('');
         setWhatsappBusinessAccountId('');
+        setOpenaiApiKey('');
         await loadSecretsStatus();
         onSuccess();
       } else {
@@ -997,6 +1004,24 @@ export default function ProjectSettingsModal({
               {t('knowledgeSettings.description')}
             </p>
 
+            {/* OpenAI API Key Warning */}
+            {!secretsStatus.openai_api_key && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span className="text-sm">{t('knowledgeSettings.openaiNotConfigured')}</span>
+                </div>
+                <button
+                  onClick={() => setActiveTab('whatsapp')}
+                  className="px-3 py-1 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors whitespace-nowrap"
+                >
+                  {t('knowledgeSettings.configureNow')}
+                </button>
+              </div>
+            )}
+
             {/* Agent Selector */}
             {agents.length === 0 ? (
               <div className="py-8 text-center">
@@ -1204,6 +1229,7 @@ export default function ProjectSettingsModal({
               {renderSecretStatus('whatsapp_access_token', 'Access Token')}
               {renderSecretStatus('whatsapp_phone_number_id', 'Phone Number ID')}
               {renderSecretStatus('whatsapp_business_account_id', 'Business Account ID')}
+              {renderSecretStatus('openai_api_key', 'OpenAI API Key')}
             </div>
 
             {/* Form */}
@@ -1422,6 +1448,88 @@ export default function ProjectSettingsModal({
                 {secretsStatus.whatsapp_business_account_id && !revealedSecrets.whatsapp_business_account_id && (
                   <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.leaveEmptyToKeep')}</p>
                 )}
+              </div>
+
+              {/* Divider for AI Section */}
+              <div className="border-t border-[var(--border-primary)] pt-4 mt-4">
+                <h4 className="text-sm font-medium text-[var(--text-primary)] mb-3 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  {t('settings.aiConfiguration')}
+                </h4>
+              </div>
+
+              {/* OpenAI API Key */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  OpenAI API Key
+                  {secretsStatus.openai_api_key && (
+                    <span className="ml-2 text-xs text-green-500 font-normal">✓ {t('settings.configured')}</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={openaiApiKey}
+                    onChange={(e) => setOpenaiApiKey(e.target.value)}
+                    placeholder={
+                      revealedSecrets.openai_api_key
+                        ? revealedSecrets.openai_api_key
+                        : secretsStatus.openai_api_key
+                          ? t('settings.keepCurrent')
+                          : 'sk-...'
+                    }
+                    className="w-full px-3 py-2 pr-24 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm"
+                  />
+                  {secretsStatus.openai_api_key && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      {/* Copy button - only when revealed */}
+                      {revealedSecrets.openai_api_key && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopySecret('openai_api_key')}
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            copiedSecret === 'openai_api_key'
+                              ? 'text-green-500'
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                          )}
+                          title={copiedSecret === 'openai_api_key' ? t('settings.copied') : t('settings.copySecret')}
+                        >
+                          {copiedSecret === 'openai_api_key' ? <CheckIcon /> : <CopyIcon />}
+                        </button>
+                      )}
+                      {/* Reveal button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRevealSecret('openai_api_key')}
+                        disabled={loadingReveal === 'openai_api_key'}
+                        className={cn(
+                          'p-1 flex items-center gap-1 text-xs rounded transition-colors',
+                          revealedSecrets.openai_api_key
+                            ? 'text-[var(--kairo-cyan)]'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        )}
+                        title={revealedSecrets.openai_api_key ? t('settings.hideSecret') : t('settings.revealSecret')}
+                      >
+                        {loadingReveal === 'openai_api_key' ? (
+                          <span className="animate-pulse">...</span>
+                        ) : revealedSecrets.openai_api_key ? (
+                          <>
+                            <EyeOffIcon />
+                            <span className="text-xs font-medium">{revealTimers.openai_api_key}s</span>
+                          </>
+                        ) : (
+                          <EyeIcon />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  {t('settings.openaiKeyHelp')}
+                </p>
               </div>
 
               <button

@@ -525,7 +525,9 @@
       "hideSecret": "Hide value",
       "revealFailed": "Failed to reveal value",
       "copySecret": "Copy value",
-      "copied": "Copied!"
+      "copied": "Copied!",
+      "aiConfiguration": "AI Configuration",
+      "openaiKeyHelp": "Required for generating embeddings in the knowledge base (RAG)"
     },
     "agentSettings": {
       "title": "AI Agents",
@@ -596,7 +598,9 @@
       "loadError": "Error loading knowledge",
       "emptyContent": "Content cannot be empty",
       "processing": "Processing...",
-      "processingHelp": "Generating embeddings and saving..."
+      "processingHelp": "Generating embeddings and saving...",
+      "openaiNotConfigured": "OpenAI API Key not configured for this project",
+      "configureNow": "Configure"
     },
     "messages": {
       "createSuccess": "Created successfully",

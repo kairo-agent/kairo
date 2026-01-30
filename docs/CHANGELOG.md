@@ -1,5 +1,61 @@
 # KAIRO - Changelog
 
+## [0.7.4] - 2026-01-30 (EN PROGRESO)
+
+### Features
+- **Endpoint `/api/rag/search` para n8n (RAG Fase 4)**
+  - Búsqueda semántica en base de conocimiento de agentes IA
+  - Autenticación: Header `X-N8N-Secret` (shared secret, mismo que `/api/messages/confirm`)
+  - Request body: `{ agentId, projectId, query, limit?, threshold? }`
+  - Response: `{ success, results[], metadata }` con timings detallados
+  - Validación de agente/proyecto activos antes de procesar
+  - Límites de seguridad: query max 8000 chars, results max 20
+  - Health check endpoint (GET) con documentación completa
+  - Logging detallado: agente, proyecto, cantidad de resultados, tiempos de embedding/búsqueda
+
+### Arquitectura
+- **Decisión: Opción B - n8n vía KAIRO en lugar de Supabase directo**
+  - **Razones de seguridad:**
+    - n8n solo tiene shared secret, no credenciales de Supabase
+    - Aislamiento multi-tenant preservado con validación centralizada
+    - Menor superficie de ataque (un solo endpoint con logging)
+  - **Opción A descartada:** n8n conectando directamente a Supabase RPC
+    - Requeriría exponer URL de Supabase + API key a n8n
+    - Riesgo de bypass de validaciones de KAIRO
+    - Logging descentralizado
+
+### Documentación
+- **docs/RAG-AGENTS.md actualizado**
+  - Estado de Fase 4: "EN PROGRESO" 🔄
+  - Endpoint `/api/rag/search` documentado con ejemplos
+  - Sección "Uso desde n8n" con Opción B (recomendada) y Opción A (alternativa)
+  - Decisión de arquitectura explicada
+  - Historial de cambios actualizado
+
+- **CLAUDE.md actualizado**
+  - Estado del proyecto: v0.7.4 en desarrollo
+  - Estructura de archivos: sección `app/api/` agregada con todos los endpoints
+  - Quick Reference de seguridad de APIs: entrada para `/api/rag/search`
+  - Estado del MVP: RAG Fase 4 movido de "Pendiente" a "Parcial"
+
+### Pendiente (TODO para completar v0.7.4)
+- [ ] Modificar workflow n8n para usar `/api/rag/search`
+  - [ ] Reemplazar nodos OpenAI embedding + Supabase RPC por HTTP Request a KAIRO
+  - [ ] Agregar header `X-N8N-Secret`
+  - [ ] Parsear respuesta con formato `results[]`
+- [ ] Configurar nodo LLM con prompt estricto
+- [ ] Probar flujo end-to-end: WhatsApp → webhook → n8n → RAG → LLM → respuesta
+
+### Archivos Nuevos
+- `src/app/api/rag/search/route.ts` - Endpoint de búsqueda RAG
+
+### Archivos Modificados
+- `docs/RAG-AGENTS.md` - Fase 4 actualizada, endpoint documentado
+- `CLAUDE.md` - Estado del proyecto, API Routes, seguridad
+- `docs/CHANGELOG.md` - Esta entrada
+
+---
+
 ## [0.7.3] - 2026-01-29
 
 ### Features
