@@ -312,7 +312,7 @@ export default function ProjectSettingsModal({
     setAgentType(agent.type);
     // Si avatarUrl es un emoji (no es URL), usarlo como icono
     const isEmoji = agent.avatarUrl && !agent.avatarUrl.startsWith('http');
-    setAgentIcon(isEmoji ? agent.avatarUrl : defaultAgentIcon);
+    setAgentIcon(isEmoji && agent.avatarUrl ? agent.avatarUrl : defaultAgentIcon);
     setAgentDescription(agent.description || '');
     setAgentAvatarUrl('');
     setShowAgentForm(true);
