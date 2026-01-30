@@ -155,15 +155,17 @@ export async function addAgentKnowledge(
         if (i === 0) {
           return {
             success: false,
-            error: `Error en Supabase: ${error.message || error.code || 'Error desconocido'}`
+            error: `Error en Supabase: ${error.message || error.code || JSON.stringify(error)}`
           };
         }
         // Continue with other chunks if not the first one
         continue;
       }
 
-      if (data?.id) {
-        createdIds.push(data.id);
+      // RPC returns TABLE, so data is an array
+      const resultId = Array.isArray(data) ? data[0]?.id : data?.id;
+      if (resultId) {
+        createdIds.push(resultId);
       }
     }
 
