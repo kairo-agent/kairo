@@ -276,17 +276,15 @@ export async function listAgentKnowledge(
 
     const supabase = await createClient();
 
-    // Get entries, grouped by title (chunk_index = 0 represents the "main" entry)
-    const { data, error } = await supabase
-      .from('agent_knowledge')
-      .select('id, title, content, source, source_url, chunk_index, created_at, updated_at')
-      .eq('agent_id', agentId)
-      .eq('project_id', projectId)
-      .order('created_at', { ascending: false });
+    // Use RPC to bypass RLS (function is SECURITY DEFINER)
+    const { data, error } = await supabase.rpc('list_agent_knowledge', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+    });
 
     if (error) {
       console.error('Failed to list knowledge:', error);
-      return { success: false, error: 'Error al obtener conocimiento' };
+      return { success: false, error: `Error al obtener conocimiento: ${error.message}` };
     }
 
     // Group by title and only return the first chunk as representative
