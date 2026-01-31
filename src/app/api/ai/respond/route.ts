@@ -1,0 +1,259 @@
+// ============================================
+// KAIRO - AI Respond Endpoint
+// Saves bot message to DB AND sends to WhatsApp
+// Used by n8n workflow for AI responses
+// ============================================
+
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getProjectSecret } from '@/lib/actions/secrets';
+
+// ============================================
+// Types
+// ============================================
+
+interface AIRespondRequest {
+  conversationId: string;
+  leadId: string;
+  projectId: string;
+  message: string;
+  agentId?: string;
+  agentName?: string;
+}
+
+interface WhatsAppApiResponse {
+  messaging_product: 'whatsapp';
+  contacts: Array<{ input: string; wa_id: string }>;
+  messages: Array<{ id: string }>;
+}
+
+// ============================================
+// POST Handler - Save and Send AI Response
+// ============================================
+
+export async function POST(request: NextRequest) {
+  const startTime = Date.now();
+
+  try {
+    // === SECURITY: Verify n8n shared secret ===
+    const n8nSecret = request.headers.get('X-N8N-Secret');
+    const expectedSecret = process.env.N8N_CALLBACK_SECRET;
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (!isDev && expectedSecret && n8nSecret !== expectedSecret) {
+      console.warn('[AI Respond] Invalid X-N8N-Secret header');
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Parse request body
+    const body: AIRespondRequest = await request.json();
+    const { conversationId, leadId, projectId, message, agentId, agentName } = body;
+
+    // Validate required fields
+    if (!conversationId || !leadId || !projectId || !message) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing required fields: conversationId, leadId, projectId, message',
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log(`[AI Respond] Processing response for lead ${leadId}, agent: ${agentName || 'unknown'}`);
+
+    // Get lead info for WhatsApp
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: {
+        id: true,
+        phone: true,
+        whatsappId: true,
+        projectId: true,
+      },
+    });
+
+    if (!lead) {
+      return NextResponse.json(
+        { success: false, error: 'Lead not found' },
+        { status: 404 }
+      );
+    }
+
+    // Verify project matches
+    if (lead.projectId !== projectId) {
+      return NextResponse.json(
+        { success: false, error: 'Project mismatch' },
+        { status: 400 }
+      );
+    }
+
+    // === STEP 1: Save message to database ===
+    const savedMessage = await prisma.message.create({
+      data: {
+        conversationId,
+        sender: 'bot',
+        content: message,
+        metadata: {
+          agentId: agentId || null,
+          agentName: agentName || null,
+          source: 'n8n_ai',
+          createdAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    console.log(`[AI Respond] Message saved to DB: ${savedMessage.id}`);
+
+    // === STEP 2: Send to WhatsApp ===
+    const phoneNumber = lead.whatsappId || lead.phone;
+    if (!phoneNumber) {
+      console.error(`[AI Respond] No phone number for lead ${leadId}`);
+      return NextResponse.json({
+        success: true,
+        messageId: savedMessage.id,
+        whatsappSent: false,
+        reason: 'No phone number available',
+      });
+    }
+
+    // Get WhatsApp credentials
+    const [accessToken, phoneNumberId] = await Promise.all([
+      getProjectSecret(projectId, 'whatsapp_access_token'),
+      getProjectSecret(projectId, 'whatsapp_phone_number_id'),
+    ]);
+
+    if (!accessToken || !phoneNumberId) {
+      console.error(`[AI Respond] WhatsApp credentials not configured for project ${projectId}`);
+      return NextResponse.json({
+        success: true,
+        messageId: savedMessage.id,
+        whatsappSent: false,
+        reason: 'WhatsApp credentials not configured',
+      });
+    }
+
+    // Clean phone number
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+
+    // Send to WhatsApp Cloud API
+    const whatsappApiUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+    const whatsappResponse = await fetch(whatsappApiUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: cleanPhone,
+        type: 'text',
+        text: { body: message },
+      }),
+    });
+
+    const whatsappData = await whatsappResponse.json();
+
+    if (!whatsappResponse.ok) {
+      console.error('[AI Respond] WhatsApp API error:', whatsappData);
+      // Update message with error
+      await prisma.message.update({
+        where: { id: savedMessage.id },
+        data: {
+          metadata: {
+            ...(savedMessage.metadata as object),
+            whatsappError: whatsappData.error?.message || 'Unknown error',
+            whatsappErrorCode: whatsappData.error?.code,
+          },
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        messageId: savedMessage.id,
+        whatsappSent: false,
+        error: whatsappData.error?.message || 'WhatsApp API error',
+      });
+    }
+
+    // === STEP 3: Update message with WhatsApp ID ===
+    const waResponse = whatsappData as WhatsAppApiResponse;
+    const whatsappMsgId = waResponse.messages?.[0]?.id;
+
+    if (whatsappMsgId) {
+      await prisma.message.update({
+        where: { id: savedMessage.id },
+        data: {
+          whatsappMsgId,
+          isDelivered: true,
+          deliveredAt: new Date(),
+        },
+      });
+    }
+
+    const duration = Date.now() - startTime;
+    console.log(`[AI Respond] Complete in ${duration}ms - Message ${savedMessage.id}, WhatsApp ${whatsappMsgId}`);
+
+    return NextResponse.json({
+      success: true,
+      messageId: savedMessage.id,
+      whatsappMsgId,
+      whatsappSent: true,
+      duration,
+    });
+  } catch (error) {
+    console.error('[AI Respond] Error:', error);
+
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// ============================================
+// GET Handler - Health check / documentation
+// ============================================
+
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    service: 'KAIRO AI Respond',
+    endpoint: 'POST /api/ai/respond',
+    description: 'Saves AI bot response to database AND sends to WhatsApp. Used by n8n workflow.',
+    authentication: {
+      header: 'X-N8N-Secret',
+      description: 'Shared secret to authenticate requests from n8n',
+      envVar: 'N8N_CALLBACK_SECRET',
+    },
+    request: {
+      conversationId: 'string (required) - KAIRO conversation ID',
+      leadId: 'string (required) - KAIRO lead ID',
+      projectId: 'string (required) - KAIRO project ID',
+      message: 'string (required) - Bot response text',
+      agentId: 'string (optional) - AI agent ID',
+      agentName: 'string (optional) - AI agent name for metadata',
+    },
+    response: {
+      success: 'boolean',
+      messageId: 'string - KAIRO message ID',
+      whatsappMsgId: 'string - WhatsApp message ID (if sent)',
+      whatsappSent: 'boolean - Whether WhatsApp delivery succeeded',
+      duration: 'number - Processing time in ms',
+    },
+  });
+}
