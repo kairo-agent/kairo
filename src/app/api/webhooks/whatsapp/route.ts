@@ -651,20 +651,41 @@ async function triggerN8nWorkflow(
 
 // ============================================
 // Handle Status Update
+// Includes retry logic to handle race condition when status arrives
+// before /api/ai/respond finishes saving the whatsappMsgId
 // ============================================
 
 async function handleStatusUpdate(projectId: string, status: WhatsAppStatus) {
-  // Find message by whatsappMsgId
-  const message = await prisma.message.findFirst({
-    where: {
-      whatsappMsgId: status.id,
-    },
-  });
+  // Retry configuration for race condition handling
+  const maxRetries = 3;
+  const retryDelays = [1000, 2000, 3000]; // 1s, 2s, 3s delays
+
+  let message = null;
+  let attempt = 0;
+
+  // Retry loop to handle race condition
+  while (!message && attempt < maxRetries) {
+    message = await prisma.message.findFirst({
+      where: {
+        whatsappMsgId: status.id,
+      },
+    });
+
+    if (!message && attempt < maxRetries - 1) {
+      const delay = retryDelays[attempt];
+      console.log(`⏳ Message not found for ${status.id}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    attempt++;
+  }
 
   if (!message) {
-    console.log(`⚠️ Message not found for whatsappMsgId: ${status.id}`);
+    console.log(`⚠️ Message not found for whatsappMsgId after ${maxRetries} retries: ${status.id}`);
     return;
   }
+
+  console.log(`🔍 Found message ${message.id} for status update after ${attempt} attempt(s)`);
 
   const now = new Date();
   const existingMetadata = (message.metadata as Record<string, unknown>) || {};
