@@ -1,5 +1,31 @@
 # KAIRO - Changelog
 
+## [0.7.8] - 2026-01-31
+
+### Security (LOW Risk)
+- **Redis para Rate Limiting Persistente**
+  - Instalado `@upstash/redis` para rate limiting en producción
+  - Fallback automático a memoria en desarrollo
+  - Variables de entorno: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
+
+- **Headers OWASP Adicionales** (13 headers totales implementados):
+  - `X-Permitted-Cross-Domain-Policies: none` - Previene Flash/PDF cross-domain
+  - `X-Download-Options: noopen` - Previene ejecución de descargas en contexto del sitio (IE)
+  - `Cross-Origin-Opener-Policy: same-origin` - Aísla contexto de navegación (Spectre)
+  - `Cross-Origin-Resource-Policy: same-origin` - Protege recursos cross-origin
+
+### Archivos Modificados
+- `next.config.ts` - 4 headers OWASP adicionales
+- `package.json` - Dependencia @upstash/redis agregada
+
+### Commits
+- `d42320a` - security: Add @upstash/redis and OWASP headers
+
+### Referencias
+- Ver [docs/SECURITY.md](docs/SECURITY.md) para documentación completa de seguridad
+
+---
+
 ## [0.7.7] - 2026-01-31
 
 ### Security

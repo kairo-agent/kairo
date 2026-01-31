@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.7 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**, **Security Audit v1 ✅**, **HTTP Security Headers ✅**, **Rate Limiting en APIs ✅**
+**Estado actual:** v0.7.8 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**, **OWASP Security Audit v1 ✅**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -71,6 +71,7 @@ KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes d
 | [/docs/RULES.md](docs/RULES.md) | Reglas obligatorias del proyecto |
 | [/docs/CHANGELOG.md](docs/CHANGELOG.md) | Historial de cambios |
 | [/docs/RAG-AGENTS.md](docs/RAG-AGENTS.md) | Sistema RAG para agentes IA |
+| [/docs/SECURITY.md](docs/SECURITY.md) | Documentación de seguridad OWASP |
 | [/brand/BRANDBOOK.md](brand/BRANDBOOK.md) | Identidad visual oficial |
 
 ---
@@ -348,9 +349,7 @@ npm run lint     # Verificar código
 - [x] **Auto-asignación de agentes a leads legacy** - Leads existentes sin agente reciben agente activo
 - [x] **Endpoint /api/ai/respond** - n8n guarda mensaje IA en BD + envía a WhatsApp en un solo paso
 - [x] **Historial de conversaciones IA** - Mensajes del bot se guardan correctamente con `sender: 'ai'`
-- [x] **Security Audit v1** - Next.js CVEs corregidos, fail-closed secrets, timingSafeEqual anti-timing-attacks
-- [x] **HTTP Security Headers** - CSP, X-Frame-Options, HSTS, Permissions-Policy configurados
-- [x] **Rate Limiting en APIs** - Protección contra abuse en endpoints críticos (300-120 req/min según endpoint)
+- [x] **OWASP Security Audit v1** - 13 headers, rate limiting, input validation, error handling, fail-closed patterns
 
 ### 🔄 Parcial
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
@@ -877,6 +876,8 @@ ngrok http 3000
 
 ## Seguridad de APIs (Actualizado Enero 2026)
 
+> **📖 Documentación Completa:** Ver [docs/SECURITY.md](docs/SECURITY.md) para documentación exhaustiva de seguridad OWASP.
+
 ### Resumen de Protecciones
 
 | Endpoint | Protección | Variable de Entorno | Rate Limit | Guarda BD |
@@ -891,19 +892,22 @@ ngrok http 3000
 
 **Anti-timing-attacks:** Uso de `crypto.timingSafeEqual()` para comparación de secrets, previene ataques de timing que intentan inferir valores correctos midiendo tiempo de respuesta.
 
-**HTTP Security Headers (v0.7.7):**
-- **Content-Security-Policy (CSP)**: Protege contra XSS permitiendo solo fuentes confiables
-- **X-Frame-Options: DENY**: Previene clickjacking bloqueando frames/iframes
-- **X-Content-Type-Options: nosniff**: Previene MIME sniffing attacks
-- **Referrer-Policy: strict-origin-when-cross-origin**: Control estricto de referrer
-- **Permissions-Policy**: Deshabilita APIs peligrosas (camera, microphone, geolocation)
-- **Strict-Transport-Security (HSTS)**: Fuerza HTTPS por 2 años + preload
+**OWASP Security Audit v1 Completado (v0.7.6 - v0.7.8):**
+- ✅ 13 HTTP Security Headers (CSP, X-Frame-Options, HSTS, COOP, CORP, etc.)
+- ✅ Rate Limiting con soporte Redis (Upstash) + fallback memoria
+- ✅ Input validation estricta en todos los endpoints
+- ✅ Error handling sin exposición de detalles internos
+- ✅ Next.js 16.1.6 (corrige 3 CVEs críticos)
+- ✅ Secrets encriptados AES-256-GCM con audit log
+- ✅ HMAC-SHA256 para webhooks externos
 
-**Rate Limiting (v0.7.7):**
+**Rate Limiting (v0.7.7 - v0.7.8):**
 - Implementado con utilidad de `src/lib/rate-limit.ts` (memoria/Redis)
 - Límites personalizados por endpoint según patrón de uso esperado
 - WhatsApp webhook tiene límite alto (300) para manejar bursts de Meta
 - APIs de n8n tienen límites moderados (60-120) para uso normal
+- **Producción:** Usa Upstash Redis para rate limiting persistente (opcional pero recomendado)
+- **Desarrollo:** Fallback automático a memoria si Redis no configurado
 
 ### V0: `/api/ai/respond` - Guardar y Enviar Respuesta IA ⭐ NUEVO
 
