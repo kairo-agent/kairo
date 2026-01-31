@@ -385,6 +385,54 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
 }
 
 // ============================================
+// Send Read Receipt to WhatsApp
+// Makes the lead see ✓✓ (blue checkmarks) on their sent messages
+// ============================================
+
+async function sendReadReceipt(
+  projectId: string,
+  messageId: string
+): Promise<void> {
+  try {
+    // Get WhatsApp credentials
+    const [accessToken, phoneNumberId] = await Promise.all([
+      getProjectSecret(projectId, 'whatsapp_access_token'),
+      getProjectSecret(projectId, 'whatsapp_phone_number_id'),
+    ]);
+
+    if (!accessToken || !phoneNumberId) {
+      console.log('⚠️ WhatsApp credentials not configured, skipping read receipt');
+      return;
+    }
+
+    const whatsappApiUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+
+    const response = await fetch(whatsappApiUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        status: 'read',
+        message_id: messageId,
+      }),
+    });
+
+    if (response.ok) {
+      console.log(`✅ Read receipt sent for message: ${messageId}`);
+    } else {
+      const errorData = await response.json();
+      console.error(`❌ Failed to send read receipt:`, errorData);
+    }
+  } catch (error) {
+    console.error('❌ Error sending read receipt:', error);
+    // Don't throw - read receipt is not critical
+  }
+}
+
+// ============================================
 // Handle Incoming Message
 // ============================================
 
@@ -563,6 +611,12 @@ async function handleIncomingMessage(
 
     console.log(`✅ Message added to lead: ${lead.id}`);
   }
+
+  // Send read receipt to WhatsApp so lead sees ✓✓ (blue checkmarks)
+  // This runs in background - don't await to not delay response
+  sendReadReceipt(projectId, message.id).catch((err) =>
+    console.error('Read receipt error:', err)
+  );
 
   // Trigger n8n workflow for AI response if handoffMode is 'ai'
   if (lead.handoffMode === HandoffMode.ai) {
