@@ -1,5 +1,87 @@
 # KAIRO - Changelog
 
+## [0.7.5] - 2026-01-30 ✅ COMPLETADO
+
+### Features
+- **Nuevo endpoint `/api/ai/respond` - Guardar y enviar en un solo paso**
+  - n8n ahora guarda la respuesta IA en BD Y envía a WhatsApp en una sola llamada
+  - Resuelve el problema de historial de conversaciones no guardado en modo IA
+  - Flujo atómico: Save → Send → Update con WhatsApp ID
+  - Autenticación: Header `X-N8N-Secret` (shared secret)
+  - Health check GET con documentación completa del endpoint
+
+- **Historial de conversaciones IA funcionando correctamente**
+  - Mensajes del bot ahora se guardan con `sender: 'ai'` (antes se perdían)
+  - Metadata incluye `agentId`, `agentName`, `source: 'n8n_ai'`
+  - WhatsApp message ID guardado para tracking de delivery status
+
+### Arquitectura
+- **Flujo de respuesta IA optimizado:**
+  ```
+  ANTES (problema - historial no se guardaba):
+  n8n → /api/whatsapp/send → WhatsApp (sin guardar en BD)
+
+  AHORA (solución):
+  n8n → /api/ai/respond → BD (guarda) + WhatsApp (envía)
+  ```
+
+- **Decisión de diseño: Realtime deshabilitado en modo IA**
+  - En modo `human`: Supabase Realtime sincroniza mensajes en tiempo real
+  - En modo `ai`: Usuario debe hacer refresh manual para ver respuestas
+  - Razón: Optimización de recursos, el bot responde instantáneamente al cliente
+  - Línea de código: `LeadChat.tsx:305`
+
+### Endpoints Actualizados
+
+| Endpoint | Propósito | Guarda en BD | Envía a WhatsApp |
+|----------|-----------|--------------|------------------|
+| `/api/ai/respond` | Respuestas IA de n8n | ✅ Sí | ✅ Sí |
+| `/api/whatsapp/send` | Proxy directo | ❌ No | ✅ Sí |
+| `/api/messages/confirm` | Callback legacy | ✅ Actualiza | ❌ No |
+
+### Request/Response del nuevo endpoint
+
+**POST `/api/ai/respond`**
+```json
+// Request
+{
+  "conversationId": "conv_123",
+  "leadId": "lead_456",
+  "projectId": "proj_789",
+  "message": "¡Hola! Soy Luna, ¿en qué puedo ayudarte?",
+  "agentId": "agent_luna",
+  "agentName": "Luna"
+}
+
+// Response
+{
+  "success": true,
+  "messageId": "msg_xyz",
+  "whatsappMsgId": "wamid_abc",
+  "whatsappSent": true,
+  "duration": 450
+}
+```
+
+### Archivos Nuevos
+- `src/app/api/ai/respond/route.ts` - Endpoint completo con health check
+
+### Fixes
+- **Read Receipt automático - Lead ve ✓✓ azul**
+  - Cuando el webhook recibe un mensaje, KAIRO ahora envía automáticamente el read receipt a WhatsApp API
+  - El lead ve doble check azul (✓✓) en sus mensajes, indicando que el bot "leyó" su mensaje
+  - Implementado en `handleIncomingMessage()` como fire-and-forget (no bloquea el response)
+  - Función: `sendReadReceipt(projectId, messageId)` en webhook WhatsApp
+
+### Validación
+- ✅ Mensaje enviado por WhatsApp y respuesta recibida
+- ✅ Historial de conversación guardado en BD
+- ✅ Bot se identifica con nombre del agente configurado
+- ✅ Metadata completa en mensajes (agentId, agentName, source)
+- ✅ Read receipt funciona - Lead ve ✓✓ azul inmediatamente
+
+---
+
 ## [0.7.4] - 2026-01-30 ✅ COMPLETADO
 
 ### Features

@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.4 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**
+**Estado actual:** v0.7.5 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -176,13 +176,14 @@ kairo-dashboard/
 │   ├── app/api/
 │   │   ├── auth/verify-admin/   # Verificar si usuario es super_admin
 │   │   ├── admin/stats/         # Estadísticas del panel admin
+│   │   ├── ai/respond/          # ⭐ NUEVO: Guardar respuesta IA + enviar a WhatsApp (usado por n8n)
 │   │   ├── webhooks/
 │   │   │   ├── whatsapp/        # Recibir mensajes de WhatsApp Cloud API
 │   │   │   └── n8n/             # Webhook para eventos de conversación
 │   │   ├── whatsapp/
-│   │   │   ├── send/            # Enviar mensajes a WhatsApp (proxy para n8n/UI)
+│   │   │   ├── send/            # Enviar mensajes a WhatsApp (proxy, NO guarda en BD)
 │   │   │   └── mark-read/       # Marcar mensajes como leídos (read receipts)
-│   │   ├── messages/confirm/    # Callback de n8n para confirmar envío
+│   │   ├── messages/confirm/    # Callback de n8n para confirmar envío (legacy)
 │   │   ├── rag/search/          # Búsqueda semántica RAG para n8n
 │   │   └── cron/cleanup-media/  # Limpieza automática de archivos >24h
 │   │
@@ -345,6 +346,8 @@ npm run lint     # Verificar código
 - [x] **RAG Fase 4 COMPLETADA** - Flujo end-to-end funcional: WhatsApp → KAIRO → n8n → RAG → OpenAI → WhatsApp
 - [x] **Bot con identidad dinámica** - Responde usando nombre del agente configurado en KAIRO (no hardcodeado)
 - [x] **Auto-asignación de agentes a leads legacy** - Leads existentes sin agente reciben agente activo
+- [x] **Endpoint /api/ai/respond** - n8n guarda mensaje IA en BD + envía a WhatsApp en un solo paso
+- [x] **Historial de conversaciones IA** - Mensajes del bot se guardan correctamente con `sender: 'ai'`
 
 ### 🔄 Parcial
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
@@ -422,6 +425,7 @@ npm run lint     # Verificar código
 - **WhatsApp Webhook** - `/api/webhooks/whatsapp` recibe mensajes y crea leads automáticamente
 - **Performance** - Ver [PERFORMANCE.md](docs/PERFORMANCE.md) para detalles de optimizaciones (Phases 1-3 completadas)
 - **UX Improvements** - Loading overlays en login/logout, scroll blocking en paneles, animación wave mejorada
+- **Realtime deshabilitado en modo IA** - Por diseño, en `LeadChat.tsx:305`. En modo Human hay sincronización real-time, en modo IA el usuario debe hacer refresh manual
 
 ---
 
@@ -484,7 +488,8 @@ npm run lint     # Verificar código
 │  → Notificaciones (email, Slack)                           │
 │  → Integraciones futuras (CRM, calendarios)                │
 │                                                             │
-│  ← Responde via API de KAIRO (/api/whatsapp/send)          │
+│  ← Responde via API de KAIRO (/api/ai/respond)             │
+│    (guarda en BD + envía a WhatsApp en un solo paso)       │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -509,7 +514,8 @@ npm run lint     # Verificar código
 - [x] Callback `/api/messages/confirm` para confirmar envío desde n8n ✅
 - [x] Setup n8n en Railway (producción) ✅
 - [x] Workflow "KAIRO - Basic Response" funcional ✅
-- [ ] Workflow "KAIRO - AI Agent Handler" con prompts por agente (RAG pendiente)
+- [x] Endpoint `/api/ai/respond` para guardar + enviar en un paso ✅
+- [x] Workflow con RAG + OpenAI + identidad dinámica del agente ✅
 
 ---
 
@@ -759,9 +765,31 @@ En el Panel de Administración → tab Proyectos → botón "Configurar" (icono 
 │   │ Find Project│────▶│ Find/Create │────▶│ Store       │   │
 │   │ by PhoneID  │     │ Lead        │     │ Message     │   │
 │   └─────────────┘     └─────────────┘     └─────────────┘   │
+│       │                                                      │
+│       ▼                                                      │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │  sendReadReceipt() → WhatsApp Cloud API              │   │
+│   │  Lead ve ✓✓ azul (mensaje "leído" por bot)          │   │
+│   └─────────────────────────────────────────────────────┘   │
 │                                                              │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Read Receipt Automático
+
+Cuando el webhook recibe un mensaje de un lead, KAIRO envía automáticamente un read receipt a WhatsApp. Esto hace que el lead vea ✓✓ azul en sus mensajes enviados.
+
+```typescript
+// Función en /api/webhooks/whatsapp/route.ts
+async function sendReadReceipt(projectId: string, messageId: string) {
+  // POST https://graph.facebook.com/v21.0/{phoneNumberId}/messages
+  // { messaging_product: 'whatsapp', status: 'read', message_id: messageId }
+}
+```
+
+- Se ejecuta en background (fire-and-forget) para no bloquear el response
+- Usa las mismas credenciales del proyecto (access_token, phone_number_id)
+- Errores se loguean pero no afectan el flujo principal
 
 ### Endpoint
 
@@ -848,12 +876,55 @@ ngrok http 3000
 
 ### Resumen de Protecciones
 
-| Endpoint | Protección | Variable de Entorno |
-|----------|------------|---------------------|
-| `/api/whatsapp/send` | Supabase Auth + Project Membership | `BYPASS_AUTH_DEV` (dev only) |
-| `/api/messages/confirm` | Shared Secret Header | `N8N_CALLBACK_SECRET` |
-| `/api/webhooks/whatsapp` | HMAC-SHA256 Signature | `WHATSAPP_APP_SECRET` |
-| `/api/rag/search` | Shared Secret Header | `N8N_CALLBACK_SECRET` |
+| Endpoint | Protección | Variable de Entorno | Guarda BD |
+|----------|------------|---------------------|-----------|
+| `/api/ai/respond` | Shared Secret Header | `N8N_CALLBACK_SECRET` | ✅ Sí |
+| `/api/whatsapp/send` | Supabase Auth + Project Membership | `BYPASS_AUTH_DEV` (dev only) | ❌ No |
+| `/api/messages/confirm` | Shared Secret Header | `N8N_CALLBACK_SECRET` | ✅ Actualiza |
+| `/api/webhooks/whatsapp` | HMAC-SHA256 Signature | `WHATSAPP_APP_SECRET` | ✅ Sí |
+| `/api/rag/search` | Shared Secret Header | `N8N_CALLBACK_SECRET` | ❌ No |
+
+### V0: `/api/ai/respond` - Guardar y Enviar Respuesta IA ⭐ NUEVO
+
+**Propósito:** n8n llama este endpoint para guardar la respuesta del bot en BD Y enviar a WhatsApp en un solo paso atómico.
+
+**Por qué existe:** Resuelve el problema de historial perdido cuando n8n usaba `/api/whatsapp/send` que solo enviaba sin guardar.
+
+**Protección implementada:**
+- Header `X-N8N-Secret` con shared secret
+- Validación de lead y proyecto
+- En desarrollo: bypass automático si `NODE_ENV === 'development'`
+
+```typescript
+// Request
+POST /api/ai/respond
+Headers: { "X-N8N-Secret": "<N8N_CALLBACK_SECRET>" }
+Body: {
+  "conversationId": "conv_123",
+  "leadId": "lead_456",
+  "projectId": "proj_789",
+  "message": "¡Hola! Soy Luna, ¿en qué puedo ayudarte?",
+  "agentId": "agent_luna",    // opcional
+  "agentName": "Luna"         // opcional, se guarda en metadata
+}
+
+// Response
+{
+  "success": true,
+  "messageId": "msg_xyz",         // ID en KAIRO
+  "whatsappMsgId": "wamid_abc",   // ID en Meta
+  "whatsappSent": true,
+  "duration": 450                  // ms
+}
+```
+
+**Flujo interno:**
+1. Guarda mensaje con `sender: 'ai'` y metadata (agentId, agentName, source: 'n8n_ai')
+2. Obtiene credenciales WhatsApp del proyecto (desencriptadas)
+3. Envía a WhatsApp Cloud API v21.0
+4. Actualiza mensaje con `whatsappMsgId` y `isDelivered: true`
+
+**Archivo:** `src/app/api/ai/respond/route.ts`
 
 ### V1: `/api/whatsapp/send` - Autenticación de Usuario
 
