@@ -1,17 +1,35 @@
 # KAIRO - Changelog
 
-## [0.7.4] - 2026-01-30 (EN PROGRESO)
+## [0.7.4] - 2026-01-30 ✅ COMPLETADO
 
 ### Features
-- **Endpoint `/api/rag/search` para n8n (RAG Fase 4)**
+- **RAG Fase 4 COMPLETADA - Flujo end-to-end funcional**
+  - Bot responde usando nombre del agente configurado en KAIRO (no hardcodeado)
+  - RAG proporciona contexto de personalidad/conocimiento a las respuestas
+  - Verificado con Playwright MCP en WhatsApp Web
+  - Ejemplo: Pregunta "¿Cómo te llamas?" → Respuesta "¡Hola! Soy Leo..."
+
+- **Endpoint `/api/rag/search` para n8n**
   - Búsqueda semántica en base de conocimiento de agentes IA
-  - Autenticación: Header `X-N8N-Secret` (shared secret, mismo que `/api/messages/confirm`)
+  - Autenticación: Header `X-N8N-Secret` (shared secret)
   - Request body: `{ agentId, projectId, query, limit?, threshold? }`
   - Response: `{ success, results[], metadata }` con timings detallados
   - Validación de agente/proyecto activos antes de procesar
   - Límites de seguridad: query max 8000 chars, results max 20
   - Health check endpoint (GET) con documentación completa
-  - Logging detallado: agente, proyecto, cantidad de resultados, tiempos de embedding/búsqueda
+
+- **Auto-asignación de agentes a leads existentes**
+  - Leads sin agente asignado reciben el primer agente activo del proyecto
+  - Implementado en webhook WhatsApp para leads legacy
+
+### n8n Workflow (Railway)
+- **System Prompt dinámico configurado:**
+  - Usa `{{ $('Webhook').item.json.body.agentName }}` para el nombre del agente
+  - Usa `{{ $('Webhook').item.json.body.companyName }}` para contexto de empresa
+  - RAG context inyectado condicionalmente con resultados de búsqueda
+- **Expresión correcta para respuesta OpenAI:**
+  - `{{ $('Message a model').item.json.output[0].content[0].text }}`
+  - (NO `.json.text` que retorna undefined)
 
 ### Arquitectura
 - **Decisión: Opción B - n8n vía KAIRO en lugar de Supabase directo**
@@ -20,39 +38,41 @@
     - Aislamiento multi-tenant preservado con validación centralizada
     - Menor superficie de ataque (un solo endpoint con logging)
   - **Opción A descartada:** n8n conectando directamente a Supabase RPC
-    - Requeriría exponer URL de Supabase + API key a n8n
-    - Riesgo de bypass de validaciones de KAIRO
-    - Logging descentralizado
+
+### Corregido
+- **Error `(#100) The parameter text['body'] is required.`**
+  - Causa: Expresión incorrecta para obtener respuesta de OpenAI
+  - Fix: Cambio de `.json.text` a `.json.output[0].content[0].text`
+
+- **Bot respondía como "asistente" en lugar del nombre configurado**
+  - Causa: System Prompt no usaba `body.agentName` del webhook
+  - Fix: Actualización del System Prompt para usar variables dinámicas
+
+- **`agentId: null` en payload de n8n**
+  - Causa: Leads legacy no tenían agente asignado
+  - Fix: Auto-asignación en webhook para leads sin agente
 
 ### Documentación
 - **docs/RAG-AGENTS.md actualizado**
-  - Estado de Fase 4: "EN PROGRESO" 🔄
-  - Endpoint `/api/rag/search` documentado con ejemplos
-  - Sección "Uso desde n8n" con Opción B (recomendada) y Opción A (alternativa)
-  - Decisión de arquitectura explicada
+  - Estado: Fases 1-4 COMPLETADAS ✅
+  - Nueva sección "Configuración Final n8n (Producción)"
+  - System Prompt documentado con expresiones correctas
+  - Flujo de datos en n8n diagramado
   - Historial de cambios actualizado
-
-- **CLAUDE.md actualizado**
-  - Estado del proyecto: v0.7.4 en desarrollo
-  - Estructura de archivos: sección `app/api/` agregada con todos los endpoints
-  - Quick Reference de seguridad de APIs: entrada para `/api/rag/search`
-  - Estado del MVP: RAG Fase 4 movido de "Pendiente" a "Parcial"
-
-### Pendiente (TODO para completar v0.7.4)
-- [ ] Modificar workflow n8n para usar `/api/rag/search`
-  - [ ] Reemplazar nodos OpenAI embedding + Supabase RPC por HTTP Request a KAIRO
-  - [ ] Agregar header `X-N8N-Secret`
-  - [ ] Parsear respuesta con formato `results[]`
-- [ ] Configurar nodo LLM con prompt estricto
-- [ ] Probar flujo end-to-end: WhatsApp → webhook → n8n → RAG → LLM → respuesta
 
 ### Archivos Nuevos
 - `src/app/api/rag/search/route.ts` - Endpoint de búsqueda RAG
 
 ### Archivos Modificados
-- `docs/RAG-AGENTS.md` - Fase 4 actualizada, endpoint documentado
-- `CLAUDE.md` - Estado del proyecto, API Routes, seguridad
+- `src/app/api/webhooks/whatsapp/route.ts` - Auto-asignación de agentes
+- `docs/RAG-AGENTS.md` - Documentación completa de Fase 4
 - `docs/CHANGELOG.md` - Esta entrada
+
+### Validación
+- ✅ WhatsApp Web: Mensaje enviado y respuesta recibida
+- ✅ Bot se identifica como "Leo" (nombre del agente en KAIRO)
+- ✅ RAG context aplicado en respuestas
+- ✅ Flujo completo: WhatsApp → KAIRO → n8n → OpenAI → WhatsApp
 
 ---
 

@@ -1,9 +1,9 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** EN PROGRESO - Fases 1-3 completadas ✅, Fase 4 en desarrollo 🔄
+> **Estado:** ✅ COMPLETADO - Fases 1-4 funcionales en producción
 > **Fecha de planificación:** 2026-01-25
 > **Última actualización:** 2026-01-30
-> **Próximo paso:** Fase 4 - Completar workflow n8n con integración a endpoint `/api/rag/search`
+> **Logro:** Flujo RAG completo operativo - Agentes responden con nombre de KAIRO + personalidad de conocimiento
 
 ---
 
@@ -512,8 +512,8 @@ Cuando se implemente el soporte de archivos:
 - `src/messages/es.json` - Traducciones knowledgeSettings
 - `src/messages/en.json` - Traducciones knowledgeSettings
 
-### Fase 4: Workflow n8n 🔄 EN PROGRESO
-**Duración estimada:** 2-3 horas
+### Fase 4: Workflow n8n ✅ COMPLETADA
+**Duración real:** ~4 horas (incluye debugging y ajustes)
 
 - [x] Endpoint `/api/rag/search` creado en KAIRO ✅
   - Autenticación: Header `X-N8N-Secret` (shared secret)
@@ -522,14 +522,19 @@ Cuando se implemente el soporte de archivos:
   - Features: Validación de agente/proyecto, generación de embeddings, búsqueda semántica
   - Logging detallado con timings (embedding, search, total)
   - Health check endpoint (GET) con documentación
-- [ ] Modificar workflow n8n para usar endpoint KAIRO en lugar de Supabase directo
-  - [ ] Reemplazar nodo "Generar Embedding" por llamada a `/api/rag/search`
-  - [ ] Eliminar nodo "Buscar en RAG (Supabase)"
-  - [ ] Agregar header `X-N8N-Secret` en HTTP Request
-  - [ ] Parsear respuesta con formato `results[]` del endpoint
-- [ ] Configurar nodo LLM (Claude/GPT) con prompt estricto
-- [ ] Configurar nodo de respuesta via API KAIRO (`/api/whatsapp/send`)
-- [ ] Probar flujo completo end-to-end
+- [x] Workflow n8n configurado en Railway ✅
+  - URL: `n8n-production-5d42.up.railway.app`
+  - Nodo "RAG Search" llama a `/api/rag/search` con header `X-N8N-Secret`
+  - Parseo correcto de respuesta `results[]`
+- [x] Nodo OpenAI configurado con System Prompt dinámico ✅
+  - Usa `body.agentName` del webhook para identificarse (nombre de KAIRO settings)
+  - Usa `body.companyName` para contexto de empresa
+  - RAG context inyectado condicionalmente si hay resultados
+  - Expresión correcta: `$('Message a model').item.json.output[0].content[0].text`
+- [x] Flujo end-to-end verificado con Playwright MCP ✅
+  - WhatsApp → KAIRO webhook → n8n → RAG Search → OpenAI → WhatsApp
+  - Bot responde como "Leo" (nombre del agente en KAIRO)
+  - Personalidad del RAG aplicada en respuestas
 
 ### Fase 5: Testing y Refinamiento
 **Duración estimada:** 2-3 horas
@@ -552,6 +557,57 @@ Cuando se implemente el soporte de archivos:
 - [ ] UI de upload con drag & drop
 - [ ] Progress bar para archivos grandes
 - [ ] Límites de tamaño (ej: max 10MB por archivo)
+
+---
+
+## Configuración Final n8n (Producción)
+
+### System Prompt del Nodo OpenAI
+
+```
+Eres {{ $('Webhook').item.json.body.agentName }}, asistente de {{ $('Webhook').item.json.body.companyName }}.
+
+{{ $('RAG Search').item.json.results && $('RAG Search').item.json.results.length > 0 ? 'Tu personalidad y conocimiento:\n' + $('RAG Search').item.json.results.map(r => r.content).join('\n\n') : '' }}
+
+Responde de manera natural y breve al usuario "{{ $('Webhook').item.json.body.leadName }}". Si no tienes informacion especifica, responde de forma amigable usando tu nombre.
+```
+
+### Expresión para Obtener Respuesta de OpenAI
+
+```javascript
+// Nodo "Prepare AI Response" - Campo message
+{{ $('Message a model').item.json.output[0].content[0].text }}
+```
+
+**Importante:** La estructura de respuesta de OpenAI es:
+- `output[0].content[0].text` (NO `.json.text` que retorna undefined)
+
+### Flujo de Datos en n8n
+
+```
+Webhook (body)
+    ├── agentId
+    ├── agentName      ← Usado en System Prompt
+    ├── companyName    ← Usado en System Prompt
+    ├── leadName       ← Usado en System Prompt
+    ├── message        ← Query del usuario
+    └── projectId
+         │
+         ▼
+RAG Search (HTTP Request a /api/rag/search)
+    └── results[]      ← Inyectado condicionalmente en System Prompt
+         │
+         ▼
+Message a model (OpenAI)
+    └── output[0].content[0].text  ← Respuesta generada
+         │
+         ▼
+Prepare AI Response
+    └── message: {{ respuesta de OpenAI }}
+         │
+         ▼
+Send to WhatsApp (HTTP Request a /api/whatsapp/send)
+```
 
 ---
 
@@ -665,3 +721,5 @@ Cuando se implemente el soporte de archivos:
 | 2026-01-29 | **Restricción 1 agente activo**: Solo un agente puede estar activo por proyecto | Leo + Adan |
 | 2026-01-29 | **Auto-asignación de agente**: Leads nuevos reciben primer agente activo del proyecto | Adan (Claude) |
 | 2026-01-30 | **Fase 4 en progreso**: Endpoint `/api/rag/search` creado - Decisión Opción B (n8n vía KAIRO por seguridad) | Adan (Claude) |
+| 2026-01-30 | **Fase 4 COMPLETADA**: Workflow n8n configurado, System Prompt usa `body.agentName` de KAIRO | Adan (Claude) |
+| 2026-01-30 | **Flujo RAG verificado end-to-end**: Bot responde como "Leo" con personalidad del conocimiento | Leo + Adan |

@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.4 (en desarrollo) - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-3 completadas**, **RAG Fase 4 en progreso (endpoint `/api/rag/search` listo)**, **n8n en Railway (producción)**, **Webhook envía agentId a n8n**, **Solo 1 agente activo por proyecto**
+**Estado actual:** v0.7.4 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -342,9 +342,11 @@ npm run lint     # Verificar código
 - [x] **Auto-asignación de agente** - Leads nuevos reciben primer agente activo del proyecto
 - [x] **Restricción 1 agente activo** - Solo un agente puede estar activo por proyecto (radio button)
 - [x] **UI Gestión de Agentes mejorada** - Selector de iconos (emojis), toggle rojo/verde, spinner de carga
+- [x] **RAG Fase 4 COMPLETADA** - Flujo end-to-end funcional: WhatsApp → KAIRO → n8n → RAG → OpenAI → WhatsApp
+- [x] **Bot con identidad dinámica** - Responde usando nombre del agente configurado en KAIRO (no hardcodeado)
+- [x] **Auto-asignación de agentes a leads legacy** - Leads existentes sin agente reciben agente activo
 
 ### 🔄 Parcial
-- [ ] **RAG Fase 4** - Endpoint `/api/rag/search` creado ✅, workflow n8n pendiente de modificar
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
 
 ### ❌ Pendiente
