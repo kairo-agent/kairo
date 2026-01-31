@@ -59,7 +59,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (n8nSecret !== expectedSecret) {
+    // Use timing-safe comparison to prevent timing attacks
+    const secretValid = n8nSecret &&
+      n8nSecret.length === expectedSecret.length &&
+      require('crypto').timingSafeEqual(
+        Buffer.from(n8nSecret),
+        Buffer.from(expectedSecret)
+      );
+
+    if (!secretValid) {
       console.warn('[RAG Search] Invalid X-N8N-Secret header');
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },

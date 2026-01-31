@@ -35,17 +35,36 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
-    // === SECURITY: Verify n8n shared secret ===
+    // === SECURITY: Verify n8n shared secret (fail-closed) ===
     const n8nSecret = request.headers.get('X-N8N-Secret');
     const expectedSecret = process.env.N8N_CALLBACK_SECRET;
     const isDev = process.env.NODE_ENV === 'development';
 
-    if (!isDev && expectedSecret && n8nSecret !== expectedSecret) {
-      console.warn('[AI Respond] Invalid X-N8N-Secret header');
+    // Fail-closed: Reject if secret not configured in production
+    if (!isDev && !expectedSecret) {
+      console.error('[AI Respond] CRITICAL: N8N_CALLBACK_SECRET not configured');
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
+        { success: false, error: 'Server misconfigured' },
+        { status: 500 }
       );
+    }
+
+    // Use timing-safe comparison to prevent timing attacks
+    if (!isDev && expectedSecret) {
+      const secretValid = n8nSecret &&
+        n8nSecret.length === expectedSecret.length &&
+        require('crypto').timingSafeEqual(
+          Buffer.from(n8nSecret),
+          Buffer.from(expectedSecret)
+        );
+
+      if (!secretValid) {
+        console.warn('[AI Respond] Invalid X-N8N-Secret header');
+        return NextResponse.json(
+          { success: false, error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
     }
 
     // Parse request body

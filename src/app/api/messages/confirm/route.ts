@@ -39,7 +39,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (n8nSecret !== expectedSecret) {
+      // Use timing-safe comparison to prevent timing attacks
+      const secretValid = n8nSecret &&
+        n8nSecret.length === expectedSecret.length &&
+        require('crypto').timingSafeEqual(
+          Buffer.from(n8nSecret),
+          Buffer.from(expectedSecret)
+        );
+
+      if (!secretValid) {
         console.warn('[messages/confirm] Invalid or missing X-N8N-Secret header');
         return NextResponse.json(
           { success: false, error: 'Unauthorized' },
@@ -50,8 +58,16 @@ export async function POST(request: NextRequest) {
       // En desarrollo, advertir si no hay secret pero permitir
       if (!expectedSecret) {
         console.warn('[messages/confirm] DEV MODE: N8N_CALLBACK_SECRET not configured - requests allowed without auth');
-      } else if (n8nSecret !== expectedSecret) {
-        console.warn('[messages/confirm] DEV MODE: Invalid X-N8N-Secret but allowing request');
+      } else if (n8nSecret) {
+        // Solo comparar si hay secret proporcionado
+        const secretValid = n8nSecret.length === expectedSecret.length &&
+          require('crypto').timingSafeEqual(
+            Buffer.from(n8nSecret),
+            Buffer.from(expectedSecret)
+          );
+        if (!secretValid) {
+          console.warn('[messages/confirm] DEV MODE: Invalid X-N8N-Secret but allowing request');
+        }
       }
     }
     // === FIN VERIFICACIÓN DE SEGURIDAD ===
