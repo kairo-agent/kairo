@@ -16,6 +16,7 @@ import {
   formatEmbeddingForPg,
 } from '@/lib/openai/embeddings';
 import { createClient } from '@/lib/supabase/server';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // ============================================
 // Types
@@ -89,6 +90,33 @@ export async function POST(request: NextRequest) {
     }
 
     const { agentId, projectId, query, limit = 5, threshold = 0.7 } = body;
+
+    // ============================================
+    // 2.5. Rate Limiting (by agent to prevent scraping)
+    // ============================================
+    if (agentId && projectId) {
+      const rateLimit = await checkRateLimit(`rag:search:${projectId}:${agentId}`, {
+        maxRequests: 120, // 120 RAG searches per minute per agent
+        windowMs: 60_000,
+      });
+
+      if (!rateLimit.success) {
+        console.warn(`[RAG Search] Rate limit exceeded for agent: ${agentId}`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Rate limit exceeded',
+            retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+            },
+          }
+        );
+      }
+    }
 
     if (!agentId || !projectId || !query) {
       return NextResponse.json(

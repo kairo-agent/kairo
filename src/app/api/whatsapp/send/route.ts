@@ -8,6 +8,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // ============================================
 // Types
@@ -50,6 +51,36 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body: SendMessageRequest = await request.json();
     const { to, message, projectId, messageType = 'text', mediaUrl } = body;
+
+    // ============================================
+    // Rate Limiting (by project to prevent spam)
+    // ============================================
+    if (projectId) {
+      const rateLimit = await checkRateLimit(`whatsapp:send:${projectId}`, {
+        maxRequests: 100, // 100 messages per minute per project
+        windowMs: 60_000,
+      });
+
+      if (!rateLimit.success) {
+        console.warn(`[WhatsApp Send] Rate limit exceeded for project: ${projectId}`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Rate limit exceeded. Please try again later.',
+            retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+              'X-RateLimit-Limit': '100',
+              'X-RateLimit-Remaining': '0',
+              'X-RateLimit-Reset': String(rateLimit.resetAt),
+            },
+          }
+        );
+      }
+    }
 
     // Validate required fields
     if (!to || !projectId) {

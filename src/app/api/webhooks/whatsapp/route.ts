@@ -18,6 +18,7 @@ import {
 } from '@prisma/client';
 import { decryptSecret } from '@/lib/crypto/secrets';
 import { getProjectSecret } from '@/lib/actions/secrets';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // ============================================
 // In-Memory Cache for phoneNumberId → Project
@@ -211,6 +212,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    // ============================================
+    // Rate Limiting (by IP to prevent DDoS)
+    // Higher limit for webhooks as Meta can send bursts
+    // ============================================
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+                     request.headers.get('x-real-ip') ||
+                     'unknown';
+
+    const rateLimit = await checkRateLimit(`webhook:whatsapp:${clientIp}`, {
+      maxRequests: 300, // 300 requests per minute per IP (Meta can burst)
+      windowMs: 60_000,
+    });
+
+    if (!rateLimit.success) {
+      console.warn(`[WhatsApp Webhook] Rate limit exceeded for IP: ${clientIp}`);
+      // Return 200 to not trigger Meta's retry mechanism
+      return NextResponse.json({ success: true });
+    }
+
     // IMPORTANTE: Leer body raw ANTES de cualquier otra cosa
     // Necesitamos el texto crudo para verificar la firma HMAC
     const rawBody = await request.text();
@@ -655,11 +675,8 @@ async function triggerN8nWorkflow(
     return;
   }
 
-  // Get WhatsApp credentials for n8n to call WhatsApp API directly
-  const [accessToken, phoneNumberId] = await Promise.all([
-    getProjectSecret(projectId, 'whatsapp_access_token'),
-    getProjectSecret(projectId, 'whatsapp_phone_number_id'),
-  ]);
+  // NOTE: Credentials are NOT sent to n8n - they are obtained internally
+  // by /api/ai/respond endpoint when n8n calls back to send the message
 
   const payload = {
     projectId,
@@ -676,9 +693,6 @@ async function triggerN8nWorkflow(
     agentId: lead.assignedAgent?.id || null,
     agentName: lead.assignedAgent?.name || 'Asistente',
     companyName: project?.name || 'KAIRO',
-    // WhatsApp API credentials for n8n to send directly
-    accessToken: accessToken || '',
-    phoneNumberId: phoneNumberId || '',
   };
 
   try {

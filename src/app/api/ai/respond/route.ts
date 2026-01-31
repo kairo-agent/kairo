@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // ============================================
 // Types
@@ -70,6 +71,33 @@ export async function POST(request: NextRequest) {
     // Parse request body
     const body: AIRespondRequest = await request.json();
     const { conversationId, leadId, projectId, message, agentId, agentName } = body;
+
+    // ============================================
+    // Rate Limiting (by project to prevent abuse)
+    // ============================================
+    if (projectId) {
+      const rateLimit = await checkRateLimit(`ai:respond:${projectId}`, {
+        maxRequests: 60, // 60 AI responses per minute per project
+        windowMs: 60_000,
+      });
+
+      if (!rateLimit.success) {
+        console.warn(`[AI Respond] Rate limit exceeded for project: ${projectId}`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Rate limit exceeded',
+            retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+          },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+            },
+          }
+        );
+      }
+    }
 
     // Validate required fields
     if (!conversationId || !leadId || !projectId || !message) {
