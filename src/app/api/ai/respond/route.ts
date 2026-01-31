@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     const savedMessage = await prisma.message.create({
       data: {
         conversationId,
-        sender: 'bot',
+        sender: 'ai',
         content: message,
         metadata: {
           agentId: agentId || null,
