@@ -17,7 +17,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.5 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**
+**Estado actual:** v0.7.6 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**, **Security Audit v1 ✅**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -348,6 +348,7 @@ npm run lint     # Verificar código
 - [x] **Auto-asignación de agentes a leads legacy** - Leads existentes sin agente reciben agente activo
 - [x] **Endpoint /api/ai/respond** - n8n guarda mensaje IA en BD + envía a WhatsApp en un solo paso
 - [x] **Historial de conversaciones IA** - Mensajes del bot se guardan correctamente con `sender: 'ai'`
+- [x] **Security Audit v1** - Next.js CVEs corregidos, fail-closed secrets, timingSafeEqual anti-timing-attacks
 
 ### 🔄 Parcial
 - [ ] **Dashboard Home** - UI placeholder, stats no conectados a BD
@@ -878,11 +879,15 @@ ngrok http 3000
 
 | Endpoint | Protección | Variable de Entorno | Guarda BD |
 |----------|------------|---------------------|-----------|
-| `/api/ai/respond` | Shared Secret Header | `N8N_CALLBACK_SECRET` | ✅ Sí |
+| `/api/ai/respond` | Shared Secret Header (timingSafeEqual) | `N8N_CALLBACK_SECRET` | ✅ Sí |
 | `/api/whatsapp/send` | Supabase Auth + Project Membership | `BYPASS_AUTH_DEV` (dev only) | ❌ No |
-| `/api/messages/confirm` | Shared Secret Header | `N8N_CALLBACK_SECRET` | ✅ Actualiza |
-| `/api/webhooks/whatsapp` | HMAC-SHA256 Signature | `WHATSAPP_APP_SECRET` | ✅ Sí |
-| `/api/rag/search` | Shared Secret Header | `N8N_CALLBACK_SECRET` | ❌ No |
+| `/api/messages/confirm` | Shared Secret Header (timingSafeEqual) | `N8N_CALLBACK_SECRET` | ✅ Actualiza |
+| `/api/webhooks/whatsapp` | HMAC-SHA256 Signature (timingSafeEqual) | `WHATSAPP_APP_SECRET` | ✅ Sí |
+| `/api/rag/search` | Shared Secret Header (timingSafeEqual) | `N8N_CALLBACK_SECRET` | ❌ No |
+
+**Protección fail-closed:** Todas las APIs rechazan requests si la variable de entorno de seguridad no está configurada en producción.
+
+**Anti-timing-attacks:** Uso de `crypto.timingSafeEqual()` para comparación de secrets, previene ataques de timing que intentan inferir valores correctos midiendo tiempo de respuesta.
 
 ### V0: `/api/ai/respond` - Guardar y Enviar Respuesta IA ⭐ NUEVO
 

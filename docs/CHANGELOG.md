@@ -1,5 +1,26 @@
 # KAIRO - Changelog
 
+## [0.7.6] - 2026-01-31
+
+### Security
+- **Next.js actualizado a 16.1.6** - Corrige CVEs críticos:
+  - GHSA-h25m-26qc-wcjf (DoS denial-of-service)
+  - GHSA-9g9p-9gw9-jx7f (Image Optimizer bypass)
+  - GHSA-5f7q-jpqc-wp7h (PPR memory leak)
+- **Fail-closed en validación de secrets** - APIs ahora rechazan requests si N8N_CALLBACK_SECRET no está configurado en producción
+- **timingSafeEqual en comparación de secrets** - Previene timing attacks en:
+  - `/api/ai/respond` (n8n → KAIRO)
+  - `/api/rag/search` (n8n → KAIRO)
+  - `/api/messages/confirm` (n8n → KAIRO legacy)
+- **Auditoría de seguridad completada** - Verificación de OWASP Top 10, encriptación AES-256-GCM confirmada, HMAC-SHA256 en webhooks
+
+### Validación
+- ✅ Bot WhatsApp funciona correctamente post-security-fixes
+- ✅ Read receipt sigue funcionando (✓✓ azul)
+- ✅ Build exitoso sin errores TypeScript
+
+---
+
 ## [0.7.5] - 2026-01-30 ✅ COMPLETADO
 
 ### Features
