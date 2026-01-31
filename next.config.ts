@@ -50,6 +50,27 @@ const securityHeaders = [
       "object-src 'none'",
     ].join('; '),
   },
+  // === Additional OWASP Recommended Headers ===
+  {
+    // Prevent Adobe Flash/PDF cross-domain policy files
+    key: 'X-Permitted-Cross-Domain-Policies',
+    value: 'none',
+  },
+  {
+    // Prevent IE from executing downloads in site's context
+    key: 'X-Download-Options',
+    value: 'noopen',
+  },
+  {
+    // Isolate browsing context (prevents Spectre-like attacks)
+    key: 'Cross-Origin-Opener-Policy',
+    value: 'same-origin',
+  },
+  {
+    // Protect resources from being loaded cross-origin
+    key: 'Cross-Origin-Resource-Policy',
+    value: 'same-origin',
+  },
 ];
 
 const nextConfig: NextConfig = {
