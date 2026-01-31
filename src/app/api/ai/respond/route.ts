@@ -110,6 +110,63 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate string types (prevent injection of objects/arrays)
+    if (
+      typeof conversationId !== 'string' ||
+      typeof leadId !== 'string' ||
+      typeof projectId !== 'string' ||
+      typeof message !== 'string'
+    ) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid field types: all fields must be strings' },
+        { status: 400 }
+      );
+    }
+
+    // Validate ID format (UUID or CUID, 20-40 chars alphanumeric with hyphens)
+    const isValidId = (id: string) => /^[a-zA-Z0-9_-]{20,40}$/.test(id);
+    if (!isValidId(conversationId) || !isValidId(leadId) || !isValidId(projectId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate message length (WhatsApp limit is 4096 characters)
+    if (message.length > 4096) {
+      return NextResponse.json(
+        { success: false, error: 'Message too long (max 4096 characters)' },
+        { status: 400 }
+      );
+    }
+
+    // Validate message is not empty after trimming
+    if (message.trim().length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Message cannot be empty' },
+        { status: 400 }
+      );
+    }
+
+    // Validate optional fields if provided
+    if (agentId !== undefined && agentId !== null && typeof agentId === 'string' && agentId.length > 0) {
+      if (!isValidId(agentId)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid agentId format' },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (agentName !== undefined && agentName !== null) {
+      if (typeof agentName !== 'string' || agentName.length > 100) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid agentName (max 100 characters)' },
+          { status: 400 }
+        );
+      }
+    }
+
     console.log(`[AI Respond] Processing response for lead ${leadId}, agent: ${agentName || 'unknown'}`);
 
     // Get lead info for WhatsApp
@@ -263,10 +320,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

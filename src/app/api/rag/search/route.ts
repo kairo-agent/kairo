@@ -128,6 +128,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate string types (prevent injection of objects/arrays)
+    if (
+      typeof agentId !== 'string' ||
+      typeof projectId !== 'string' ||
+      typeof query !== 'string'
+    ) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid field types: agentId, projectId, and query must be strings' },
+        { status: 400 }
+      );
+    }
+
+    // Validate ID format (UUID or CUID, 20-40 chars alphanumeric with hyphens)
+    const isValidId = (id: string) => /^[a-zA-Z0-9_-]{20,40}$/.test(id);
+    if (!isValidId(agentId) || !isValidId(projectId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate query is not empty after trimming
+    if (query.trim().length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Query cannot be empty' },
+        { status: 400 }
+      );
+    }
+
     // Validate query length (avoid embedding very long texts)
     if (query.length > 8000) {
       return NextResponse.json(
@@ -136,7 +165,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate limit and threshold
+    // Validate limit type and range
+    if (limit !== undefined && (typeof limit !== 'number' || !Number.isInteger(limit))) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid limit: must be an integer' },
+        { status: 400 }
+      );
+    }
+
+    // Validate threshold type and range
+    if (threshold !== undefined && (typeof threshold !== 'number' || isNaN(threshold))) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid threshold: must be a number' },
+        { status: 400 }
+      );
+    }
+
+    // Validate limit and threshold (coerce to safe values)
     const safeLimit = Math.min(Math.max(1, limit), 20); // 1-20
     const safeThreshold = Math.min(Math.max(0, threshold), 1); // 0-1
 

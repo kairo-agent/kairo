@@ -93,6 +93,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate string types (prevent injection of objects/arrays)
+    if (typeof to !== 'string' || typeof projectId !== 'string') {
+      return NextResponse.json(
+        { success: false, error: 'Invalid field types: to and projectId must be strings' },
+        { status: 400 }
+      );
+    }
+
+    // Validate projectId format (UUID or CUID, 20-40 chars alphanumeric with hyphens)
+    if (!/^[a-zA-Z0-9_-]{20,40}$/.test(projectId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid projectId format' },
+        { status: 400 }
+      );
+    }
+
+    // Validate messageType is a valid enum value
+    const validMessageTypes = ['text', 'image', 'video'] as const;
+    if (messageType && !validMessageTypes.includes(messageType as typeof validMessageTypes[number])) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid messageType (must be: text, image, or video)' },
+        { status: 400 }
+      );
+    }
+
     // Validate message type and required fields
     if (messageType === 'text' && !message) {
       return NextResponse.json(
@@ -112,6 +137,55 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // Validate message length if provided (WhatsApp limit is 4096 for text, 1024 for captions)
+    if (message) {
+      if (typeof message !== 'string') {
+        return NextResponse.json(
+          { success: false, error: 'Invalid message type: must be a string' },
+          { status: 400 }
+        );
+      }
+      const maxLength = messageType === 'text' ? 4096 : 1024; // Captions are limited to 1024
+      if (message.length > maxLength) {
+        return NextResponse.json(
+          { success: false, error: `Message too long (max ${maxLength} characters for ${messageType})` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Validate mediaUrl format if provided
+    if (mediaUrl) {
+      if (typeof mediaUrl !== 'string') {
+        return NextResponse.json(
+          { success: false, error: 'Invalid mediaUrl type: must be a string' },
+          { status: 400 }
+        );
+      }
+      // Basic URL validation (must be https)
+      try {
+        const url = new URL(mediaUrl);
+        if (url.protocol !== 'https:') {
+          return NextResponse.json(
+            { success: false, error: 'Invalid mediaUrl: must use HTTPS protocol' },
+            { status: 400 }
+          );
+        }
+      } catch {
+        return NextResponse.json(
+          { success: false, error: 'Invalid mediaUrl format' },
+          { status: 400 }
+        );
+      }
+      // Limit URL length to prevent abuse
+      if (mediaUrl.length > 2048) {
+        return NextResponse.json(
+          { success: false, error: 'mediaUrl too long (max 2048 characters)' },
+          { status: 400 }
+        );
+      }
     }
 
     // ============================================
@@ -350,10 +424,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error',
-      },
+      { success: false, error: 'Internal server error' },
       { status: 500 }
     );
   }

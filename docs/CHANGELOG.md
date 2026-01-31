@@ -1,5 +1,34 @@
 # KAIRO - Changelog
 
+## [0.7.7] - 2026-01-31
+
+### Security
+- **HTTP Security Headers** - Configuración completa en `next.config.ts`:
+  - Content-Security-Policy (CSP) configurado para proteger contra XSS
+  - X-Frame-Options: DENY (previene clickjacking)
+  - X-Content-Type-Options: nosniff (previene MIME sniffing)
+  - Referrer-Policy: strict-origin-when-cross-origin
+  - Permissions-Policy: camera, microphone, geolocation deshabilitados
+  - Strict-Transport-Security (HSTS): 2 años + includeSubDomains + preload
+
+- **Rate Limiting implementado en APIs críticas**:
+  - `/api/webhooks/whatsapp`: 300 req/min por IP (alto para bursts de Meta)
+  - `/api/whatsapp/send`: 100 req/min por proyecto
+  - `/api/ai/respond`: 60 req/min por proyecto
+  - `/api/rag/search`: 120 req/min por agente
+
+### Archivos Modificados
+- `next.config.ts` - Security headers agregados
+- `src/app/api/webhooks/whatsapp/route.ts` - Rate limiting añadido
+- `src/app/api/whatsapp/send/route.ts` - Rate limiting añadido
+- `src/app/api/ai/respond/route.ts` - Rate limiting añadido
+- `src/app/api/rag/search/route.ts` - Rate limiting añadido
+
+### Commits
+- `84c5f01` - security: Add HTTP security headers and rate limiting
+
+---
+
 ## [0.7.6] - 2026-01-31
 
 ### Security
