@@ -728,6 +728,21 @@ async function triggerN8nWorkflow(
     // ============================================
     conversationHistory,
     historyCount: conversationHistory.length,
+    // ============================================
+    // Fecha actual para que el bot sepa qué día es
+    // ============================================
+    currentDate: new Date().toLocaleDateString('es-PE', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'America/Lima',
+    }),
+    currentTime: new Date().toLocaleTimeString('es-PE', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Lima',
+    }),
   };
 
   try {
