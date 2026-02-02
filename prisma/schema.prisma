@@ -162,12 +162,13 @@ model Lead {
 }
 
 model AIAgent {
-  id            String      @id @default(cuid())
-  name          String
-  type          AIAgentType
-  description   String?
-  avatarUrl     String?
-  isActive      Boolean     @default(true)
+  id                 String      @id @default(cuid())
+  name               String
+  type               AIAgentType
+  description        String?
+  avatarUrl          String?
+  systemInstructions String?     @db.Text
+  isActive           Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   stats         Json        @default("{\"satisfactionScore\": 0, \"totalConversations\": 0, \"averageResponseTime\": 0, \"totalLeadsGenerated\": 0}")

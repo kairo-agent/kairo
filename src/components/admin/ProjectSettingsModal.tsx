@@ -195,6 +195,7 @@ export default function ProjectSettingsModal({
   const [agentIcon, setAgentIcon] = useState(defaultAgentIcon);
   const [agentDescription, setAgentDescription] = useState('');
   const [agentAvatarUrl, setAgentAvatarUrl] = useState('');
+  const [agentSystemInstructions, setAgentSystemInstructions] = useState('');
 
   // WhatsApp form
   const [whatsappToken, setWhatsappToken] = useState('');
@@ -304,6 +305,7 @@ export default function ProjectSettingsModal({
     setAgentIcon(defaultAgentIcon);
     setAgentDescription('');
     setAgentAvatarUrl('');
+    setAgentSystemInstructions('');
     setShowAgentForm(false);
     setEditingAgent(null);
     setDeletingAgent(null);
@@ -318,6 +320,7 @@ export default function ProjectSettingsModal({
     setAgentIcon(isEmoji && agent.avatarUrl ? agent.avatarUrl : defaultAgentIcon);
     setAgentDescription(agent.description || '');
     setAgentAvatarUrl('');
+    setAgentSystemInstructions(agent.systemInstructions || '');
     setShowAgentForm(true);
   };
 
@@ -335,7 +338,8 @@ export default function ProjectSettingsModal({
           name: agentName.trim(),
           type: agentType,
           description: agentDescription.trim() || undefined,
-          avatarUrl: agentIcon // Guardar emoji como avatarUrl
+          avatarUrl: agentIcon, // Guardar emoji como avatarUrl
+          systemInstructions: agentSystemInstructions.trim() || undefined
         });
 
         if (result.success) {
@@ -353,7 +357,8 @@ export default function ProjectSettingsModal({
           name: agentName.trim(),
           type: agentType,
           description: agentDescription.trim() || undefined,
-          avatarUrl: agentIcon // Guardar emoji como avatarUrl
+          avatarUrl: agentIcon, // Guardar emoji como avatarUrl
+          systemInstructions: agentSystemInstructions.trim() || undefined
         });
 
         if (result.success) {
@@ -746,6 +751,23 @@ export default function ProjectSettingsModal({
           rows={2}
           className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none"
         />
+      </div>
+
+      {/* System Instructions */}
+      <div>
+        <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+          {t('agentSettings.systemInstructions')}
+        </label>
+        <textarea
+          value={agentSystemInstructions}
+          onChange={(e) => setAgentSystemInstructions(e.target.value)}
+          placeholder={t('agentSettings.systemInstructionsPlaceholder')}
+          rows={6}
+          className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none"
+        />
+        <p className="text-xs text-[var(--text-muted)] mt-1">
+          {t('agentSettings.systemInstructionsHelp')}
+        </p>
       </div>
 
       {/* Avatar URL */}

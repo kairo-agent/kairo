@@ -20,6 +20,7 @@ interface AIRespondRequest {
   message: string;
   agentId?: string;
   agentName?: string;
+  suggestedTemperature?: 'hot' | 'warm' | 'cold';
 }
 
 interface WhatsAppApiResponse {
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: AIRespondRequest = await request.json();
-    const { conversationId, leadId, projectId, message, agentId, agentName } = body;
+    const { conversationId, leadId, projectId, message, agentId, agentName, suggestedTemperature } = body;
 
     // ============================================
     // Rate Limiting (by project to prevent abuse)
@@ -167,6 +168,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate suggestedTemperature if provided
+    const validTemperatures = ['hot', 'warm', 'cold'];
+    if (suggestedTemperature !== undefined && suggestedTemperature !== null) {
+      if (typeof suggestedTemperature !== 'string' || !validTemperatures.includes(suggestedTemperature)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid suggestedTemperature (must be: hot, warm, or cold)' },
+          { status: 400 }
+        );
+      }
+    }
+
     console.log(`[AI Respond] Processing response for lead ${leadId}, agent: ${agentName || 'unknown'}`);
 
     // Get lead info for WhatsApp
@@ -211,6 +223,15 @@ export async function POST(request: NextRequest) {
     });
 
     console.log(`[AI Respond] Message saved to DB: ${savedMessage.id}`);
+
+    // === STEP 1.5: Update lead temperature if suggested ===
+    if (suggestedTemperature && validTemperatures.includes(suggestedTemperature)) {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { temperature: suggestedTemperature },
+      });
+      console.log(`[AI Respond] Updated lead ${leadId} temperature to ${suggestedTemperature}`);
+    }
 
     // === STEP 2: Send to WhatsApp ===
     const phoneNumber = lead.whatsappId || lead.phone;
@@ -348,6 +369,7 @@ export async function GET() {
       message: 'string (required) - Bot response text',
       agentId: 'string (optional) - AI agent ID',
       agentName: 'string (optional) - AI agent name for metadata',
+      suggestedTemperature: 'string (optional) - Lead temperature suggestion from AI (hot, warm, cold)',
     },
     response: {
       success: 'boolean',

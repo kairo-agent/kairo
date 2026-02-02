@@ -237,6 +237,7 @@ export interface AIAgent {
   type: AIAgentType;
   description?: string;
   avatarUrl?: string;
+  systemInstructions?: string; // System prompt for lead qualification and behavior
   isActive: boolean;
   stats: AIAgentStats;
   createdAt: Date;

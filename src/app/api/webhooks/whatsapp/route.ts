@@ -509,7 +509,7 @@ async function handleIncomingMessage(
     include: {
       conversation: true,
       assignedAgent: {
-        select: { id: true, name: true },
+        select: { id: true, name: true, systemInstructions: true },
       },
     },
   });
@@ -523,7 +523,7 @@ async function handleIncomingMessage(
     // Find default agent for the project (first active agent)
     const defaultAgent = await prisma.aIAgent.findFirst({
       where: { projectId, isActive: true },
-      select: { id: true },
+      select: { id: true, name: true, systemInstructions: true },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -558,7 +558,7 @@ async function handleIncomingMessage(
       include: {
         conversation: true,
         assignedAgent: {
-          select: { id: true, name: true },
+          select: { id: true, name: true, systemInstructions: true },
         },
       },
     });
@@ -599,7 +599,7 @@ async function handleIncomingMessage(
     if (!lead.assignedAgent) {
       const defaultAgent = await prisma.aIAgent.findFirst({
         where: { projectId, isActive: true },
-        select: { id: true, name: true },
+        select: { id: true, name: true, systemInstructions: true },
         orderBy: { createdAt: 'asc' },
       });
 
@@ -657,7 +657,7 @@ async function triggerN8nWorkflow(
     phone: string | null;
     whatsappId?: string | null;
     conversation: { id: string } | null;
-    assignedAgent?: { id: string; name: string } | null;
+    assignedAgent?: { id: string; name: string; systemInstructions: string | null } | null;
   },
   messageContent: string,
   messageType: string
@@ -692,6 +692,7 @@ async function triggerN8nWorkflow(
     // Agent info for RAG
     agentId: lead.assignedAgent?.id || null,
     agentName: lead.assignedAgent?.name || 'Asistente',
+    systemInstructions: lead.assignedAgent?.systemInstructions || null,
     companyName: project?.name || 'KAIRO',
   };
 

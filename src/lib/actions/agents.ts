@@ -22,6 +22,7 @@ export interface CreateAgentInput {
   type: AIAgentType;
   description?: string;
   avatarUrl?: string;
+  systemInstructions?: string;
 }
 
 export interface UpdateAgentInput {
@@ -30,6 +31,7 @@ export interface UpdateAgentInput {
   description?: string;
   avatarUrl?: string;
   isActive?: boolean;
+  systemInstructions?: string;
 }
 
 export interface AIAgentData {
@@ -38,6 +40,7 @@ export interface AIAgentData {
   type: AIAgentType;
   description: string | null;
   avatarUrl: string | null;
+  systemInstructions: string | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -207,6 +210,7 @@ export async function createAgent(input: CreateAgentInput): Promise<{
         type: input.type,
         description: input.description || null,
         avatarUrl: input.avatarUrl || null,
+        systemInstructions: input.systemInstructions || null,
         isActive: true,
         stats: {
           satisfactionScore: 0,
@@ -285,7 +289,8 @@ export async function updateAgent(agentId: string, input: UpdateAgentInput): Pro
         ...(input.type !== undefined && { type: input.type }),
         ...(input.description !== undefined && { description: input.description }),
         ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
-        ...(input.isActive !== undefined && { isActive: input.isActive })
+        ...(input.isActive !== undefined && { isActive: input.isActive }),
+        ...(input.systemInstructions !== undefined && { systemInstructions: input.systemInstructions })
       },
       include: {
         _count: {
