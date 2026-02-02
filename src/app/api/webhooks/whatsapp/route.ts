@@ -675,6 +675,35 @@ async function triggerN8nWorkflow(
     return;
   }
 
+  // ============================================
+  // Obtener historial de conversación (últimos 8 mensajes)
+  // Esto permite que OpenAI tenga contexto de la conversación
+  // ============================================
+  let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
+  if (lead.conversation?.id) {
+    const recentMessages = await prisma.message.findMany({
+      where: { conversationId: lead.conversation.id },
+      orderBy: { createdAt: 'desc' },
+      take: 9, // Tomamos 9 para excluir el mensaje actual (el más reciente)
+      select: {
+        content: true,
+        sender: true,
+        createdAt: true,
+      },
+    });
+
+    // Excluir el mensaje más reciente (es el que acabamos de guardar y ya lo enviamos como "message")
+    // y formatear para OpenAI (orden cronológico, más antiguo primero)
+    conversationHistory = recentMessages
+      .slice(1) // Excluir el primer elemento (mensaje actual)
+      .reverse() // Orden cronológico (más antiguo primero)
+      .map((msg) => ({
+        role: msg.sender === 'lead' ? 'user' as const : 'assistant' as const,
+        content: msg.content,
+      }));
+  }
+
   // NOTE: Credentials are NOT sent to n8n - they are obtained internally
   // by /api/ai/respond endpoint when n8n calls back to send the message
 
@@ -694,10 +723,15 @@ async function triggerN8nWorkflow(
     agentName: lead.assignedAgent?.name || 'Asistente',
     systemInstructions: lead.assignedAgent?.systemInstructions || null,
     companyName: project?.name || 'KAIRO',
+    // ============================================
+    // Historial de conversación para memoria del bot
+    // ============================================
+    conversationHistory,
+    historyCount: conversationHistory.length,
   };
 
   try {
-    console.log(`🤖 Triggering n8n workflow: ${n8nUrl}`);
+    console.log(`🤖 Triggering n8n workflow: ${n8nUrl} (with ${conversationHistory.length} history messages)`);
 
     const response = await fetch(n8nUrl, {
       method: 'POST',

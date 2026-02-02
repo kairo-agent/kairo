@@ -1,5 +1,94 @@
 # KAIRO - Changelog
 
+## [0.7.9] - 2026-02-02
+
+### Features
+- **Lead Temperature Scoring - Calificación automática de leads por IA**
+  - Los agentes IA ahora califican automáticamente cada lead como HOT, WARM o COLD
+  - Criterios de calificación **configurables por cliente** en KAIRO (no hardcodeados)
+  - Campo `systemInstructions` del agente define los criterios de calificación específicos del negocio
+  - El modelo de IA incluye marcador `[TEMPERATURA: HOT|WARM|COLD]` en su respuesta
+  - n8n extrae la temperatura con regex y la envía a KAIRO via `/api/ai/respond`
+  - KAIRO actualiza automáticamente el campo `temperature` del lead
+
+- **Nuevo campo `suggestedTemperature` en `/api/ai/respond`**
+  - Endpoint ahora acepta `suggestedTemperature: 'hot' | 'warm' | 'cold'` (opcional)
+  - Validación estricta del valor (solo acepta los 3 valores válidos)
+  - Actualización atómica: guarda mensaje + actualiza lead en una transacción
+
+### n8n Workflow Updates
+- **System Prompt simplificado** (nodo "Message a model")
+  - Eliminados criterios de calificación hardcodeados
+  - Ahora solo referencia `systemInstructions` de KAIRO
+  - Estructura: `{agentName} + {systemInstructions} + {RAG knowledge} + {leadName}`
+
+- **Nodo "Prepare AI Response" actualizado**
+  - Nuevo campo `suggestedTemperature` con expresión de extracción:
+    ```javascript
+    {{ $('Message a model').item.json.output[0].content[0].text
+        .match(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/i)?.[1]?.toLowerCase() || null }}
+    ```
+  - Campo `message` ahora limpia el marcador de temperatura antes de enviar:
+    ```javascript
+    {{ $('Message a model').item.json.output[0].content[0].text
+        .replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '').trim() }}
+    ```
+
+### Arquitectura - Flujo de Calificación de Leads
+```
+┌─────────────────────────────────────────────────────────────┐
+│           LEAD TEMPERATURE SCORING FLOW                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  1. Admin en KAIRO                                          │
+│     └── Configura systemInstructions del agente con:        │
+│         - Personalidad del agente                           │
+│         - Criterios de calificación (HOT/WARM/COLD)         │
+│         - Formato de salida: [TEMPERATURA: X]               │
+│                                                              │
+│  2. WhatsApp → KAIRO Webhook                                │
+│     └── Envía a n8n: message, systemInstructions, etc.      │
+│                                                              │
+│  3. n8n → OpenAI                                            │
+│     └── System Prompt usa systemInstructions del admin      │
+│     └── OpenAI responde con calificación al final           │
+│                                                              │
+│  4. n8n → Prepare AI Response                               │
+│     └── Extrae suggestedTemperature con regex               │
+│     └── Limpia marcador del mensaje visible                 │
+│                                                              │
+│  5. n8n → KAIRO /api/ai/respond                             │
+│     └── Guarda mensaje en BD                                │
+│     └── Actualiza lead.temperature                          │
+│     └── Envía respuesta limpia a WhatsApp                   │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Configuración Requerida en KAIRO
+Para que la calificación funcione, el admin debe incluir en `systemInstructions` del agente:
+
+```
+CRITERIOS DE CALIFICACIÓN DEL LEAD:
+[Definir qué significa HOT, WARM, COLD para tu negocio]
+
+FORMATO DE RESPUESTA:
+Al FINAL de cada respuesta, en una línea separada, indica:
+[TEMPERATURA: HOT] o [TEMPERATURA: WARM] o [TEMPERATURA: COLD]
+```
+
+### Archivos Modificados
+- `src/app/api/ai/respond/route.ts` - Soporte para `suggestedTemperature`
+- n8n workflow "KAIRO - Basic Response" - System Prompt + Prepare AI Response
+
+### Validación
+- ✅ System Prompt usa `systemInstructions` de KAIRO (no hardcodeado)
+- ✅ Extracción de temperatura funciona con regex
+- ✅ Mensaje enviado al usuario NO contiene marcador de temperatura
+- ✅ Lead se actualiza automáticamente en BD
+
+---
+
 ## [0.7.8] - 2026-01-31
 
 ### Security (LOW Risk)

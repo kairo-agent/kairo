@@ -1,9 +1,9 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** ✅ COMPLETADO - Fases 1-4 funcionales en producción
+> **Estado:** ✅ COMPLETADO - Fases 1-4 funcionales en producción + Lead Temperature Scoring
 > **Fecha de planificación:** 2026-01-25
-> **Última actualización:** 2026-01-30
-> **Logro:** Flujo RAG completo operativo - Agentes responden con nombre de KAIRO + personalidad de conocimiento
+> **Última actualización:** 2026-02-02
+> **Logro:** Flujo RAG completo operativo + Calificación automática de leads HOT/WARM/COLD via systemInstructions
 
 ---
 
@@ -697,6 +697,94 @@ Send to WhatsApp (HTTP Request a /api/whatsapp/send)
 
 ---
 
+## Lead Temperature Scoring (v0.7.9)
+
+### Concepto
+
+El sistema permite que los agentes IA califiquen automáticamente a los leads como HOT/WARM/COLD durante las conversaciones. Los criterios de calificación son **configurables por agente** a través del campo `systemInstructions`.
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    LEAD TEMPERATURE SCORING FLOW                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. CONFIGURACIÓN (Admin KAIRO)                                          │
+│     └─ Admin define criterios en `systemInstructions` del agente         │
+│     └─ Ejemplo: "HOT = Pide precio, WARM = Pregunta info, COLD = Solo    │
+│        saluda"                                                           │
+│     └─ Agrega formato: "Al final incluir [TEMPERATURA: HOT|WARM|COLD]"  │
+│                                                                          │
+│  2. WEBHOOK (KAIRO → n8n)                                                │
+│     └─ Incluye `systemInstructions` en el payload                        │
+│     └─ n8n pasa las instrucciones al LLM                                │
+│                                                                          │
+│  3. GENERACIÓN (OpenAI)                                                  │
+│     └─ AI evalúa según criterios del cliente                            │
+│     └─ Genera respuesta + marcador de temperatura                        │
+│     └─ Ejemplo: "¡Hola! Claro que sí... [TEMPERATURA: HOT]"             │
+│                                                                          │
+│  4. EXTRACCIÓN (n8n - Prepare AI Response)                               │
+│     └─ Regex extrae temperatura: /\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/i  │
+│     └─ Limpia marcador antes de enviar al usuario                       │
+│     └─ Campo `suggestedTemperature` se pasa a KAIRO                     │
+│                                                                          │
+│  5. ACTUALIZACIÓN (KAIRO - /api/ai/respond)                             │
+│     └─ Recibe `suggestedTemperature` en el body                         │
+│     └─ Actualiza `lead.temperature` en BD                               │
+│     └─ Lead queda clasificado automáticamente                           │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### System Prompt n8n (Actualizado)
+
+```
+Eres {{ $('Webhook').item.json.body.agentName }}, y trabajas en {{ $('Webhook').item.json.body.companyName }}.
+
+{{ $('Webhook').item.json.body.systemInstructions ? $('Webhook').item.json.body.systemInstructions : '' }}
+
+{{ $('RAG Search').item.json.results && $('RAG Search').item.json.results.length > 0 ? 'TU CONOCIMIENTO:\n' + $('RAG Search').item.json.results.map(r => r.content).join('\n\n') : '' }}
+
+Responde de manera natural y breve al usuario "{{ $('Webhook').item.json.body.leadName }}".
+```
+
+### Nodo "Prepare AI Response" (Campos Clave)
+
+```javascript
+// Campo: suggestedTemperature
+{{ $('Message a model').item.json.output[0].content[0].text.match(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/i)?.[1]?.toLowerCase() || null }}
+
+// Campo: message (limpia el marcador)
+{{ $('Message a model').item.json.output[0].content[0].text.replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '').trim() }}
+```
+
+### Ejemplo de systemInstructions (Cliente Configura en KAIRO)
+
+```
+PERSONALIDAD
+Eres Leonidas, experto en ventas con estilo directo pero amigable.
+
+CRITERIOS DE CALIFICACIÓN
+- HOT: Pide precios, pregunta por métodos de pago, quiere agendar cita
+- WARM: Pregunta detalles del servicio, muestra interés genuino
+- COLD: Solo saluda, respuestas cortas, no hace preguntas
+
+FORMATO DE RESPUESTA
+Al finalizar tu respuesta, incluir en una línea aparte:
+[TEMPERATURA: HOT|WARM|COLD]
+```
+
+### Beneficios Multi-Tenant
+
+- Cada cliente de KAIRO define sus propios criterios de HOT/WARM/COLD
+- Los criterios reflejan la naturaleza específica de cada negocio
+- No hay criterios hardcodeados en n8n - todo viene de KAIRO
+- Los admins pueden ajustar criterios sin intervención técnica
+
+---
+
 ## Referencias
 
 - [Supabase pgvector Docs](https://supabase.com/docs/guides/database/extensions/pgvector)
@@ -723,3 +811,4 @@ Send to WhatsApp (HTTP Request a /api/whatsapp/send)
 | 2026-01-30 | **Fase 4 en progreso**: Endpoint `/api/rag/search` creado - Decisión Opción B (n8n vía KAIRO por seguridad) | Adan (Claude) |
 | 2026-01-30 | **Fase 4 COMPLETADA**: Workflow n8n configurado, System Prompt usa `body.agentName` de KAIRO | Adan (Claude) |
 | 2026-01-30 | **Flujo RAG verificado end-to-end**: Bot responde como "Leo" con personalidad del conocimiento | Leo + Adan |
+| 2026-02-02 | **Lead Temperature Scoring (v0.7.9)**: IA califica leads HOT/WARM/COLD via systemInstructions configurable por agente | Leo + Adan |
