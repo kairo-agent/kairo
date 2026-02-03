@@ -506,13 +506,19 @@ async function handleIncomingMessage(
       projectId,
       whatsappId,
     },
-    include: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      whatsappId: true,
+      summary: true,
+      handoffMode: true,
       conversation: true,
       assignedAgent: {
         select: { id: true, name: true, systemInstructions: true },
       },
     },
-    // Note: summary is included by default (not using select, using include)
   });
 
   if (!lead) {
@@ -556,7 +562,14 @@ async function handleIncomingMessage(
           },
         },
       },
-      include: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        whatsappId: true,
+        summary: true,
+        handoffMode: true,
         conversation: true,
         assignedAgent: {
           select: { id: true, name: true, systemInstructions: true },
