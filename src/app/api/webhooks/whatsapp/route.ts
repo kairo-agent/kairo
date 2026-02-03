@@ -670,6 +670,7 @@ async function triggerN8nWorkflow(
     lastName: string | null;
     phone: string | null;
     whatsappId?: string | null;
+    summary?: string | null;
     conversation: { id: string } | null;
     assignedAgent?: { id: string; name: string; systemInstructions: string | null } | null;
   },
