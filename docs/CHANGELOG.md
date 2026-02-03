@@ -15,6 +15,13 @@
   - Formato hora: "14:30"
   - Resuelve el problema de que OpenAI no conoce la fecha actual (knowledge cutoff)
 
+- **Lead Summary (Fase 2.5) - Contexto histórico para conversaciones largas**
+  - Webhook envía `leadSummary` a n8n para mantener consistencia en chats largos
+  - Webhook envía `messageCount` y `summaryThreshold` (5) para que n8n decida cuándo generar resumen
+  - `/api/ai/respond` acepta `suggestedSummary` (max 500 chars)
+  - Defense in depth: KAIRO valida que hay 5+ mensajes antes de guardar el summary
+  - Schema Prisma: nuevos campos `summary` (Text) y `summaryUpdatedAt` (DateTime) en Lead
+
 - **Lead Temperature Scoring - Calificación automática de leads por IA**
   - Los agentes IA ahora califican automáticamente cada lead como HOT, WARM o COLD
   - Criterios de calificación **configurables por cliente** en KAIRO (no hardcodeados)
@@ -89,11 +96,21 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 [TEMPERATURA: HOT] o [TEMPERATURA: WARM] o [TEMPERATURA: COLD]
 ```
 
+### Documentación
+- **DATABASE-MIGRATIONS.md** - Nueva guía crítica de migraciones de BD
+  - Tablas Prisma vs no-Prisma (pgvector)
+  - Comandos permitidos vs prohibidos (`prisma db push` NUNCA)
+  - Procedimientos de recuperación de desastres
+  - Checklist pre-migración
+- **scripts/setup-rag-complete.sql** - Advertencias críticas agregadas al header
+- **CLAUDE.md** - Regla crítica de protección de BD documentada
+
 ### Archivos Modificados
-- `src/app/api/webhooks/whatsapp/route.ts` - Historial de conversación + fecha/hora actual
-- `src/app/api/ai/respond/route.ts` - Soporte para `suggestedTemperature`
+- `src/app/api/webhooks/whatsapp/route.ts` - Historial + fecha/hora + leadSummary + messageCount
+- `src/app/api/ai/respond/route.ts` - Soporte para `suggestedTemperature` y `suggestedSummary`
+- `prisma/schema.prisma` - Campos `summary` y `summaryUpdatedAt` en modelo Lead
 - n8n workflow "KAIRO - Basic Response":
-  - System Prompt con `conversationHistory`, `currentDate`, `currentTime`
+  - System Prompt con `conversationHistory`, `currentDate`, `currentTime`, `leadSummary`
   - Nodo "Prepare AI Response" extrae `suggestedTemperature`
   - Nodo "Send to WhatsApp" envía `suggestedTemperature` a KAIRO
 
@@ -102,6 +119,7 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 - ✅ Extracción de temperatura funciona con regex
 - ✅ Mensaje enviado al usuario NO contiene marcador de temperatura
 - ✅ Lead se actualiza automáticamente en BD
+- ✅ Summary solo se guarda después de 5+ mensajes (defense in depth)
 
 ---
 

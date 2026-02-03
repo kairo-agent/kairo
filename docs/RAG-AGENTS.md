@@ -1,9 +1,9 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** ✅ COMPLETADO - Fases 1-4 funcionales en producción + Lead Temperature Scoring + Memoria de Conversación
+> **Estado:** ✅ COMPLETADO - Fases 1-4 + Temperature Scoring + Memoria + Lead Summary
 > **Fecha de planificación:** 2026-01-25
 > **Última actualización:** 2026-02-02
-> **Logro:** Flujo RAG completo operativo + Calificación HOT/WARM/COLD + Historial de 8 mensajes para contexto
+> **Logro:** Flujo RAG completo + HOT/WARM/COLD + Historial 8 msgs + Summary para chats largos
 
 ---
 
@@ -884,6 +884,107 @@ System Prompt usa: `Fecha actual: {{ body.currentDate }}, hora: {{ body.currentT
 
 ---
 
+## Lead Summary (Fase 2.5)
+
+### Concepto
+
+Para conversaciones muy largas (más de 8 mensajes), el historial de mensajes no es suficiente. El sistema genera y almacena un **resumen del lead** que captura el contexto acumulado de toda la conversación.
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    LEAD SUMMARY FLOW                                     │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. MENSAJE ENTRANTE (WhatsApp → KAIRO)                                 │
+│     └─ Webhook cuenta mensajes en conversación                          │
+│     └─ Envía `messageCount` y `summaryThreshold` (5) a n8n              │
+│     └─ Si existe, envía `leadSummary` previo a n8n                      │
+│                                                                          │
+│  2. n8n EVALÚA                                                           │
+│     └─ Si messageCount >= summaryThreshold → puede generar resumen      │
+│     └─ System Prompt incluye leadSummary existente como contexto        │
+│                                                                          │
+│  3. OpenAI GENERA RESUMEN (opcional)                                    │
+│     └─ Solo si messageCount >= 5                                        │
+│     └─ Resumen de máximo 500 caracteres                                 │
+│                                                                          │
+│  4. n8n → KAIRO /api/ai/respond                                         │
+│     └─ Envía `suggestedSummary` junto con la respuesta                  │
+│                                                                          │
+│  5. KAIRO VALIDA (Defense in Depth)                                     │
+│     └─ Cuenta mensajes independientemente (no confía en n8n)            │
+│     └─ Solo guarda si messageCount >= 5                                 │
+│     └─ Actualiza `lead.summary` y `lead.summaryUpdatedAt`               │
+│                                                                          │
+│  6. PRÓXIMO MENSAJE                                                      │
+│     └─ Bot recibe `leadSummary` actualizado con contexto acumulado      │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Payload Webhook (Campos Relevantes)
+
+```typescript
+{
+  // ... otros campos ...
+  messageCount: 7,           // Total de mensajes en conversación
+  summaryThreshold: 5,       // Mínimo para generar resumen
+  leadSummary: "Cliente interesado en servicio premium. Preguntó precios...",
+}
+```
+
+### Endpoint /api/ai/respond
+
+```typescript
+// Request body (campos de summary)
+{
+  // ... campos obligatorios ...
+  suggestedSummary?: string   // Max 500 caracteres
+}
+
+// Validación en KAIRO (defense in depth)
+const SUMMARY_MIN_MESSAGES = 5;
+
+if (suggestedSummary && messageCount >= SUMMARY_MIN_MESSAGES) {
+  await prisma.lead.update({
+    where: { id: leadId },
+    data: {
+      summary: suggestedSummary.trim(),
+      summaryUpdatedAt: new Date(),
+    },
+  });
+}
+```
+
+### System Prompt n8n (Sección Summary)
+
+```
+{{ $('Webhook').item.json.body.leadSummary
+   ? 'CONTEXTO PREVIO DEL LEAD:\n' + $('Webhook').item.json.body.leadSummary + '\n'
+   : '' }}
+```
+
+### Beneficios
+
+1. **Conversaciones coherentes** - El bot "recuerda" todo lo hablado incluso después de 8+ mensajes
+2. **Costo optimizado** - Un resumen de 500 chars vs miles de chars de historial completo
+3. **Defense in depth** - KAIRO valida independientemente, no confía ciegamente en n8n
+4. **Contexto acumulativo** - El resumen se actualiza con cada interacción importante
+
+### Schema Prisma
+
+```prisma
+model Lead {
+  // ... otros campos ...
+  summary          String?    @db.Text
+  summaryUpdatedAt DateTime?
+}
+```
+
+---
+
 ## Referencias
 
 - [Supabase pgvector Docs](https://supabase.com/docs/guides/database/extensions/pgvector)
@@ -914,3 +1015,6 @@ System Prompt usa: `Fecha actual: {{ body.currentDate }}, hora: {{ body.currentT
 | 2026-02-02 | **Memoria de Conversación**: Webhook envía últimos 8 mensajes como `conversationHistory` a n8n | Adan (Claude) |
 | 2026-02-02 | **Fecha/Hora para Bot**: Webhook envía `currentDate` y `currentTime` (timezone Lima) | Adan (Claude) |
 | 2026-02-02 | **Fix n8n suggestedTemperature**: Nodo "Send to WhatsApp" ahora envía temperatura a KAIRO correctamente | Adan (Claude) |
+| 2026-02-02 | **Lead Summary (Fase 2.5)**: Webhook envía `leadSummary`, `messageCount`, `summaryThreshold` a n8n | Adan (Claude) |
+| 2026-02-02 | **/api/ai/respond**: Soporte para `suggestedSummary` con validación defense-in-depth (5+ msgs) | Adan (Claude) |
+| 2026-02-02 | **DATABASE-MIGRATIONS.md**: Nueva guía crítica para evitar pérdida de datos (prisma db push) | Adan (Claude) |
