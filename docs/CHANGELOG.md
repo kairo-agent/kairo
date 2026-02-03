@@ -3,6 +3,18 @@
 ## [0.7.9] - 2026-02-02
 
 ### Features
+- **Memoria de Conversación IA (8 mensajes)**
+  - El webhook ahora envía los últimos 8 mensajes como `conversationHistory` a n8n
+  - Formato compatible con OpenAI: `[{ role: 'user'|'assistant', content: string }]`
+  - El bot mantiene contexto de la conversación para respuestas coherentes
+  - n8n System Prompt incluye el historial formateado como "HISTORIAL DE CONVERSACIÓN"
+
+- **Fecha y Hora Actual para el Bot**
+  - Webhook envía `currentDate` y `currentTime` con timezone America/Lima
+  - Formato fecha: "domingo, 2 de febrero de 2026"
+  - Formato hora: "14:30"
+  - Resuelve el problema de que OpenAI no conoce la fecha actual (knowledge cutoff)
+
 - **Lead Temperature Scoring - Calificación automática de leads por IA**
   - Los agentes IA ahora califican automáticamente cada lead como HOT, WARM o COLD
   - Criterios de calificación **configurables por cliente** en KAIRO (no hardcodeados)
@@ -78,8 +90,12 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 ```
 
 ### Archivos Modificados
+- `src/app/api/webhooks/whatsapp/route.ts` - Historial de conversación + fecha/hora actual
 - `src/app/api/ai/respond/route.ts` - Soporte para `suggestedTemperature`
-- n8n workflow "KAIRO - Basic Response" - System Prompt + Prepare AI Response
+- n8n workflow "KAIRO - Basic Response":
+  - System Prompt con `conversationHistory`, `currentDate`, `currentTime`
+  - Nodo "Prepare AI Response" extrae `suggestedTemperature`
+  - Nodo "Send to WhatsApp" envía `suggestedTemperature` a KAIRO
 
 ### Validación
 - ✅ System Prompt usa `systemInstructions` de KAIRO (no hardcodeado)

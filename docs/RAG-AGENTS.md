@@ -1,9 +1,9 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** ✅ COMPLETADO - Fases 1-4 funcionales en producción + Lead Temperature Scoring
+> **Estado:** ✅ COMPLETADO - Fases 1-4 funcionales en producción + Lead Temperature Scoring + Memoria de Conversación
 > **Fecha de planificación:** 2026-01-25
 > **Última actualización:** 2026-02-02
-> **Logro:** Flujo RAG completo operativo + Calificación automática de leads HOT/WARM/COLD via systemInstructions
+> **Logro:** Flujo RAG completo operativo + Calificación HOT/WARM/COLD + Historial de 8 mensajes para contexto
 
 ---
 
@@ -785,6 +785,105 @@ Al finalizar tu respuesta, incluir en una línea aparte:
 
 ---
 
+## Memoria de Conversación (v0.7.9)
+
+### Concepto
+
+El sistema envía los últimos 8 mensajes de la conversación como contexto a OpenAI, permitiendo que el bot mantenga coherencia y recuerde lo que se habló anteriormente.
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    CONVERSATION MEMORY FLOW                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. MENSAJE ENTRANTE (WhatsApp → KAIRO)                                 │
+│     └─ Se guarda en BD el mensaje del lead                              │
+│                                                                          │
+│  2. OBTENER HISTORIAL (KAIRO Webhook)                                   │
+│     └─ Query: últimos 9 mensajes (ordenados por createdAt DESC)         │
+│     └─ Excluye el mensaje actual (slice(1))                             │
+│     └─ Invierte orden (más antiguo primero)                             │
+│     └─ Formatea para OpenAI: { role: 'user'|'assistant', content }      │
+│                                                                          │
+│  3. PAYLOAD A n8n                                                        │
+│     └─ conversationHistory: Array de hasta 8 mensajes                   │
+│     └─ historyCount: número de mensajes en historial                    │
+│                                                                          │
+│  4. n8n SYSTEM PROMPT                                                    │
+│     └─ Incluye historial como "HISTORIAL DE CONVERSACIÓN:"              │
+│     └─ Formato: "Lead: mensaje" / "Tú: respuesta"                       │
+│                                                                          │
+│  5. OpenAI RESPONDE                                                      │
+│     └─ Tiene contexto de los últimos 8 intercambios                     │
+│     └─ Puede referenciar temas ya discutidos                            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Código en Webhook (route.ts)
+
+```typescript
+// Obtener historial de conversación (últimos 8 mensajes)
+let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+
+if (lead.conversation?.id) {
+  const recentMessages = await prisma.message.findMany({
+    where: { conversationId: lead.conversation.id },
+    orderBy: { createdAt: 'desc' },
+    take: 9, // Tomamos 9 para excluir el mensaje actual
+    select: { content: true, sender: true, createdAt: true },
+  });
+
+  conversationHistory = recentMessages
+    .slice(1) // Excluir mensaje actual
+    .reverse() // Orden cronológico
+    .map((msg) => ({
+      role: msg.sender === 'lead' ? 'user' : 'assistant',
+      content: msg.content,
+    }));
+}
+```
+
+### System Prompt n8n (Sección Historial)
+
+```
+{{ $('Webhook').item.json.body.conversationHistory &&
+   $('Webhook').item.json.body.conversationHistory.length > 0
+   ? 'HISTORIAL DE CONVERSACIÓN:\n' +
+     $('Webhook').item.json.body.conversationHistory
+       .map(m => (m.role === 'user' ? 'Lead: ' : 'Tú: ') + m.content)
+       .join('\n') + '\n'
+   : '' }}
+```
+
+### Fecha y Hora Actual
+
+El bot también recibe la fecha y hora actual (timezone Lima):
+
+```typescript
+currentDate: new Date().toLocaleDateString('es-PE', {
+  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  timeZone: 'America/Lima',
+}),
+currentTime: new Date().toLocaleTimeString('es-PE', {
+  hour: '2-digit', minute: '2-digit',
+  timeZone: 'America/Lima',
+}),
+```
+
+System Prompt usa: `Fecha actual: {{ body.currentDate }}, hora: {{ body.currentTime }}`
+
+### Límite de 8 Mensajes
+
+- **¿Por qué 8?** Balance entre contexto suficiente y costo de tokens
+- **Incluye:** Mensajes del lead + respuestas del bot
+- **No incluye:** Mensajes de sistema, notas internas, etc.
+- **Escalable:** Puede ajustarse el límite según necesidad (variable `take: 9`)
+
+---
+
 ## Referencias
 
 - [Supabase pgvector Docs](https://supabase.com/docs/guides/database/extensions/pgvector)
@@ -812,3 +911,6 @@ Al finalizar tu respuesta, incluir en una línea aparte:
 | 2026-01-30 | **Fase 4 COMPLETADA**: Workflow n8n configurado, System Prompt usa `body.agentName` de KAIRO | Adan (Claude) |
 | 2026-01-30 | **Flujo RAG verificado end-to-end**: Bot responde como "Leo" con personalidad del conocimiento | Leo + Adan |
 | 2026-02-02 | **Lead Temperature Scoring (v0.7.9)**: IA califica leads HOT/WARM/COLD via systemInstructions configurable por agente | Leo + Adan |
+| 2026-02-02 | **Memoria de Conversación**: Webhook envía últimos 8 mensajes como `conversationHistory` a n8n | Adan (Claude) |
+| 2026-02-02 | **Fecha/Hora para Bot**: Webhook envía `currentDate` y `currentTime` (timezone Lima) | Adan (Claude) |
+| 2026-02-02 | **Fix n8n suggestedTemperature**: Nodo "Send to WhatsApp" ahora envía temperatura a KAIRO correctamente | Adan (Claude) |

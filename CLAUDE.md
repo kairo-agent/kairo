@@ -350,6 +350,8 @@ npm run lint     # Verificar código
 - [x] **Endpoint /api/ai/respond** - n8n guarda mensaje IA en BD + envía a WhatsApp en un solo paso
 - [x] **Historial de conversaciones IA** - Mensajes del bot se guardan correctamente con `sender: 'ai'`
 - [x] **OWASP Security Audit v1** - 13 headers, rate limiting, input validation, error handling, fail-closed patterns
+- [x] **Memoria de Conversación IA** - Bot recibe últimos 8 mensajes como contexto para respuestas coherentes
+- [x] **Fecha/Hora en Bot** - Webhook envía `currentDate` y `currentTime` (zona Lima) para que el bot sepa el día actual
 - [x] **Lead Temperature Scoring IA** - Calificación automática HOT/WARM/COLD via systemInstructions configurable por agente
 
 ### 🔄 Parcial
