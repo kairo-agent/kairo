@@ -21,7 +21,11 @@ interface AIRespondRequest {
   agentId?: string;
   agentName?: string;
   suggestedTemperature?: 'hot' | 'warm' | 'cold';
+  suggestedSummary?: string;
 }
+
+// Minimum messages required before accepting a summary (defense in depth)
+const SUMMARY_MIN_MESSAGES = 5;
 
 interface WhatsAppApiResponse {
   messaging_product: 'whatsapp';
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body: AIRespondRequest = await request.json();
-    const { conversationId, leadId, projectId, message, agentId, agentName, suggestedTemperature } = body;
+    const { conversationId, leadId, projectId, message, agentId, agentName, suggestedTemperature, suggestedSummary } = body;
 
     // ============================================
     // Rate Limiting (by project to prevent abuse)
@@ -179,6 +183,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Validate suggestedSummary if provided (max 500 characters)
+    if (suggestedSummary !== undefined && suggestedSummary !== null) {
+      if (typeof suggestedSummary !== 'string') {
+        return NextResponse.json(
+          { success: false, error: 'Invalid suggestedSummary (must be a string)' },
+          { status: 400 }
+        );
+      }
+      if (suggestedSummary.length > 500) {
+        return NextResponse.json(
+          { success: false, error: 'suggestedSummary too long (max 500 characters)' },
+          { status: 400 }
+        );
+      }
+    }
+
     console.log(`[AI Respond] Processing response for lead ${leadId}, agent: ${agentName || 'unknown'}`);
 
     // Get lead info for WhatsApp
@@ -231,6 +251,27 @@ export async function POST(request: NextRequest) {
         data: { temperature: suggestedTemperature },
       });
       console.log(`[AI Respond] Updated lead ${leadId} temperature to ${suggestedTemperature}`);
+    }
+
+    // === STEP 1.6: Update lead summary if suggested (defense in depth: verify message count) ===
+    if (suggestedSummary && suggestedSummary.trim().length > 0) {
+      // Count messages in conversation to enforce threshold (fail-closed)
+      const messageCount = await prisma.message.count({
+        where: { conversationId },
+      });
+
+      if (messageCount >= SUMMARY_MIN_MESSAGES) {
+        await prisma.lead.update({
+          where: { id: leadId },
+          data: {
+            summary: suggestedSummary.trim(),
+            summaryUpdatedAt: new Date(),
+          },
+        });
+        console.log(`[AI Respond] Updated lead ${leadId} summary (${messageCount} messages)`);
+      } else {
+        console.log(`[AI Respond] Skipped summary update for lead ${leadId} (${messageCount} < ${SUMMARY_MIN_MESSAGES} messages)`);
+      }
     }
 
     // === STEP 2: Send to WhatsApp ===
@@ -370,6 +411,7 @@ export async function GET() {
       agentId: 'string (optional) - AI agent ID',
       agentName: 'string (optional) - AI agent name for metadata',
       suggestedTemperature: 'string (optional) - Lead temperature suggestion from AI (hot, warm, cold)',
+      suggestedSummary: 'string (optional) - Lead summary suggestion from AI (max 500 chars, requires 5+ messages)',
     },
     response: {
       success: 'boolean',

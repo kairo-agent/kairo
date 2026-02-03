@@ -5,6 +5,7 @@
 | Documento | Descripción | Última actualización |
 |-----------|-------------|---------------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Stack, estructura y decisiones técnicas | 2026-01-24 |
+| [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) | ⛔ Guía crítica de migraciones BD (Prisma vs SQL) | 2026-02-02 |
 | [SECURITY.md](SECURITY.md) | Documentación de seguridad OWASP | 2026-01-31 |
 | [PERFORMANCE.md](PERFORMANCE.md) | Optimizaciones de rendimiento y caching | 2026-01-24 |
 | [RAG-AGENTS.md](RAG-AGENTS.md) | RAG para agentes IA con pgvector | 2026-01-29 |

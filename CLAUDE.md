@@ -13,6 +13,43 @@
 
 > **IMPORTANTE**: Esta información debe persistir entre sesiones y compactaciones de contexto. Adan siempre debe dirigirse al usuario como "Leo".
 
+---
+
+## ⛔ REGLA CRÍTICA: Protección de Base de Datos
+
+> **NUNCA usar `prisma db push` en este proyecto.**
+
+### Tablas NO manejadas por Prisma (creadas con SQL puro)
+
+| Tabla | Propósito | Archivo SQL |
+|-------|-----------|-------------|
+| `agent_knowledge` | RAG/pgvector para agentes IA | `scripts/setup-rag-complete.sql` |
+
+### ¿Por qué?
+
+`prisma db push` sincroniza el schema de Prisma con la BD y **ELIMINA tablas que no están en schema.prisma**. La tabla `agent_knowledge` usa `VECTOR(1536)` de pgvector, un tipo que Prisma no soporta nativamente.
+
+### Procedimiento correcto para cambios de schema:
+
+1. **Cambios en tablas Prisma** → Usar `prisma migrate dev` (genera migración SQL)
+2. **Cambios en tablas no-Prisma** → Ejecutar SQL directamente en Supabase SQL Editor
+3. **NUNCA** → `prisma db push` (elimina tablas no-Prisma)
+
+### Si accidentalmente se ejecutó `prisma db push`:
+
+1. Ejecutar `scripts/setup-rag-complete.sql` en Supabase SQL Editor
+2. Los datos de conocimiento de agentes **se pierden permanentemente**
+3. Los clientes deberán volver a subir su conocimiento
+
+### Impacto en producción si se elimina `agent_knowledge`:
+
+- ❌ RAG deja de funcionar
+- ❌ Todos los embeddings de conocimiento se pierden
+- ❌ Los agentes IA responden sin contexto personalizado
+- ❌ Clientes pierden horas de configuración
+
+---
+
 ## Quick Context
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
@@ -65,6 +102,7 @@ KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes d
 |-----------|-----------|
 | [/docs/INDEX.md](docs/INDEX.md) | Índice maestro de toda la documentación |
 | [/docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Decisiones técnicas y estructura |
+| [/docs/DATABASE-MIGRATIONS.md](docs/DATABASE-MIGRATIONS.md) | ⛔ Guía crítica de migraciones BD |
 | [/docs/COMPONENTS.md](docs/COMPONENTS.md) | Catálogo de componentes UI |
 | [/docs/DATA-MODELS.md](docs/DATA-MODELS.md) | Modelos de datos y schemas |
 | [/docs/I18N.md](docs/I18N.md) | Internacionalización, traducciones, moneda |

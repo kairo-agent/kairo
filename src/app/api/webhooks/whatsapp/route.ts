@@ -512,6 +512,7 @@ async function handleIncomingMessage(
         select: { id: true, name: true, systemInstructions: true },
       },
     },
+    // Note: summary is included by default (not using select, using include)
   });
 
   if (!lead) {
@@ -680,8 +681,14 @@ async function triggerN8nWorkflow(
   // Esto permite que OpenAI tenga contexto de la conversación
   // ============================================
   let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+  let totalMessageCount = 1; // Al menos 1 (el mensaje actual)
 
   if (lead.conversation?.id) {
+    // Get total message count for summary threshold decision in n8n
+    totalMessageCount = await prisma.message.count({
+      where: { conversationId: lead.conversation.id },
+    });
+
     const recentMessages = await prisma.message.findMany({
       where: { conversationId: lead.conversation.id },
       orderBy: { createdAt: 'desc' },
@@ -728,6 +735,16 @@ async function triggerN8nWorkflow(
     // ============================================
     conversationHistory,
     historyCount: conversationHistory.length,
+    // ============================================
+    // Total de mensajes en conversación (para threshold de resumen)
+    // n8n puede decidir si generar resumen cuando messageCount >= 5
+    // ============================================
+    messageCount: totalMessageCount,
+    summaryThreshold: 5, // Umbral mínimo para generar resumen
+    // ============================================
+    // Resumen del lead (generado por IA, puede ser null)
+    // ============================================
+    leadSummary: lead.summary || null,
     // ============================================
     // Fecha actual para que el bot sepa qué día es
     // ============================================
