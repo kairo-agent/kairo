@@ -29,11 +29,41 @@
 - **Nuevo:** `src/app/api/audio/transcribe/route.ts`
 - **Modificado:** `src/app/api/webhooks/whatsapp/route.ts` (+ mediaId en payload)
 
-### n8n Workflow Design
-- Documentado flujo de modificación para "KAIRO - Basic Response"
-- Switch node para detectar `messageType === 'audio'`
-- HTTP Request node para llamar `/api/audio/transcribe`
-- Merge paths para continuar flujo normal con texto transcrito
+### n8n Workflow Implementation (KAIRO - Basic Response)
+
+**Nuevos nodos agregados:**
+- `Check Message Type` - Switch node que detecta `messageType === 'audio'`
+- `Transcribe Audio` - HTTP Request a `/api/audio/transcribe`
+- `Prepare Transcription` - Set node que prepara el texto transcrito
+
+**Flujo de audio:**
+```
+Webhook → Check Message Type (audio) → Transcribe Audio → Prepare Transcription → RAG Search → Message a model → Send to WhatsApp
+```
+
+**Flujo de texto (sin cambios):**
+```
+Webhook → Check Message Type (Fallback) → Switch → RAG Search → Message a model → Send to WhatsApp
+```
+
+**User Prompt condicional:**
+```javascript
+{{ $('Webhook').item.json.body.messageType === 'audio'
+   ? $('Prepare Transcription').first().json.message
+   : $('Webhook').item.json.body.message }}
+```
+
+**Versiones publicadas:**
+| Versión | Descripción |
+|---------|-------------|
+| `10c17f00` | Conexión Prepare Transcription → RAG Search |
+| `bf169f02` | User Prompt usa texto transcrito |
+| `664c1037` | Fix expresión condicional para path de texto |
+
+### Verificación
+- ✅ Audio: Bot responde basado en contenido transcrito de notas de voz
+- ✅ Texto: Bot responde normalmente a mensajes de texto
+- ✅ RAG: Funciona en ambos paths (audio y texto)
 
 ---
 
