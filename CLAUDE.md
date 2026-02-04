@@ -54,7 +54,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.9 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**, **OWASP Security Audit v1 ✅**, **Lead Temperature Scoring IA ✅**
+**Estado actual:** v0.7.10 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS Y VERIFICADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**, **OWASP Security Audit v1 ✅**, **Lead Temperature Scoring IA ✅**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
