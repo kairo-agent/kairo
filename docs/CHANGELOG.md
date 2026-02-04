@@ -1,5 +1,42 @@
 # KAIRO - Changelog
 
+## [0.7.11] - 2026-02-04
+
+### Features
+- **Audio Transcription (OpenAI Whisper)**
+  - Nuevo endpoint `/api/audio/transcribe` para transcribir notas de voz de WhatsApp
+  - Integración con OpenAI Whisper API ($0.006/minuto de audio)
+  - Flujo: WhatsApp → KAIRO → Descargar audio → Whisper → Texto transcrito
+  - Soporta formatos: OGG/Opus (notas de voz), MP3, M4A, WAV, WebM
+  - Límite: 16MB por archivo (límite de WhatsApp)
+
+### API Changes
+- **Webhook WhatsApp** ahora envía `mediaId` a n8n para mensajes de audio/imagen/video
+  - Campo `mediaId` en payload de triggerN8nWorkflow
+  - Permite a n8n solicitar transcripción de audios
+
+### Security
+- Endpoint protegido con `X-N8N-Secret` header (mismo que otros endpoints n8n)
+- Rate limit: 30 req/min por proyecto
+- Validación estricta de mediaId y projectId
+- Fail-closed: rechaza si N8N_CALLBACK_SECRET no está configurado en producción
+
+### Requisitos por Proyecto
+- `whatsapp_access_token` - Para descargar audio de WhatsApp
+- `openai_api_key` - Para transcripción con Whisper
+
+### Archivos
+- **Nuevo:** `src/app/api/audio/transcribe/route.ts`
+- **Modificado:** `src/app/api/webhooks/whatsapp/route.ts` (+ mediaId en payload)
+
+### n8n Workflow Design
+- Documentado flujo de modificación para "KAIRO - Basic Response"
+- Switch node para detectar `messageType === 'audio'`
+- HTTP Request node para llamar `/api/audio/transcribe`
+- Merge paths para continuar flujo normal con texto transcrito
+
+---
+
 ## [0.7.10] - 2026-02-04
 
 ### Verificación

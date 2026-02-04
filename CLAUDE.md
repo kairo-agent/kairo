@@ -54,7 +54,7 @@
 
 KAIRO es un SaaS B2B que automatiza y gestiona leads atendidos por sub-agentes de IA (ventas, atención, calificación). Parte del ecosistema "Lead & Click" (nombre temporal).
 
-**Estado actual:** v0.7.10 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS Y VERIFICADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**, **OWASP Security Audit v1 ✅**, **Lead Temperature Scoring IA ✅**
+**Estado actual:** v0.7.11 - Backend 100%, Frontend 90% - Auth real, CRUD leads (R/U), WhatsApp webhook + multimedia, paginación server-side, React Query caching, Phase 3 Performance completada, **RAG Fases 1-4 COMPLETADAS Y VERIFICADAS ✅**, **n8n en Railway (producción)**, **Bot responde con nombre de KAIRO + personalidad RAG**, **Solo 1 agente activo por proyecto**, **Historial de conversaciones IA ✅**, **OWASP Security Audit v1 ✅**, **Lead Temperature Scoring IA ✅**, **Audio Transcription (Whisper) ✅**
 **Target:** Perú → Latam → USA
 **Repo:** https://github.com/kairo-agent/kairo
 **Producción:** https://app.kairoagent.com/
@@ -215,7 +215,8 @@ kairo-dashboard/
 │   ├── app/api/
 │   │   ├── auth/verify-admin/   # Verificar si usuario es super_admin
 │   │   ├── admin/stats/         # Estadísticas del panel admin
-│   │   ├── ai/respond/          # ⭐ NUEVO: Guardar respuesta IA + enviar a WhatsApp (usado por n8n)
+│   │   ├── ai/respond/          # Guardar respuesta IA + enviar a WhatsApp (usado por n8n)
+│   │   ├── audio/transcribe/    # ⭐ NUEVO: Transcripción de audio WhatsApp con Whisper
 │   │   ├── webhooks/
 │   │   │   ├── whatsapp/        # Recibir mensajes de WhatsApp Cloud API
 │   │   │   └── n8n/             # Webhook para eventos de conversación
@@ -924,6 +925,7 @@ ngrok http 3000
 | Endpoint | Protección | Variable de Entorno | Rate Limit | Guarda BD |
 |----------|------------|---------------------|------------|-----------|
 | `/api/ai/respond` | Shared Secret Header (timingSafeEqual) | `N8N_CALLBACK_SECRET` | 60 req/min por proyecto | ✅ Sí |
+| `/api/audio/transcribe` | Shared Secret Header (timingSafeEqual) | `N8N_CALLBACK_SECRET` | 30 req/min por proyecto | ❌ No |
 | `/api/whatsapp/send` | Supabase Auth + Project Membership | `BYPASS_AUTH_DEV` (dev only) | 100 req/min por proyecto | ❌ No |
 | `/api/messages/confirm` | Shared Secret Header (timingSafeEqual) | `N8N_CALLBACK_SECRET` | - | ✅ Actualiza |
 | `/api/webhooks/whatsapp` | HMAC-SHA256 Signature (timingSafeEqual) | `WHATSAPP_APP_SECRET` | 300 req/min por IP | ✅ Sí |
@@ -991,6 +993,58 @@ Body: {
 4. Actualiza mensaje con `whatsappMsgId` y `isDelivered: true`
 
 **Archivo:** `src/app/api/ai/respond/route.ts`
+
+### V0.5: `/api/audio/transcribe` - Transcripción de Audio (Whisper)
+
+**Propósito:** n8n llama este endpoint para transcribir notas de voz de WhatsApp usando OpenAI Whisper.
+
+**Por qué existe:** Permite que el bot IA entienda mensajes de audio enviados por leads.
+
+**Protección implementada:**
+- Header `X-N8N-Secret` con shared secret
+- Validación de mediaId y projectId
+- Rate limit: 30 req/min por proyecto
+- En desarrollo: bypass automático si `NODE_ENV === 'development'`
+
+```typescript
+// Request
+POST /api/audio/transcribe
+Headers: { "X-N8N-Secret": "<N8N_CALLBACK_SECRET>" }
+Body: {
+  "mediaId": "1234567890",      // WhatsApp media ID
+  "projectId": "proj_789",
+  "agentId": "agent_luna",      // opcional
+  "language": "es"              // opcional, ISO-639-1
+}
+
+// Response
+{
+  "success": true,
+  "transcription": "Hola, quiero saber los precios de los productos",
+  "metadata": {
+    "mediaId": "1234567890",
+    "projectId": "proj_789",
+    "mimeType": "audio/ogg",
+    "fileSize": 45678,
+    "language": "es",
+    "duration": 3500              // ms de procesamiento
+  }
+}
+```
+
+**Flujo interno:**
+1. Obtiene URL del audio desde WhatsApp Graph API
+2. Descarga el audio binario
+3. Envía a OpenAI Whisper para transcripción
+4. Retorna texto transcrito
+
+**Requisitos por proyecto:**
+- `whatsapp_access_token` - Para descargar audio de WhatsApp
+- `openai_api_key` - Para transcripción Whisper
+
+**Costo:** $0.006/minuto de audio
+
+**Archivo:** `src/app/api/audio/transcribe/route.ts`
 
 ### V1: `/api/whatsapp/send` - Autenticación de Usuario
 

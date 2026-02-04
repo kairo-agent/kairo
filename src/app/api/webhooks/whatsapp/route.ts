@@ -654,7 +654,9 @@ async function handleIncomingMessage(
 
   // Trigger n8n workflow for AI response if handoffMode is 'ai'
   if (lead.handoffMode === HandoffMode.ai) {
-    await triggerN8nWorkflow(projectId, lead, content, message.type);
+    // Extract mediaId for audio/image/video/document messages
+    const mediaId = (metadata.mediaId as string) || null;
+    await triggerN8nWorkflow(projectId, lead, content, message.type, mediaId);
   }
 }
 
@@ -675,7 +677,8 @@ async function triggerN8nWorkflow(
     assignedAgent?: { id: string; name: string; systemInstructions: string | null } | null;
   },
   messageContent: string,
-  messageType: string
+  messageType: string,
+  mediaId: string | null = null
 ) {
   // Get n8n webhook URL and project name
   const project = await prisma.project.findUnique({
@@ -738,6 +741,8 @@ async function triggerN8nWorkflow(
     mode: 'ai', // AI mode - n8n will generate response
     message: messageContent,
     messageType,
+    // Media ID for audio/image/video/document transcription
+    mediaId: mediaId || null,
     timestamp: new Date().toISOString(),
     // Agent info for RAG
     agentId: lead.assignedAgent?.id || null,

@@ -6,7 +6,8 @@
 |-----------|-------------|---------------------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Stack, estructura y decisiones técnicas | 2026-01-24 |
 | [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) | ⛔ Guía crítica de migraciones BD (Prisma vs SQL) | 2026-02-02 |
-| [SECURITY.md](SECURITY.md) | Documentación de seguridad OWASP | 2026-01-31 |
+| [SECURITY.md](SECURITY.md) | Documentacion de seguridad OWASP | 2026-01-31 |
+| [SECURITY-AUDIO-PROCESSING.md](SECURITY-AUDIO-PROCESSING.md) | Analisis de seguridad para procesamiento de audios | 2026-02-04 |
 | [PERFORMANCE.md](PERFORMANCE.md) | Optimizaciones de rendimiento y caching | 2026-01-24 |
 | [RAG-AGENTS.md](RAG-AGENTS.md) | RAG para agentes IA con pgvector | 2026-01-29 |
 | [N8N-SETUP.md](N8N-SETUP.md) | Configuración n8n para agentes IA (WhatsApp) | 2026-01-19 |
