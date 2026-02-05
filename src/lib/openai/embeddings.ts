@@ -8,7 +8,37 @@
  */
 
 import OpenAI from 'openai';
+import * as crypto from 'crypto';
 import { getProjectSecret } from '@/lib/actions/secrets';
+
+// Client cache: hash(apiKey) → { client, timestamp }
+interface CachedClient {
+  client: OpenAI;
+  timestamp: number;
+}
+const CLIENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const clientCache = new Map<string, CachedClient>();
+
+function getOrCreateClient(apiKey: string): OpenAI {
+  const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex').substring(0, 16);
+  const cached = clientCache.get(keyHash);
+
+  if (cached && (Date.now() - cached.timestamp) < CLIENT_CACHE_TTL) {
+    return cached.client;
+  }
+
+  // Cleanup expired entries if cache is large
+  if (clientCache.size > 20) {
+    const now = Date.now();
+    for (const [k, v] of clientCache.entries()) {
+      if (now - v.timestamp > CLIENT_CACHE_TTL) clientCache.delete(k);
+    }
+  }
+
+  const client = new OpenAI({ apiKey });
+  clientCache.set(keyHash, { client, timestamp: Date.now() });
+  return client;
+}
 
 // OpenAI embedding model - 1536 dimensions
 export const EMBEDDING_MODEL = 'text-embedding-3-small';
@@ -31,7 +61,7 @@ export async function generateEmbedding(
     throw new Error('OpenAI API key not configured for this project');
   }
 
-  const openai = new OpenAI({ apiKey });
+  const openai = getOrCreateClient(apiKey);
 
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
@@ -63,7 +93,7 @@ export async function generateEmbeddings(
     throw new Error('OpenAI API key not configured for this project');
   }
 
-  const openai = new OpenAI({ apiKey });
+  const openai = getOrCreateClient(apiKey);
 
   // OpenAI allows up to 2048 inputs per request
   const batchSize = 100;

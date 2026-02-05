@@ -122,6 +122,22 @@ async function getRedisClient() {
   return null;
 }
 
+/**
+ * Atomic Lua script for rate limiting.
+ * Executes INCR + PEXPIRE + PTTL in a single atomic operation,
+ * eliminating the race condition where concurrent requests could
+ * slip through between separate INCR and PEXPIRE calls, or where
+ * a failed PEXPIRE after INCR could cause permanent key lockout.
+ */
+const RATE_LIMIT_LUA_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[1]))
+end
+local ttl = redis.call('PTTL', KEYS[1])
+return {count, ttl}
+`;
+
 async function checkRateLimitRedis(
   key: string,
   config: RateLimitConfig
@@ -136,18 +152,30 @@ async function checkRateLimitRedis(
     const now = Date.now();
     const windowKey = `ratelimit:${key}`;
 
-    // Use Redis INCR with EXPIRE for atomic rate limiting
+    // Atomic rate limiting via Lua script (INCR + PEXPIRE + PTTL in one call)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const redisTyped = redis as any;
-    const count = await redisTyped.incr(windowKey);
+    const result = await redisTyped.eval(
+      RATE_LIMIT_LUA_SCRIPT,
+      [windowKey],
+      [config.windowMs]
+    );
 
-    // Set expiry on first request in window
-    if (count === 1) {
-      await redisTyped.pexpire(windowKey, config.windowMs);
+    // Validate result is the expected [count, ttl] array
+    if (!Array.isArray(result) || result.length < 2) {
+      console.error('[RateLimit] Unexpected Redis EVAL result:', result);
+      return checkRateLimitMemory(key, config);
     }
 
-    // Get TTL for resetAt
-    const ttl = await redisTyped.pttl(windowKey);
+    const count = Number(result[0]);
+    const ttl = Number(result[1]);
+
+    // Guard against NaN from unexpected return types
+    if (isNaN(count) || isNaN(ttl)) {
+      console.error('[RateLimit] Non-numeric Redis EVAL result:', result);
+      return checkRateLimitMemory(key, config);
+    }
+
     const resetAt = now + (ttl > 0 ? ttl : config.windowMs);
 
     if (count > config.maxRequests) {

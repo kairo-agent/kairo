@@ -329,9 +329,13 @@ async function processMessagesChange(value: WhatsAppValue, businessAccountId: st
   }
 
   // Process status updates (sent, delivered, read)
+  // Fire-and-forget: don't block webhook response for status updates
+  // WhatsApp sends status events repeatedly, so missed updates will be retried by Meta
   if (statuses) {
     for (const status of statuses) {
-      await handleStatusUpdate(project.id, status);
+      handleStatusUpdate(project.id, status).catch((err) =>
+        console.error('[WhatsApp Webhook] Status update error:', err)
+      );
     }
   }
 }
@@ -599,18 +603,20 @@ async function handleIncomingMessage(
       conversationId = conversation.id;
     }
 
-    await prisma.message.create({
-      data: {
-        conversationId,
-        sender: MessageSender.lead,
-        content,
-        whatsappMsgId: message.id,
-        metadata: metadata as Prisma.InputJsonValue,
-      },
-    });
-
     // If lead has no assigned agent, assign the first active agent
+    // This path requires sequential operations (find agent, then create message + update lead)
     if (!lead.assignedAgent) {
+      // Message creation can proceed while we find the agent
+      const messageCreatePromise = prisma.message.create({
+        data: {
+          conversationId,
+          sender: MessageSender.lead,
+          content,
+          whatsappMsgId: message.id,
+          metadata: metadata as Prisma.InputJsonValue,
+        },
+      });
+
       const defaultAgent = await prisma.aIAgent.findFirst({
         where: { projectId, isActive: true },
         select: { id: true, name: true, systemInstructions: true },
@@ -618,29 +624,46 @@ async function handleIncomingMessage(
       });
 
       if (defaultAgent) {
-        await prisma.lead.update({
-          where: { id: lead.id },
-          data: {
-            lastContactAt: new Date(),
-            assignedAgentId: defaultAgent.id,
-          },
-        });
+        await Promise.all([
+          messageCreatePromise,
+          prisma.lead.update({
+            where: { id: lead.id },
+            data: {
+              lastContactAt: new Date(),
+              assignedAgentId: defaultAgent.id,
+            },
+          }),
+        ]);
         // Update lead object for n8n trigger
         lead.assignedAgent = defaultAgent;
         console.log(`✅ Assigned agent ${defaultAgent.name} to existing lead: ${lead.id}`);
       } else {
-        // Just update last contact
-        await prisma.lead.update({
-          where: { id: lead.id },
-          data: { lastContactAt: new Date() },
-        });
+        await Promise.all([
+          messageCreatePromise,
+          prisma.lead.update({
+            where: { id: lead.id },
+            data: { lastContactAt: new Date() },
+          }),
+        ]);
       }
     } else {
-      // Update last contact
-      await prisma.lead.update({
-        where: { id: lead.id },
-        data: { lastContactAt: new Date() },
-      });
+      // Most common path: lead has agent assigned
+      // Parallel: create message + update lastContactAt (independent operations)
+      await Promise.all([
+        prisma.message.create({
+          data: {
+            conversationId,
+            sender: MessageSender.lead,
+            content,
+            whatsappMsgId: message.id,
+            metadata: metadata as Prisma.InputJsonValue,
+          },
+        }),
+        prisma.lead.update({
+          where: { id: lead.id },
+          data: { lastContactAt: new Date() },
+        }),
+      ]);
     }
 
     console.log(`✅ Message added to lead: ${lead.id}`);
@@ -681,6 +704,10 @@ async function triggerN8nWorkflow(
   mediaId: string | null = null
 ) {
   // Get n8n webhook URL and project name
+  // FUTURE OPTIMIZATION: This query could be fetched in handleIncomingMessage
+  // in parallel with message/lead operations, then passed as a parameter.
+  // Impact: ~10-30ms saved per AI-mode message. Low priority since n8n call
+  // itself takes 200-500ms.
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { n8nWebhookUrl: true, name: true },
@@ -805,41 +832,27 @@ async function triggerN8nWorkflow(
 
 // ============================================
 // Handle Status Update
-// Includes retry logic to handle race condition when status arrives
-// before /api/ai/respond finishes saving the whatsappMsgId
+// Single lookup - no retry loop needed since this runs fire-and-forget
+// and WhatsApp sends status updates repeatedly (sent → delivered → read)
+// If the message isn't saved yet, the next status event will pick it up
 // ============================================
 
 async function handleStatusUpdate(projectId: string, status: WhatsAppStatus) {
-  // Retry configuration for race condition handling
-  const maxRetries = 3;
-  const retryDelays = [1000, 2000, 3000]; // 1s, 2s, 3s delays
-
-  let message = null;
-  let attempt = 0;
-
-  // Retry loop to handle race condition
-  while (!message && attempt < maxRetries) {
-    message = await prisma.message.findFirst({
-      where: {
-        whatsappMsgId: status.id,
-      },
-    });
-
-    if (!message && attempt < maxRetries - 1) {
-      const delay = retryDelays[attempt];
-      console.log(`⏳ Message not found for ${status.id}, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-    }
-
-    attempt++;
-  }
+  const message = await prisma.message.findFirst({
+    where: {
+      whatsappMsgId: status.id,
+    },
+  });
 
   if (!message) {
-    console.log(`⚠️ Message not found for whatsappMsgId after ${maxRetries} retries: ${status.id}`);
+    // Message might not be saved yet (race condition with /api/ai/respond)
+    // This is acceptable - WhatsApp sends status updates repeatedly
+    // and the status will be picked up on the next delivery
+    console.log(`[WhatsApp Webhook] Message not found for status ${status.id} - will be updated on next status event`);
     return;
   }
 
-  console.log(`🔍 Found message ${message.id} for status update after ${attempt} attempt(s)`);
+  console.log(`🔍 Found message ${message.id} for status update: ${status.status}`);
 
   const now = new Date();
   const existingMetadata = (message.metadata as Record<string, unknown>) || {};
