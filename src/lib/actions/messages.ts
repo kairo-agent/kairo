@@ -6,7 +6,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from './auth';
+import { getCurrentUser, verifyAuth, verifyProjectAccess } from './auth';
 import { getProjectSecret } from './secrets';
 import type { Message, Conversation } from '@prisma/client';
 import { MessageSender, HandoffMode } from '@prisma/client';
@@ -147,14 +147,12 @@ export async function getLeadConversation(
   }
 ): Promise<PaginatedConversation | null> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return null;
     }
 
-    // Verify user has access to the lead's project
-    // Uses optimized select - only fetches projectId needed for permission check
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: leadSelectForAccessCheck,
@@ -164,13 +162,9 @@ export async function getLeadConversation(
       return null;
     }
 
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return null;
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return null;
     }
 
     // Get conversation first (without messages)
@@ -193,23 +187,22 @@ export async function getLeadConversation(
     // Calculate limit (max 100, default 50)
     const limit = Math.min(options?.limit || 50, 100);
 
-    // Get total count for pagination info
-    const totalCount = await prisma.message.count({
-      where: { conversationId: conversation.id },
-    });
-
-    // Get messages with pagination (most recent first, then reverse for chronological order)
-    // Uses optimized select to exclude large fields not needed for chat display
-    const messages = await prisma.message.findMany({
-      where: { conversationId: conversation.id },
-      select: messageSelectForChat,
-      orderBy: { createdAt: 'desc' },  // Most recent first for cursor pagination
-      take: limit + 1,  // +1 to check if there are more
-      ...(options?.cursor && {
-        cursor: { id: options.cursor },
-        skip: 1,  // Exclude the cursor message
+    // PERFORMANCE (P2-3): Parallel count + messages query (~30-80ms savings)
+    const [totalCount, messages] = await Promise.all([
+      prisma.message.count({
+        where: { conversationId: conversation.id },
       }),
-    });
+      prisma.message.findMany({
+        where: { conversationId: conversation.id },
+        select: messageSelectForChat,
+        orderBy: { createdAt: 'desc' },
+        take: limit + 1,
+        ...(options?.cursor && {
+          cursor: { id: options.cursor },
+          skip: 1,
+        }),
+      }),
+    ]);
 
     // Check if there are more messages
     const hasMore = messages.length > limit;
@@ -254,13 +247,12 @@ export async function getLeadProjectId(
   leadId: string
 ): Promise<{ success: boolean; projectId?: string; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    // Uses optimized select - only fetches projectId for access check
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: leadSelectForAccessCheck,
@@ -270,14 +262,9 @@ export async function getLeadProjectId(
       return { success: false, error: 'Lead no encontrado' };
     }
 
-    // Check user has access
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso a este lead' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
     }
 
     return { success: true, projectId: lead.projectId };
@@ -300,7 +287,7 @@ export async function sendMessage(
   caption?: string
 ): Promise<{ success: boolean; message?: MessageWithSender; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
@@ -311,8 +298,6 @@ export async function sendMessage(
       return { success: false, error: 'El mensaje no puede estar vacío' };
     }
 
-    // Get lead with project info
-    // Uses optimized select - only fetches fields needed for message delivery
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: leadSelectForSendMessage,
@@ -322,14 +307,9 @@ export async function sendMessage(
       return { success: false, error: 'Lead no encontrado' };
     }
 
-    // Check user has access
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso a este lead' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
     }
 
     // Ensure conversation exists
@@ -426,21 +406,21 @@ export async function sendMessage(
       }
     }
 
-    // Update lead's lastContactAt
-    await prisma.lead.update({
-      where: { id: leadId },
-      data: { lastContactAt: new Date() },
-    });
-
-    // Log activity
-    await prisma.activity.create({
-      data: {
-        leadId,
-        type: 'message_sent',
-        description: 'Mensaje enviado por vendedor',
-        performedBy: user.id,
-      },
-    });
+    // PERFORMANCE (P2-5): Parallel post-send operations (~100-200ms savings)
+    await Promise.all([
+      prisma.lead.update({
+        where: { id: leadId },
+        data: { lastContactAt: new Date() },
+      }),
+      prisma.activity.create({
+        data: {
+          leadId,
+          type: 'message_sent',
+          description: 'Mensaje enviado por vendedor',
+          performedBy: user.id,
+        },
+      }),
+    ]);
 
     return { success: true, message };
   } catch (error) {
@@ -458,14 +438,12 @@ export async function toggleHandoffMode(
   mode: 'ai' | 'human'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    // Get lead with project info
-    // Uses optimized select - only fetches fields needed for handoff toggle
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: leadSelectForHandoffToggle,
@@ -475,14 +453,9 @@ export async function toggleHandoffMode(
       return { success: false, error: 'Lead no encontrado' };
     }
 
-    // Check user has access
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso a este lead' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
     }
 
     // Update handoff mode
@@ -543,21 +516,20 @@ export async function getLeadHandoffStatus(
   leadId: string
 ): Promise<{ mode: 'ai' | 'human'; handoffAt: Date | null; handoffUser: string | null } | null> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return null;
     }
 
-    // Optimized select - only fetches fields needed for handoff status display
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: {
-        projectId: true,      // Required for access check
-        handoffMode: true,    // Status to return
-        handoffAt: true,      // Timestamp to return
+        projectId: true,
+        handoffMode: true,
+        handoffAt: true,
         handoffUser: {
-          select: { firstName: true, lastName: true },  // User name only
+          select: { firstName: true, lastName: true },
         },
       },
     });
@@ -566,14 +538,9 @@ export async function getLeadHandoffStatus(
       return null;
     }
 
-    // Check access (projectId included in select above)
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return null;
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return null;
     }
 
     return {
@@ -597,23 +564,21 @@ export async function markMessagesAsRead(
   leadId: string
 ): Promise<{ success: boolean; error?: string; whatsappSent?: number }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    // Get conversation with lead info
-    // Optimized select - only fetches fields needed for read receipt logic
     const conversation = await prisma.conversation.findUnique({
       where: { leadId },
       select: {
-        id: true,              // Conversation ID for message queries
+        id: true,
         lead: {
           select: {
-            id: true,          // Lead ID (for logging)
-            projectId: true,   // Required for access check and WhatsApp credentials
-            handoffMode: true, // Determines if WhatsApp receipts should be sent
+            id: true,
+            projectId: true,
+            handoffMode: true,
           },
         },
       },
@@ -625,14 +590,9 @@ export async function markMessagesAsRead(
 
     const projectId = conversation.lead.projectId;
 
-    // Check access
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso' };
     }
 
     // Get unread messages from lead that have WhatsApp IDs

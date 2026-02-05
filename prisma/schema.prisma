@@ -160,6 +160,8 @@ model Lead {
   // Composite indexes for optimized filtered queries (Phase 4 optimization)
   @@index([projectId, status])
   @@index([projectId, temperature])
+  // PERFORMANCE (P2-7): Webhook lead lookup by project + whatsappId
+  @@index([projectId, whatsappId])
   @@map("leads")
 }
 

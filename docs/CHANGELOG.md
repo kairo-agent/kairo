@@ -1,5 +1,50 @@
 # KAIRO - Changelog
 
+## [0.7.12] - 2026-02-04 (Pendiente)
+
+### Performance Analysis - Auditoría Completa
+
+Análisis de rendimiento con revisión de seguridad. Todas las propuestas aprobadas por Security Auditor excepto donde se indica.
+
+#### Frontend (Prioridad 1 - Implementar primero)
+
+| ID | Optimización | Ahorro | Seguridad | Archivos |
+|----|-------------|--------|-----------|----------|
+| P2-2 | Consolidar 4 server actions en `getLeadPanelData()` | 300-800ms | APROBADO | `LeadDetailPanel.tsx`, nuevo action |
+| P2-1 | Auth check ligero `verifyAuth()` sin cargar membresías | 50-150ms/action | APROBADO CON CONDICIONES | `auth.ts` |
+| P2-6 | Deduplicar auth en queries paralelas de leads page | 50-100ms | APROBADO | `leads/page.tsx` |
+| P2-5 | Paralelizar operaciones post-send (Promise.all) | 100-200ms | APROBADO | `messages.ts` |
+| P2-3 | Query combinada count + messages (eliminar count separado) | 30-80ms | APROBADO | `messages.ts` |
+| P2-7 | Índice compuesto `leads(projectId, whatsappId)` | Variable | APROBADO | Prisma migration |
+| P2-4 | Batch read receipts WhatsApp | Variable | APROBADO | `messages.ts` |
+
+> **Nota:** P2-1, P2-2 y P2-6 deben implementarse como unidad para evitar patrones de auth inconsistentes.
+
+#### Backend (Prioridad 2)
+
+| ID | Optimización | Ahorro | Seguridad | Archivos |
+|----|-------------|--------|-----------|----------|
+| P1-7 | Fix race condition en rate limiting Redis | 20-100ms | **URGENTE** | `rate-limit.ts` |
+| P1-6 | Eliminar retry loop de status updates | 0-6000ms | APROBADO | `webhooks/whatsapp/route.ts` |
+| P1-4 | Paralelizar queries secuenciales en webhook | 100-200ms | APROBADO | `webhooks/whatsapp/route.ts` |
+| P1-5 | Fetch paralelo en audio transcription | ~500ms | APROBADO | `audio/transcribe/route.ts` |
+| P1-2 | Cache OpenAI client instance (TTL 5min) | 300-500ms | APROBADO CON CONDICIONES | `openai/embeddings.ts` |
+| P1-8 | Consolidar fetching de credenciales WhatsApp | 200-400ms | APROBADO CON CONDICIONES | `webhooks/whatsapp/route.ts` |
+| P1-1 | Phone number hashing SHA-256 para O(1) lookup | 50-200ms | APROBADO CON CONDICIONES | `secrets.ts`, webhook |
+| P1-3 | Fire-and-forget audit logs | 250-1050ms | **RECHAZADO** | Investigar latencia de BD |
+
+#### Estimado Total
+- **Frontend:** 500-1200ms menos en interacciones UI
+- **Backend:** 2-5 segundos menos por request WhatsApp
+
+#### Condiciones de Seguridad
+- P1-3 RECHAZADO: Integridad de audit logs para secrets es obligatoria en SaaS B2B
+- P1-7 debe resolverse ANTES de P1-1 (race condition existente)
+- P1-8: No persistir secrets desencriptados en logs ni objetos serializables
+- P2-1: `verifyAuth()` debe validar sesión completamente, no solo existencia
+
+---
+
 ## [0.7.11] - 2026-02-04
 
 ### Features

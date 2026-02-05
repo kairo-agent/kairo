@@ -6,7 +6,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser } from './auth';
+import { getCurrentUser, verifyAuth, verifyProjectAccess } from './auth';
 import { validatePhone, normalizePhone } from '@/lib/utils';
 import type { Lead as PrismaLead, AIAgent, Prisma, Note, Activity, User, LeadStatus as PrismaLeadStatus } from '@prisma/client';
 import type {
@@ -497,16 +497,12 @@ export async function updateLeadStatus(
   newStatus: PrismaLeadStatus
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    // Verify the lead exists and user has access
-    // OPTIMIZATION: Partial select - only fetch fields needed for access check and status change
-    // projectId: REQUIRED for access verification (Security Auditor approved)
-    // status: needed to log the status change in activity
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { projectId: true, status: true },
@@ -516,14 +512,9 @@ export async function updateLeadStatus(
       return { success: false, error: 'Lead no encontrado' };
     }
 
-    // Check user has access to this project
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso a este lead' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
     }
 
     const oldStatus = lead.status;
@@ -571,15 +562,12 @@ export async function updateLead(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    // Verify the lead exists and user has access
-    // OPTIMIZATION: Partial select - only projectId needed for access verification
-    // projectId: REQUIRED for access verification (Security Auditor approved)
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { projectId: true },
@@ -589,14 +577,9 @@ export async function updateLead(
       return { success: false, error: 'Lead no encontrado' };
     }
 
-    // Check user has access to this project
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso a este lead' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
     }
 
     // Validate and normalize phone if provided
@@ -685,17 +668,60 @@ export async function getAIAgents(projectId?: string) {
 // NOTES
 // ============================================
 
+/**
+ * PERFORMANCE (P2-2): Consolidated panel data - single auth check for notes + activities.
+ * Replaces separate getLeadNotes() + getLeadActivities() calls on panel open.
+ * Saves ~1 auth check + 1 lead lookup + 1 access check (~100-300ms).
+ */
+export async function getLeadPanelData(leadId: string): Promise<{
+  notes: NoteWithAuthor[];
+  activities: ActivityWithPerformer[];
+} | null> {
+  try {
+    const user = await verifyAuth();
+    if (!user) return null;
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { projectId: true },
+    });
+    if (!lead) return null;
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) return null;
+
+    const [notes, activities] = await Promise.all([
+      prisma.note.findMany({
+        where: { leadId },
+        include: {
+          author: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.activity.findMany({
+        where: { leadId },
+        include: {
+          performer: { select: { id: true, firstName: true, lastName: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    return { notes, activities };
+  } catch (error) {
+    console.error('Error fetching lead panel data:', error);
+    return null;
+  }
+}
+
 export async function getLeadNotes(leadId: string): Promise<NoteWithAuthor[]> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return [];
     }
 
-    // Verify user has access to the lead's project
-    // OPTIMIZATION: Partial select - only projectId needed for access verification
-    // projectId: REQUIRED for access verification (Security Auditor approved)
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { projectId: true },
@@ -705,13 +731,9 @@ export async function getLeadNotes(leadId: string): Promise<NoteWithAuthor[]> {
       return [];
     }
 
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return [];
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return [];
     }
 
     const notes = await prisma.note.findMany({
@@ -736,7 +758,7 @@ export async function addLeadNote(
   content: string
 ): Promise<{ success: boolean; note?: NoteWithAuthor; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
@@ -746,9 +768,6 @@ export async function addLeadNote(
       return { success: false, error: 'El contenido no puede estar vacío' };
     }
 
-    // Verify lead exists and user has access
-    // OPTIMIZATION: Partial select - only projectId needed for access verification
-    // projectId: REQUIRED for access verification (Security Auditor approved)
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { projectId: true },
@@ -758,13 +777,9 @@ export async function addLeadNote(
       return { success: false, error: 'Lead no encontrado' };
     }
 
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso a este lead' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
     }
 
     // Create note and activity in a transaction
@@ -804,15 +819,12 @@ export async function addLeadNote(
 
 export async function getLeadActivities(leadId: string): Promise<ActivityWithPerformer[]> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return [];
     }
 
-    // Verify user has access to the lead's project
-    // OPTIMIZATION: Partial select - only projectId needed for access verification
-    // projectId: REQUIRED for access verification (Security Auditor approved)
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { projectId: true },
@@ -822,13 +834,9 @@ export async function getLeadActivities(leadId: string): Promise<ActivityWithPer
       return [];
     }
 
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return [];
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return [];
     }
 
     const activities = await prisma.activity.findMany({
@@ -855,15 +863,12 @@ export async function logLeadActivity(
   metadata?: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    // Verify lead exists and user has access
-    // OPTIMIZATION: Partial select - only projectId needed for access verification
-    // projectId: REQUIRED for access verification (Security Auditor approved)
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       select: { projectId: true },
@@ -873,13 +878,9 @@ export async function logLeadActivity(
       return { success: false, error: 'Lead no encontrado' };
     }
 
-    if (user.systemRole !== 'super_admin') {
-      const hasAccess = user.projectMemberships?.some(
-        (m) => m.projectId === lead.projectId
-      );
-      if (!hasAccess) {
-        return { success: false, error: 'Sin acceso a este lead' };
-      }
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
     }
 
     await prisma.activity.create({

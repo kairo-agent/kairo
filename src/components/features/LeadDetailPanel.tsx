@@ -17,6 +17,7 @@ import {
   getLeadNotes,
   addLeadNote,
   getLeadActivities,
+  getLeadPanelData,
   type NoteWithAuthor,
   type ActivityWithPerformer,
 } from '@/lib/actions/leads';
@@ -204,7 +205,7 @@ export function LeadDetailPanel({
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // Load notes and activities when lead changes
+  // PERFORMANCE (P2-2): Single consolidated call instead of 2 separate server actions
   const loadNotesAndActivities = useCallback(async () => {
     if (!lead?.id) return;
 
@@ -212,14 +213,13 @@ export function LeadDetailPanel({
     setIsLoadingActivities(true);
 
     try {
-      const [notesData, activitiesData] = await Promise.all([
-        getLeadNotes(lead.id),
-        getLeadActivities(lead.id),
-      ]);
-      setNotes(notesData);
-      setActivities(activitiesData);
+      const panelData = await getLeadPanelData(lead.id);
+      if (panelData) {
+        setNotes(panelData.notes);
+        setActivities(panelData.activities);
+      }
     } catch (error) {
-      console.error('Error loading notes and activities:', error);
+      console.error('Error loading panel data:', error);
     } finally {
       setIsLoadingNotes(false);
       setIsLoadingActivities(false);
