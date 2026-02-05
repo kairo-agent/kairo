@@ -1,43 +1,56 @@
-# KAIRO - Índice de Documentación
+# KAIRO - Indice de Documentacion
 
-## Documentos Principales
+## Documentos por Tema
 
-| Documento | Descripción | Última actualización |
-|-----------|-------------|---------------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Stack, estructura y decisiones técnicas | 2026-01-24 |
-| [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) | ⛔ Guía crítica de migraciones BD (Prisma vs SQL) | 2026-02-02 |
-| [SECURITY.md](SECURITY.md) | Documentacion de seguridad OWASP | 2026-01-31 |
-| [SECURITY-AUDIO-PROCESSING.md](SECURITY-AUDIO-PROCESSING.md) | Analisis de seguridad para procesamiento de audios | 2026-02-04 |
-| [PERFORMANCE.md](PERFORMANCE.md) | Optimizaciones de rendimiento y caching | 2026-01-24 |
-| [RAG-AGENTS.md](RAG-AGENTS.md) | RAG para agentes IA con pgvector | 2026-01-29 |
-| [N8N-SETUP.md](N8N-SETUP.md) | Configuración n8n para agentes IA (WhatsApp) | 2026-01-19 |
-| [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) | Sistema de envío de archivos multimedia a WhatsApp | 2026-01-24 |
-| [COMPONENTS.md](COMPONENTS.md) | Catálogo de componentes UI | 2024-12-31 |
-| [DATA-MODELS.md](DATA-MODELS.md) | Modelos de datos y tipos | 2024-12-31 |
-| [I18N.md](I18N.md) | Internacionalización, traducciones, moneda | 2026-01-11 |
-| [RULES.md](RULES.md) | Reglas obligatorias del proyecto | 2024-12-31 |
-| [CHANGELOG.md](CHANGELOG.md) | Historial de cambios | 2026-01-31 |
+### Arquitectura y Decisiones
+| Documento | Contenido clave |
+|-----------|----------------|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Multi-tenant (Org > Project > Lead), roles RBAC, Project Secrets (AES-256-GCM), decisiones tecnicas, n8n hybrid architecture |
+| [DATA-MODELS.md](DATA-MODELS.md) | Modelos Prisma, enums, tipos TypeScript |
+| [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) | CRITICO: Prisma migrate vs SQL directo, proteccion agent_knowledge |
 
-## Brandbook
+### Seguridad
+| Documento | Contenido clave |
+|-----------|----------------|
+| [SECURITY.md](SECURITY.md) | OWASP audit, todos los endpoints API (protecciones, rate limits, env vars), fail-closed patterns, timing attacks |
+| [SECURITY-AUDIO-PROCESSING.md](SECURITY-AUDIO-PROCESSING.md) | Analisis de seguridad para procesamiento de audio Whisper |
 
-| Documento | Descripción |
-|-----------|-------------|
-| [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) | Identidad visual, colores, tipografía |
+### Integraciones
+| Documento | Contenido clave |
+|-----------|----------------|
+| [N8N-SETUP.md](N8N-SETUP.md) | Railway deploy, workflows, WhatsApp Cloud API integration, webhook flow, message types, ngrok dev setup |
+| [RAG-AGENTS.md](RAG-AGENTS.md) | pgvector, embeddings OpenAI, search functions, knowledge management |
+| [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) | Supabase Storage, RLS policies, image compression, cleanup cron, n8n media sending |
 
-## Quick Links
+### Frontend y UI
+| Documento | Contenido clave |
+|-----------|----------------|
+| [COMPONENTS.md](COMPONENTS.md) | Catalogo de componentes UI (Button, Modal, PhoneInput, etc.) |
+| [I18N.md](I18N.md) | next-intl config, useTranslations, namespaces, Link de @/i18n/routing |
+| [RULES.md](RULES.md) | 14 reglas obligatorias (Playwright validation, i18n Link, PhoneInput, etc.) |
 
-- **Colores:** Midnight Blue `#0B1220`, Electric Cyan `#00E5FF`
-- **Font:** Inter (400, 500, 600, 700)
-- **Theme default:** Light
+### Performance y Operaciones
+| Documento | Contenido clave |
+|-----------|----------------|
+| [PERFORMANCE.md](PERFORMANCE.md) | Phases 1-3 completadas, React cache(), cursor pagination, React Query |
+| [CHANGELOG.md](CHANGELOG.md) | Historial completo, estado MVP, business decisions, v0.7.12 plan |
 
-## Navegación Rápida por Feature
+### Brand
+| Documento | Contenido clave |
+|-----------|----------------|
+| [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) | Colores (#0B1220, #00E5FF), tipografia Inter, identidad visual |
 
-### MVP - Gestión de Leads
-- Login → `src/app/(auth)/login/`
-- Dashboard → `src/app/(dashboard)/`
-- Leads → `src/app/(dashboard)/leads/`
+## Busqueda Rapida
 
-### Componentes Clave
-- Modal → `src/components/ui/Modal.tsx`
-- LeadCard → `src/components/features/LeadCard.tsx`
-- ThemeProvider → `src/contexts/ThemeContext.tsx`
+| Necesito saber sobre... | Ir a... |
+|-------------------------|---------|
+| Endpoints API y seguridad | [SECURITY.md](SECURITY.md) |
+| Variables de entorno | [SECURITY.md](SECURITY.md) seccion "Obligatorias" |
+| WhatsApp webhook flow | [N8N-SETUP.md](N8N-SETUP.md) seccion "WhatsApp" |
+| Cómo funciona el RAG | [RAG-AGENTS.md](RAG-AGENTS.md) |
+| Roles y permisos | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Multi-tenant" |
+| Estado actual del MVP | [CHANGELOG.md](CHANGELOG.md) version mas reciente |
+| Reglas de desarrollo | [RULES.md](RULES.md) |
+| Colores y brand | [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) |
+| Migraciones de BD | [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) |
+| Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |

@@ -263,6 +263,29 @@ credentials/
 
 ---
 
+## Regla 15. Gobernanza de Documentacion
+
+**CLAUDE.md debe mantenerse bajo 10 KB.** Toda informacion detallada va en `docs/`.
+
+### Cuando se agrega una nueva feature:
+1. Documentar detalles en el `docs/*.md` correspondiente (o crear uno nuevo)
+2. Agregar entrada en `docs/INDEX.md` si es un doc nuevo
+3. En CLAUDE.md: maximo 1 linea en "Estado Actual"
+4. **NUNCA** agregar bloques de codigo, diagramas ASCII, o tablas extensas a CLAUDE.md
+
+### Cuando se necesita un nuevo doc:
+1. Crear `docs/NOMBRE-FEATURE.md` con el detalle completo
+2. Agregar al indice `docs/INDEX.md` con descripcion breve
+3. Referenciar desde CLAUDE.md con link: `Ver [NOMBRE-FEATURE.md](docs/NOMBRE-FEATURE.md)`
+
+### Por que:
+- CLAUDE.md se carga en CADA request a la API de Claude (costo de tokens)
+- Contextos grandes causan errores de serializacion JSON en la API
+- Los docs/ se leen bajo demanda solo cuando se necesitan
+- Menos contexto base = conversaciones mas largas y estables
+
+---
+
 ## Checklist Pre-Deploy
 
 - [ ] Validación visual con Playwright MCP (no instalar como dependencia)
