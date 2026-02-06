@@ -759,12 +759,13 @@ export default function ProjectSettingsModal({
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
           {t('agentSettings.systemInstructions')}
         </label>
-        <textarea
+        <ExpandableTextarea
           value={agentSystemInstructions}
-          onChange={(e) => setAgentSystemInstructions(e.target.value)}
+          onChange={setAgentSystemInstructions}
           placeholder={t('agentSettings.systemInstructionsPlaceholder')}
           rows={6}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none"
+          expandLabel={tCommon('buttons.expand')}
+          modalTitle={t('agentSettings.systemInstructions')}
         />
         <p className="text-xs text-[var(--text-muted)] mt-1">
           {t('agentSettings.systemInstructionsHelp')}
