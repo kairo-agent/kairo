@@ -564,14 +564,26 @@ export function LeadTable({
 
                   {/* Status */}
                   <td className="px-4 py-3">
-                    <Badge
-                      variant="custom"
-                      customColor={statusConfig.color}
-                      customBgColor={statusConfig.bgColor}
-                      size="sm"
-                    >
-                      {statusConfig.label}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      {lead.archivedAt && (
+                        <Badge
+                          variant="custom"
+                          customColor="#9CA3AF"
+                          customBgColor="rgba(156, 163, 175, 0.15)"
+                          size="sm"
+                        >
+                          Archivado
+                        </Badge>
+                      )}
+                      <Badge
+                        variant="custom"
+                        customColor={statusConfig.color}
+                        customBgColor={statusConfig.bgColor}
+                        size="sm"
+                      >
+                        {statusConfig.label}
+                      </Badge>
+                    </div>
                   </td>
 
                   {/* Temperature */}

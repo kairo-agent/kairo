@@ -404,6 +404,17 @@ export function LeadDetailPanel({
 
             {/* Status and Temperature Badges */}
             <div className="flex flex-wrap items-center gap-2 mt-4">
+              {/* Archived Badge */}
+              {lead.archivedAt && (
+                <Badge
+                  variant="custom"
+                  customColor="#9CA3AF"
+                  customBgColor="rgba(156, 163, 175, 0.15)"
+                  size="md"
+                >
+                  {t('filters.archivedBadge')}
+                </Badge>
+              )}
               {/* Status with Dropdown */}
               <div className="relative">
                 <button
