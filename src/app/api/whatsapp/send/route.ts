@@ -10,6 +10,12 @@ import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { checkRateLimit } from '@/lib/rate-limit';
 
+// P1-1: Mask phone numbers in logs to reduce PII exposure
+function maskPhone(phone: string): string {
+  if (phone.length <= 4) return '****';
+  return phone.slice(0, -4).replace(/\d/g, '*') + phone.slice(-4);
+}
+
 // ============================================
 // Types
 // ============================================
@@ -364,7 +370,7 @@ export async function POST(request: NextRequest) {
         break;
     }
 
-    console.log(`[WhatsApp Send] Sending ${messageType} message to ${cleanPhone}`);
+    console.log(`[WhatsApp Send] Sending ${messageType} message to ${maskPhone(cleanPhone)}`);
 
     const whatsappResponse = await fetch(whatsappApiUrl, {
       method: 'POST',

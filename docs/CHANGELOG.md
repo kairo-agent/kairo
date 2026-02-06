@@ -88,7 +88,7 @@ Mensajes de audio ahora muestran la transcripcion directamente en el chat de KAI
 | P2-5 | Paralelizar post-send ops (lastContactAt + activity) | DONE | `messages.ts` |
 | P2-6 | Migrar 10 server actions de `getCurrentUser` a `verifyAuth` | DONE | `leads.ts`, `messages.ts` |
 | P2-7 | Indice compuesto `leads(projectId, whatsappId)` | DONE | `schema.prisma` |
-| P2-4 | Batch read receipts WhatsApp | PENDIENTE | - |
+| P2-4 | Batch read receipts WhatsApp | DONE | `messages.ts`, `whatsapp/mark-read/route.ts` |
 
 #### Backend - IMPLEMENTADO (commit `38d2734`)
 
@@ -99,8 +99,8 @@ Mensajes de audio ahora muestran la transcripcion directamente en el chat de KAI
 | P1-4 | Parallel DB ops via Promise.all en webhook handler | DONE | `webhooks/whatsapp/route.ts` |
 | P1-6 | Fire-and-forget status updates (non-blocking) | DONE | `webhooks/whatsapp/route.ts` |
 | P1-8 | Eliminar retry loop en handleStatusUpdate (depende de retries de Meta) | DONE | `webhooks/whatsapp/route.ts` |
-| P1-5 | Fetch paralelo en audio transcription | PENDIENTE | - |
-| P1-1 | Phone number hashing SHA-256 | PENDIENTE | - |
+| P1-5 | Fetch paralelo en audio transcription | DONE | `audio/transcribe/route.ts` |
+| P1-1 | Phone number masking en logs | DONE | `whatsapp/send/route.ts` |
 | P1-3 | Fire-and-forget audit logs | RECHAZADO | Integridad obligatoria en SaaS B2B |
 
 #### Detalles de Implementacion

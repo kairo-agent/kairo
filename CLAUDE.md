@@ -119,7 +119,7 @@ src/
 6. Theme light por defecto
 7. **i18n**: Usar `Link` de `@/i18n/routing`, NUNCA de `next/link` (causa loop infinito)
 8. **PhoneInput**: SIEMPRE usar `@/components/ui/PhoneInput` para telefonos
-9. **NO eliminar leads**: Usar status `archived` en lugar de delete
+9. **NO eliminar leads**: Usar campo `archivedAt` (no status) en lugar de delete
 10. **1 agente activo por proyecto**: Radio button, no toggle multiple
 
 ---
@@ -153,7 +153,7 @@ npm run lint     # Verificar codigo
 
 **Pendiente:** Crear lead, paginas de reportes/settings/agents, moneda dinamica.
 
-**Pendiente perf:** P2-4, P1-1, P1-5. Ver [CHANGELOG.md](docs/CHANGELOG.md).
+**Perf completo:** Todas las optimizaciones implementadas (P2-4, P1-1, P1-5 cerrados). P1-3 rechazado. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 
 ---
 

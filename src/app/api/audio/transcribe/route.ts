@@ -173,13 +173,10 @@ export async function POST(request: NextRequest) {
     console.log(`[Audio Transcribe] Processing audio ${mediaId} for project ${projectId}`);
 
     // ============================================
-    // Step 1: Get WhatsApp credentials
+    // Step 1: Get WhatsApp access token (needed for Steps 2+3)
     // ============================================
 
-    const [accessToken, openaiKey] = await Promise.all([
-      getProjectSecret(projectId, 'whatsapp_access_token'),
-      getProjectSecret(projectId, 'openai_api_key'),
-    ]);
+    const accessToken = await getProjectSecret(projectId, 'whatsapp_access_token');
 
     if (!accessToken) {
       console.error(`[Audio Transcribe] WhatsApp credentials not configured for project ${projectId}`);
@@ -189,16 +186,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!openaiKey) {
-      console.error(`[Audio Transcribe] OpenAI API key not configured for project ${projectId}`);
-      return NextResponse.json(
-        { success: false, error: 'OpenAI API key not configured' },
-        { status: 400 }
-      );
-    }
-
     // ============================================
-    // Step 2: Get media URL from WhatsApp
+    // Steps 2+3+OpenAI key: Fetch media info, download audio, and get OpenAI key in parallel
+    // P1-5: openaiKey fetches concurrently while audio downloads from WhatsApp
     // ============================================
 
     const mediaInfoUrl = `https://graph.facebook.com/v21.0/${mediaId}`;
@@ -243,22 +233,28 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Audio Transcribe] Media info: ${mimeType}, ${fileSize} bytes`);
 
-    // ============================================
-    // Step 3: Download audio from WhatsApp
-    // ============================================
-
-    const audioResponse = await fetch(mediaUrl, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    // P1-5: Download audio AND fetch OpenAI key in parallel
+    const [audioResponse, openaiKey] = await Promise.all([
+      fetch(mediaUrl, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+      getProjectSecret(projectId, 'openai_api_key'),
+    ]);
 
     if (!audioResponse.ok) {
       console.error('[Audio Transcribe] Failed to download audio');
       return NextResponse.json(
         { success: false, error: 'Failed to download audio from WhatsApp' },
         { status: 502 }
+      );
+    }
+
+    if (!openaiKey) {
+      console.error(`[Audio Transcribe] OpenAI API key not configured for project ${projectId}`);
+      return NextResponse.json(
+        { success: false, error: 'OpenAI API key not configured' },
+        { status: 400 }
       );
     }
 
