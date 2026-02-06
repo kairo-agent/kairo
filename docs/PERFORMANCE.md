@@ -998,11 +998,133 @@ Las optimizaciones implementadas en Fase 1 y Fase 2 han logrado:
    - Arquitectura preparada para 10x más usuarios
    - Patrones reutilizables (cache, paginación)
 
-### Próximos Pasos
+### Proximos Pasos
 
-1. Implementar Fase 3 (Consolidación)
-2. Configurar monitoreo de métricas en producción
-3. Evaluar ROI de Fase 4 y 5 según métricas reales
+1. QA visual post-optimizaciones v0.7.12
+2. Implementar items pendientes: P2-4 (batch receipts), P1-5 (audio parallel), P1-1 (phone hash)
+3. Configurar monitoreo de metricas en produccion
+
+---
+
+## Fase 5 - Optimizaciones v0.7.12 (Frontend + Backend)
+
+**Fecha de implementacion:** 2026-02-05
+**Commits:** `4617060` (frontend), `38d2734` (backend)
+**Auditoria:** Security Auditor review antes de implementacion
+
+### Impacto Estimado
+
+| Area | Ahorro | Detalle |
+|------|--------|---------|
+| Frontend auth | 50-150ms/action | `verifyAuth()` vs `getCurrentUser()` |
+| Lead panel data | 300-800ms | 1 action vs 4 separadas |
+| Message queries | 30-80ms | Parallel count + messages |
+| Post-send ops | 100-200ms | Promise.all para lastContactAt + activity |
+| Rate limiting | 20-100ms | Atomic Lua (elimina race condition) |
+| OpenAI client | 300-500ms | Cache con TTL 5min |
+| Webhook handler | 100-200ms | Parallel DB ops |
+| Status updates | 0-6000ms | Fire-and-forget + sin retry loop |
+
+### 1. Lightweight Auth: verifyAuth() (P2-1)
+
+```typescript
+// ANTES: Carga usuario + TODAS las memberships
+const user = await getCurrentUser(); // ~150-300ms
+// Incluye: organizationMemberships[], projectMemberships[]
+
+// DESPUES: Solo identidad del usuario
+const user = await verifyAuth(); // ~50-100ms
+// Retorna: { id, systemRole, firstName, lastName }
+
+// Para acceso a proyecto especifico:
+const hasAccess = await verifyProjectAccess(user.id, user.systemRole, projectId);
+// Usa indice unico project_members(projectId, userId) = O(1)
+```
+
+10 server actions migradas de `getCurrentUser` a `verifyAuth`:
+- `getLeadsPaginated`, `getLeadsStatsFromDB`, `getLeadById`
+- `getLeadPanelData`, `getLeadConversation`
+- `sendMessage`, `markMessagesAsRead`
+- `toggleHandoffMode`, `updateLeadInfo`, `updateLeadAssignment`
+
+### 2. Consolidated Panel Data (P2-2)
+
+```typescript
+// ANTES: 4 llamadas separadas desde LeadDetailPanel
+const notes = await getLeadNotes(leadId);
+const activities = await getLeadActivities(leadId);
+const agents = await getProjectAgents(projectId);
+const conversation = await getLeadConversation(leadId);
+
+// DESPUES: 1 llamada consolidada
+const panelData = await getLeadPanelData(leadId);
+// Retorna: { notes, activities } con una sola verificacion de auth
+```
+
+### 3. Parallel Queries (P2-3, P2-5, P1-4)
+
+```typescript
+// Messages: count + data en paralelo
+const [totalCount, messages] = await Promise.all([
+  prisma.message.count({ where: { conversationId } }),
+  prisma.message.findMany({ where: { conversationId }, ... })
+]);
+
+// Webhook: message create + lead update en paralelo
+await Promise.all([
+  prisma.message.create({ data: { ... } }),
+  prisma.lead.update({ where: { id }, data: { lastContactAt: new Date() } })
+]);
+```
+
+### 4. Atomic Rate Limiting (P1-7)
+
+```lua
+-- Script Lua ejecuta atomicamente en Redis
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('PEXPIRE', KEYS[1], tonumber(ARGV[1]))
+end
+local ttl = redis.call('PTTL', KEYS[1])
+return {count, ttl}
+```
+
+Antes: INCR + PEXPIRE eran llamadas separadas - requests concurrentes podian
+pasar entre ambas operaciones (race condition). Ahora es atomico.
+
+### 5. OpenAI Client Cache (P1-2)
+
+```typescript
+// Cache key = SHA-256(apiKey).substring(0, 16)
+// Nunca almacena el API key en claro, solo un hash truncado
+const clientCache = new Map<string, { client: OpenAI; timestamp: number }>();
+const CLIENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+```
+
+### 6. Fire-and-Forget Status Updates (P1-6 + P1-8)
+
+```typescript
+// Status updates no bloquean el webhook response
+if (statuses) {
+  for (const status of statuses) {
+    handleStatusUpdate(projectId, status).catch((err) =>
+      console.error('[WhatsApp Webhook] Status update error:', err)
+    );
+  }
+}
+
+// handleStatusUpdate: single lookup, sin retry loop
+// WhatsApp envia eventos repetidamente (sent -> delivered -> read)
+```
+
+### Items Pendientes
+
+| ID | Optimizacion | Razon de pendiente |
+|----|-------------|-------------------|
+| P2-4 | Batch read receipts | Baja prioridad, impacto variable |
+| P1-5 | Fetch paralelo audio | Requiere refactor de audio/transcribe |
+| P1-1 | Phone number hashing | Depende de P1-7 (ya completado), baja prioridad |
+| P1-3 | Fire-and-forget audit logs | RECHAZADO por seguridad |
 
 ---
 

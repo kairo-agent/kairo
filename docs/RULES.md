@@ -2,10 +2,49 @@
 
 ## Reglas de Desarrollo
 
-### 1. Validación Visual con Playwright MCP
+### 1. Validacion Visual con Playwright MCP
 Todo avance debe validarse usando **Playwright MCP** (herramienta global ya configurada) antes de considerarse completo.
 
 **IMPORTANTE:** NO instalar playwright como dependencia del proyecto. Usar exclusivamente el MCP configurado a nivel global que permite abrir un navegador propio para validar avances y cambios de UI/UX.
+
+#### Protocolo Context-Safe (OBLIGATORIO)
+
+Los snapshots de Playwright generan 30-100KB de texto con emojis/surrogate pairs que causan error `"no low surrogate in string"` en la API de Claude. **SIEMPRE** usar outputs a archivo para mantener el contexto limpio:
+
+**Screenshots (verificacion visual):**
+```
+browser_take_screenshot(filename: "qa-desktop.png", type: "png")
+// Luego leer con Read tool si se necesita ver
+```
+
+**Snapshots (para interactuar con elementos):**
+```
+browser_snapshot(filename: "qa-snapshot.md")
+// Luego leer SOLO las lineas necesarias:
+Read("qa-snapshot.md", offset: 50, limit: 30)  // solo la seccion relevante
+```
+
+**Datos especificos (verificacion rapida):**
+```
+browser_evaluate(function: "() => ({ title: document.title, url: window.location.href, leadCount: document.querySelectorAll('[data-lead]').length })")
+```
+
+**Console/Network (debugging):**
+```
+browser_console_messages(level: "error", filename: "qa-errors.txt")
+browser_network_requests(includeStatic: false, filename: "qa-network.txt")
+```
+
+| Herramienta | Usar `filename` | Cuando |
+|---|---|---|
+| `browser_snapshot` | **SIEMPRE** | Necesitas refs para click/interact |
+| `browser_take_screenshot` | **SIEMPRE** | Verificacion visual |
+| `browser_console_messages` | **SIEMPRE** | Debugging errores JS |
+| `browser_network_requests` | **SIEMPRE** | Verificar APIs/performance |
+| `browser_evaluate` | N/A (inline ok) | Extraer datos puntuales (resultado pequeno) |
+| `browser_click/type/navigate` | N/A | Interacciones directas |
+
+**NUNCA** usar `browser_snapshot` sin `filename` - es la causa #1 del error de API.
 
 ### 2. Ciberseguridad
 - Validaciones server-side obligatorias
@@ -286,11 +325,38 @@ credentials/
 
 ---
 
+## Regla 16. Sin Emojis en Documentacion Tecnica
+
+**NUNCA usar emojis above-BMP en archivos de documentacion** (CLAUDE.md, docs/*.md, CHANGELOG.md).
+
+### Caracteres prohibidos:
+Emojis como U+1F916 (robot), U+1F4BC (maletin), U+1F525 (fuego), etc. Estos caracteres requieren **surrogate pairs** en UTF-16 y corrompen la serializacion JSON de la API de Claude cuando se acumulan en el contexto.
+
+### Alternativas permitidas:
+- Texto descriptivo: `[bot]`, `[fire]`, `[check]`
+- Emojis BMP (< U+FFFF): checkmark, flechas basicas, simbolos matematicos
+- ASCII puro para indicadores: `[x]`, `[!]`, `[-]`, `[+]`
+
+### Como detectar emojis problematicos:
+```bash
+# Detecta caracteres above-BMP en un archivo
+node -e "const c=require('fs').readFileSync('FILE.md','utf-8');let n=0;for(let i=0;i<c.length;i++){if(c.charCodeAt(i)>=0xD800&&c.charCodeAt(i)<=0xDBFF)n++;}console.log('Above-BMP:',n)"
+```
+
+### Por que importa:
+- La API de Anthropic serializa el contexto como JSON
+- Emojis above-BMP usan surrogate pairs (2 code units en UTF-16)
+- Cuando hay muchos en el contexto, pueden causar error `"no low surrogate in string"`
+- Los emojis no aportan valor semantico para el modelo de IA
+
+---
+
 ## Checklist Pre-Deploy
 
-- [ ] Validación visual con Playwright MCP (no instalar como dependencia)
+- [ ] Validacion visual con Playwright MCP (no instalar como dependencia)
 - [ ] Mobile responsive verificado
-- [ ] Sin console.logs en producción
+- [ ] Sin console.logs en produccion
 - [ ] Variables de entorno configuradas
 - [ ] Linting sin errores
-- [ ] Sin secrets en código
+- [ ] Sin secrets en codigo
+- [ ] Sin emojis above-BMP en docs (Regla 16)

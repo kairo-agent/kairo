@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.7.12 (performance optimization) |
+| **Version** | v0.7.12 (performance optimizations implemented) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -111,7 +111,7 @@ src/
 
 ## Reglas Criticas (ver docs/RULES.md para detalle)
 
-1. Validar con Playwright MCP (3 modos: Desktop, Tablet, Mobile)
+1. Validar con Playwright MCP (3 modos: Desktop, Tablet, Mobile) - **usar protocolo context-safe** (ver [RULES.md](docs/RULES.md) seccion 1)
 2. Ciberseguridad prioritaria
 3. Mobile-first responsive
 4. UX simple ("usuarios idiotas")
@@ -153,7 +153,7 @@ npm run lint     # Verificar codigo
 
 **Pendiente:** Crear lead, archivar lead, paginas de reportes/settings/agents, moneda dinamica.
 
-**En progreso:** v0.7.12 performance optimizations (15 items, security-reviewed). Ver [CHANGELOG.md](docs/CHANGELOG.md).
+**En progreso:** v0.7.12 QA post-backend. Items pendientes: P2-4, P1-1, P1-5. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 
 ---
 
