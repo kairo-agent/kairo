@@ -83,6 +83,8 @@ export interface TransformedLead {
   archivedAt?: Date;
   lastContactAt?: Date;
   nextFollowUpAt?: Date;
+  summary?: string;
+  summaryUpdatedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   assignedAgent?: {
@@ -140,6 +142,8 @@ function transformLeads(serverLeads: Awaited<ReturnType<typeof getLeadsPaginated
     archivedAt: lead.archivedAt || undefined,
     lastContactAt: lead.lastContactAt || undefined,
     nextFollowUpAt: lead.nextFollowUpAt || undefined,
+    summary: lead.summary || undefined,
+    summaryUpdatedAt: lead.summaryUpdatedAt || undefined,
     createdAt: lead.createdAt,
     updatedAt: lead.updatedAt,
     assignedAgent: lead.assignedAgent

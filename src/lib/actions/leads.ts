@@ -56,6 +56,8 @@ export type LeadGridItem = Pick<
   | 'archivedAt'
   | 'lastContactAt'
   | 'nextFollowUpAt'
+  | 'summary'
+  | 'summaryUpdatedAt'
   | 'createdAt'
   | 'updatedAt'
   | 'projectId'
@@ -316,6 +318,9 @@ export async function getLeadsPaginated(
           updatedAt: true,
           lastContactAt: true,
           nextFollowUpAt: true,
+          // AI summary
+          summary: true,
+          summaryUpdatedAt: true,
           // SECURITY: projectId required for access verification
           projectId: true,
           // Assignment references
@@ -420,6 +425,9 @@ export async function getLeads(
         archivedAt: true,
         lastContactAt: true,
         nextFollowUpAt: true,
+        // AI summary
+        summary: true,
+        summaryUpdatedAt: true,
         // SECURITY: projectId for access verification
         projectId: true,
         // Assignment references

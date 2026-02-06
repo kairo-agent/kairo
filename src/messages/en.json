@@ -220,7 +220,10 @@
       "addNote": "Add note",
       "noNotes": "No notes yet",
       "noActivity": "No activity recorded",
-      "addNotePlaceholder": "Write a note..."
+      "addNotePlaceholder": "Write a note...",
+      "aiSummary": "AI Summary",
+      "noSummary": "No summary available. Auto-generated after 5+ messages.",
+      "summaryUpdated": "Updated"
     },
     "chat": {
       "aiMode": "AI Mode",

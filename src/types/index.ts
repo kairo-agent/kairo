@@ -177,6 +177,8 @@ export interface Lead {
   archivedAt?: Date;
   lastContactAt?: Date;
   nextFollowUpAt?: Date;
+  summary?: string;
+  summaryUpdatedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   // Populated relations

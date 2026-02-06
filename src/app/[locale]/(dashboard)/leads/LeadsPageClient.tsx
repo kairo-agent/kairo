@@ -820,6 +820,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     archivedAt: selectedLead.archivedAt,
     lastContactAt: selectedLead.lastContactAt,
     nextFollowUpAt: selectedLead.nextFollowUpAt,
+    summary: selectedLead.summary,
+    summaryUpdatedAt: selectedLead.summaryUpdatedAt,
     createdAt: selectedLead.createdAt,
     updatedAt: selectedLead.updatedAt,
   } : null;

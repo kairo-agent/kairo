@@ -220,7 +220,10 @@
       "addNote": "Agregar nota",
       "noNotes": "No hay notas",
       "noActivity": "No hay actividad registrada",
-      "addNotePlaceholder": "Escribir una nota..."
+      "addNotePlaceholder": "Escribir una nota...",
+      "aiSummary": "Resumen IA",
+      "noSummary": "Sin resumen disponible. Se genera automaticamente despues de 5+ mensajes.",
+      "summaryUpdated": "Actualizado"
     },
     "chat": {
       "aiMode": "Modo IA",

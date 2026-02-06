@@ -92,6 +92,12 @@ const EditIcon = () => (
   </svg>
 );
 
+const SummaryIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 const ArchiveIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
@@ -537,6 +543,35 @@ export function LeadDetailPanel({
               </div>
             )}
           </div>
+
+          {/* AI Summary */}
+          {lead.summary ? (
+            <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)]">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[var(--accent-primary)]"><SummaryIcon /></span>
+                <h4 className="text-sm font-semibold text-[var(--text-primary)]">
+                  {t('panel.aiSummary')}
+                </h4>
+                {lead.summaryUpdatedAt && (
+                  <span className="text-xs text-[var(--text-tertiary)] ml-auto">
+                    {t('panel.summaryUpdated')} {formatRelativeTime(lead.summaryUpdatedAt)}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-line">
+                {lead.summary}
+              </p>
+            </div>
+          ) : (
+            <div className="p-3 bg-[var(--bg-tertiary)] rounded-lg border border-dashed border-[var(--border-primary)]">
+              <div className="flex items-center gap-2">
+                <span className="text-[var(--text-tertiary)]"><SummaryIcon /></span>
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  {t('panel.noSummary')}
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Conversation History with Chat */}
           <CollapsibleSection
