@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
 import { LeadCard } from '@/components/features/LeadCard';
+import LeadEditModal from '@/components/features/LeadEditModal';
 import { LeadFilters, FloatingFilterToggle } from '@/components/features/LeadFilters';
 import { LeadDetailPanel } from '@/components/features/LeadDetailPanel';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -538,6 +539,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false);
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  const [editingLead, setEditingLead] = useState<TransformedLead | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // Refs for debouncing
   const filtersRef = useRef(filters);
@@ -962,6 +965,10 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
                       onClick={() => handleLeadClick(lead)}
                       onStatusChange={(_, newStatus) => handleStatusChange(lead, newStatus)}
                       onViewDetails={() => handleLeadClick(lead)}
+                      onEditLead={() => {
+                        setEditingLead(lead);
+                        setIsEditModalOpen(true);
+                      }}
                     />
                   </div>
                 ))}
@@ -1013,6 +1020,29 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
         onLeadUpdated={handleLeadUpdated}
         projectName={selectedProject?.name}
         organizationName={selectedOrganization?.name}
+      />
+
+      {/* Edit Lead Modal (from grid card menu) */}
+      <LeadEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingLead(null);
+        }}
+        onSuccess={async () => {
+          setIsEditModalOpen(false);
+          setEditingLead(null);
+          refetchLeads();
+        }}
+        lead={editingLead ? {
+          id: editingLead.id,
+          firstName: editingLead.firstName,
+          lastName: editingLead.lastName,
+          email: editingLead.email || null,
+          phone: editingLead.phone || null,
+          position: editingLead.position || null,
+          temperature: editingLead.temperature as LeadTemperature,
+        } : null}
       />
     </div>
   );

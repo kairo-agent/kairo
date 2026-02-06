@@ -1,5 +1,27 @@
 # KAIRO - Changelog
 
+## [0.7.13] - 2026-02-05
+
+### Audio Transcription Display in Chat (commit `847398a`)
+
+Mensajes de audio ahora muestran la transcripcion directamente en el chat de KAIRO con badge visual "Audio", en lugar de solo "[Audio recibido]".
+
+**Cambios (3 archivos, 74 lineas):**
+
+| Archivo | Cambio |
+|---------|--------|
+| `api/audio/transcribe/route.ts` | Paso 5: Persiste transcripcion en `metadata.transcription` del mensaje. Busca por `mediaId` en JSON metadata con verificacion de ownership (conversation > lead > projectId). Trunca a 10K chars. Non-blocking: si falla, flujo de IA continua. |
+| `lib/actions/messages.ts` | Agrega `metadata` a tipo `MessageForChat` y al select de Prisma |
+| `components/features/LeadChat.tsx` | Badge "Audio" con icono microfono + transcripcion para mensajes tipo audio. Fallback a "[Audio recibido]" si no hay transcripcion |
+
+**Decisiones tecnicas:**
+- **Opcion A elegida** (sobre Opcion B): transcripcion se guarda en mismo endpoint que transcribe, sin cambios en n8n ni webhook
+- Busqueda por `metadata.mediaId` via JSON path query (PostgreSQL), sin necesidad de pasar messageId
+- PII (transcripcion) nunca transita por n8n/Railway - se queda dentro del backend KAIRO
+- Audios anteriores al deploy siguen mostrando "[Audio recibido]" (esperado)
+
+---
+
 ## [0.7.12] - 2026-02-05
 
 ### Performance Optimizations (Security-Audited)

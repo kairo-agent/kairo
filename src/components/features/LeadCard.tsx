@@ -53,6 +53,7 @@ interface LeadCardProps {
   onClick?: (lead: Lead) => void;
   onStatusChange?: (lead: Lead, newStatus: LeadStatus) => void;
   onViewDetails?: (lead: Lead) => void;
+  onEditLead?: (lead: Lead) => void;
   onMoreOptions?: (lead: Lead) => void;
   className?: string;
 }
@@ -62,6 +63,7 @@ export function LeadCard({
   onClick,
   onStatusChange,
   onViewDetails,
+  onEditLead,
   onMoreOptions,
   className,
 }: LeadCardProps) {
@@ -317,7 +319,7 @@ export function LeadCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMoreDropdownOpen(false);
-                    // Add edit action
+                    onEditLead?.(lead);
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
@@ -327,17 +329,7 @@ export function LeadCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMoreDropdownOpen(false);
-                    // Add assign action
-                  }}
-                  className="w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                >
-                  {t('actions.assignAgent')}
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsMoreDropdownOpen(false);
-                    // Add schedule action
+                    // TODO: Schedule follow-up (needs date picker modal)
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
@@ -348,7 +340,7 @@ export function LeadCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMoreDropdownOpen(false);
-                    // Add archive action
+                    // TODO: Archive lead (needs server action)
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                 >
