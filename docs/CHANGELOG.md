@@ -1,5 +1,44 @@
 # KAIRO - Changelog
 
+## [0.7.16] - 2026-02-06
+
+### Notification System + Follow-up Scheduling (commit `c942341`)
+
+Sistema de notificaciones in-app con polling y programacion de seguimientos para leads.
+
+**Notificaciones:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `prisma/schema.prisma` | Modelo `Notification` + enum `NotificationType` (new_message, follow_up_due, lead_assigned) |
+| `prisma/migrations/20260206_add_notifications_table` | Tabla con RLS policies nativas PostgreSQL |
+| `src/lib/actions/notifications.ts` | Server actions: getNotifications, markAsRead, markAllAsRead, createNotification, notifyProjectMembers |
+| `src/hooks/useNotifications.ts` | Hook polling cada 15s con optimistic updates para markAsRead/markAllAsRead |
+| `src/components/layout/NotificationDropdown.tsx` | Dropdown con bell icon, badge de conteo, lista de notificaciones con iconos por tipo |
+| `src/components/layout/Header.tsx` | Reemplaza bell estatico con NotificationDropdown |
+| `src/app/api/webhooks/whatsapp/route.ts` | Crea notificacion fire-and-forget en inbound de WhatsApp |
+| `scripts/pg-cron-followup-notifications.sql` | SQL para pg_cron: genera notificaciones cuando follow-ups vencen |
+
+**Follow-up Scheduling:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/leads.ts` | `scheduleFollowUp(leadId, date)` server action con activity log |
+| `src/components/features/FollowUpModal.tsx` | Modal con datetime-local + quick options (Manana, En 3 dias, Proxima semana) |
+| `src/components/features/LeadCard.tsx` | Badge follow-up: rojo=vencido, naranja=proximo (<24h), gris=programado |
+| `LeadsPageClient.tsx` | Badge en tabla inline + integracion FollowUpModal + estado followUpTarget |
+| `es.json` / `en.json` | Keys para notificaciones y follow-ups |
+
+**Seguridad:** RLS nativo, sanitizacion de inputs, ownership checks, rate limit en notifyProjectMembers (max 10), fallback project solo en dev.
+
+Ver [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) para arquitectura completa.
+
+### Mobile notification dropdown fix (commit `21cb62b`)
+
+Dropdown de notificaciones se cortaba por la izquierda en mobile (390px). Fix: `fixed inset-x-3 top-14` en mobile, `sm:absolute sm:right-0 sm:w-96` en desktop.
+
+---
+
 ## [0.7.15] - 2026-02-06
 
 ### ExpandableTextarea + Modal Fullscreen (commits `d5c0f47`, `e0e8123`)

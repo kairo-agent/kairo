@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.7.15 (typing indicator + perf complete) |
+| **Version** | v0.7.16 (notifications + follow-up scheduling) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -67,6 +67,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 | [docs/DATA-MODELS.md](docs/DATA-MODELS.md) | Modelos de datos |
 | [docs/I18N.md](docs/I18N.md) | Internacionalizacion |
 | [docs/RULES.md](docs/RULES.md) | Reglas obligatorias |
+| [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Notificaciones + follow-up scheduling |
 | [brand/BRANDBOOK.md](brand/BRANDBOOK.md) | Identidad visual |
 
 ---
@@ -99,7 +100,7 @@ src/
     features/                      # LeadCard, LeadTable, LeadChat, etc.
   contexts/                        # Theme, Modal, Workspace, Loading
   lib/
-    actions/                       # Server Actions (admin, agents, auth, knowledge, leads, media, messages, profile, secrets, workspace)
+    actions/                       # Server Actions (admin, agents, auth, knowledge, leads, media, messages, notifications, profile, secrets, workspace)
     supabase/                      # Client/Server Supabase + Prisma
     auth-helpers.ts                # verifySuperAdmin, getCurrentUser
     rate-limit.ts                  # Rate limiting
@@ -147,7 +148,7 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Feb 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, n8n Railway, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, n8n Railway, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s), follow-up scheduling con badges.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 

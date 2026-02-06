@@ -29,10 +29,11 @@
 | [I18N.md](I18N.md) | next-intl config, useTranslations, namespaces, Link de @/i18n/routing |
 | [RULES.md](RULES.md) | 14 reglas obligatorias (Playwright validation, i18n Link, PhoneInput, etc.) |
 
-### Features Pendientes
+### Notificaciones y Follow-ups
 | Documento | Contenido clave |
 |-----------|----------------|
-| [FOLLOW-UP-SCHEDULING.md](FOLLOW-UP-SCHEDULING.md) | Alternativas para "Programar seguimiento": visual, notificaciones, AI automatico |
+| [NOTIFICATIONS.md](NOTIFICATIONS.md) | Sistema de notificaciones: tabla, RLS, polling, NotificationDropdown, pg_cron, follow-up badges |
+| [FOLLOW-UP-SCHEDULING.md](FOLLOW-UP-SCHEDULING.md) | Alternativas evaluadas para seguimiento (implementado en v0.7.16) |
 
 ### Performance y Operaciones
 | Documento | Contenido clave |
