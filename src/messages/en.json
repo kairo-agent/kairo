@@ -285,6 +285,20 @@
       "archiveError": "Error archiving lead",
       "cancel": "Cancel"
     },
+    "followUp": {
+      "title": "Schedule follow-up",
+      "description": "Schedule a reminder to follow up with {name}.",
+      "dateLabel": "Date and time",
+      "tomorrow": "Tomorrow",
+      "in3Days": "In 3 days",
+      "nextWeek": "Next week",
+      "schedule": "Schedule",
+      "cancel": "Cancel",
+      "clear": "Remove follow-up",
+      "scheduled": "Follow-up scheduled",
+      "overdue": "Overdue",
+      "upcoming": "Upcoming"
+    },
     "errors": {
       "statusUpdateFailed": "Could not update status. Please try again."
     },
@@ -298,6 +312,11 @@
         "message": "There are no leads matching the selected filters. Try adjusting your search criteria."
       }
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications"
   },
   "dashboard": {
     "systemStatus": "System operational"

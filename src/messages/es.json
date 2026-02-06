@@ -285,6 +285,20 @@
       "archiveError": "Error al archivar el lead",
       "cancel": "Cancelar"
     },
+    "followUp": {
+      "title": "Programar seguimiento",
+      "description": "Programa un recordatorio para dar seguimiento a {name}.",
+      "dateLabel": "Fecha y hora",
+      "tomorrow": "Manana",
+      "in3Days": "En 3 dias",
+      "nextWeek": "Proxima semana",
+      "schedule": "Programar",
+      "cancel": "Cancelar",
+      "clear": "Quitar seguimiento",
+      "scheduled": "Seguimiento programado",
+      "overdue": "Vencido",
+      "upcoming": "Proximo"
+    },
     "errors": {
       "statusUpdateFailed": "No se pudo actualizar el estado. Intenta de nuevo."
     },
@@ -298,6 +312,11 @@
         "message": "No hay leads que coincidan con los filtros seleccionados. Intenta ajustar los criterios de búsqueda."
       }
     }
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todo como leido",
+    "empty": "No hay notificaciones"
   },
   "dashboard": {
     "systemStatus": "Sistema operativo"

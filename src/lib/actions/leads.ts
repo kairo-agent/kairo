@@ -745,6 +745,45 @@ export async function updateLead(
 }
 
 // ============================================
+// FOLLOW-UP SCHEDULING
+// ============================================
+
+export async function scheduleFollowUp(
+  leadId: string,
+  date: Date | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    await prisma.$transaction([
+      prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          nextFollowUpAt: date,
+          updatedAt: new Date(),
+        },
+      }),
+      prisma.activity.create({
+        data: {
+          leadId,
+          type: date ? 'follow_up_scheduled' : 'follow_up_cleared',
+          description: date
+            ? `Seguimiento programado para ${date.toISOString()}`
+            : 'Seguimiento cancelado',
+          performedBy: user.id,
+        },
+      }),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error scheduling follow-up:', error);
+    return { success: false, error: 'Error al programar seguimiento' };
+  }
+}
+
+// ============================================
 // AI AGENTS
 // ============================================
 

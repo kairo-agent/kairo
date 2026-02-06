@@ -8,6 +8,7 @@ import { useLoading } from '@/contexts/LoadingContext';
 import { cn } from '@/lib/utils';
 import { getInitials } from '@/lib/utils';
 import { signOut } from '@/lib/actions/auth';
+import { NotificationDropdown } from './NotificationDropdown';
 import type { Locale } from '@/types';
 
 // SVG Icons
@@ -348,18 +349,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
         </button>
 
         {/* Notifications */}
-        <button
-          className={cn(
-            'p-2 rounded-lg relative',
-            'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]',
-            'transition-colors duration-200'
-          )}
-          aria-label="Notificaciones"
-        >
-          <BellIcon />
-          {/* Notification badge */}
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--status-lost)] rounded-full" />
-        </button>
+        <NotificationDropdown />
 
         {/* User dropdown */}
         <div className="relative ml-2" ref={dropdownRef}>

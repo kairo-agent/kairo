@@ -26,7 +26,8 @@ import {
   type PageSize,
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
-import { updateLeadStatus, archiveLead, unarchiveLead } from '@/lib/actions/leads';
+import { updateLeadStatus, archiveLead, unarchiveLead, scheduleFollowUp } from '@/lib/actions/leads';
+import { FollowUpModal } from '@/components/features/FollowUpModal';
 import { toast } from 'sonner';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 
@@ -370,7 +371,21 @@ function LeadTable({ leads, onLeadClick }: LeadTableProps) {
 
                 {/* Status */}
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {lead.nextFollowUpAt && (() => {
+                      const isOverdue = new Date(lead.nextFollowUpAt) < new Date();
+                      const isUpcoming = !isOverdue && new Date(lead.nextFollowUpAt).getTime() - Date.now() < 24 * 60 * 60 * 1000;
+                      return (
+                        <Badge
+                          variant="custom"
+                          customColor={isOverdue ? '#EF4444' : isUpcoming ? '#F97316' : '#6B7280'}
+                          customBgColor={isOverdue ? 'rgba(239, 68, 68, 0.15)' : isUpcoming ? 'rgba(249, 115, 22, 0.15)' : 'rgba(107, 114, 128, 0.15)'}
+                          size="sm"
+                        >
+                          {isOverdue ? t('followUp.overdue') : isUpcoming ? t('followUp.upcoming') : t('followUp.scheduled')}
+                        </Badge>
+                      );
+                    })()}
                     {lead.archivedAt && (
                       <Badge
                         variant="custom"
@@ -557,6 +572,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const [editingLead, setEditingLead] = useState<TransformedLead | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<TransformedLead | null>(null);
+  const [followUpTarget, setFollowUpTarget] = useState<TransformedLead | null>(null);
 
   // Refs for debouncing
   const filtersRef = useRef(filters);
@@ -753,6 +769,27 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
       setUpdatingLeadId(null);
     }
   }, [archiveTarget, invalidateLeads, selectedLead]);
+
+  const handleScheduleFollowUp = useCallback(async (date: Date) => {
+    if (!followUpTarget) return;
+    const result = await scheduleFollowUp(followUpTarget.id, date);
+    if (result.success) {
+      invalidateLeads();
+      toast.success(t('followUp.scheduled'));
+    } else {
+      toast.error(result.error || t('errors.statusUpdateFailed'));
+    }
+    setFollowUpTarget(null);
+  }, [followUpTarget, invalidateLeads, t]);
+
+  const handleClearFollowUp = useCallback(async () => {
+    if (!followUpTarget) return;
+    const result = await scheduleFollowUp(followUpTarget.id, null);
+    if (result.success) {
+      invalidateLeads();
+    }
+    setFollowUpTarget(null);
+  }, [followUpTarget, invalidateLeads]);
 
   // Handler to refresh selected lead when edited - returns Promise for modal to await
   const handleLeadUpdated = useCallback(async () => {
@@ -1032,6 +1069,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
                         setEditingLead(lead);
                         setIsEditModalOpen(true);
                       }}
+                      onScheduleFollowUp={() => setFollowUpTarget(lead)}
                       onArchiveLead={() => handleArchiveLead(lead)}
                     />
                   </div>
@@ -1157,6 +1195,16 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
           </div>
         </div>
       </Modal>
+
+      {/* Follow-Up Scheduling Modal */}
+      <FollowUpModal
+        isOpen={!!followUpTarget}
+        onClose={() => setFollowUpTarget(null)}
+        onSchedule={handleScheduleFollowUp}
+        onClear={handleClearFollowUp}
+        currentDate={followUpTarget?.nextFollowUpAt}
+        leadName={followUpTarget ? `${followUpTarget.firstName} ${followUpTarget.lastName}` : ''}
+      />
     </div>
   );
 }

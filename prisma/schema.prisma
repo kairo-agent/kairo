@@ -105,6 +105,7 @@ model User {
   createdNotes            Note[]
   organizationMemberships OrganizationMember[]
   projectMemberships      ProjectMember[]
+  notifications           Notification[]
 
   @@index([email])
   @@index([systemRole])
@@ -345,6 +346,35 @@ enum CurrencyCode {
 enum Theme {
   light
   dark
+}
+
+enum NotificationType {
+  new_message
+  follow_up_due
+  lead_assigned
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  userId          String
+  organizationId  String
+  projectId       String
+  type            NotificationType
+  title           String           @db.VarChar(255)
+  message         String           @db.VarChar(1024)
+  readAt          DateTime?
+  metadata        Json?
+  expiresAt       DateTime?
+  source          String           @db.VarChar(50)
+  createdAt       DateTime         @default(now())
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@index([projectId])
+  @@index([expiresAt])
+  @@map("notifications")
 }
 
 enum Locale {

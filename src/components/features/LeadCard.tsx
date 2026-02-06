@@ -54,6 +54,7 @@ interface LeadCardProps {
   onStatusChange?: (lead: Lead, newStatus: LeadStatus) => void;
   onViewDetails?: (lead: Lead) => void;
   onEditLead?: (lead: Lead) => void;
+  onScheduleFollowUp?: (lead: Lead) => void;
   onArchiveLead?: (lead: Lead) => void;
   onMoreOptions?: (lead: Lead) => void;
   className?: string;
@@ -65,6 +66,7 @@ export function LeadCard({
   onStatusChange,
   onViewDetails,
   onEditLead,
+  onScheduleFollowUp,
   onArchiveLead,
   onMoreOptions,
   className,
@@ -190,6 +192,20 @@ export function LeadCard({
 
         {/* Status Badge */}
         <div className="flex items-center gap-1.5 shrink-0">
+          {lead.nextFollowUpAt && (() => {
+            const isOverdue = new Date(lead.nextFollowUpAt) < new Date();
+            const isUpcoming = !isOverdue && new Date(lead.nextFollowUpAt).getTime() - Date.now() < 24 * 60 * 60 * 1000;
+            return (
+              <Badge
+                variant="custom"
+                customColor={isOverdue ? '#EF4444' : isUpcoming ? '#F97316' : '#6B7280'}
+                customBgColor={isOverdue ? 'rgba(239, 68, 68, 0.15)' : isUpcoming ? 'rgba(249, 115, 22, 0.15)' : 'rgba(107, 114, 128, 0.15)'}
+                size="sm"
+              >
+                {isOverdue ? t('followUp.overdue') : isUpcoming ? t('followUp.upcoming') : t('followUp.scheduled')}
+              </Badge>
+            );
+          })()}
           {isArchived && (
             <Badge
               variant="custom"
@@ -343,7 +359,7 @@ export function LeadCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMoreDropdownOpen(false);
-                    // TODO: Schedule follow-up (needs date picker modal)
+                    onScheduleFollowUp?.(lead);
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 >

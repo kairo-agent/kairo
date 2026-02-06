@@ -19,6 +19,7 @@ import {
 import { decryptSecret } from '@/lib/crypto/secrets';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { notifyProjectMembers } from '@/lib/actions/notifications';
 
 // ============================================
 // In-Memory Cache for phoneNumberId → Project
@@ -391,21 +392,26 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
     }
   }
 
-  // Fallback for development: use first active project
-  console.warn('⚠️ No matching project found, using fallback for development');
-  const fallbackProject = await prisma.project.findFirst({
-    where: { isActive: true },
-    select: { id: true, name: true },
-  });
+  // Fallback only in development (security: prevents cross-tenant message routing in production)
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn('No matching project found, using fallback for development');
+    const fallbackProject = await prisma.project.findFirst({
+      where: { isActive: true },
+      select: { id: true, name: true },
+    });
 
-  if (fallbackProject) {
-    console.log(`📍 Using fallback project: ${fallbackProject.name}`);
+    if (fallbackProject) {
+      console.log(`Using fallback project: ${fallbackProject.name}`);
+    }
+
+    setCachedProject(phoneNumberId, fallbackProject);
+    return fallbackProject;
   }
 
-  // Cache the result (including null for no match)
-  setCachedProject(phoneNumberId, fallbackProject);
-
-  return fallbackProject;
+  // Production: no fallback, discard message
+  console.warn(`No matching project for phoneNumberId: ${phoneNumberId}`);
+  setCachedProject(phoneNumberId, null);
+  return null;
 }
 
 // ============================================
@@ -669,6 +675,25 @@ async function handleIncomingMessage(
 
     console.log(`✅ Message added to lead: ${lead.id}`);
   }
+
+  // Fire-and-forget: notify project members about new message
+  const leadName = lead.firstName || contactName;
+  prisma.project.findUnique({
+    where: { id: projectId },
+    select: { organizationId: true },
+  }).then((project) => {
+    if (project) {
+      notifyProjectMembers({
+        projectId,
+        organizationId: project.organizationId,
+        type: 'new_message',
+        title: `Nuevo mensaje de ${leadName}`,
+        message: content.substring(0, 100),
+        metadata: { leadId: lead.id },
+        source: 'webhook',
+      }).catch((err) => console.error('Notification error:', err));
+    }
+  }).catch((err) => console.error('Notification project lookup error:', err));
 
   // Send read receipt to WhatsApp so lead sees ✓✓ (blue checkmarks)
   // This runs in background - don't await to not delay response
