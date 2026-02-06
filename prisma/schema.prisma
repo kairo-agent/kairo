@@ -134,6 +134,7 @@ model Lead {
   summaryUpdatedAt DateTime?
   lastContactAt   DateTime?
   nextFollowUpAt  DateTime?
+  archivedAt      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
   projectId       String
@@ -162,6 +163,8 @@ model Lead {
   @@index([projectId, temperature])
   // PERFORMANCE (P2-7): Webhook lead lookup by project + whatsappId
   @@index([projectId, whatsappId])
+  // Archive filtering: quickly find non-archived leads per project
+  @@index([projectId, archivedAt])
   @@map("leads")
 }
 

@@ -54,6 +54,7 @@ interface LeadCardProps {
   onStatusChange?: (lead: Lead, newStatus: LeadStatus) => void;
   onViewDetails?: (lead: Lead) => void;
   onEditLead?: (lead: Lead) => void;
+  onArchiveLead?: (lead: Lead) => void;
   onMoreOptions?: (lead: Lead) => void;
   className?: string;
 }
@@ -64,6 +65,7 @@ export function LeadCard({
   onStatusChange,
   onViewDetails,
   onEditLead,
+  onArchiveLead,
   onMoreOptions,
   className,
 }: LeadCardProps) {
@@ -340,11 +342,11 @@ export function LeadCard({
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsMoreDropdownOpen(false);
-                    // TODO: Archive lead (needs server action)
+                    onArchiveLead?.(lead);
                   }}
                   className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                 >
-                  {t('actions.archiveLead')}
+                  {lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}
                 </button>
               </div>
             </div>

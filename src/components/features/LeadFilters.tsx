@@ -317,6 +317,15 @@ export function LeadFilters({
       });
     }
 
+    if (filters.showArchived) {
+      active.push({
+        key: 'showArchived',
+        label: t('filters.showArchived'),
+        value: t('filters.showArchived'),
+        onRemove: () => onFiltersChange({ ...filters, showArchived: false }),
+      });
+    }
+
     if (filters.dateRange !== 'last30days') {
       let dateValue = t(`dateRange.${filters.dateRange}`);
       if (filters.dateRange === 'custom' && filters.customDateRange.start) {
@@ -358,6 +367,7 @@ export function LeadFilters({
       type: 'all',
       dateRange: 'last30days',
       customDateRange: { start: null, end: null },
+      showArchived: false,
     });
   }, [onFiltersChange]);
 
@@ -580,6 +590,21 @@ export function LeadFilters({
             />
           ))}
         </FilterSection>
+
+        {/* Show Archived Toggle */}
+        <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-primary)]">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={filters.showArchived || false}
+              onChange={(e) => onFiltersChange({ ...filters, showArchived: e.target.checked })}
+              className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+            />
+            <span className="text-sm text-[var(--text-secondary)]">
+              {t('filters.showArchived')}
+            </span>
+          </label>
+        </div>
       </div>
     </div>
   );

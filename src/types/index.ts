@@ -174,6 +174,7 @@ export interface Lead {
   estimatedValue?: number;
   currency: CurrencyCode;
   tags: string[];
+  archivedAt?: Date;
   lastContactAt?: Date;
   nextFollowUpAt?: Date;
   createdAt: Date;
@@ -285,6 +286,7 @@ export interface LeadFilters {
     start: Date | null;
     end: Date | null;
   };
+  showArchived: boolean;
 }
 
 export type DateRangePreset = 'today' | 'last7days' | 'last30days' | 'last90days' | 'all';

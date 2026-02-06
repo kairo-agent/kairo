@@ -53,6 +53,7 @@ export type LeadGridItem = Pick<
   | 'estimatedValue'
   | 'currency'
   | 'tags'
+  | 'archivedAt'
   | 'lastContactAt'
   | 'nextFollowUpAt'
   | 'createdAt'
@@ -217,6 +218,11 @@ function buildLeadWhereClause(
     }
   }
 
+  // Archive filter: hide archived by default
+  if (!filters?.showArchived) {
+    where.archivedAt = null;
+  }
+
   return where;
 }
 
@@ -301,6 +307,7 @@ export async function getLeadsPaginated(
           currency: true,
           tags: true,
           // Timestamps for display
+          archivedAt: true,
           createdAt: true,
           updatedAt: true,
           lastContactAt: true,
@@ -406,6 +413,7 @@ export async function getLeads(
         // Timestamps
         createdAt: true,
         updatedAt: true,
+        archivedAt: true,
         lastContactAt: true,
         nextFollowUpAt: true,
         // SECURITY: projectId for access verification
@@ -543,6 +551,112 @@ export async function updateLeadStatus(
   } catch (error) {
     console.error('Error updating lead status:', error);
     return { success: false, error: 'Error al actualizar estado' };
+  }
+}
+
+// ============================================
+// ARCHIVE / UNARCHIVE LEAD
+// ============================================
+
+export async function archiveLead(
+  leadId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await verifyAuth();
+
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { projectId: true, archivedAt: true },
+    });
+
+    if (!lead) {
+      return { success: false, error: 'Lead no encontrado' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
+    }
+
+    if (lead.archivedAt) {
+      return { success: false, error: 'Lead ya esta archivado' };
+    }
+
+    await prisma.$transaction([
+      prisma.lead.update({
+        where: { id: leadId },
+        data: { archivedAt: new Date() },
+      }),
+      prisma.activity.create({
+        data: {
+          leadId,
+          type: 'status_change',
+          description: 'Lead archivado',
+          metadata: { action: 'archive' },
+          performedBy: user.id,
+        },
+      }),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error archiving lead:', error);
+    return { success: false, error: 'Error al archivar lead' };
+  }
+}
+
+export async function unarchiveLead(
+  leadId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await verifyAuth();
+
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { projectId: true, archivedAt: true },
+    });
+
+    if (!lead) {
+      return { success: false, error: 'Lead no encontrado' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
+    }
+
+    if (!lead.archivedAt) {
+      return { success: false, error: 'Lead no esta archivado' };
+    }
+
+    await prisma.$transaction([
+      prisma.lead.update({
+        where: { id: leadId },
+        data: { archivedAt: null },
+      }),
+      prisma.activity.create({
+        data: {
+          leadId,
+          type: 'status_change',
+          description: 'Lead desarchivado',
+          metadata: { action: 'unarchive' },
+          performedBy: user.id,
+        },
+      }),
+    ]);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error unarchiving lead:', error);
+    return { success: false, error: 'Error al desarchivar lead' };
   }
 }
 

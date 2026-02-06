@@ -132,7 +132,8 @@
       "type": "Tipo",
       "dateRange": "Último contacto",
       "moreFilters": "Más filtros",
-      "lessFilters": "Menos filtros"
+      "lessFilters": "Menos filtros",
+      "showArchived": "Mostrar archivados"
     },
     "type": {
       "ai_agent": "Agente IA",
@@ -265,7 +266,15 @@
       "editLead": "Editar lead",
       "assignAgent": "Asignar agente",
       "scheduleFollowUp": "Programar seguimiento",
-      "archiveLead": "Archivar lead"
+      "archiveLead": "Archivar lead",
+      "unarchiveLead": "Desarchivar lead",
+      "confirmArchive": "Archivar este lead?",
+      "confirmArchiveMessage": "El lead se ocultara de la vista activa pero conservara su estado actual. Puedes desarchivarlo en cualquier momento.",
+      "confirmUnarchive": "Desarchivar este lead?",
+      "confirmUnarchiveMessage": "El lead volvera a aparecer en la vista activa con su estado original.",
+      "archiveSuccess": "Lead archivado correctamente",
+      "unarchiveSuccess": "Lead desarchivado correctamente",
+      "archiveError": "Error al archivar el lead"
     },
     "empty": {
       "noLeads": {

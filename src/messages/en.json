@@ -132,7 +132,8 @@
       "type": "Type",
       "dateRange": "Last contact",
       "moreFilters": "More filters",
-      "lessFilters": "Less filters"
+      "lessFilters": "Less filters",
+      "showArchived": "Show archived"
     },
     "type": {
       "ai_agent": "AI Agent",
@@ -265,7 +266,15 @@
       "editLead": "Edit lead",
       "assignAgent": "Assign agent",
       "scheduleFollowUp": "Schedule follow-up",
-      "archiveLead": "Archive lead"
+      "archiveLead": "Archive lead",
+      "unarchiveLead": "Unarchive lead",
+      "confirmArchive": "Archive this lead?",
+      "confirmArchiveMessage": "The lead will be hidden from the active view but will keep its current status. You can unarchive it at any time.",
+      "confirmUnarchive": "Unarchive this lead?",
+      "confirmUnarchiveMessage": "The lead will reappear in the active view with its original status.",
+      "archiveSuccess": "Lead archived successfully",
+      "unarchiveSuccess": "Lead unarchived successfully",
+      "archiveError": "Error archiving lead"
     },
     "empty": {
       "noLeads": {

@@ -25,7 +25,7 @@ import {
   type PageSize,
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
-import { updateLeadStatus } from '@/lib/actions/leads';
+import { updateLeadStatus, archiveLead, unarchiveLead } from '@/lib/actions/leads';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 
 // ============================================
@@ -521,6 +521,7 @@ const DEFAULT_FILTERS: LeadFiltersType = {
   type: 'all',
   dateRange: 'all', // Changed to 'all' since we have data from 1 year
   customDateRange: { start: null, end: null },
+  showArchived: false,
 };
 
 export default function LeadsPageClient({ initialLeads, initialPagination, initialStats }: LeadsPageClientProps) {
@@ -695,6 +696,41 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     }
   }, [invalidateLeads, selectedLead]);
 
+  const handleArchiveLead = useCallback(async (lead: TransformedLead) => {
+    const isArchived = !!lead.archivedAt;
+    const confirmMsg = isArchived
+      ? t('actions.confirmUnarchiveMessage')
+      : t('actions.confirmArchiveMessage');
+    const confirmTitle = isArchived
+      ? t('actions.confirmUnarchive')
+      : t('actions.confirmArchive');
+
+    if (!window.confirm(`${confirmTitle}\n\n${confirmMsg}`)) {
+      return;
+    }
+
+    setUpdatingLeadId(lead.id);
+    try {
+      const result = isArchived
+        ? await unarchiveLead(lead.id)
+        : await archiveLead(lead.id);
+
+      if (result.success) {
+        invalidateLeads();
+        if (selectedLead?.id === lead.id) {
+          setIsPanelOpen(false);
+          setSelectedLead(null);
+        }
+      } else {
+        console.error('Error archiving lead:', result.error);
+      }
+    } catch (error) {
+      console.error('Error archiving lead:', error);
+    } finally {
+      setUpdatingLeadId(null);
+    }
+  }, [t, invalidateLeads, selectedLead]);
+
   // Handler to refresh selected lead when edited - returns Promise for modal to await
   const handleLeadUpdated = useCallback(async () => {
     await refetchLeads();
@@ -798,6 +834,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     estimatedValue: lead.estimatedValue,
     currency: lead.currency as any,
     tags: lead.tags,
+    archivedAt: lead.archivedAt,
     lastContactAt: lead.lastContactAt,
     nextFollowUpAt: lead.nextFollowUpAt,
     createdAt: lead.createdAt,
@@ -969,6 +1006,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
                         setEditingLead(lead);
                         setIsEditModalOpen(true);
                       }}
+                      onArchiveLead={() => handleArchiveLead(lead)}
                     />
                   </div>
                 ))}

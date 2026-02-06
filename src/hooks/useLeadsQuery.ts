@@ -80,6 +80,7 @@ export interface TransformedLead {
   estimatedValue?: number;
   currency: string;
   tags: string[];
+  archivedAt?: Date;
   lastContactAt?: Date;
   nextFollowUpAt?: Date;
   createdAt: Date;
@@ -136,6 +137,7 @@ function transformLeads(serverLeads: Awaited<ReturnType<typeof getLeadsPaginated
     estimatedValue: lead.estimatedValue ? Number(lead.estimatedValue) : undefined,
     currency: lead.currency,
     tags: lead.tags,
+    archivedAt: lead.archivedAt || undefined,
     lastContactAt: lead.lastContactAt || undefined,
     nextFollowUpAt: lead.nextFollowUpAt || undefined,
     createdAt: lead.createdAt,
