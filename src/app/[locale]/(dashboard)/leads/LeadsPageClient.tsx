@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
 import { LeadCard } from '@/components/features/LeadCard';
 import LeadEditModal from '@/components/features/LeadEditModal';
@@ -521,7 +522,7 @@ const DEFAULT_FILTERS: LeadFiltersType = {
   type: 'all',
   dateRange: 'all', // Changed to 'all' since we have data from 1 year
   customDateRange: { start: null, end: null },
-  showArchived: false,
+  archiveFilter: 'active',
 };
 
 export default function LeadsPageClient({ initialLeads, initialPagination, initialStats }: LeadsPageClientProps) {
@@ -542,6 +543,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
   const [editingLead, setEditingLead] = useState<TransformedLead | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [archiveTarget, setArchiveTarget] = useState<TransformedLead | null>(null);
 
   // Refs for debouncing
   const filtersRef = useRef(filters);
@@ -696,28 +698,24 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     }
   }, [invalidateLeads, selectedLead]);
 
-  const handleArchiveLead = useCallback(async (lead: TransformedLead) => {
-    const isArchived = !!lead.archivedAt;
-    const confirmMsg = isArchived
-      ? t('actions.confirmUnarchiveMessage')
-      : t('actions.confirmArchiveMessage');
-    const confirmTitle = isArchived
-      ? t('actions.confirmUnarchive')
-      : t('actions.confirmArchive');
+  const handleArchiveLead = useCallback((lead: TransformedLead) => {
+    setArchiveTarget(lead);
+  }, []);
 
-    if (!window.confirm(`${confirmTitle}\n\n${confirmMsg}`)) {
-      return;
-    }
+  const confirmArchiveLead = useCallback(async () => {
+    if (!archiveTarget) return;
+    const isArchived = !!archiveTarget.archivedAt;
 
-    setUpdatingLeadId(lead.id);
+    setArchiveTarget(null);
+    setUpdatingLeadId(archiveTarget.id);
     try {
       const result = isArchived
-        ? await unarchiveLead(lead.id)
-        : await archiveLead(lead.id);
+        ? await unarchiveLead(archiveTarget.id)
+        : await archiveLead(archiveTarget.id);
 
       if (result.success) {
         invalidateLeads();
-        if (selectedLead?.id === lead.id) {
+        if (selectedLead?.id === archiveTarget.id) {
           setIsPanelOpen(false);
           setSelectedLead(null);
         }
@@ -729,7 +727,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     } finally {
       setUpdatingLeadId(null);
     }
-  }, [t, invalidateLeads, selectedLead]);
+  }, [archiveTarget, invalidateLeads, selectedLead]);
 
   // Handler to refresh selected lead when edited - returns Promise for modal to await
   const handleLeadUpdated = useCallback(async () => {
@@ -1082,6 +1080,50 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
           temperature: editingLead.temperature as LeadTemperature,
         } : null}
       />
+
+      {/* Archive Confirmation Modal */}
+      <Modal
+        isOpen={!!archiveTarget}
+        onClose={() => setArchiveTarget(null)}
+        size="sm"
+        showCloseButton={false}
+      >
+        <div className="flex flex-col items-center text-center py-4">
+          {archiveTarget?.archivedAt ? (
+            <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+            </div>
+          ) : (
+            <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+            </div>
+          )}
+          <h3 className="mt-4 text-lg font-semibold text-[var(--text-primary)]">
+            {archiveTarget?.archivedAt ? t('actions.confirmUnarchive') : t('actions.confirmArchive')}
+          </h3>
+          <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            {archiveTarget?.archivedAt ? t('actions.confirmUnarchiveMessage') : t('actions.confirmArchiveMessage')}
+          </p>
+          <div className="mt-6 flex gap-3 w-full">
+            <Button variant="ghost" onClick={() => setArchiveTarget(null)} fullWidth>
+              {t('actions.cancel')}
+            </Button>
+            {archiveTarget?.archivedAt ? (
+              <Button variant="primary" onClick={confirmArchiveLead} fullWidth>
+                {t('actions.unarchiveLead')}
+              </Button>
+            ) : (
+              <Button variant="danger" onClick={confirmArchiveLead} fullWidth>
+                {t('actions.archiveLead')}
+              </Button>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

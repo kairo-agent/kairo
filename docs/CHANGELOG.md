@@ -1,5 +1,35 @@
 # KAIRO - Changelog
 
+## [0.7.14] - 2026-02-05
+
+### Archive Leads (commit `d7530c3`)
+
+Los leads ahora se pueden archivar sin perder su estado original. Usa campo separado `archivedAt` (Opcion B) en lugar de status, preservando datos historicos.
+
+**Cambios (10 archivos, 216 lineas):**
+
+| Archivo | Cambio |
+|---------|--------|
+| `prisma/schema.prisma` | Campo `archivedAt DateTime?` + indice compuesto `[projectId, archivedAt]` |
+| `prisma/migrations/20260205_add_lead_archived_at` | Migracion SQL aplicada a produccion |
+| `src/types/index.ts` | `archivedAt?: Date` en Lead, `showArchived: boolean` en LeadFilters |
+| `src/lib/actions/leads.ts` | Server actions `archiveLead()` / `unarchiveLead()` con control de acceso y registro de actividad. `buildLeadWhereClause()` filtra `archivedAt: null` por defecto |
+| `src/hooks/useLeadsQuery.ts` | `archivedAt` en TransformedLead + transformLeads |
+| `src/components/features/LeadCard.tsx` | Prop `onArchiveLead`, boton dinamico archivar/desarchivar |
+| `src/components/features/LeadFilters.tsx` | Checkbox "Mostrar archivados" + active filter badge |
+| `src/app/[locale]/(dashboard)/leads/LeadsPageClient.tsx` | Handler `handleArchiveLead` con confirmacion, `showArchived` en filtros default |
+| `src/messages/es.json` | 9 keys: confirmacion, mensajes de exito/error, filtro |
+| `src/messages/en.json` | 9 keys: confirmation, success/error messages, filter |
+
+**Decisiones tecnicas:**
+- **Opcion B elegida** (sobre Opcion A): Campo `archivedAt` separado en vez de status `archived`, preserva el status original del lead (WON archivado sigue siendo WON)
+- Desarchivar = `archivedAt: null`, restaura lead a vista activa con status intacto
+- Server actions con transaccion: update + activity log atomico
+- Indice compuesto `[projectId, archivedAt]` para queries eficientes
+- Confirmacion via `window.confirm()` antes de archivar
+
+---
+
 ## [0.7.13] - 2026-02-05
 
 ### Audio Transcription Display in Chat (commit `847398a`)

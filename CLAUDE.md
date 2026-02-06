@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.7.13 (audio transcription display in chat) |
+| **Version** | v0.7.14 (archive leads) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -147,11 +147,11 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Feb 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, n8n Railway, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance phases 1-3, media upload/cleanup.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, n8n Railway, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance phases 1-3, media upload/cleanup, archivar/desarchivar leads.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 
-**Pendiente:** Crear lead, archivar lead, paginas de reportes/settings/agents, moneda dinamica.
+**Pendiente:** Crear lead, paginas de reportes/settings/agents, moneda dinamica.
 
 **Pendiente perf:** P2-4, P1-1, P1-5. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 

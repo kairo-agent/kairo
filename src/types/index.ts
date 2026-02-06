@@ -286,7 +286,7 @@ export interface LeadFilters {
     start: Date | null;
     end: Date | null;
   };
-  showArchived: boolean;
+  archiveFilter: 'active' | 'archived' | 'all';
 }
 
 export type DateRangePreset = 'today' | 'last7days' | 'last30days' | 'last90days' | 'all';

@@ -133,7 +133,11 @@
       "dateRange": "Last contact",
       "moreFilters": "More filters",
       "lessFilters": "Less filters",
-      "showArchived": "Show archived"
+      "showArchived": "Show archived",
+      "archiveFilter": "Archived",
+      "active": "Active",
+      "archived": "Archived",
+      "archivedBadge": "Archived"
     },
     "type": {
       "ai_agent": "AI Agent",
@@ -274,7 +278,8 @@
       "confirmUnarchiveMessage": "The lead will reappear in the active view with its original status.",
       "archiveSuccess": "Lead archived successfully",
       "unarchiveSuccess": "Lead unarchived successfully",
-      "archiveError": "Error archiving lead"
+      "archiveError": "Error archiving lead",
+      "cancel": "Cancel"
     },
     "empty": {
       "noLeads": {

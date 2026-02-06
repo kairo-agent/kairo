@@ -317,12 +317,12 @@ export function LeadFilters({
       });
     }
 
-    if (filters.showArchived) {
+    if (filters.archiveFilter && filters.archiveFilter !== 'active') {
       active.push({
-        key: 'showArchived',
-        label: t('filters.showArchived'),
-        value: t('filters.showArchived'),
-        onRemove: () => onFiltersChange({ ...filters, showArchived: false }),
+        key: 'archiveFilter',
+        label: t('filters.archiveFilter'),
+        value: t(`filters.${filters.archiveFilter}`),
+        onRemove: () => onFiltersChange({ ...filters, archiveFilter: 'active' }),
       });
     }
 
@@ -367,7 +367,7 @@ export function LeadFilters({
       type: 'all',
       dateRange: 'last30days',
       customDateRange: { start: null, end: null },
-      showArchived: false,
+      archiveFilter: 'active',
     });
   }, [onFiltersChange]);
 
@@ -591,20 +591,26 @@ export function LeadFilters({
           ))}
         </FilterSection>
 
-        {/* Show Archived Toggle */}
-        <div className="flex items-center gap-2 pt-2 border-t border-[var(--border-primary)]">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={filters.showArchived || false}
-              onChange={(e) => onFiltersChange({ ...filters, showArchived: e.target.checked })}
-              className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
-            />
-            <span className="text-sm text-[var(--text-secondary)]">
-              {t('filters.showArchived')}
-            </span>
-          </label>
-        </div>
+        {/* Archive Filter */}
+        <FilterSection title={t('filters.archiveFilter')}>
+          <FilterChip
+            label={t('filters.active')}
+            isActive={!filters.archiveFilter || filters.archiveFilter === 'active'}
+            onClick={() => onFiltersChange({ ...filters, archiveFilter: 'active' })}
+          />
+          <FilterChip
+            label={t('filters.archived')}
+            isActive={filters.archiveFilter === 'archived'}
+            onClick={() => onFiltersChange({ ...filters, archiveFilter: 'archived' })}
+            activeColor="#EF4444"
+            activeBgColor="rgba(239, 68, 68, 0.15)"
+          />
+          <FilterChip
+            label={t('filters.showArchived')}
+            isActive={filters.archiveFilter === 'all'}
+            onClick={() => onFiltersChange({ ...filters, archiveFilter: 'all' })}
+          />
+        </FilterSection>
       </div>
     </div>
   );

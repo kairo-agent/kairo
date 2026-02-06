@@ -218,10 +218,14 @@ function buildLeadWhereClause(
     }
   }
 
-  // Archive filter: hide archived by default
-  if (!filters?.showArchived) {
+  // Archive filter: 'active' (default) | 'archived' | 'all'
+  const archiveFilter = filters?.archiveFilter || 'active';
+  if (archiveFilter === 'active') {
     where.archivedAt = null;
+  } else if (archiveFilter === 'archived') {
+    where.archivedAt = { not: null };
   }
+  // 'all' = no filter on archivedAt
 
   return where;
 }

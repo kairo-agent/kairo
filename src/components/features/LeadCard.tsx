@@ -81,6 +81,7 @@ export function LeadCard({
   const temperatureConfig = LEAD_TEMPERATURE_CONFIG[lead.temperature];
   const channelColor = CHANNEL_ICON_COLORS[lead.channel];
   const isHot = lead.temperature === LeadTemperature.HOT;
+  const isArchived = !!lead.archivedAt;
 
   // Build workspace display text: "Org > Project" or just "Org" if no specific project
   const workspaceText = selectedProject?.name
@@ -188,15 +189,26 @@ export function LeadCard({
         </div>
 
         {/* Status Badge */}
-        <Badge
-          variant="custom"
-          customColor={statusConfig.color}
-          customBgColor={statusConfig.bgColor}
-          size="sm"
-          className="flex-shrink-0"
-        >
-          {t(`status.${lead.status}`)}
-        </Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isArchived && (
+            <Badge
+              variant="custom"
+              customColor="#9CA3AF"
+              customBgColor="rgba(156, 163, 175, 0.15)"
+              size="sm"
+            >
+              {t('filters.archivedBadge')}
+            </Badge>
+          )}
+          <Badge
+            variant="custom"
+            customColor={statusConfig.color}
+            customBgColor={statusConfig.bgColor}
+            size="sm"
+          >
+            {t(`status.${lead.status}`)}
+          </Badge>
+        </div>
       </div>
 
       {/* Meta Information */}
