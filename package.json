@@ -29,6 +29,7 @@
     "libphonenumber-js": "^1.12.34",
     "next": "^16.1.6",
     "next-intl": "^4.7.0",
+    "nextjs-toploader": "^3.9.17",
     "openai": "^6.17.0",
     "react": "19.2.3",
     "react-day-picker": "^9.13.0",

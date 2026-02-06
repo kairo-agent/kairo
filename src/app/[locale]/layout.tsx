@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
+import NextTopLoader from 'nextjs-toploader';
 import { routing } from '@/i18n/routing';
 import "../globals.css";
 
@@ -47,6 +48,12 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body className={`${inter.variable} font-sans antialiased`}>
+        <NextTopLoader
+          color="#00E5FF"
+          height={3}
+          showSpinner={false}
+          shadow="0 0 10px #00E5FF, 0 0 5px #00E5FF"
+        />
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
