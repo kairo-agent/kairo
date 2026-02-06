@@ -328,10 +328,10 @@ export function useLeads({
       cold: 0,
     },
 
-    // Loading states
-    isLoading: leadsQuery.isLoading || statsQuery.isLoading,
-    isFetching: leadsQuery.isFetching || statsQuery.isFetching,
-    isRefetching: leadsQuery.isRefetching || statsQuery.isRefetching,
+    // Loading states (only leads query triggers loading indicators, not stats)
+    isLoading: leadsQuery.isLoading,
+    isFetching: leadsQuery.isFetching,
+    isRefetching: leadsQuery.isRefetching,
 
     // Error states
     isError: leadsQuery.isError || statsQuery.isError,
