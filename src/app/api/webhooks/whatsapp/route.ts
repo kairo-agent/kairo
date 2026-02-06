@@ -409,8 +409,8 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
 }
 
 // ============================================
-// Send Read Receipt to WhatsApp
-// Makes the lead see ✓✓ (blue checkmarks) on their sent messages
+// Send Read Receipt + Typing Indicator to WhatsApp
+// Makes the lead see checkmarks + "typing..." while AI processes
 // ============================================
 
 async function sendReadReceipt(
@@ -425,7 +425,7 @@ async function sendReadReceipt(
     ]);
 
     if (!accessToken || !phoneNumberId) {
-      console.log('⚠️ WhatsApp credentials not configured, skipping read receipt');
+      console.log('WhatsApp credentials not configured, skipping read receipt');
       return;
     }
 
@@ -441,17 +441,18 @@ async function sendReadReceipt(
         messaging_product: 'whatsapp',
         status: 'read',
         message_id: messageId,
+        typing_indicator: { type: 'text' },
       }),
     });
 
     if (response.ok) {
-      console.log(`✅ Read receipt sent for message: ${messageId}`);
+      console.log(`Read receipt + typing indicator sent for: ${messageId}`);
     } else {
       const errorData = await response.json();
-      console.error(`❌ Failed to send read receipt:`, errorData);
+      console.error(`Failed to send read receipt:`, errorData);
     }
   } catch (error) {
-    console.error('❌ Error sending read receipt:', error);
+    console.error('Error sending read receipt:', error);
     // Don't throw - read receipt is not critical
   }
 }
