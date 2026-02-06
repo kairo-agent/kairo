@@ -2,6 +2,21 @@
 
 ## [0.7.15] - 2026-02-06
 
+### AI Summary in Lead Detail Panel (commit `f1a9581`)
+
+Muestra el resumen de conversacion generado por IA en el panel de detalle del lead para toma de decisiones rapida.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/types/index.ts` | `summary?: string`, `summaryUpdatedAt?: Date` en Lead |
+| `src/lib/actions/leads.ts` | `summary` y `summaryUpdatedAt` en LeadGridItem + ambos selects Prisma |
+| `src/hooks/useLeadsQuery.ts` | Campos en TransformedLead + transformLeads |
+| `LeadsPageClient.tsx` | `summary` y `summaryUpdatedAt` en selectedLeadForPanel transform |
+| `LeadDetailPanel.tsx` | Seccion resumen entre contacto y chat (con/sin resumen). Icono SummaryIcon |
+| `es.json` / `en.json` | Keys `aiSummary`, `noSummary`, `summaryUpdated` |
+
+Sin resumen: caja punteada indicando que se genera despues de 5+ mensajes. Con resumen: caja con titulo, timestamp relativo y texto.
+
 ### WhatsApp Typing Indicator (commit `0727509`)
 
 El lead ahora ve "escribiendo..." en WhatsApp mientras el AI procesa su mensaje.

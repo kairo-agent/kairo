@@ -147,7 +147,7 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Feb 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, n8n Railway, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, n8n Railway, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 
