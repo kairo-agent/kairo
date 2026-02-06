@@ -1067,6 +1067,11 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
         }}
         isUpdatingStatus={updatingLeadId === selectedLead?.id}
         onLeadUpdated={handleLeadUpdated}
+        onArchiveLead={() => {
+          if (selectedLead) {
+            handleArchiveLead(selectedLead);
+          }
+        }}
         projectName={selectedProject?.name}
         organizationName={selectedOrganization?.name}
       />

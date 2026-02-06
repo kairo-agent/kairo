@@ -35,6 +35,7 @@ interface LeadDetailPanelProps {
   onStatusChange?: (lead: Lead, newStatus: LeadStatus) => void;
   isUpdatingStatus?: boolean;
   onLeadUpdated?: () => Promise<void>;
+  onArchiveLead?: (lead: Lead) => void;
   projectName?: string;
   organizationName?: string;
 }
@@ -88,6 +89,18 @@ const ClockIcon = () => (
 const EditIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+  </svg>
+);
+
+const ArchiveIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+  </svg>
+);
+
+const UnarchiveIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4l2-2m0 0l2 2m-2-2v4" />
   </svg>
 );
 
@@ -185,6 +198,7 @@ export function LeadDetailPanel({
   onStatusChange,
   isUpdatingStatus = false,
   onLeadUpdated,
+  onArchiveLead,
   projectName,
   organizationName,
 }: LeadDetailPanelProps) {
@@ -692,15 +706,18 @@ export function LeadDetailPanel({
               <EditIcon />
               <span>{t('detail.edit')}</span>
             </Button>
-            {/* TODO: Habilitar cuando se implemente archivado de leads
             <Button
               variant="ghost"
-              className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+              fullWidth
+              className={lead.archivedAt
+                ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30'
+                : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
+              }
+              onClick={() => onArchiveLead?.(lead)}
             >
-              <ArchiveIcon />
-              <span className="sm:hidden">{t('actions.archiveLead')}</span>
+              {lead.archivedAt ? <UnarchiveIcon /> : <ArchiveIcon />}
+              <span>{lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}</span>
             </Button>
-            */}
           </div>
         </div>
       </div>
