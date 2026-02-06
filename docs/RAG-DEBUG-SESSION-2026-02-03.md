@@ -78,7 +78,7 @@ $$;
 
 Eliminamos el lead de prueba para hacer un test limpio:
 
-- **Lead eliminado:** Leo D. Leon 💪😎
+- **Lead eliminado:** Leo D. Leon
 - **Teléfono:** +51966427334
 - **Datos eliminados:** 24 mensajes, 1 conversación, el lead completo
 
@@ -173,8 +173,8 @@ Normalmente duermo a las 2 de la madrugada y siempre me despierto a las 7 am
 
 | Pregunta | Respuesta del Bot | ¿Usó RAG? |
 |----------|-------------------|-----------|
-| "¿cual es tu nombre y a que horas duermes?" | "¡Soy Leo D. León! 💪😎 Normalmente duermo a las 2 de la madrugada y me despierto a las 7 am." | ✅ Sí |
-| "a que hora te despiertas?" | "Normalmente me despierto a las 7 am. 😊" | ✅ Sí |
+| "cual es tu nombre y a que horas duermes?" | "Soy Leo D. Leon! Normalmente duermo a las 2 de la madrugada y me despierto a las 7 am." | Si |
+| "a que hora te despiertas?" | "Normalmente me despierto a las 7 am." | Si |
 
 ### Verificación en n8n (Ejecución #89 - 4 Feb 08:19)
 
@@ -226,7 +226,7 @@ Normalmente duermo a las 2 de la madrugada y siempre me despierto a las 7 am
 
 ### Conclusión
 
-**🎉 RAG 100% OPERATIVO**
+**RAG 100% OPERATIVO**
 
 Los 3 fixes aplicados el 3 de febrero funcionan correctamente:
 

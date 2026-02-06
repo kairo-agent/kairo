@@ -537,10 +537,10 @@ type SecretKey =
 
 | Tipo | Emoji | Descripción |
 |------|-------|-------------|
-| `sales` | 💼 | Conversiones y cierre de ventas |
-| `support` | 🎧 | Atención al cliente |
-| `qualification` | 📊 | Calificación y scoring de leads |
-| `appointment` | 📅 | Agendamiento de citas |
+| `sales` | [maletin] | Conversiones y cierre de ventas |
+| `support` | [auriculares] | Atencion al cliente |
+| `qualification` | [grafico] | Calificacion y scoring de leads |
+| `appointment` | [calendario] | Agendamiento de citas |
 
 ### Server Actions
 

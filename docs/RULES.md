@@ -9,42 +9,103 @@ Todo avance debe validarse usando **Playwright MCP** (herramienta global ya conf
 
 #### Protocolo Context-Safe (OBLIGATORIO)
 
-Los snapshots de Playwright generan 30-100KB de texto con emojis/surrogate pairs que causan error `"no low surrogate in string"` en la API de Claude. **SIEMPRE** usar outputs a archivo para mantener el contexto limpio:
+El error `"no low surrogate in string"` ocurre cuando el contexto de la API de Claude acumula demasiado texto con emojis/surrogate pairs (caracteres above-BMP como U+1F916). Hay **DOS fuentes** de contaminacion:
 
-**Screenshots (verificacion visual):**
+**FUENTE 1 - Snapshots explicitos (RESUELTO):**
+Las herramientas `browser_snapshot`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests` pueden generar 30-100KB. Solucion: usar parametro `filename`.
+
+**FUENTE 2 - Snapshots IMPLICITOS de interacciones (CAUSA PRINCIPAL):**
+Las herramientas `browser_click`, `browser_navigate`, `browser_type`, `browser_hover`, `browser_select_option`, `browser_fill_form`, `browser_drag` retornan **automaticamente un accessibility snapshot completo** en su respuesta. **NO tienen parametro `filename`**. Cada interaccion inyecta 30-100KB de contenido con emojis potenciales al contexto. Despues de 3-4 interacciones: 100-400KB de snapshots acumulados = error de API.
+
+---
+
+#### Estrategia: Minimizar interacciones directas
+
+**PREFERIR `browser_run_code` para interacciones:**
+```
+// MAL - 3 snapshots implicitos al contexto (~150KB)
+browser_navigate(url: "https://app.kairoagent.com/es/leads")
+browser_click(ref: "filter-btn")
+browser_click(ref: "status-option")
+
+// BIEN - 0 snapshots implicitos, retorna solo lo que necesitas
+browser_run_code(code: `async (page) => {
+  await page.goto('https://app.kairoagent.com/es/leads');
+  await page.click('[data-testid="filter-btn"]');
+  await page.click('[data-testid="status-option"]');
+  return { url: page.url(), title: await page.title() };
+}`)
+```
+
+**PREFERIR `browser_evaluate` para verificaciones:**
+```
+// BIEN - retorna solo datos puntuales, sin snapshot
+browser_evaluate(function: "() => ({
+  title: document.title,
+  url: window.location.href,
+  leadCount: document.querySelectorAll('[data-lead]').length
+})")
+```
+
+**Screenshots para verificacion visual:**
 ```
 browser_take_screenshot(filename: "qa-desktop.png", type: "png")
 // Luego leer con Read tool si se necesita ver
 ```
 
-**Snapshots (para interactuar con elementos):**
+**Snapshots a archivo cuando necesitas refs para interactuar:**
 ```
 browser_snapshot(filename: "qa-snapshot.md")
-// Luego leer SOLO las lineas necesarias:
-Read("qa-snapshot.md", offset: 50, limit: 30)  // solo la seccion relevante
+// Leer SOLO las lineas necesarias:
+Read("qa-snapshot.md", offset: 50, limit: 30)
 ```
 
-**Datos especificos (verificacion rapida):**
-```
-browser_evaluate(function: "() => ({ title: document.title, url: window.location.href, leadCount: document.querySelectorAll('[data-lead]').length })")
-```
-
-**Console/Network (debugging):**
+**Console/Network a archivo:**
 ```
 browser_console_messages(level: "error", filename: "qa-errors.txt")
 browser_network_requests(includeStatic: false, filename: "qa-network.txt")
 ```
 
-| Herramienta | Usar `filename` | Cuando |
-|---|---|---|
-| `browser_snapshot` | **SIEMPRE** | Necesitas refs para click/interact |
-| `browser_take_screenshot` | **SIEMPRE** | Verificacion visual |
-| `browser_console_messages` | **SIEMPRE** | Debugging errores JS |
-| `browser_network_requests` | **SIEMPRE** | Verificar APIs/performance |
-| `browser_evaluate` | N/A (inline ok) | Extraer datos puntuales (resultado pequeno) |
-| `browser_click/type/navigate` | N/A | Interacciones directas |
+---
 
-**NUNCA** usar `browser_snapshot` sin `filename` - es la causa #1 del error de API.
+#### Tabla resumen de herramientas
+
+| Herramienta | Riesgo contexto | Estrategia |
+|---|---|---|
+| `browser_snapshot` | ALTO | **SIEMPRE** usar `filename` |
+| `browser_take_screenshot` | ALTO | **SIEMPRE** usar `filename` |
+| `browser_console_messages` | MEDIO | **SIEMPRE** usar `filename` |
+| `browser_network_requests` | MEDIO | **SIEMPRE** usar `filename` |
+| `browser_click` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
+| `browser_navigate` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
+| `browser_type` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
+| `browser_hover` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
+| `browser_select_option` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
+| `browser_fill_form` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
+| `browser_drag` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
+| `browser_evaluate` | BAJO | OK inline (resultado pequeno) |
+| `browser_run_code` | BAJO | **PREFERIDO** - retorna solo lo que defines |
+| `browser_close` | NINGUNO | Usar al terminar sesion |
+
+---
+
+#### Flujo recomendado para validacion QA
+
+```
+1. browser_run_code -> navegar + esperar carga (retorna url/title)
+2. browser_take_screenshot(filename: "qa-desktop.png") -> verificar visual
+3. browser_evaluate -> extraer datos puntuales si necesario
+4. browser_run_code -> interacciones complejas (clicks, forms)
+5. browser_take_screenshot(filename: "qa-result.png") -> verificar resultado
+6. browser_close -> limpiar sesion
+```
+
+**Maximo recomendado:** 2-3 llamadas a herramientas de interaccion directa (click/navigate/type) por sesion. Si necesitas mas, usar `browser_run_code` para agrupar.
+
+**NUNCA:**
+- Usar `browser_snapshot` sin `filename`
+- Encadenar mas de 3 interacciones directas (click/navigate/type) seguidas
+- Dejar sesion de Playwright abierta entre tareas largas
 
 ### 2. Ciberseguridad
 - Validaciones server-side obligatorias

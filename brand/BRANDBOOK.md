@@ -1,4 +1,4 @@
-# 📘 KAIRO — Brandbook Oficial (v1.0)
+# KAIRO -- Brandbook Oficial (v1.0)
 
 ## 1. Identidad de Marca
 
