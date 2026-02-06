@@ -2,31 +2,44 @@
 
 ## [0.7.14] - 2026-02-05
 
-### Archive Leads (commit `d7530c3`)
+### Archive Leads (commits `d7530c3`, `8fb8d3c`, `340c801`)
 
 Los leads ahora se pueden archivar sin perder su estado original. Usa campo separado `archivedAt` (Opcion B) en lugar de status, preservando datos historicos.
 
-**Cambios (10 archivos, 216 lineas):**
+**Cambios backend + schema (commit `d7530c3`):**
 
 | Archivo | Cambio |
 |---------|--------|
 | `prisma/schema.prisma` | Campo `archivedAt DateTime?` + indice compuesto `[projectId, archivedAt]` |
 | `prisma/migrations/20260205_add_lead_archived_at` | Migracion SQL aplicada a produccion |
-| `src/types/index.ts` | `archivedAt?: Date` en Lead, `showArchived: boolean` en LeadFilters |
-| `src/lib/actions/leads.ts` | Server actions `archiveLead()` / `unarchiveLead()` con control de acceso y registro de actividad. `buildLeadWhereClause()` filtra `archivedAt: null` por defecto |
+| `src/types/index.ts` | `archivedAt?: Date` en Lead, `archiveFilter: 'active' / 'archived' / 'all'` en LeadFilters |
+| `src/lib/actions/leads.ts` | Server actions `archiveLead()` / `unarchiveLead()` con transaccion. `buildLeadWhereClause()` soporta filtro 3 estados |
 | `src/hooks/useLeadsQuery.ts` | `archivedAt` en TransformedLead + transformLeads |
-| `src/components/features/LeadCard.tsx` | Prop `onArchiveLead`, boton dinamico archivar/desarchivar |
-| `src/components/features/LeadFilters.tsx` | Checkbox "Mostrar archivados" + active filter badge |
-| `src/app/[locale]/(dashboard)/leads/LeadsPageClient.tsx` | Handler `handleArchiveLead` con confirmacion, `showArchived` en filtros default |
-| `src/messages/es.json` | 9 keys: confirmacion, mensajes de exito/error, filtro |
-| `src/messages/en.json` | 9 keys: confirmation, success/error messages, filter |
+
+**Cambios UX (commit `8fb8d3c`):**
+
+| Archivo | Cambio |
+|---------|--------|
+| `LeadsPageClient.tsx` | Modal custom de confirmacion (reemplaza `window.confirm`), icono rojo=archivar / azul=desarchivar |
+| `LeadCard.tsx` | Badge gris "Archivado" junto al badge de status cuando `isArchived` |
+| `LeadFilters.tsx` | Chips 3 estados: Activos (default), Archivados (chip rojo), Todos |
+| `es.json` / `en.json` | Keys para modal, filtros, badge |
+
+**Mejoras adicionales (commit `340c801`):**
+
+| Archivo | Cambio |
+|---------|--------|
+| `LeadDetailPanel.tsx` | Badge gris "Archivado" en panel lateral de detalle del lead |
+| `LeadTable.tsx` | Badge gris "Archivado" en columna Status de vista tabla |
+| `es.json` / `en.json` | Filtro "Mostrar todos" (antes "Mostrar archivados") |
 
 **Decisiones tecnicas:**
 - **Opcion B elegida** (sobre Opcion A): Campo `archivedAt` separado en vez de status `archived`, preserva el status original del lead (WON archivado sigue siendo WON)
 - Desarchivar = `archivedAt: null`, restaura lead a vista activa con status intacto
 - Server actions con transaccion: update + activity log atomico
 - Indice compuesto `[projectId, archivedAt]` para queries eficientes
-- Confirmacion via `window.confirm()` antes de archivar
+- Modal custom KAIRO en vez de `window.confirm()` para mejor UX
+- Filtro 3 estados (chips) en vez de checkbox para separar vistas activas/archivadas
 
 ---
 
