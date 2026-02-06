@@ -254,6 +254,29 @@ export function useLeads({
     ]);
   }, [leadsQuery, statsQuery]);
 
+  // Optimistic update: instantly update a lead's status in the cache
+  const optimisticStatusUpdate = useCallback((leadId: string, newStatus: string) => {
+    // Get current query key for active leads list
+    const queryKey = leadsQueryKeys.list({ projectId, organizationId, filters, page, limit });
+
+    // Snapshot current data for rollback
+    const previousData = queryClient.getQueryData(queryKey);
+
+    // Update cache immediately
+    queryClient.setQueryData(queryKey, (old: { data: TransformedLead[]; pagination: unknown } | undefined) => {
+      if (!old) return old;
+      return {
+        ...old,
+        data: old.data.map((lead) =>
+          lead.id === leadId ? { ...lead, status: newStatus } : lead
+        ),
+      };
+    });
+
+    // Return rollback function
+    return () => queryClient.setQueryData(queryKey, previousData);
+  }, [queryClient, projectId, organizationId, filters, page, limit]);
+
   // Prefetch next page for smooth pagination
   const prefetchNextPage = useCallback(() => {
     if (leadsQuery.data?.pagination.hasNext) {
@@ -313,6 +336,7 @@ export function useLeads({
     invalidateLeads,
     refetchLeads,
     prefetchNextPage,
+    optimisticStatusUpdate,
 
     // Query references (for advanced use cases)
     leadsQuery,

@@ -576,6 +576,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     prefetchNextPage,
     invalidateLeads,
     refetchLeads,
+    optimisticStatusUpdate,
   } = useLeads({
     projectId,
     organizationId,
@@ -690,25 +691,35 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   }, []);
 
   const handleStatusChange = useCallback(async (lead: TransformedLead, newStatus: LeadStatus) => {
-    setUpdatingLeadId(lead.id);
+    // Optimistic: update cache + selected lead instantly
+    const rollback = optimisticStatusUpdate(lead.id, newStatus);
+    const previousStatus = lead.status;
+    if (selectedLead?.id === lead.id) {
+      setSelectedLead({ ...lead, status: newStatus });
+    }
+
     try {
       const result = await updateLeadStatus(lead.id, newStatus);
       if (result.success) {
-        // Invalidate cache to refresh data
+        // Background refresh for stats and server-confirmed data
         invalidateLeads();
-        // Also update selected lead if it's the one being changed
-        if (selectedLead?.id === lead.id) {
-          setSelectedLead({ ...lead, status: newStatus });
-        }
       } else {
+        // Rollback on server error
         console.error('Error updating status:', result.error);
+        rollback();
+        if (selectedLead?.id === lead.id) {
+          setSelectedLead({ ...lead, status: previousStatus });
+        }
       }
     } catch (error) {
+      // Rollback on network error
       console.error('Error updating lead status:', error);
-    } finally {
-      setUpdatingLeadId(null);
+      rollback();
+      if (selectedLead?.id === lead.id) {
+        setSelectedLead({ ...lead, status: previousStatus });
+      }
     }
-  }, [invalidateLeads, selectedLead]);
+  }, [optimisticStatusUpdate, invalidateLeads, selectedLead]);
 
   const handleArchiveLead = useCallback((lead: TransformedLead) => {
     setArchiveTarget(lead);
