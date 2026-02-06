@@ -2,6 +2,18 @@
 
 ## [0.7.15] - 2026-02-06
 
+### ExpandableTextarea + Modal Fullscreen (commits `d5c0f47`, `e0e8123`)
+
+Nuevo componente `ExpandableTextarea` con icono de expand (hover) que abre modal 3xl con textarea grande (~60vh). Aplicado a:
+- Textarea de contenido en Knowledge (tab Conocimiento)
+- Textarea de instrucciones del agente (tab Agente)
+
+Label "Instrucciones del Sistema" renombrado a "Instrucciones" (ES) / "Instructions" (EN).
+
+### Wider Project Settings Modal (commit `8bf8a92`)
+
+Modal de configuracion de proyecto ampliado a `max-w-5xl` (~1024px). Nuevos sizes `2xl` y `3xl` en `Modal.tsx`. Body con `overflow-y-auto max-h-[calc(100vh-8rem)]`.
+
 ### Optimistic Status Updates + Sonner Toasts (commits `5b7484c`, `9dc2f38`, `1c5db17`)
 
 Cambio de status instantaneo sin spinner. Rollback + toast de error si el servidor falla.
