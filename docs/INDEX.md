@@ -29,6 +29,11 @@
 | [I18N.md](I18N.md) | next-intl config, useTranslations, namespaces, Link de @/i18n/routing |
 | [RULES.md](RULES.md) | 14 reglas obligatorias (Playwright validation, i18n Link, PhoneInput, etc.) |
 
+### Features Pendientes
+| Documento | Contenido clave |
+|-----------|----------------|
+| [FOLLOW-UP-SCHEDULING.md](FOLLOW-UP-SCHEDULING.md) | Alternativas para "Programar seguimiento": visual, notificaciones, AI automatico |
+
 ### Performance y Operaciones
 | Documento | Contenido clave |
 |-----------|----------------|
