@@ -1,5 +1,29 @@
 # KAIRO - Changelog
 
+## [0.7.15] - 2026-02-06
+
+### WhatsApp Typing Indicator (commit `0727509`)
+
+El lead ahora ve "escribiendo..." en WhatsApp mientras el AI procesa su mensaje.
+
+| Archivo | Cambio |
+|---------|--------|
+| `webhooks/whatsapp/route.ts` | `typing_indicator: { type: 'text' }` agregado al request de read receipt |
+
+Se auto-dismissea a los 25s o cuando llega la respuesta del AI.
+
+### Performance: P1-5 + P1-1 + P2-4 (commit `4a13b2b`)
+
+Todos los items de performance cerrados (14/15, P1-3 rechazado).
+
+| ID | Cambio | Archivo |
+|----|--------|---------|
+| P1-5 | OpenAI key fetch en paralelo con descarga de audio | `audio/transcribe/route.ts` |
+| P1-1 | `maskPhone()` enmascara telefonos en logs (muestra ultimos 4 digitos) | `whatsapp/send/route.ts` |
+| P2-4 | Batch read receipts (ya implementado, solo doc update) | `messages.ts` |
+
+---
+
 ## [0.7.14] - 2026-02-05
 
 ### Archive Leads (commits `d7530c3`, `8fb8d3c`, `340c801`, `ea41ee6`, `a59dcaf`)
