@@ -13,6 +13,7 @@ import { WorkspaceProvider, type WorkspaceOrganization } from '@/contexts/Worksp
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { LoadingOverlay } from '@/components/ui/LoadingOverlay';
+import { Toaster } from 'sonner';
 import { Sidebar, Header } from '@/components/layout';
 import { cn } from '@/lib/utils';
 
@@ -129,6 +130,7 @@ export default function DashboardLayoutClient({
             <LoadingProvider>
               <DashboardLayoutContent user={user}>{children}</DashboardLayoutContent>
               <LoadingOverlay />
+              <Toaster position="bottom-right" richColors closeButton duration={4000} />
             </LoadingProvider>
           </WorkspaceProvider>
         </ModalProvider>

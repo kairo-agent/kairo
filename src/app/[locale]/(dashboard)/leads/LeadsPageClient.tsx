@@ -27,6 +27,7 @@ import {
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { updateLeadStatus, archiveLead, unarchiveLead } from '@/lib/actions/leads';
+import { toast } from 'sonner';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 
 // ============================================
@@ -576,6 +577,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     prefetchNextPage,
     invalidateLeads,
     refetchLeads,
+    refetchStats,
     optimisticStatusUpdate,
   } = useLeads({
     projectId,
@@ -701,25 +703,25 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     try {
       const result = await updateLeadStatus(lead.id, newStatus);
       if (result.success) {
-        // Background refresh for stats and server-confirmed data
-        invalidateLeads();
+        // Silent stats refresh only (cache already has correct lead data)
+        refetchStats();
       } else {
         // Rollback on server error
-        console.error('Error updating status:', result.error);
         rollback();
         if (selectedLead?.id === lead.id) {
           setSelectedLead({ ...lead, status: previousStatus });
         }
+        toast.error(t('errors.statusUpdateFailed'));
       }
-    } catch (error) {
+    } catch {
       // Rollback on network error
-      console.error('Error updating lead status:', error);
       rollback();
       if (selectedLead?.id === lead.id) {
         setSelectedLead({ ...lead, status: previousStatus });
       }
+      toast.error(t('errors.statusUpdateFailed'));
     }
-  }, [optimisticStatusUpdate, invalidateLeads, selectedLead]);
+  }, [optimisticStatusUpdate, refetchStats, selectedLead, t]);
 
   const handleArchiveLead = useCallback((lead: TransformedLead) => {
     setArchiveTarget(lead);

@@ -246,6 +246,11 @@ export function useLeads({
     queryClient.invalidateQueries({ queryKey: leadsQueryKeys.all });
   }, [queryClient]);
 
+  // Silent stats refetch (no loading indicators - used after optimistic updates)
+  const refetchStats = useCallback(() => {
+    statsQuery.refetch();
+  }, [statsQuery]);
+
   // Refetch leads and wait for completion (useful when UI must wait for fresh data)
   const refetchLeads = useCallback(async () => {
     await Promise.all([
@@ -335,6 +340,7 @@ export function useLeads({
     // Actions
     invalidateLeads,
     refetchLeads,
+    refetchStats,
     prefetchNextPage,
     optimisticStatusUpdate,
 

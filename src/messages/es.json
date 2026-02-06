@@ -284,6 +284,9 @@
       "archiveError": "Error al archivar el lead",
       "cancel": "Cancelar"
     },
+    "errors": {
+      "statusUpdateFailed": "No se pudo actualizar el estado. Intenta de nuevo."
+    },
     "empty": {
       "noLeads": {
         "title": "No hay leads aún",
