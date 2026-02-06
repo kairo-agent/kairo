@@ -8,7 +8,7 @@
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, verifyAuth, verifyProjectAccess } from './auth';
 import { getProjectSecret } from './secrets';
-import type { Message, Conversation } from '@prisma/client';
+import type { Message, Conversation, Prisma } from '@prisma/client';
 import { MessageSender, HandoffMode } from '@prisma/client';
 
 // ============================================
@@ -28,8 +28,8 @@ export type MessageWithSender = Message & {
 
 /**
  * Optimized Message type for chat display (Phase 4 Performance)
+ * Includes metadata for audio transcription display.
  * Excludes large fields not needed for rendering:
- * - metadata: JSON field, only needed for debugging/advanced features
  * - deliveredAt/readAt: timestamps not shown in UI, isDelivered/isRead flags are sufficient
  */
 export type MessageForChat = {
@@ -42,6 +42,7 @@ export type MessageForChat = {
   whatsappMsgId: string | null;
   isDelivered: boolean;
   isRead: boolean;
+  metadata: Prisma.JsonValue | null;
   sentByUser: {
     id: string;
     firstName: string;
@@ -55,8 +56,8 @@ export type MessageForChat = {
 
 /**
  * Optimized select for chat display.
+ * Includes metadata for audio transcription display.
  * Excludes large fields not needed for rendering:
- * - metadata: JSON field, only needed for debugging/advanced features
  * - deliveredAt/readAt: timestamps not shown in UI, isDelivered/isRead flags are sufficient
  */
 const messageSelectForChat = {
@@ -69,7 +70,8 @@ const messageSelectForChat = {
   whatsappMsgId: true,
   isDelivered: true,
   isRead: true,
-  // Exclude: metadata, deliveredAt, readAt (not needed for display)
+  metadata: true,
+  // Exclude: deliveredAt, readAt (not needed for display)
   sentByUser: {
     select: { id: true, firstName: true, lastName: true },
   },

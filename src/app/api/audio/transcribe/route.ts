@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { prisma } from '@/lib/prisma';
 
 // ============================================
 // Types
@@ -312,6 +313,49 @@ export async function POST(request: NextRequest) {
 
     const duration = Date.now() - startTime;
     console.log(`[Audio Transcribe] Complete in ${duration}ms - ${transcription.length} chars`);
+
+    // ============================================
+    // Step 5: Persist transcription to message metadata
+    // Find the message by mediaId in metadata, verify project ownership
+    // Non-blocking: if this fails, still return transcription for AI flow
+    // ============================================
+    try {
+      // Truncate transcription to 10,000 chars max (security: prevent metadata bloat)
+      const truncatedTranscription = transcription.length > 10_000
+        ? transcription.slice(0, 10_000) + '...'
+        : transcription;
+
+      // Find message by mediaId in metadata JSON (PostgreSQL JSON path query)
+      const audioMessage = await prisma.message.findFirst({
+        where: {
+          metadata: { path: ['mediaId'], equals: mediaId },
+          conversation: {
+            lead: { projectId },
+          },
+        },
+        select: { id: true, metadata: true },
+      });
+
+      if (audioMessage) {
+        const existingMetadata = (audioMessage.metadata as Record<string, unknown>) || {};
+        await prisma.message.update({
+          where: { id: audioMessage.id },
+          data: {
+            metadata: {
+              ...existingMetadata,
+              transcription: truncatedTranscription,
+              transcribedAt: new Date().toISOString(),
+            },
+          },
+        });
+        console.log(`[Audio Transcribe] Transcription saved to message ${audioMessage.id}`);
+      } else {
+        console.warn(`[Audio Transcribe] Message not found for mediaId ${mediaId} in project ${projectId}`);
+      }
+    } catch (dbError) {
+      // Non-blocking: log error but don't fail the transcription response
+      console.error('[Audio Transcribe] Failed to persist transcription:', dbError);
+    }
 
     // ============================================
     // Return transcription

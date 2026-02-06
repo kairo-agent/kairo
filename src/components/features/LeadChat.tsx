@@ -213,6 +213,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         whatsappMsgId: realtimeMsg.whatsappMsgId,
         isDelivered: realtimeMsg.isDelivered,
         isRead: realtimeMsg.isRead,
+        metadata: realtimeMsg.metadata ?? null,
         sentByUser: null, // No tenemos esta info en el payload de Realtime
       };
 
@@ -680,7 +681,29 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       </span>
                     </div>
                   )}
-                  <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  {/* Audio message: show badge + transcription */}
+                  {(message.metadata as Record<string, unknown>)?.messageType === 'audio' ? (
+                    <div>
+                      <span className={cn(
+                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium mb-1',
+                        senderInfo.isRight
+                          ? 'bg-[var(--kairo-midnight)]/10 text-[var(--kairo-midnight)]/70'
+                          : 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                      )}>
+                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        Audio
+                      </span>
+                      <p className="text-sm whitespace-pre-wrap">
+                        {(message.metadata as Record<string, unknown>)?.transcription
+                          ? String((message.metadata as Record<string, unknown>).transcription)
+                          : message.content}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                  )}
                   <p
                     className={cn(
                       'text-xs mt-1 flex items-center gap-1',
