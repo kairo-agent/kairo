@@ -2,6 +2,22 @@
 
 ## [0.7.15] - 2026-02-06
 
+### Optimistic Status Updates + Sonner Toasts (commits `5b7484c`, `9dc2f38`, `1c5db17`)
+
+Cambio de status instantaneo sin spinner. Rollback + toast de error si el servidor falla.
+
+| Archivo | Cambio |
+|---------|--------|
+| `useLeadsQuery.ts` | `optimisticStatusUpdate()` actualiza cache React Query. `refetchStats()` silencioso. `isFetching` desacoplado de stats |
+| `LeadsPageClient.tsx` | `handleStatusChange` con optimistic update + `toast.error()` en rollback |
+| `DashboardLayoutClient.tsx` | `<Toaster />` de sonner (bottom-right, richColors, closeButton) |
+| `package.json` | Dependencia `sonner` agregada |
+| `es.json` / `en.json` | Key `errors.statusUpdateFailed` |
+
+### i18n Fix: Status badges in table view (commit `ae63119`)
+
+Los badges de status en la vista tabla usaban labels hardcodeados en espanol (`statusConfig.label`). Corregido a `t('status.${lead.status}')`.
+
 ### AI Summary in Lead Detail Panel (commit `f1a9581`)
 
 Muestra el resumen de conversacion generado por IA en el panel de detalle del lead para toma de decisiones rapida.
