@@ -8,7 +8,7 @@ export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   children: ReactNode;
   showCloseButton?: boolean;
 }
@@ -49,6 +49,8 @@ export function Modal({
     md: 'max-w-md',
     lg: 'max-w-lg',
     xl: 'max-w-xl',
+    '2xl': 'max-w-4xl',
+    '3xl': 'max-w-5xl',
   };
 
   return (
@@ -106,7 +108,7 @@ export function Modal({
         )}
 
         {/* Body */}
-        <div className="px-6 py-4">{children}</div>
+        <div className="px-6 py-4 overflow-y-auto max-h-[calc(100vh-8rem)]">{children}</div>
       </div>
     </div>
   );

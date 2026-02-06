@@ -902,7 +902,7 @@ export default function ProjectSettingsModal({
       isOpen={isOpen}
       onClose={onClose}
       title={`${t('settings.title')}: ${project?.name || ''}`}
-      size="lg"
+      size="3xl"
     >
       <div className="space-y-6">
         {/* Tabs - Solo el tab activo muestra texto */}
