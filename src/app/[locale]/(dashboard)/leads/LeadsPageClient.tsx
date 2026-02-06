@@ -387,7 +387,7 @@ function LeadTable({ leads, onLeadClick }: LeadTableProps) {
                       customBgColor={statusConfig.bgColor}
                       size="sm"
                     >
-                      {statusConfig.label}
+                      {t(`status.${lead.status}`)}
                     </Badge>
                   </div>
                 </td>
