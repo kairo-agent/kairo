@@ -2,7 +2,7 @@
 
 ## [0.7.14] - 2026-02-05
 
-### Archive Leads (commits `d7530c3`, `8fb8d3c`, `340c801`)
+### Archive Leads (commits `d7530c3`, `8fb8d3c`, `340c801`, `ea41ee6`, `a59dcaf`)
 
 Los leads ahora se pueden archivar sin perder su estado original. Usa campo separado `archivedAt` (Opcion B) en lugar de status, preservando datos historicos.
 
@@ -32,6 +32,13 @@ Los leads ahora se pueden archivar sin perder su estado original. Usa campo sepa
 | `LeadDetailPanel.tsx` | Badge gris "Archivado" en panel lateral de detalle del lead |
 | `LeadTable.tsx` | Badge gris "Archivado" en columna Status de vista tabla |
 | `es.json` / `en.json` | Filtro "Mostrar todos" (antes "Mostrar archivados") |
+
+**Fixes y panel (commits `ea41ee6`, `a59dcaf`):**
+
+| Archivo | Cambio |
+|---------|--------|
+| `LeadsPageClient.tsx` | Badge "Archivado" en tabla inline (fix: se editaba componente equivocado). `archivedAt` en `selectedLeadForPanel` transform |
+| `LeadDetailPanel.tsx` | Boton Archivar/Desarchivar en footer (3er boton: Llamar, Editar, Archivar). Prop `onArchiveLead`, iconos ArchiveIcon/UnarchiveIcon |
 
 **Decisiones tecnicas:**
 - **Opcion B elegida** (sobre Opcion A): Campo `archivedAt` separado en vez de status `archived`, preserva el status original del lead (WON archivado sigue siendo WON)
