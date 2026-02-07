@@ -595,6 +595,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     refetchLeads,
     refetchStats,
     optimisticStatusUpdate,
+    optimisticFollowUpUpdate,
   } = useLeads({
     projectId,
     organizationId,
@@ -772,24 +773,32 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
 
   const handleScheduleFollowUp = useCallback(async (date: Date) => {
     if (!followUpTarget) return;
+    const rollback = optimisticFollowUpUpdate(followUpTarget.id, date);
+    setFollowUpTarget(null);
+    toast.success(t('followUp.scheduled'));
+
     const result = await scheduleFollowUp(followUpTarget.id, date);
     if (result.success) {
-      invalidateLeads();
-      toast.success(t('followUp.scheduled'));
+      refetchStats();
     } else {
+      rollback();
       toast.error(result.error || t('errors.statusUpdateFailed'));
     }
-    setFollowUpTarget(null);
-  }, [followUpTarget, invalidateLeads, t]);
+  }, [followUpTarget, optimisticFollowUpUpdate, refetchStats, t]);
 
   const handleClearFollowUp = useCallback(async () => {
     if (!followUpTarget) return;
+    const rollback = optimisticFollowUpUpdate(followUpTarget.id, null);
+    setFollowUpTarget(null);
+
     const result = await scheduleFollowUp(followUpTarget.id, null);
     if (result.success) {
-      invalidateLeads();
+      refetchStats();
+    } else {
+      rollback();
+      toast.error(t('errors.statusUpdateFailed'));
     }
-    setFollowUpTarget(null);
-  }, [followUpTarget, invalidateLeads]);
+  }, [followUpTarget, optimisticFollowUpUpdate, refetchStats, t]);
 
   // Handler to refresh selected lead when edited - returns Promise for modal to await
   const handleLeadUpdated = useCallback(async () => {
@@ -809,7 +818,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
           updatedLead.phone !== selectedLead.phone ||
           updatedLead.position !== selectedLead.position ||
           updatedLead.temperature !== selectedLead.temperature ||
-          updatedLead.status !== selectedLead.status;
+          updatedLead.status !== selectedLead.status ||
+          updatedLead.nextFollowUpAt !== selectedLead.nextFollowUpAt;
 
         if (hasChanged) {
           setSelectedLead(updatedLead);

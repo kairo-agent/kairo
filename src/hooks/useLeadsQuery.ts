@@ -282,6 +282,24 @@ export function useLeads({
     return () => queryClient.setQueryData(queryKey, previousData);
   }, [queryClient, projectId, organizationId, filters, page, limit]);
 
+  // Optimistic update: instantly update a lead's nextFollowUpAt in the cache
+  const optimisticFollowUpUpdate = useCallback((leadId: string, date: Date | null) => {
+    const queryKey = leadsQueryKeys.list({ projectId, organizationId, filters, page, limit });
+    const previousData = queryClient.getQueryData(queryKey);
+
+    queryClient.setQueryData(queryKey, (old: { data: TransformedLead[]; pagination: unknown } | undefined) => {
+      if (!old) return old;
+      return {
+        ...old,
+        data: old.data.map((lead) =>
+          lead.id === leadId ? { ...lead, nextFollowUpAt: date ? date.toISOString() : null } : lead
+        ),
+      };
+    });
+
+    return () => queryClient.setQueryData(queryKey, previousData);
+  }, [queryClient, projectId, organizationId, filters, page, limit]);
+
   // Prefetch next page for smooth pagination
   const prefetchNextPage = useCallback(() => {
     if (leadsQuery.data?.pagination.hasNext) {
@@ -343,6 +361,7 @@ export function useLeads({
     refetchStats,
     prefetchNextPage,
     optimisticStatusUpdate,
+    optimisticFollowUpUpdate,
 
     // Query references (for advanced use cases)
     leadsQuery,
