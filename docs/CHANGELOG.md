@@ -33,6 +33,28 @@ Sistema de notificaciones in-app con polling y programacion de seguimientos para
 
 Ver [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) para arquitectura completa.
 
+### Follow-up badge in detail panel + optimistic updates (commits `517488d`, `1a3d2e7`)
+
+Badge de follow-up y card detallada con fecha/hora exacta en LeadDetailPanel. Optimistic update instantaneo al programar seguimientos.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/features/LeadDetailPanel.tsx` | Badge coloreado en header (rojo/naranja/gris) + card con borde lateral, fecha exacta (date-fns PPPp), boton "Reprogramar" |
+| `src/hooks/useLeadsQuery.ts` | `optimisticFollowUpUpdate()` - actualiza `nextFollowUpAt` en cache React Query al instante |
+| `LeadsPageClient.tsx` | `handleScheduleFollowUp/handleClearFollowUp` usan optimistic update + rollback. Sync effect incluye `nextFollowUpAt` |
+| `es.json` / `en.json` | Key `followUp.reschedule` (Reprogramar/Reschedule) |
+
+### FollowUpModal rewrite: Calendar + same-day scheduling (commit `0623747`)
+
+Reemplazo de input `datetime-local` nativo por calendario visual con `react-day-picker` (single mode). Permite programar seguimientos el mismo dia (horas futuras solamente).
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/features/FollowUpModal.tsx` | DayPicker + selects hora/minuto + quick options "En 1 hora"/"En 3 horas" + validacion horas pasadas |
+| `src/components/features/LeadDetailPanel.tsx` | Prop `onScheduleFollowUp` + boton naranja en footer |
+| `LeadsPageClient.tsx` | Wire `onScheduleFollowUp` callback al panel |
+| `es.json` / `en.json` | Keys `in1Hour`, `in3Hours`, `dateLabel` actualizado |
+
 ### Mobile notification dropdown fix (commit `21cb62b`)
 
 Dropdown de notificaciones se cortaba por la izquierda en mobile (390px). Fix: `fixed inset-x-3 top-14` en mobile, `sm:absolute sm:right-0 sm:w-96` en desktop.

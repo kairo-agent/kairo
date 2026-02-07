@@ -61,9 +61,11 @@ Evento (webhook/cron/action)
 | Archivo | Contenido |
 |---------|-----------|
 | `src/lib/actions/leads.ts` | `scheduleFollowUp(leadId, date)` server action |
-| `src/components/features/FollowUpModal.tsx` | Modal con datetime-local + quick options |
+| `src/components/features/FollowUpModal.tsx` | Modal con DayPicker (react-day-picker) + hora/minuto selects + quick options |
 | `src/components/features/LeadCard.tsx` | Badge follow-up (rojo=vencido, naranja=proximo, gris=programado) |
-| `LeadsPageClient.tsx` | Badge en tabla inline + integracion FollowUpModal |
+| `src/components/features/LeadDetailPanel.tsx` | Badge en header + card detallada con fecha exacta (date-fns PPPp) + boton "Reprogramar" |
+| `src/hooks/useLeadsQuery.ts` | `optimisticFollowUpUpdate()` - update instantaneo del cache |
+| `LeadsPageClient.tsx` | Badge en tabla inline + integracion FollowUpModal + optimistic updates |
 
 ### Badges de follow-up
 
