@@ -299,7 +299,8 @@
       "clear": "Quitar seguimiento",
       "scheduled": "Seguimiento programado",
       "overdue": "Vencido",
-      "upcoming": "Proximo"
+      "upcoming": "Proximo",
+      "reschedule": "Reprogramar"
     },
     "errors": {
       "statusUpdateFailed": "No se pudo actualizar el estado. Intenta de nuevo."

@@ -299,7 +299,8 @@
       "clear": "Remove follow-up",
       "scheduled": "Follow-up scheduled",
       "overdue": "Overdue",
-      "upcoming": "Upcoming"
+      "upcoming": "Upcoming",
+      "reschedule": "Reschedule"
     },
     "errors": {
       "statusUpdateFailed": "Could not update status. Please try again."

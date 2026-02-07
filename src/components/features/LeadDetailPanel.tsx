@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
+import { format } from 'date-fns';
+import { es, enUS } from 'date-fns/locale';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -211,6 +213,8 @@ export function LeadDetailPanel({
   organizationName,
 }: LeadDetailPanelProps) {
   const t = useTranslations('leads');
+  const locale = useLocale();
+  const dateLocale = locale === 'es' ? es : enUS;
   const panelRef = useRef<HTMLDivElement>(null);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
@@ -505,6 +509,26 @@ export function LeadDetailPanel({
                 </span>
                 {t(`channel.${lead.channel}`)}
               </Badge>
+
+              {/* Follow-up Badge */}
+              {lead.nextFollowUpAt && (() => {
+                const followUpDate = new Date(lead.nextFollowUpAt);
+                const isOverdue = followUpDate < new Date();
+                const isUpcoming = !isOverdue && followUpDate.getTime() - Date.now() < 24 * 60 * 60 * 1000;
+                return (
+                  <Badge
+                    variant="custom"
+                    customColor={isOverdue ? '#EF4444' : isUpcoming ? '#F97316' : '#6B7280'}
+                    customBgColor={isOverdue ? 'rgba(239, 68, 68, 0.15)' : isUpcoming ? 'rgba(249, 115, 22, 0.15)' : 'rgba(107, 114, 128, 0.15)'}
+                    size="md"
+                  >
+                    <ClockIcon />
+                    <span className="ml-1">
+                      {isOverdue ? t('followUp.overdue') : isUpcoming ? t('followUp.upcoming') : t('followUp.scheduled')}
+                    </span>
+                  </Badge>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -545,6 +569,44 @@ export function LeadDetailPanel({
               </div>
             )}
           </div>
+
+          {/* Follow-up Detail */}
+          {lead.nextFollowUpAt && (() => {
+            const followUpDate = new Date(lead.nextFollowUpAt);
+            const now = new Date();
+            const isOverdue = followUpDate < now;
+            const isUpcoming = !isOverdue && followUpDate.getTime() - now.getTime() < 24 * 60 * 60 * 1000;
+
+            const borderColor = isOverdue ? 'border-l-red-500' : isUpcoming ? 'border-l-orange-500' : 'border-l-[var(--accent-primary)]';
+            const iconColor = isOverdue ? 'text-red-500' : isUpcoming ? 'text-orange-500' : 'text-[var(--accent-primary)]';
+            const bgColor = isOverdue ? 'bg-red-50 dark:bg-red-950/20' : isUpcoming ? 'bg-orange-50 dark:bg-orange-950/20' : 'bg-[var(--bg-tertiary)]';
+
+            return (
+              <div className={cn('p-3 rounded-lg border-l-4', borderColor, bgColor)}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn('p-2 rounded-lg bg-white/50 dark:bg-white/5', iconColor)}>
+                      <ClockIcon />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-[var(--text-primary)]">
+                        {isOverdue ? t('followUp.overdue') : isUpcoming ? t('followUp.upcoming') : t('followUp.scheduled')}
+                      </p>
+                      <p className="text-xs text-[var(--text-secondary)] mt-0.5 capitalize">
+                        {format(followUpDate, 'PPPp', { locale: dateLocale })}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onScheduleFollowUp?.(lead)}
+                    className="text-xs text-[var(--accent-primary)] hover:underline whitespace-nowrap"
+                  >
+                    {t('followUp.reschedule')}
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* AI Summary */}
           {lead.summary ? (
@@ -708,17 +770,6 @@ export function LeadDetailPanel({
             {lead.lastContactAt && (
               <p>
                 {t('detail.lastContact')}: {formatRelativeTime(lead.lastContactAt)}
-              </p>
-            )}
-            {lead.nextFollowUpAt && (
-              <p>
-                {t('detail.nextFollowUp')}:{' '}
-                {new Date(lead.nextFollowUpAt).toLocaleDateString('es-PE', {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
               </p>
             )}
             <p>
