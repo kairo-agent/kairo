@@ -2,6 +2,19 @@
 
 ## [0.7.16] - 2026-02-06
 
+### Enriched notifications + deep-link to lead panel (commit `36aef6a`)
+
+Notificaciones enriquecidas con datos del lead y navegacion directa al panel de detalle.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/notifications.ts` | Batch-fetch de leads por `metadata.leadId` en `getNotifications()` - datos siempre frescos sin tocar pg-cron |
+| `src/hooks/useNotifications.ts` | Interface `NotificationLead` con firstName, lastName, temperature, nextFollowUpAt |
+| `src/components/layout/NotificationDropdown.tsx` | Nombre completo, badge de temperatura (Alto/Medio/Bajo), fecha de seguimiento, click navega a `/leads?leadId=xxx` |
+| `src/lib/actions/leads.ts` | Nueva `getLeadById()` server action para fetch individual con access check |
+| `LeadsPageClient.tsx` | Lee `searchParams.leadId`, busca en cache o fetch remoto, abre panel, limpia URL |
+| `es.json` / `en.json` | Key `notifications.scheduledFor` |
+
 ### Notification System + Follow-up Scheduling (commit `c942341`)
 
 Sistema de notificaciones in-app con polling y programacion de seguimientos para leads.

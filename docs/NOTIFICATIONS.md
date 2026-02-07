@@ -49,9 +49,10 @@ Evento (webhook/cron/action)
 | Archivo | Contenido |
 |---------|-----------|
 | `prisma/schema.prisma` | Modelo Notification + enum NotificationType |
-| `src/lib/actions/notifications.ts` | Server actions: get, markRead, markAllRead, create, notifyProjectMembers |
-| `src/hooks/useNotifications.ts` | Hook de polling (15s) con optimistic updates |
-| `src/components/layout/NotificationDropdown.tsx` | UI del bell dropdown |
+| `src/lib/actions/notifications.ts` | Server actions: get (con enrichment de lead), markRead, markAllRead, create, notifyProjectMembers |
+| `src/hooks/useNotifications.ts` | Hook de polling (15s) con optimistic updates. Interface incluye `lead` con datos enriquecidos |
+| `src/components/layout/NotificationDropdown.tsx` | UI: nombre completo, badge temperatura, fecha follow-up, click -> deep-link a panel |
+| `src/lib/actions/leads.ts` | `getLeadById()` para fetch individual (deep-link desde notificacion) |
 | `src/components/layout/Header.tsx` | Integra NotificationDropdown |
 | `src/app/api/webhooks/whatsapp/route.ts` | Crea notificacion fire-and-forget en inbound |
 | `scripts/pg-cron-followup-notifications.sql` | SQL para pg_cron en Supabase |
@@ -74,6 +75,37 @@ Evento (webhook/cron/action)
 | Rojo (#EF4444) | `nextFollowUpAt < NOW()` (vencido) |
 | Naranja (#F97316) | `nextFollowUpAt` dentro de 24h (proximo) |
 | Gris (#6B7280) | `nextFollowUpAt` > 24h (programado futuro) |
+
+## Notification Enrichment (v0.7.16+)
+
+Notificaciones se enriquecen al **consultar** (no al crear) con datos del lead asociado via `metadata.leadId`.
+
+```
+getNotifications()
+  -> Fetch notifications de DB
+  -> Extraer leadIds unicos del metadata
+  -> Batch-fetch leads (id, firstName, lastName, temperature, nextFollowUpAt)
+  -> Merge: cada notificacion incluye campo `lead` con datos frescos
+```
+
+**Ventajas del enfoque query-time vs store-time:**
+- Datos siempre frescos (si temperature cambia, la notificacion refleja el cambio)
+- Notificaciones existentes se enriquecen automaticamente
+- No requiere actualizar pg-cron SQL ni webhook code
+
+## Deep-link: Click notification -> Lead Panel
+
+```
+Click en notificacion
+  -> markAsRead(id) optimistic
+  -> router.push('/leads?leadId=xxx')
+  -> LeadsPageClient detecta searchParam
+  -> Busca lead en cache actual || getLeadById(leadId)
+  -> setSelectedLead + setIsPanelOpen(true)
+  -> window.history.replaceState() limpia URL
+```
+
+`getLeadById()` en `leads.ts` retorna `LeadGridItem` con verificacion de acceso (verifyProjectAccess).
 
 ## Seguridad
 
