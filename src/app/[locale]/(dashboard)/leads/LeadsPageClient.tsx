@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -26,7 +27,7 @@ import {
   type PageSize,
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
-import { updateLeadStatus, archiveLead, unarchiveLead, scheduleFollowUp } from '@/lib/actions/leads';
+import { updateLeadStatus, archiveLead, unarchiveLead, scheduleFollowUp, getLeadById } from '@/lib/actions/leads';
 import { FollowUpModal } from '@/components/features/FollowUpModal';
 import { toast } from 'sonner';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
@@ -558,6 +559,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const locale = useLocale() as 'es' | 'en';
   const { selectedOrganization, selectedProject } = useWorkspace();
   const { hideLoading } = useLoading();
+  const searchParams = useSearchParams();
 
   // Local UI state
   const [currentPage, setCurrentPage] = useState(1);
@@ -685,6 +687,70 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
       setTimeout(() => setSelectedLead(null), 300);
     }
   }, [leads, selectedLead]);
+
+  // Open lead detail panel from notification deep-link (?leadId=xxx)
+  const deepLinkLeadId = searchParams.get('leadId');
+  const deepLinkProcessedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!deepLinkLeadId || deepLinkProcessedRef.current === deepLinkLeadId) return;
+    deepLinkProcessedRef.current = deepLinkLeadId;
+
+    async function openLeadFromDeepLink(leadId: string) {
+      // Try to find in current results first
+      const existing = leads.find(l => l.id === leadId);
+      if (existing) {
+        setSelectedLead(existing);
+        setIsPanelOpen(true);
+        // Clean URL param
+        window.history.replaceState({}, '', window.location.pathname);
+        return;
+      }
+
+      // Fetch lead from server
+      const serverLead = await getLeadById(leadId);
+      if (!serverLead) return;
+
+      const transformed: TransformedLead = {
+        id: serverLead.id,
+        projectId: serverLead.projectId,
+        firstName: serverLead.firstName,
+        lastName: serverLead.lastName,
+        email: serverLead.email || undefined,
+        phone: serverLead.phone || undefined,
+        businessName: serverLead.businessName || undefined,
+        position: serverLead.position || undefined,
+        status: serverLead.status,
+        temperature: serverLead.temperature,
+        source: serverLead.source,
+        channel: serverLead.channel,
+        type: serverLead.type,
+        assignedAgentId: serverLead.assignedAgentId || undefined,
+        assignedUserId: serverLead.assignedUserId || undefined,
+        pipelineStage: serverLead.pipelineStage,
+        estimatedValue: serverLead.estimatedValue ? Number(serverLead.estimatedValue) : undefined,
+        currency: serverLead.currency,
+        tags: serverLead.tags,
+        archivedAt: serverLead.archivedAt || undefined,
+        lastContactAt: serverLead.lastContactAt || undefined,
+        nextFollowUpAt: serverLead.nextFollowUpAt || undefined,
+        summary: serverLead.summary || undefined,
+        summaryUpdatedAt: serverLead.summaryUpdatedAt || undefined,
+        createdAt: serverLead.createdAt,
+        updatedAt: serverLead.updatedAt,
+        assignedAgent: serverLead.assignedAgent
+          ? { id: serverLead.assignedAgent.id, name: serverLead.assignedAgent.name, type: serverLead.assignedAgent.type }
+          : undefined,
+      };
+
+      setSelectedLead(transformed);
+      setIsPanelOpen(true);
+      // Clean URL param
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    openLeadFromDeepLink(deepLinkLeadId);
+  }, [deepLinkLeadId, leads]);
 
   // Handlers
   const handleFiltersChange = useCallback((newFilters: LeadFiltersType) => {

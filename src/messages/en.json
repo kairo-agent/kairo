@@ -319,7 +319,8 @@
   "notifications": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",
-    "empty": "No notifications"
+    "empty": "No notifications",
+    "scheduledFor": "Scheduled:"
   },
   "dashboard": {
     "systemStatus": "System operational"

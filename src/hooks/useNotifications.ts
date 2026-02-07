@@ -10,6 +10,14 @@ import {
 
 const POLL_INTERVAL = 15_000; // 15 seconds
 
+interface NotificationLead {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  temperature: string;
+  nextFollowUpAt: Date | null;
+}
+
 interface Notification {
   id: string;
   type: string;
@@ -17,6 +25,7 @@ interface Notification {
   message: string;
   readAt: Date | null;
   metadata: Record<string, unknown> | null;
+  lead: NotificationLead | null;
   createdAt: Date;
   projectId: string;
 }

@@ -56,7 +56,40 @@ export async function getNotifications(options?: {
       }),
     ]);
 
-    return { success: true as const, notifications, unreadCount };
+    // Enrich notifications with lead data (batch fetch)
+    const leadIds = [
+      ...new Set(
+        notifications
+          .map((n) => (n.metadata as Record<string, unknown> | null)?.leadId)
+          .filter((id): id is string => typeof id === 'string')
+      ),
+    ];
+
+    const leads =
+      leadIds.length > 0
+        ? await prisma.lead.findMany({
+            where: { id: { in: leadIds } },
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              temperature: true,
+              nextFollowUpAt: true,
+            },
+          })
+        : [];
+
+    const leadsMap = new Map(leads.map((l) => [l.id, l]));
+
+    const enrichedNotifications = notifications.map((n) => {
+      const leadId = (n.metadata as Record<string, unknown> | null)?.leadId;
+      return {
+        ...n,
+        lead: typeof leadId === 'string' ? leadsMap.get(leadId) ?? null : null,
+      };
+    });
+
+    return { success: true as const, notifications: enrichedNotifications, unreadCount };
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return { success: false as const, error: 'Error al obtener notificaciones' };

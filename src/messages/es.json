@@ -319,7 +319,8 @@
   "notifications": {
     "title": "Notificaciones",
     "markAllRead": "Marcar todo como leido",
-    "empty": "No hay notificaciones"
+    "empty": "No hay notificaciones",
+    "scheduledFor": "Programado:"
   },
   "dashboard": {
     "systemStatus": "Sistema operativo"

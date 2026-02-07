@@ -1064,3 +1064,63 @@ export async function logLeadActivity(
     return { success: false, error: 'Error al registrar actividad' };
   }
 }
+
+// ============================================
+// Get single lead by ID (for notification deep-link)
+// ============================================
+
+export async function getLeadById(leadId: string): Promise<LeadGridItem | null> {
+  try {
+    const user = await verifyAuth();
+    if (!user) return null;
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        businessName: true,
+        position: true,
+        status: true,
+        temperature: true,
+        source: true,
+        channel: true,
+        type: true,
+        pipelineStage: true,
+        estimatedValue: true,
+        currency: true,
+        tags: true,
+        archivedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        lastContactAt: true,
+        nextFollowUpAt: true,
+        summary: true,
+        summaryUpdatedAt: true,
+        projectId: true,
+        assignedAgentId: true,
+        assignedUserId: true,
+        assignedAgent: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+      },
+    });
+
+    if (!lead) return null;
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) return null;
+
+    return lead;
+  } catch (error) {
+    console.error('Error fetching lead by ID:', error);
+    return null;
+  }
+}

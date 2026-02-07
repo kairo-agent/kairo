@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useRouter } from '@/i18n/routing';
 
 const BellIcon = () => (
   <svg
@@ -65,6 +66,19 @@ function getNotificationIconColor(type: string) {
   }
 }
 
+function getTemperatureBadge(temperature: string): { label: string; className: string } | null {
+  switch (temperature) {
+    case 'hot':
+      return { label: 'Alto', className: 'bg-red-500/10 text-red-500' };
+    case 'warm':
+      return { label: 'Medio', className: 'bg-amber-500/10 text-amber-500' };
+    case 'cold':
+      return { label: 'Bajo', className: 'bg-blue-500/10 text-blue-500' };
+    default:
+      return null;
+  }
+}
+
 function formatTimeAgo(date: Date): string {
   const now = new Date();
   const diff = now.getTime() - new Date(date).getTime();
@@ -79,10 +93,22 @@ function formatTimeAgo(date: Date): string {
   return new Date(date).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
 }
 
+function formatFollowUpDate(date: Date): string {
+  const d = new Date(date);
+  return d.toLocaleDateString('es-PE', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function NotificationDropdown() {
   const t = useTranslations('notifications');
+  const tLeads = useTranslations('leads');
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const {
     notifications,
     unreadCount,
@@ -108,6 +134,19 @@ export function NotificationDropdown() {
       refetch();
     }
     setIsOpen(!isOpen);
+  };
+
+  const handleNotificationClick = (notification: typeof notifications[number]) => {
+    if (!notification.readAt) {
+      markAsRead(notification.id);
+    }
+    setIsOpen(false);
+
+    // Navigate to leads page with leadId to open detail panel
+    const leadId = notification.lead?.id || (notification.metadata as Record<string, unknown> | null)?.leadId;
+    if (typeof leadId === 'string') {
+      router.push(`/leads?leadId=${leadId}` as any);
+    }
   };
 
   return (
@@ -158,53 +197,78 @@ export function NotificationDropdown() {
                 </p>
               </div>
             ) : (
-              notifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  onClick={() => {
-                    if (!notification.readAt) {
-                      markAsRead(notification.id);
-                    }
-                    setIsOpen(false);
-                  }}
-                  className={cn(
-                    'w-full flex items-start gap-3 px-4 py-3 text-left transition-colors',
-                    'hover:bg-[var(--bg-tertiary)]',
-                    !notification.readAt && 'bg-[var(--accent-primary)]/5'
-                  )}
-                >
-                  {/* Icon */}
-                  <div className={cn(
-                    'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5',
-                    getNotificationIconColor(notification.type)
-                  )}>
-                    {getNotificationIcon(notification.type)}
-                  </div>
+              notifications.map((notification) => {
+                const lead = notification.lead;
+                const leadName = lead
+                  ? [lead.firstName, lead.lastName].filter(Boolean).join(' ')
+                  : null;
+                const tempBadge = lead ? getTemperatureBadge(lead.temperature) : null;
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <p className={cn(
-                      'text-sm truncate',
-                      notification.readAt
-                        ? 'text-[var(--text-secondary)]'
-                        : 'text-[var(--text-primary)] font-medium'
+                return (
+                  <button
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={cn(
+                      'w-full flex items-start gap-3 px-4 py-3 text-left transition-colors',
+                      'hover:bg-[var(--bg-tertiary)]',
+                      !notification.readAt && 'bg-[var(--accent-primary)]/5'
+                    )}
+                  >
+                    {/* Icon */}
+                    <div className={cn(
+                      'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center mt-0.5',
+                      getNotificationIconColor(notification.type)
                     )}>
-                      {notification.title}
-                    </p>
-                    <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
-                      {notification.message}
-                    </p>
-                    <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                      {formatTimeAgo(notification.createdAt)}
-                    </p>
-                  </div>
+                      {getNotificationIcon(notification.type)}
+                    </div>
 
-                  {/* Unread dot */}
-                  {!notification.readAt && (
-                    <div className="flex-shrink-0 w-2 h-2 rounded-full bg-[var(--accent-primary)] mt-2" />
-                  )}
-                </button>
-              ))
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      {/* Lead name + temperature badge */}
+                      <div className="flex items-center gap-1.5">
+                        <p className={cn(
+                          'text-sm truncate',
+                          notification.readAt
+                            ? 'text-[var(--text-secondary)]'
+                            : 'text-[var(--text-primary)] font-medium'
+                        )}>
+                          {leadName || notification.title}
+                        </p>
+                        {tempBadge && (
+                          <span className={cn(
+                            'flex-shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded-full',
+                            tempBadge.className
+                          )}>
+                            {tLeads(`potentialShort.${lead!.temperature}`)}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Notification message */}
+                      <p className="text-xs text-[var(--text-tertiary)] truncate mt-0.5">
+                        {notification.message}
+                      </p>
+
+                      {/* Follow-up date (for follow_up_due notifications) */}
+                      {notification.type === 'follow_up_due' && lead?.nextFollowUpAt && (
+                        <p className="text-[10px] text-orange-500 mt-0.5">
+                          {t('scheduledFor')} {formatFollowUpDate(lead.nextFollowUpAt)}
+                        </p>
+                      )}
+
+                      {/* Time ago */}
+                      <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                        {formatTimeAgo(notification.createdAt)}
+                      </p>
+                    </div>
+
+                    {/* Unread dot */}
+                    {!notification.readAt && (
+                      <div className="flex-shrink-0 w-2 h-2 rounded-full bg-[var(--accent-primary)] mt-2" />
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
         </div>
