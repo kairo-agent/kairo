@@ -288,7 +288,9 @@
     "followUp": {
       "title": "Programar seguimiento",
       "description": "Programa un recordatorio para dar seguimiento a {name}.",
-      "dateLabel": "Fecha y hora",
+      "dateLabel": "Hora",
+      "in1Hour": "En 1 hora",
+      "in3Hours": "En 3 horas",
       "tomorrow": "Manana",
       "in3Days": "En 3 dias",
       "nextWeek": "Proxima semana",

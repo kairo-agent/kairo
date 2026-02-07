@@ -36,6 +36,7 @@ interface LeadDetailPanelProps {
   isUpdatingStatus?: boolean;
   onLeadUpdated?: () => Promise<void>;
   onArchiveLead?: (lead: Lead) => void;
+  onScheduleFollowUp?: (lead: Lead) => void;
   projectName?: string;
   organizationName?: string;
 }
@@ -205,6 +206,7 @@ export function LeadDetailPanel({
   isUpdatingStatus = false,
   onLeadUpdated,
   onArchiveLead,
+  onScheduleFollowUp,
   projectName,
   organizationName,
 }: LeadDetailPanelProps) {
@@ -740,6 +742,15 @@ export function LeadDetailPanel({
             <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(true)}>
               <EditIcon />
               <span>{t('detail.edit')}</span>
+            </Button>
+            <Button
+              variant="ghost"
+              fullWidth
+              className="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+              onClick={() => onScheduleFollowUp?.(lead)}
+            >
+              <ClockIcon />
+              <span>{t('actions.scheduleFollowUp')}</span>
             </Button>
             <Button
               variant="ghost"

@@ -288,7 +288,9 @@
     "followUp": {
       "title": "Schedule follow-up",
       "description": "Schedule a reminder to follow up with {name}.",
-      "dateLabel": "Date and time",
+      "dateLabel": "Time",
+      "in1Hour": "In 1 hour",
+      "in3Hours": "In 3 hours",
       "tomorrow": "Tomorrow",
       "in3Days": "In 3 days",
       "nextWeek": "Next week",

@@ -1125,6 +1125,11 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
             handleArchiveLead(selectedLead);
           }
         }}
+        onScheduleFollowUp={() => {
+          if (selectedLead) {
+            setFollowUpTarget(selectedLead);
+          }
+        }}
         projectName={selectedProject?.name}
         organizationName={selectedOrganization?.name}
       />
