@@ -504,6 +504,29 @@ async function sendReadReceipt(
 }
 
 // ============================================
+// Sanitize Contact Name
+// Strips emojis (above-BMP + BMP decorative + joiners),
+// escapes HTML entities (anti-XSS), normalizes unicode, limits length.
+// Falls back to phone number if name is empty after sanitization.
+// ============================================
+
+function sanitizeContactName(raw: string, phoneNumber: string): string {
+  const cleaned = raw
+    .normalize('NFC')
+    // Strip emojis: above-BMP, BMP decorative symbols, variation selectors, ZWJ
+    .replace(/[\u{10000}-\u{10FFFF}\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
+    // Escape HTML entities (anti-XSS)
+    .replace(/[&<>"']/g, '')
+    .trim()
+    // Collapse multiple spaces
+    .replace(/\s+/g, ' ')
+    .slice(0, 100);
+
+  // Fallback to phone number if name is empty after sanitization
+  return cleaned || `+${phoneNumber}`;
+}
+
+// ============================================
 // Handle Incoming Message
 // ============================================
 
@@ -513,7 +536,7 @@ async function handleIncomingMessage(
   contact?: WhatsAppContact
 ) {
   const whatsappId = message.from;
-  const contactName = contact?.profile?.name || 'Unknown';
+  const contactName = sanitizeContactName(contact?.profile?.name || '', whatsappId);
 
   // === DEDUP: Skip if message already processed ===
   // Meta retries webhooks when it doesn't receive 200 fast enough.
@@ -588,8 +611,8 @@ async function handleIncomingMessage(
   });
 
   if (!lead) {
-    // Parse name into first/last
-    const nameParts = contactName.split(' ');
+    // Parse sanitized name into first/last
+    const nameParts = contactName.split(' ').filter(Boolean);
     const firstName = nameParts[0] || 'Sin nombre';
     const lastName = nameParts.slice(1).join(' ') || '';
 
