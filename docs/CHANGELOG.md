@@ -1,5 +1,62 @@
 # KAIRO - Changelog
 
+## [0.8.1] - 2026-02-15
+
+### Security Audit v2 + Vercel Serverless Fix
+
+Auditoria de seguridad completa del webhook WhatsApp y pipeline AI interno. 19 hallazgos identificados y resueltos (2 criticos, 3 altos, 5 medios, 4 bajos, 10 aprobados).
+
+**Fix critico: Vercel serverless lifecycle**
+
+| Archivo | Cambio |
+|---------|--------|
+| `package.json` | Agregado `@vercel/functions` |
+| `src/app/api/webhooks/whatsapp/route.ts` | 4 fire-and-forget calls envueltos con `waitUntil()`: processAIResponse, handleStatusUpdate, notifyProjectMembers, sendReadReceipt. Sin esto, Vercel mataba el container antes de completar el pipeline AI |
+
+**Hallazgos criticos resueltos:**
+
+| ID | Fix | Archivo |
+|----|-----|---------|
+| C-1 | Deduplicacion de mensajes via `whatsappMsgId` check (previene respuestas AI duplicadas en reintentos de Meta) | `route.ts` |
+| C-2 | Limite de 1MB en body del webhook + `maxDuration=25s` | `route.ts` |
+
+**Hallazgos altos resueltos:**
+
+| ID | Fix | Archivo |
+|----|-----|---------|
+| A-1 | Anti-prompt-injection: preamble con 5 reglas inmutables + delimitadores `=== ===` en cada seccion del system prompt | `build-system-prompt.ts` |
+| A-2 | Rate limit IP: requests sin IP rechazadas en produccion (eliminado bucket compartido `unknown`) | `route.ts` |
+| A-3 | Truncamiento: texto 4096 chars, captions 2048, filenames 255, user message a OpenAI 4096 | `route.ts`, `process-ai-response.ts` |
+
+**Hallazgos medios resueltos:**
+
+| ID | Fix | Archivo |
+|----|-----|---------|
+| M-1 | Cache `phoneNumberIdCache` con limite de 500 entradas + eviccion LRU | `route.ts` |
+| M-2 | Audio: validacion 10MB max, MIME whitelist (6 tipos), hostname Facebook CDN check | `process-ai-response.ts` |
+| M-3 | Rate limit por proyecto: 60 respuestas AI/min/proyecto (protege creditos OpenAI) | `route.ts` |
+| M-4 | `getProjectSecret()` reforzado con `@internal` y documentacion de responsabilidad del caller | `secrets.ts` |
+| M-5 | `logSecretAccess()` graceful fuera de request context (try/catch en `headers()`) | `secrets.ts` |
+
+**Hallazgos bajos resueltos:**
+
+| ID | Fix | Archivo |
+|----|-----|---------|
+| L-1 | IDs truncados a 8 chars en logs, nombres removidos de logs de webhook | `route.ts` |
+| L-2 | Verify token usa `timingSafeEqual` en vez de `===` | `route.ts` |
+| L-3 | Token fallido ya no se loguea en texto claro | `route.ts` |
+| L-4 | Fallback dev requiere `ALLOW_WEBHOOK_FALLBACK=true` explicito | `route.ts` |
+
+**Sanitizacion de nombres de contacto:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/app/api/webhooks/whatsapp/route.ts` | `sanitizeContactName()`: strip emojis (above-BMP + BMP decorativos + ZWJ), escape HTML (anti-XSS), NFC normalize, limite 100 chars, fallback a telefono si vacio |
+
+**10 controles aprobados (sin cambios necesarios):** Verificacion HMAC-SHA256, fail-closed en produccion, cifrado AES-256-GCM, rate limiting atomico Lua/Redis, Prisma ORM (sin SQL raw), AbortController timeout 30s, degradacion graceful del pipeline, respuestas genericas, audit trail de secretos, 13 security headers.
+
+---
+
 ## [0.8.0] - 2026-02-15
 
 ### Internal AI Pipeline - n8n removal (v0.8.0)
