@@ -7,60 +7,79 @@ Todo avance debe validarse usando **Playwright MCP** (herramienta global ya conf
 
 **IMPORTANTE:** NO instalar playwright como dependencia del proyecto. Usar exclusivamente el MCP configurado a nivel global que permite abrir un navegador propio para validar avances y cambios de UI/UX.
 
-#### Protocolo Context-Safe (OBLIGATORIO)
+#### Protocolo Context-Safe (OBLIGATORIO - TOLERANCIA CERO)
 
-El error `"no low surrogate in string"` ocurre cuando el contexto de la API de Claude acumula demasiado texto con emojis/surrogate pairs (caracteres above-BMP como U+1F916). Hay **DOS fuentes** de contaminacion:
+El error `"no low surrogate in string"` crashea la sesion de Claude cuando el JSON del request contiene surrogate pairs malformados. Hay **TRES fuentes** de contaminacion:
 
-**FUENTE 1 - Snapshots explicitos (RESUELTO):**
-Las herramientas `browser_snapshot`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests` pueden generar 30-100KB. Solucion: usar parametro `filename`.
+**FUENTE 1 - Datos de usuario con emojis (INCONTROLABLE):**
+Los contactos de WhatsApp tienen emojis en sus nombres de perfil (ej: "Leysi [dog][heart]", "Lumar [lightning]"). Estos se guardan en la DB y se renderizan en la pagina. Cuando Playwright captura un snapshot de la pagina, esos emojis entran al JSON. Si algun emoji tiene un **surrogate desparejado** (ej: `\ud83d` sin low surrogate), el JSON se corrompe y la API retorna error 400. **NO podemos controlar esto** - los datos de usuario son sagrados.
 
-**FUENTE 2 - Snapshots IMPLICITOS de interacciones (CAUSA PRINCIPAL):**
-Las herramientas `browser_click`, `browser_navigate`, `browser_type`, `browser_hover`, `browser_select_option`, `browser_fill_form`, `browser_drag` retornan **automaticamente un accessibility snapshot completo** en su respuesta. **NO tienen parametro `filename`**. Cada interaccion inyecta 30-100KB de contenido con emojis potenciales al contexto. Despues de 3-4 interacciones: 100-400KB de snapshots acumulados = error de API.
+**FUENTE 2 - Snapshots explicitos:**
+`browser_snapshot`, `browser_take_screenshot`, `browser_console_messages`, `browser_network_requests` generan 30-100KB. Solucion: usar parametro `filename`.
+
+**FUENTE 3 - Snapshots IMPLICITOS de interacciones (LA MAS PELIGROSA):**
+`browser_click`, `browser_navigate`, `browser_type`, `browser_hover`, `browser_select_option`, `browser_fill_form`, `browser_drag`, `browser_wait_for` retornan **automaticamente un accessibility snapshot completo**. **NO tienen parametro `filename`**. Si la pagina muestra datos de usuario con emojis, el snapshot contiene esos emojis y **NO HAY FORMA DE EVITARLO** excepto no usar esas herramientas.
 
 ---
 
-#### Estrategia: Minimizar interacciones directas
+#### REGLA ABSOLUTA: Solo 3 herramientas permitidas
 
-**PREFERIR `browser_run_code` para interacciones:**
+En KAIRO, las paginas muestran datos de usuario (nombres de WhatsApp con emojis). Por lo tanto:
+
+**PERMITIDO (seguro):**
+1. `browser_run_code` - retorna SOLO lo que tu defines en el `return`
+2. `browser_take_screenshot(filename: "...")` - imagen binaria, sin texto
+3. `browser_evaluate` - retorna SOLO lo que tu defines en el `return`
+
+**PROHIBIDO (causa crash con datos de usuario):**
+- `browser_navigate` -> usar `browser_run_code` con `page.goto()`
+- `browser_click` -> usar `browser_run_code` con `page.click()`
+- `browser_type` -> usar `browser_run_code` con `page.fill()`
+- `browser_hover` -> usar `browser_run_code` con `page.hover()`
+- `browser_select_option` -> usar `browser_run_code`
+- `browser_fill_form` -> usar `browser_run_code`
+- `browser_drag` -> usar `browser_run_code`
+- `browser_wait_for` -> usar `browser_run_code` con `page.waitFor*()`
+- `browser_snapshot` (sin filename) -> usar con `filename` o `browser_evaluate`
+- `browser_snapshot` (CON filename) -> SOLO si realmente necesitas refs, leer con offset/limit
+
+---
+
+#### Ejemplos correctos
+
+**Navegar:**
 ```
-// MAL - 3 snapshots implicitos al contexto (~150KB)
-browser_navigate(url: "https://app.kairoagent.com/es/leads")
-browser_click(ref: "filter-btn")
-browser_click(ref: "status-option")
-
-// BIEN - 0 snapshots implicitos, retorna solo lo que necesitas
 browser_run_code(code: `async (page) => {
   await page.goto('https://app.kairoagent.com/es/leads');
-  await page.click('[data-testid="filter-btn"]');
-  await page.click('[data-testid="status-option"]');
+  await page.waitForTimeout(3000);
   return { url: page.url(), title: await page.title() };
 }`)
 ```
 
-**PREFERIR `browser_evaluate` para verificaciones:**
+**Verificar contenido:**
 ```
-// BIEN - retorna solo datos puntuales, sin snapshot
 browser_evaluate(function: "() => ({
   title: document.title,
-  url: window.location.href,
-  leadCount: document.querySelectorAll('[data-lead]').length
+  leadCount: document.querySelectorAll('[data-testid=lead-card]').length
 })")
 ```
 
-**Screenshots para verificacion visual:**
+**Interacciones (clicks, forms):**
+```
+browser_run_code(code: `async (page) => {
+  await page.click('button:has-text("Filtros")');
+  await page.click('button:has-text("Nuevo")');
+  await page.waitForTimeout(1000);
+  return { filtered: true };
+}`)
+```
+
+**Verificacion visual:**
 ```
 browser_take_screenshot(filename: "qa-desktop.png", type: "png")
-// Luego leer con Read tool si se necesita ver
 ```
 
-**Snapshots a archivo cuando necesitas refs para interactuar:**
-```
-browser_snapshot(filename: "qa-snapshot.md")
-// Leer SOLO las lineas necesarias:
-Read("qa-snapshot.md", offset: 50, limit: 30)
-```
-
-**Console/Network a archivo:**
+**Console/Network:**
 ```
 browser_console_messages(level: "error", filename: "qa-errors.txt")
 browser_network_requests(includeStatic: false, filename: "qa-network.txt")
@@ -68,44 +87,18 @@ browser_network_requests(includeStatic: false, filename: "qa-network.txt")
 
 ---
 
-#### Tabla resumen de herramientas
-
-| Herramienta | Riesgo contexto | Estrategia |
-|---|---|---|
-| `browser_snapshot` | ALTO | **SIEMPRE** usar `filename` |
-| `browser_take_screenshot` | ALTO | **SIEMPRE** usar `filename` |
-| `browser_console_messages` | MEDIO | **SIEMPRE** usar `filename` |
-| `browser_network_requests` | MEDIO | **SIEMPRE** usar `filename` |
-| `browser_click` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
-| `browser_navigate` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
-| `browser_type` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
-| `browser_hover` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
-| `browser_select_option` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
-| `browser_fill_form` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
-| `browser_drag` | **ALTO (implicito)** | **EVITAR** - usar `browser_run_code` |
-| `browser_evaluate` | BAJO | OK inline (resultado pequeno) |
-| `browser_run_code` | BAJO | **PREFERIDO** - retorna solo lo que defines |
-| `browser_close` | NINGUNO | Usar al terminar sesion |
-
----
-
-#### Flujo recomendado para validacion QA
+#### Flujo obligatorio para validacion QA
 
 ```
 1. browser_run_code -> navegar + esperar carga (retorna url/title)
 2. browser_take_screenshot(filename: "qa-desktop.png") -> verificar visual
 3. browser_evaluate -> extraer datos puntuales si necesario
-4. browser_run_code -> interacciones complejas (clicks, forms)
+4. browser_run_code -> interacciones (clicks, forms, scroll)
 5. browser_take_screenshot(filename: "qa-result.png") -> verificar resultado
 6. browser_close -> limpiar sesion
 ```
 
-**Maximo recomendado:** 2-3 llamadas a herramientas de interaccion directa (click/navigate/type) por sesion. Si necesitas mas, usar `browser_run_code` para agrupar.
-
-**NUNCA:**
-- Usar `browser_snapshot` sin `filename`
-- Encadenar mas de 3 interacciones directas (click/navigate/type) seguidas
-- Dejar sesion de Playwright abierta entre tareas largas
+**CERO llamadas a herramientas de interaccion directa. Sin excepciones.**
 
 ### 2. Ciberseguridad
 - Validaciones server-side obligatorias

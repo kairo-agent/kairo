@@ -5,6 +5,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import * as crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
@@ -335,8 +336,10 @@ async function processMessagesChange(value: WhatsAppValue, businessAccountId: st
   // WhatsApp sends status events repeatedly, so missed updates will be retried by Meta
   if (statuses) {
     for (const status of statuses) {
-      handleStatusUpdate(project.id, status).catch((err) =>
-        console.error('[WhatsApp Webhook] Status update error:', err)
+      waitUntil(
+        handleStatusUpdate(project.id, status).catch((err) =>
+          console.error('[WhatsApp Webhook] Status update error:', err)
+        )
       );
     }
   }
@@ -677,29 +680,34 @@ async function handleIncomingMessage(
     console.log(`[OK] Message added to lead: ${lead.id}`);
   }
 
-  // Fire-and-forget: notify project members about new message
+  // Background: notify project members about new message
+  // waitUntil keeps the function alive on Vercel after response is sent
   const leadName = lead.firstName || contactName;
-  prisma.project.findUnique({
-    where: { id: projectId },
-    select: { organizationId: true },
-  }).then((project) => {
-    if (project) {
-      notifyProjectMembers({
-        projectId,
-        organizationId: project.organizationId,
-        type: 'new_message',
-        title: `Nuevo mensaje de ${leadName}`,
-        message: content.substring(0, 100),
-        metadata: { leadId: lead.id },
-        source: 'webhook',
-      }).catch((err) => console.error('Notification error:', err));
-    }
-  }).catch((err) => console.error('Notification project lookup error:', err));
+  waitUntil(
+    prisma.project.findUnique({
+      where: { id: projectId },
+      select: { organizationId: true },
+    }).then((project) => {
+      if (project) {
+        return notifyProjectMembers({
+          projectId,
+          organizationId: project.organizationId,
+          type: 'new_message',
+          title: `Nuevo mensaje de ${leadName}`,
+          message: content.substring(0, 100),
+          metadata: { leadId: lead.id },
+          source: 'webhook',
+        });
+      }
+    }).catch((err) => console.error('Notification error:', err))
+  );
 
   // Send read receipt to WhatsApp so lead sees double checkmarks (blue)
-  // This runs in background - don't await to not delay response
-  sendReadReceipt(projectId, message.id).catch((err) =>
-    console.error('Read receipt error:', err)
+  // waitUntil keeps the function alive on Vercel after response is sent
+  waitUntil(
+    sendReadReceipt(projectId, message.id).catch((err) =>
+      console.error('Read receipt error:', err)
+    )
   );
 
   // Process AI response internally if handoffMode is 'ai'
@@ -739,27 +747,30 @@ async function handleIncomingMessage(
     });
 
     // Fire-and-forget: process AI response in background
-    processAIResponse({
-      projectId,
-      conversationId: lead.conversation?.id || '',
-      leadId: lead.id,
-      leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
-      leadPhone: lead.phone,
-      whatsappId: lead.whatsappId || null,
-      message: content,
-      messageType: message.type,
-      mediaId,
-      agentId: lead.assignedAgent?.id || null,
-      agentName: lead.assignedAgent?.name || 'Asistente',
-      systemInstructions: lead.assignedAgent?.systemInstructions || null,
-      companyName: project?.name || 'KAIRO',
-      conversationHistory,
-      historyCount: conversationHistory.length,
-      messageCount: totalMessageCount,
-      summaryThreshold: 5,
-      leadSummary: lead.summary || null,
-    }).catch((err) =>
-      console.error('[WhatsApp Webhook] AI pipeline error:', err)
+    // waitUntil keeps the serverless function alive after response is sent
+    waitUntil(
+      processAIResponse({
+        projectId,
+        conversationId: lead.conversation?.id || '',
+        leadId: lead.id,
+        leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
+        leadPhone: lead.phone,
+        whatsappId: lead.whatsappId || null,
+        message: content,
+        messageType: message.type,
+        mediaId,
+        agentId: lead.assignedAgent?.id || null,
+        agentName: lead.assignedAgent?.name || 'Asistente',
+        systemInstructions: lead.assignedAgent?.systemInstructions || null,
+        companyName: project?.name || 'KAIRO',
+        conversationHistory,
+        historyCount: conversationHistory.length,
+        messageCount: totalMessageCount,
+        summaryThreshold: 5,
+        leadSummary: lead.summary || null,
+      }).catch((err) =>
+        console.error('[WhatsApp Webhook] AI pipeline error:', err)
+      )
     );
   }
 }
