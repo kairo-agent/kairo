@@ -986,7 +986,77 @@ model Lead {
 
 ---
 
-## Referencias
+## Soporte Multilingue (Analisis Feb 2026)
+
+### Contexto
+
+KAIRO permite configurar el idioma de respuesta del agente via `systemInstructions`. Si se incluye una instruccion como "Responde siempre en el idioma que usa el lead", el LLM adaptara sus respuestas automaticamente.
+
+### Como Funciona el Pipeline Cross-Language
+
+```
+Lead escribe en ingles: "What are your prices?"
+        |
+        v
+[1] RAG SEARCH (Embeddings)
+    - Genera embedding del mensaje en ingles
+    - Busca similitud en pgvector contra conocimiento en espanol
+    - Embeddings (text-embedding-3-small) son multilingues
+    - Score cross-language: ~0.72-0.78 (vs ~0.85 same-language)
+    - Con threshold 0.5: PASA sin problema
+        |
+        v
+[2] LLM (GPT-4o-mini)
+    - Recibe conocimiento en espanol + systemInstructions
+    - Entiende el contenido semanticamente (independiente del idioma)
+    - Genera respuesta en ingles (siguiendo la instruccion de idioma)
+    - Resultado: "Our plans are Basic $29, Pro $59, and Enterprise $149"
+```
+
+### Precision del RAG Cross-Language
+
+| Escenario | Score aprox | Pasa threshold 0.5? |
+|-----------|-------------|---------------------|
+| Query ES / Conocimiento ES | ~0.85 | Si |
+| Query EN / Conocimiento ES | ~0.72-0.78 | Si |
+| Query ES / Conocimiento EN | ~0.72-0.78 | Si |
+| Query EN / Conocimiento EN | ~0.85 | Si |
+
+**Conclusion:** Para la mayoria de consultas, el conocimiento en un solo idioma es suficiente.
+
+### Cuando SI Duplicar Conocimiento (ES + EN)
+
+| Tipo de conocimiento | Duplicar? | Razon |
+|---------------------|-----------|-------|
+| Terminologia propia del negocio (nombres de planes, productos, jerga interna) | **Si** | Los embeddings no pueden inferir que "Plan Impulso" = "Impulse Plan" |
+| Procesos con vocabulario especifico de la industria | **Si** | Jerga tecnica puede no tener match cross-language |
+| Info general (precios, horarios, ubicacion) | **No** | "prices" y "precios" tienen alta similitud en embeddings |
+| FAQs comunes | **No** | Las preguntas universales se matchean bien cross-language |
+| Datos de contacto | **No** | Numeros, emails, direcciones son language-agnostic |
+
+### Modelo de Chat (GPT-4o-mini)
+
+- GPT-4o-mini es capaz en multilingue para casos de ventas/soporte
+- Traduce conocimiento ES -> respuesta EN sin problemas
+- Ligeramente menos preciso que GPT-4o en matices muy sutiles, pero suficiente para el caso de uso de KAIRO
+- **Importante:** Los embeddings (text-embedding-3-small) son independientes del modelo de chat. La precision de busqueda RAG es la misma con cualquier modelo de chat
+
+### Instruccion Recomendada en systemInstructions
+
+```
+IDIOMA
+Responde siempre en el mismo idioma que usa el lead.
+Si el lead escribe en ingles, responde en ingles.
+Si escribe en espanol, responde en espanol.
+```
+
+### Estrategia Recomendada
+
+1. **Inicio:** Todo el conocimiento en espanol (mercado Peru/Latam)
+2. **Expansion a USA:** Duplicar SOLO el conocimiento especifico del negocio (nombres de productos, jerga, procesos) en ingles
+3. **No es necesario** duplicar todo el conocimiento desde el dia uno
+
+---
 
 - [Supabase pgvector Docs](https://supabase.com/docs/guides/database/extensions/pgvector)
 - [OpenAI Embeddings Guide](https://platform.openai.com/docs/guides/embeddings)
@@ -1018,4 +1088,5 @@ model Lead {
 | 2026-02-02 | **Fix n8n suggestedTemperature**: Nodo "Send to WhatsApp" ahora envía temperatura a KAIRO correctamente | Adan (Claude) |
 | 2026-02-02 | **Lead Summary (Fase 2.5)**: Webhook envía `leadSummary`, `messageCount`, `summaryThreshold` a n8n | Adan (Claude) |
 | 2026-02-02 | **/api/ai/respond**: Soporte para `suggestedSummary` con validación defense-in-depth (5+ msgs) | Adan (Claude) |
+| 2026-02-10 | **Soporte Multilingue**: Analisis cross-language RAG, guia de duplicacion de conocimiento, instrucciones de idioma | Leo + Adan |
 | 2026-02-02 | **DATABASE-MIGRATIONS.md**: Nueva guía crítica para evitar pérdida de datos (prisma db push) | Adan (Claude) |

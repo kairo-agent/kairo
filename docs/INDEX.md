@@ -19,7 +19,7 @@
 | Documento | Contenido clave |
 |-----------|----------------|
 | [N8N-SETUP.md](N8N-SETUP.md) | Railway deploy, workflows, WhatsApp Cloud API integration, webhook flow, message types, ngrok dev setup |
-| [RAG-AGENTS.md](RAG-AGENTS.md) | pgvector, embeddings OpenAI, search functions, knowledge management |
+| [RAG-AGENTS.md](RAG-AGENTS.md) | pgvector, embeddings OpenAI, search functions, knowledge management, soporte multilingue |
 | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) | Supabase Storage, RLS policies, image compression, cleanup cron, n8n media sending |
 
 ### Frontend y UI
@@ -54,6 +54,7 @@
 | Variables de entorno | [SECURITY.md](SECURITY.md) seccion "Obligatorias" |
 | WhatsApp webhook flow | [N8N-SETUP.md](N8N-SETUP.md) seccion "WhatsApp" |
 | Cómo funciona el RAG | [RAG-AGENTS.md](RAG-AGENTS.md) |
+| RAG multilingue / cross-language | [RAG-AGENTS.md](RAG-AGENTS.md) seccion "Soporte Multilingue" |
 | Roles y permisos | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Multi-tenant" |
 | Estado actual del MVP | [CHANGELOG.md](CHANGELOG.md) version mas reciente |
 | Reglas de desarrollo | [RULES.md](RULES.md) |
