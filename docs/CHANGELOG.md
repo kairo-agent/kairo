@@ -1,5 +1,36 @@
 # KAIRO - Changelog
 
+## [0.8.0] - 2026-02-15
+
+### Internal AI Pipeline - n8n removal (v0.8.0)
+
+Migra el pipeline de IA de n8n (Railway) a funciones internas en Next.js. Elimina dependencia externa, reduce latencia (~400-1200ms), mejora seguridad (3 endpoints publicos menos), y simplifica arquitectura.
+
+**Archivos creados:**
+
+| Archivo | Proposito |
+|---------|-----------|
+| `src/lib/ai/process-ai-response.ts` | Pipeline core: audio transcription, RAG search, OpenAI chat, temperature extraction, summary generation, DB save, WhatsApp send |
+| `src/lib/ai/build-system-prompt.ts` | Replica el system prompt que antes armaba n8n (agent identity, instructions, RAG, history, summary, date/time) |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/app/api/webhooks/whatsapp/route.ts` | `triggerN8nWorkflow()` reemplazada por `processAIResponse()` (fire-and-forget). Import agregado. ~145 lineas eliminadas |
+
+**Que NO cambio:** Frontend (0 cambios), base de datos (0 cambios), endpoints WhatsApp send/mark-read (sin cambio), handoff humano (sin cambio).
+
+**Beneficios medidos:**
+- Latencia: -400 a -1200ms (elimina 4 round-trips HTTP KAIRO<->Railway)
+- Seguridad: 3 endpoints publicos que solo n8n usaba pueden ser deprecados (`/api/ai/respond`, `/api/rag/search`, `/api/audio/transcribe`)
+- Costo: -$5-10/mes (Railway eliminado)
+- Infraestructura: 1 proveedor (Vercel) en vez de 2 (Vercel + Railway)
+
+**Nota:** Los endpoints de n8n (`/api/ai/respond`, `/api/rag/search`, `/api/audio/transcribe`) se mantienen temporalmente como fallback. Se eliminaran en una version futura una vez confirmada estabilidad.
+
+---
+
 ## [0.7.16] - 2026-02-06
 
 ### Enriched notifications + deep-link to lead panel (commit `36aef6a`)

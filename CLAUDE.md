@@ -40,11 +40,10 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.7.16 (notifications + follow-up scheduling) |
+| **Version** | v0.8.0 (internal AI pipeline - n8n removed from core) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
-| **n8n** | n8n-production-5d42.up.railway.app |
 
 **Stack:** Next.js 15 (App Router) + TypeScript + Tailwind CSS 4 + Supabase (PostgreSQL + Auth) + Prisma ORM + next-intl (es/en) + Vercel
 
@@ -100,6 +99,7 @@ src/
     features/                      # LeadCard, LeadTable, LeadChat, etc.
   contexts/                        # Theme, Modal, Workspace, Loading
   lib/
+    ai/                            # AI Pipeline (process-ai-response, build-system-prompt)
     actions/                       # Server Actions (admin, agents, auth, knowledge, leads, media, messages, notifications, profile, secrets, workspace)
     supabase/                      # Client/Server Supabase + Prisma
     auth-helpers.ts                # verifySuperAdmin, getCurrentUser
@@ -148,7 +148,7 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Feb 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, n8n Railway, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s), follow-up scheduling con badges.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, **AI pipeline interno (n8n removido del core)**, RAG (4 fases), OWASP audit v1, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s), follow-up scheduling con badges.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 
@@ -162,8 +162,9 @@ npm run lint     # Verificar codigo
 
 ```
 WhatsApp -> /api/webhooks/whatsapp -> Store msg + Create/Find lead
-  -> Si handoffMode='ai': trigger n8n workflow
-  -> n8n: RAG search + OpenAI -> /api/ai/respond -> Store + Send WhatsApp
+  -> Si handoffMode='ai': processAIResponse() [interno]
+  -> RAG search (pgvector) + OpenAI (GPT-4o-mini) -> Store + Send WhatsApp
+  -> Si handoffMode='human': solo guarda msg, usuario responde manual
 
 Organization > Project > Lead > Conversation > Message
 Users: SUPER_ADMIN | USER

@@ -20,6 +20,7 @@ import { decryptSecret } from '@/lib/crypto/secrets';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
+import { processAIResponse } from '@/lib/ai/process-ai-response';
 
 // ============================================
 // In-Memory Cache for phoneNumberId → Project
@@ -701,160 +702,71 @@ async function handleIncomingMessage(
     console.error('Read receipt error:', err)
   );
 
-  // Trigger n8n workflow for AI response if handoffMode is 'ai'
+  // Process AI response internally if handoffMode is 'ai'
+  // Fire-and-forget: don't block webhook response to Meta (must respond <20s)
   if (lead.handoffMode === HandoffMode.ai) {
-    // Extract mediaId for audio/image/video/document messages
     const mediaId = (metadata.mediaId as string) || null;
-    await triggerN8nWorkflow(projectId, lead, content, message.type, mediaId);
-  }
-}
 
-// ============================================
-// Trigger n8n Workflow
-// ============================================
+    // Fetch conversation history + message count for AI pipeline
+    let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    let totalMessageCount = 1;
 
-async function triggerN8nWorkflow(
-  projectId: string,
-  lead: {
-    id: string;
-    firstName: string;
-    lastName: string | null;
-    phone: string | null;
-    whatsappId?: string | null;
-    summary?: string | null;
-    conversation: { id: string } | null;
-    assignedAgent?: { id: string; name: string; systemInstructions: string | null } | null;
-  },
-  messageContent: string,
-  messageType: string,
-  mediaId: string | null = null
-) {
-  // Get n8n webhook URL and project name
-  // FUTURE OPTIMIZATION: This query could be fetched in handleIncomingMessage
-  // in parallel with message/lead operations, then passed as a parameter.
-  // Impact: ~10-30ms saved per AI-mode message. Low priority since n8n call
-  // itself takes 200-500ms.
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { n8nWebhookUrl: true, name: true },
-  });
+    if (lead.conversation?.id) {
+      const [messageCount, recentMessages] = await Promise.all([
+        prisma.message.count({ where: { conversationId: lead.conversation.id } }),
+        prisma.message.findMany({
+          where: { conversationId: lead.conversation.id },
+          orderBy: { createdAt: 'desc' },
+          take: 9,
+          select: { content: true, sender: true },
+        }),
+      ]);
 
-  const n8nUrl = project?.n8nWebhookUrl;
-
-  if (!n8nUrl) {
-    console.log('⚠️ No n8n webhook URL configured, skipping AI trigger');
-    return;
-  }
-
-  // ============================================
-  // Obtener historial de conversación (últimos 8 mensajes)
-  // Esto permite que OpenAI tenga contexto de la conversación
-  // ============================================
-  let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-  let totalMessageCount = 1; // Al menos 1 (el mensaje actual)
-
-  if (lead.conversation?.id) {
-    // Get total message count for summary threshold decision in n8n
-    totalMessageCount = await prisma.message.count({
-      where: { conversationId: lead.conversation.id },
-    });
-
-    const recentMessages = await prisma.message.findMany({
-      where: { conversationId: lead.conversation.id },
-      orderBy: { createdAt: 'desc' },
-      take: 9, // Tomamos 9 para excluir el mensaje actual (el más reciente)
-      select: {
-        content: true,
-        sender: true,
-        createdAt: true,
-      },
-    });
-
-    // Excluir el mensaje más reciente (es el que acabamos de guardar y ya lo enviamos como "message")
-    // y formatear para OpenAI (orden cronológico, más antiguo primero)
-    conversationHistory = recentMessages
-      .slice(1) // Excluir el primer elemento (mensaje actual)
-      .reverse() // Orden cronológico (más antiguo primero)
-      .map((msg) => ({
-        role: msg.sender === 'lead' ? 'user' as const : 'assistant' as const,
-        content: msg.content,
-      }));
-  }
-
-  // NOTE: Credentials are NOT sent to n8n - they are obtained internally
-  // by /api/ai/respond endpoint when n8n calls back to send the message
-
-  const payload = {
-    projectId,
-    conversationId: lead.conversation?.id,
-    leadId: lead.id,
-    leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
-    leadPhone: lead.phone,
-    to: lead.whatsappId || lead.phone, // WhatsApp recipient number
-    mode: 'ai', // AI mode - n8n will generate response
-    message: messageContent,
-    messageType,
-    // Media ID for audio/image/video/document transcription
-    mediaId: mediaId || null,
-    timestamp: new Date().toISOString(),
-    // Agent info for RAG
-    agentId: lead.assignedAgent?.id || null,
-    agentName: lead.assignedAgent?.name || 'Asistente',
-    systemInstructions: lead.assignedAgent?.systemInstructions || null,
-    companyName: project?.name || 'KAIRO',
-    // ============================================
-    // Historial de conversación para memoria del bot
-    // ============================================
-    conversationHistory,
-    historyCount: conversationHistory.length,
-    // ============================================
-    // Total de mensajes en conversación (para threshold de resumen)
-    // n8n puede decidir si generar resumen cuando messageCount >= 5
-    // ============================================
-    messageCount: totalMessageCount,
-    summaryThreshold: 5, // Umbral mínimo para generar resumen
-    // ============================================
-    // Resumen del lead (generado por IA, puede ser null)
-    // ============================================
-    leadSummary: lead.summary || null,
-    // ============================================
-    // Fecha actual para que el bot sepa qué día es
-    // ============================================
-    currentDate: new Date().toLocaleDateString('es-PE', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'America/Lima',
-    }),
-    currentTime: new Date().toLocaleTimeString('es-PE', {
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'America/Lima',
-    }),
-  };
-
-  try {
-    console.log(`🤖 Triggering n8n workflow: ${n8nUrl} (with ${conversationHistory.length} history messages)`);
-
-    const response = await fetch(n8nUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (response.ok) {
-      console.log(`✅ n8n workflow triggered successfully`);
-    } else {
-      console.error(`❌ n8n webhook failed: ${response.status} ${response.statusText}`);
+      totalMessageCount = messageCount;
+      conversationHistory = recentMessages
+        .slice(1)
+        .reverse()
+        .map((msg) => ({
+          role: msg.sender === 'lead' ? 'user' as const : 'assistant' as const,
+          content: msg.content,
+        }));
     }
-  } catch (error) {
-    console.error('❌ Error triggering n8n workflow:', error);
-    // Don't throw - we don't want to fail the webhook response
+
+    // Get project name for company context
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true },
+    });
+
+    // Fire-and-forget: process AI response in background
+    processAIResponse({
+      projectId,
+      conversationId: lead.conversation?.id || '',
+      leadId: lead.id,
+      leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
+      leadPhone: lead.phone,
+      whatsappId: lead.whatsappId || null,
+      message: content,
+      messageType: message.type,
+      mediaId,
+      agentId: lead.assignedAgent?.id || null,
+      agentName: lead.assignedAgent?.name || 'Asistente',
+      systemInstructions: lead.assignedAgent?.systemInstructions || null,
+      companyName: project?.name || 'KAIRO',
+      conversationHistory,
+      historyCount: conversationHistory.length,
+      messageCount: totalMessageCount,
+      summaryThreshold: 5,
+      leadSummary: lead.summary || null,
+    }).catch((err) =>
+      console.error('[WhatsApp Webhook] AI pipeline error:', err)
+    );
   }
 }
+
+// NOTE: triggerN8nWorkflow() was removed in v0.8.0
+// AI pipeline now runs internally via processAIResponse() from @/lib/ai/process-ai-response
+// See docs/RAG-AGENTS.md for architecture details
 
 // ============================================
 // Handle Status Update
