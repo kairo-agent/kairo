@@ -36,6 +36,14 @@ import {
   listAgentKnowledge,
   type KnowledgeEntry
 } from '@/lib/actions/knowledge';
+import {
+  AgentIcon,
+  NoteIcon,
+  AGENT_ICON_MAP,
+  AGENT_ICON_NAMES,
+  DEFAULT_AGENT_ICON,
+  AGENT_TYPE_ICON_MAP,
+} from '@/components/icons/LeadIcons';
 
 interface Project {
   id: string;
@@ -145,16 +153,8 @@ const BookIcon = () => (
 // Agent Icon Options (visual only, not type)
 // ============================================
 
-const agentIcons = ['🤖', '💼', '🎧', '📊', '📅', '💬', '🎯', '🌟', '🚀', '👤'];
-const defaultAgentIcon = '🤖';
-
-// Legacy mapping for backwards compatibility
-const agentTypeConfig: Record<AIAgentType, { icon: string; color: string }> = {
-  sales: { icon: '💼', color: 'bg-blue-500/20 text-blue-400' },
-  support: { icon: '🎧', color: 'bg-green-500/20 text-green-400' },
-  qualification: { icon: '📊', color: 'bg-purple-500/20 text-purple-400' },
-  appointment: { icon: '📅', color: 'bg-orange-500/20 text-orange-400' }
-};
+// Agent type color config (for future use with colored badges)
+// Currently agents are displayed with icons from LeadIcons
 
 // ============================================
 // Main Component
@@ -193,7 +193,7 @@ export default function ProjectSettingsModal({
   // Agent form
   const [agentName, setAgentName] = useState('');
   const [agentType, setAgentType] = useState<AIAgentType>('sales');
-  const [agentIcon, setAgentIcon] = useState(defaultAgentIcon);
+  const [agentIcon, setAgentIcon] = useState(DEFAULT_AGENT_ICON);
   const [agentDescription, setAgentDescription] = useState('');
   const [agentAvatarUrl, setAgentAvatarUrl] = useState('');
   const [agentSystemInstructions, setAgentSystemInstructions] = useState('');
@@ -303,7 +303,7 @@ export default function ProjectSettingsModal({
   const resetAgentForm = () => {
     setAgentName('');
     setAgentType('sales');
-    setAgentIcon(defaultAgentIcon);
+    setAgentIcon(DEFAULT_AGENT_ICON);
     setAgentDescription('');
     setAgentAvatarUrl('');
     setAgentSystemInstructions('');
@@ -316,9 +316,9 @@ export default function ProjectSettingsModal({
     setEditingAgent(agent);
     setAgentName(agent.name);
     setAgentType(agent.type);
-    // Si avatarUrl es un emoji (no es URL), usarlo como icono
-    const isEmoji = agent.avatarUrl && !agent.avatarUrl.startsWith('http');
-    setAgentIcon(isEmoji && agent.avatarUrl ? agent.avatarUrl : defaultAgentIcon);
+    // Use avatarUrl as icon name if it's a known icon, otherwise fallback to default
+    const iconName = agent.avatarUrl && AGENT_ICON_MAP[agent.avatarUrl] ? agent.avatarUrl : DEFAULT_AGENT_ICON;
+    setAgentIcon(iconName);
     setAgentDescription(agent.description || '');
     setAgentAvatarUrl('');
     setAgentSystemInstructions(agent.systemInstructions || '');
@@ -719,19 +719,19 @@ export default function ProjectSettingsModal({
           {t('agentSettings.icon')}
         </label>
         <div className="flex flex-wrap gap-2">
-          {agentIcons.map((icon) => (
+          {AGENT_ICON_NAMES.map((iconName) => (
             <button
-              key={icon}
+              key={iconName}
               type="button"
-              onClick={() => setAgentIcon(icon)}
+              onClick={() => setAgentIcon(iconName)}
               className={cn(
-                'w-10 h-10 flex items-center justify-center rounded-lg border text-xl transition-colors',
-                agentIcon === icon
-                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10'
-                  : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--text-muted)]'
+                'w-10 h-10 flex items-center justify-center rounded-lg border transition-colors',
+                agentIcon === iconName
+                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                  : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
               )}
             >
-              {icon}
+              <AgentIcon name={iconName} className="w-5 h-5" />
             </button>
           ))}
         </div>
@@ -820,13 +820,13 @@ export default function ProjectSettingsModal({
         <div className="flex items-center gap-3">
           {/* Avatar/Icon */}
           <div className={cn(
-            'w-10 h-10 rounded-full flex items-center justify-center text-xl',
-            'bg-[var(--bg-tertiary)]'
+            'w-10 h-10 rounded-full flex items-center justify-center',
+            'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
           )}>
             {agent.avatarUrl && agent.avatarUrl.startsWith('http') ? (
               <img src={agent.avatarUrl} alt={agent.name} className="w-full h-full rounded-full object-cover" />
             ) : (
-              agent.avatarUrl || defaultAgentIcon
+              <AgentIcon name={agent.avatarUrl || DEFAULT_AGENT_ICON} className="w-5 h-5" />
             )}
           </div>
 
@@ -1003,8 +1003,8 @@ export default function ProjectSettingsModal({
               </div>
             ) : agents.length === 0 ? (
               <div className="py-8 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-2xl">
-                  🤖
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-[var(--text-muted)]">
+                  <AgentIcon name="bot" className="w-6 h-6" />
                 </div>
                 <h4 className="text-[var(--text-primary)] font-medium mb-1">
                   {t('agentSettings.noAgents')}
@@ -1049,8 +1049,8 @@ export default function ProjectSettingsModal({
             {/* Agent Selector */}
             {agents.length === 0 ? (
               <div className="py-8 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-2xl">
-                  📚
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
+                  <NoteIcon className="w-6 h-6 text-[var(--text-muted)]" />
                 </div>
                 <p className="text-sm text-[var(--text-muted)]">
                   {t('knowledgeSettings.noAgentsAvailable')}
@@ -1070,7 +1070,7 @@ export default function ProjectSettingsModal({
                     <option value="">{t('knowledgeSettings.selectAgentPlaceholder')}</option>
                     {agents.filter(a => a.isActive).map((agent) => (
                       <option key={agent.id} value={agent.id}>
-                        {agentTypeConfig[agent.type].icon} {agent.name}
+                        {agent.name} ({agent.type})
                       </option>
                     ))}
                   </select>
@@ -1161,8 +1161,8 @@ export default function ProjectSettingsModal({
                       </div>
                     ) : knowledgeEntries.length === 0 ? (
                       <div className="py-8 text-center">
-                        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-2xl">
-                          📚
+                        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
+                          <NoteIcon className="w-6 h-6 text-[var(--text-muted)]" />
                         </div>
                         <h4 className="text-[var(--text-primary)] font-medium mb-1">
                           {t('knowledgeSettings.noKnowledge')}
@@ -1264,7 +1264,7 @@ export default function ProjectSettingsModal({
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
                   WhatsApp Access Token
                   {secretsStatus.whatsapp_access_token && (
-                    <span className="ml-2 text-xs text-green-500 font-normal">✓ {t('settings.configured')}</span>
+                    <span className="ml-2 text-xs text-green-500 font-normal">[OK] {t('settings.configured')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -1336,7 +1336,7 @@ export default function ProjectSettingsModal({
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
                   Phone Number ID
                   {secretsStatus.whatsapp_phone_number_id && (
-                    <span className="ml-2 text-xs text-green-500 font-normal">✓ {t('settings.configured')}</span>
+                    <span className="ml-2 text-xs text-green-500 font-normal">[OK] {t('settings.configured')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -1408,7 +1408,7 @@ export default function ProjectSettingsModal({
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
                   Business Account ID
                   {secretsStatus.whatsapp_business_account_id && (
-                    <span className="ml-2 text-xs text-green-500 font-normal">✓ {t('settings.configured')}</span>
+                    <span className="ml-2 text-xs text-green-500 font-normal">[OK] {t('settings.configured')}</span>
                   )}
                 </label>
                 <div className="relative">
@@ -1490,7 +1490,7 @@ export default function ProjectSettingsModal({
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
                   OpenAI API Key
                   {secretsStatus.openai_api_key && (
-                    <span className="ml-2 text-xs text-green-500 font-normal">✓ {t('settings.configured')}</span>
+                    <span className="ml-2 text-xs text-green-500 font-normal">[OK] {t('settings.configured')}</span>
                   )}
                 </label>
                 <div className="relative">

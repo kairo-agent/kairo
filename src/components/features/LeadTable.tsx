@@ -10,6 +10,8 @@ import {
   LEAD_TEMPERATURE_CONFIG,
   LEAD_CHANNEL_CONFIG,
 } from '@/types';
+import { TemperatureIcon } from '@/components/icons/LeadIcons';
+import { ChannelIcon } from '@/components/icons/ChannelIcons';
 import { cn, formatCurrency, formatRelativeTime } from '@/lib/utils';
 
 // ============================================
@@ -589,8 +591,8 @@ export function LeadTable({
                   {/* Temperature */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm" role="img" aria-label={temperatureConfig.label}>
-                        {temperatureConfig.icon}
+                      <span style={{ color: temperatureConfig.color }}>
+                        <TemperatureIcon temperature={lead.temperature} className="w-4 h-4" />
                       </span>
                       <span
                         className="text-xs font-medium hidden sm:inline"
@@ -604,8 +606,8 @@ export function LeadTable({
                   {/* Channel - hidden on mobile */}
                   <td className="px-4 py-3 hidden md:table-cell">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm" role="img" aria-label={channelConfig.label}>
-                        {channelConfig.icon}
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        <ChannelIcon channel={lead.channel} className="w-4 h-4" />
                       </span>
                       <span className="text-xs text-[var(--text-secondary)] hidden lg:inline">
                         {channelConfig.label}

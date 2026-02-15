@@ -133,7 +133,7 @@ https://fonts.google.com/specimen/Inter
 - Texto base: Inter Regular
 - Métricas y labels: Inter Medium
 
-⚠️ No usar otras tipografías sin aprobación estratégica.
+[WARN] No usar otras tipografias sin aprobacion estrategica.
 
 ---
 

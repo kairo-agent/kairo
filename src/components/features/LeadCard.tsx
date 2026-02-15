@@ -12,6 +12,7 @@ import {
   LEAD_STATUS_CONFIG,
   LEAD_TEMPERATURE_CONFIG,
 } from '@/types';
+import { TemperatureIcon } from '@/components/icons/LeadIcons';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -234,8 +235,8 @@ export function LeadCard({
           className="flex items-center gap-1"
           title={`${tCommon('labels.potential')}: ${t(`potential.${lead.temperature}`)}`}
         >
-          <span className="text-base" role="img" aria-label={t(`potential.${lead.temperature}`)}>
-            {temperatureConfig.icon}
+          <span style={{ color: temperatureConfig.color }}>
+            <TemperatureIcon temperature={lead.temperature} className="w-4 h-4" />
           </span>
           <span
             className="text-xs font-medium"

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput, type E164Number } from '@/components/ui/PhoneInput';
 import { Badge } from '@/components/ui/Badge';
 import { LeadTemperature, LEAD_TEMPERATURE_CONFIG } from '@/types';
+import { TemperatureIcon } from '@/components/icons/LeadIcons';
 import { updateLead } from '@/lib/actions/leads';
 import { validatePhone } from '@/lib/utils';
 
@@ -238,7 +239,7 @@ export default function LeadEditModal({
                         : 'opacity-60 hover:opacity-80'
                     }`}
                   >
-                    {config.icon} {t(`potentialShort.${temp}`)}
+                    <TemperatureIcon temperature={temp as LeadTemperature} className="w-3.5 h-3.5 inline-block mr-1" /> {t(`potentialShort.${temp}`)}
                   </Badge>
                 </button>
               );

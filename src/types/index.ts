@@ -301,9 +301,9 @@ export const DATE_RANGE_CONFIG: Record<DateRangePreset, { days: number | null }>
   all: { days: null },
 };
 
-export const LEAD_TYPE_CONFIG: Record<LeadType, { color: string; bgColor: string; icon: string }> = {
-  [LeadType.AI_AGENT]: { color: '#00E5FF', bgColor: 'rgba(0, 229, 255, 0.15)', icon: '🤖' },
-  [LeadType.MANUAL]: { color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.15)', icon: '✋' },
+export const LEAD_TYPE_CONFIG: Record<LeadType, { color: string; bgColor: string }> = {
+  [LeadType.AI_AGENT]: { color: '#00E5FF', bgColor: 'rgba(0, 229, 255, 0.15)' },
+  [LeadType.MANUAL]: { color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.15)' },
 };
 
 // Status Config for UI
@@ -317,22 +317,22 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: stri
   [LeadStatus.LOST]: { label: 'Perdido', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.1)' },
 };
 
-export const LEAD_TEMPERATURE_CONFIG: Record<LeadTemperature, { label: string; color: string; icon: string }> = {
-  [LeadTemperature.COLD]: { label: 'Frío', color: '#3B82F6', icon: '❄️' },
-  [LeadTemperature.WARM]: { label: 'Tibio', color: '#F59E0B', icon: '🌤️' },
-  [LeadTemperature.HOT]: { label: 'Caliente', color: '#EF4444', icon: '🔥' },
+export const LEAD_TEMPERATURE_CONFIG: Record<LeadTemperature, { label: string; color: string }> = {
+  [LeadTemperature.COLD]: { label: 'Frio', color: '#3B82F6' },
+  [LeadTemperature.WARM]: { label: 'Tibio', color: '#F59E0B' },
+  [LeadTemperature.HOT]: { label: 'Caliente', color: '#EF4444' },
 };
 
-export const LEAD_CHANNEL_CONFIG: Record<LeadChannel, { label: string; icon: string }> = {
-  [LeadChannel.WHATSAPP]: { label: 'WhatsApp', icon: '📱' },
+export const LEAD_CHANNEL_CONFIG: Record<LeadChannel, { label: string }> = {
+  [LeadChannel.WHATSAPP]: { label: 'WhatsApp' },
   // Canales adicionales - mantener para compatibilidad con datos existentes
-  // El filtro de canal está oculto en el MVP (solo WhatsApp activo)
-  [LeadChannel.EMAIL]: { label: 'Email', icon: '📧' },
-  [LeadChannel.PHONE]: { label: 'Teléfono', icon: '📞' },
-  [LeadChannel.WEBCHAT]: { label: 'Web Chat', icon: '💬' },
-  [LeadChannel.INSTAGRAM]: { label: 'Instagram', icon: '📷' },
-  [LeadChannel.FACEBOOK]: { label: 'Facebook', icon: '👤' },
-  [LeadChannel.OTHER]: { label: 'Otro', icon: '📌' },
+  // El filtro de canal esta oculto en el MVP (solo WhatsApp activo)
+  [LeadChannel.EMAIL]: { label: 'Email' },
+  [LeadChannel.PHONE]: { label: 'Telefono' },
+  [LeadChannel.WEBCHAT]: { label: 'Web Chat' },
+  [LeadChannel.INSTAGRAM]: { label: 'Instagram' },
+  [LeadChannel.FACEBOOK]: { label: 'Facebook' },
+  [LeadChannel.OTHER]: { label: 'Otro' },
 };
 
 // ============================================

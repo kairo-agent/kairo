@@ -701,12 +701,12 @@ Date:   Fri Jan 24 2026
 
 ### Objetivos Cumplidos
 
-1. **✅ Consolidación de `getCurrentUser()`**
+1. **[x] Consolidación de `getCurrentUser()`**
    - `auth-helpers.ts` ahora re-exporta desde `auth.ts` (versión COMPLETA con projectMemberships)
    - Corregido uso de `user.id` en lugar de `user.userId` en `secrets.ts` y `media.ts`
    - Validación de seguridad mantenida por Security Auditor review
 
-2. **✅ Fire-and-Forget para `markMessagesAsRead()`**
+2. **[x] Fire-and-Forget para `markMessagesAsRead()`**
    - Convertido a operación asíncrona no bloqueante en `LeadChat.tsx`
    - Implementado `.catch()` con logging `[KAIRO]` para debugging
    - Aplicado en dos lugares:
@@ -749,9 +749,9 @@ useEffect(() => {
 ### Consideraciones de Seguridad
 
 Revisado por Security Auditor subagent antes de implementación:
-- ✅ Uso correcto de propiedades de usuario (`id` vs `userId`)
-- ✅ Validación de permisos mantenida en `markMessagesAsRead()` server action
-- ✅ No se exponen datos sensibles en logs de error
+- [x] Uso correcto de propiedades de usuario (`id` vs `userId`)
+- [x] Validación de permisos mantenida en `markMessagesAsRead()` server action
+- [x] No se exponen datos sensibles en logs de error
 
 ---
 
@@ -891,7 +891,7 @@ export const leadSelectForAccessCheck = {
 #### Regla Crítica: Siempre Incluir projectId
 
 ```typescript
-// ✅ CORRECTO: projectId incluido para verificación de acceso
+// [x] CORRECTO: projectId incluido para verificación de acceso
 const lead = await prisma.lead.findUnique({
   where: { id: leadId },
   select: { projectId: true, ...otherFields }
@@ -901,7 +901,7 @@ if (!userHasAccessToProject(lead.projectId)) {
   return null; // Rechazar
 }
 
-// ❌ INCORRECTO: Omitir projectId rompe la verificación multi-tenant
+// [-] INCORRECTO: Omitir projectId rompe la verificación multi-tenant
 const lead = await prisma.lead.findUnique({
   where: { id: leadId },
   select: { id: true, firstName: true } // Sin projectId = BUG de seguridad
@@ -912,10 +912,10 @@ const lead = await prisma.lead.findUnique({
 
 | Patrón | Uso | Incluye projectId |
 |--------|-----|-------------------|
-| `leadSelectForAccessCheck` | Verificar permisos | ✅ Sí |
-| `leadSelectForSendMessage` | Enviar a n8n | ✅ Sí |
-| `leadSelectForHandoffToggle` | Cambiar modo | ✅ Sí |
-| `messageSelectForChat` | Mostrar en UI | ❌ No (ya verificado via lead) |
+| `leadSelectForAccessCheck` | Verificar permisos | [x] Sí |
+| `leadSelectForSendMessage` | Enviar a n8n | [x] Sí |
+| `leadSelectForHandoffToggle` | Cambiar modo | [x] Sí |
+| `messageSelectForChat` | Mostrar en UI | [-] No (ya verificado via lead) |
 
 ---
 

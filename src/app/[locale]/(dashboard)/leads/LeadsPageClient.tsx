@@ -31,6 +31,7 @@ import { updateLeadStatus, archiveLead, unarchiveLead, scheduleFollowUp, getLead
 import { FollowUpModal } from '@/components/features/FollowUpModal';
 import { toast } from 'sonner';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
+import { TemperatureIcon } from '@/components/icons/LeadIcons';
 
 // ============================================
 // Types
@@ -411,7 +412,9 @@ function LeadTable({ leads, onLeadClick }: LeadTableProps) {
                 {/* Temperature/Potential */}
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-sm">{temperatureConfig.icon}</span>
+                    <span style={{ color: temperatureConfig.color }}>
+                      <TemperatureIcon temperature={lead.temperature as LeadTemperature} className="w-4 h-4" />
+                    </span>
                     <span
                       className="text-sm font-medium"
                       style={{ color: temperatureConfig.color }}

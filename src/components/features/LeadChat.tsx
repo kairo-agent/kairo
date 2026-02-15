@@ -193,14 +193,14 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     (realtimeMsg: RealtimeMessage) => {
       // Evitar duplicados - verificar si ya procesamos este mensaje
       if (processedMessageIds.current.has(realtimeMsg.id)) {
-        console.log(`📨 [Realtime] Mensaje duplicado ignorado: ${realtimeMsg.id}`);
+        console.log(`[RT] Mensaje duplicado ignorado: ${realtimeMsg.id}`);
         return;
       }
 
       // Marcar como procesado
       processedMessageIds.current.add(realtimeMsg.id);
 
-      console.log(`📨 [Realtime] Procesando nuevo mensaje: ${realtimeMsg.id}`);
+      console.log(`[RT] Procesando nuevo mensaje: ${realtimeMsg.id}`);
 
       // Transformar a MessageForChat (optimizado, sin campos grandes innecesarios)
       const newMessage: MessageForChat = {
@@ -307,15 +307,15 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     onNewMessage: handleRealtimeMessage,
     onMessageUpdate: handleMessageStatusUpdate,
     onConnected: () => {
-      console.log('🔌 [Realtime] Conectado al canal de mensajes');
+      console.log('[RT] Conectado al canal de mensajes');
       setIsRealtimeConnected(true);
     },
     onDisconnected: () => {
-      console.log('🔌 [Realtime] Desconectado del canal de mensajes');
+      console.log('[RT] Desconectado del canal de mensajes');
       setIsRealtimeConnected(false);
     },
     onError: (err) => {
-      console.error('🔌 [Realtime] Error:', err);
+      console.error('[RT] Error:', err);
       setIsRealtimeConnected(false);
     },
   });
@@ -411,7 +411,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
               useWebWorker: true,
             };
             fileToUpload = await imageCompression(attachment.file, compressionOptions);
-            console.log(`📷 Imagen comprimida: ${attachment.file.size} → ${fileToUpload.size} bytes`);
+            console.log(`[COMPRESS] Image: ${attachment.file.size} -> ${fileToUpload.size} bytes`);
           } catch (compressionError) {
             console.error('Error comprimiendo imagen:', compressionError);
             // Continue with original file if compression fails
@@ -456,7 +456,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         // Esto evita duplicación por race condition entre:
         // 1. Agregado local optimista
         // 2. Evento INSERT de Realtime
-        console.log(`📤 Mensaje enviado, esperando Realtime: ${result.message.id}`);
+        console.log(`[SEND] Mensaje enviado, esperando Realtime: ${result.message.id}`);
       } else {
         setError(result.error || 'Error al enviar mensaje');
       }

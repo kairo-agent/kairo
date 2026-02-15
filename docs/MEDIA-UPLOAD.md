@@ -62,7 +62,7 @@ El sistema permite a los usuarios enviar archivos multimedia (imágenes, videos,
 │     │                                                            │
 │     ▼                                                            │
 │  ┌─────────────────┐     ┌─────────────────┐                   │
-│  │ useMediaUpload  │────▶│  Supabase RLS   │ (Verifica permisos)│
+│  │ useMediaUpload  │────>│  Supabase RLS   │ (Verifica permisos)│
 │  │     Hook        │     │    Policies     │                   │
 │  └────────┬────────┘     └─────────────────┘                   │
 │           │                                                      │
@@ -92,7 +92,7 @@ El sistema permite a los usuarios enviar archivos multimedia (imágenes, videos,
 │     │                                                            │
 │     ▼                                                            │
 │  ┌─────────────────┐     ┌─────────────────┐                   │
-│  │ n8n Workflow    │────▶│  Send to WA     │                   │
+│  │ n8n Workflow    │────>│  Send to WA     │                   │
 │  │ (Railway)       │     │   (Nodo HTTP)   │                   │
 │  └─────────────────┘     └────────┬────────┘                   │
 │                                    │                             │
@@ -120,12 +120,12 @@ El sistema permite a los usuarios enviar archivos multimedia (imágenes, videos,
 **Solución**: Upload directo desde navegador a Supabase Storage usando el SDK de cliente.
 
 ```typescript
-// ❌ Anterior (Server Action - límite 4.5MB)
+// [-] Anterior (Server Action - límite 4.5MB)
 const formData = new FormData();
 formData.append('file', file);
 await uploadAction(formData); // Falla si file > 4.5MB
 
-// ✅ Actual (Upload directo - hasta 16MB)
+// [x] Actual (Upload directo - hasta 16MB)
 const supabase = createClient();
 await supabase.storage.from('media').upload(path, file);
 ```
@@ -174,12 +174,12 @@ await sendMessage(leadId, content, mediaUrl, mediaType, filename, caption);
 
 | Tipo | MIME Types | Extensiones | Tamaño Max | WhatsApp |
 |------|-----------|-------------|------------|----------|
-| **Imágenes** | `image/jpeg`, `image/png`, `image/webp` | `.jpg`, `.jpeg`, `.png`, `.webp` | 3 MB | ✅ Soportado |
-| **Video** | `video/mp4` | `.mp4` | 16 MB | ✅ Solo MP4 (H.264 + AAC) |
-| **PDF** | `application/pdf` | `.pdf` | 16 MB | ✅ Soportado |
-| **Word** | `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | `.doc`, `.docx` | 16 MB | ✅ Soportado |
-| **Excel** | `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | `.xls`, `.xlsx` | 16 MB | ✅ Soportado |
-| **Texto** | `text/plain` | `.txt` | 16 MB | ✅ Soportado |
+| **Imágenes** | `image/jpeg`, `image/png`, `image/webp` | `.jpg`, `.jpeg`, `.png`, `.webp` | 3 MB | [x] Soportado |
+| **Video** | `video/mp4` | `.mp4` | 16 MB | [x] Solo MP4 (H.264 + AAC) |
+| **PDF** | `application/pdf` | `.pdf` | 16 MB | [x] Soportado |
+| **Word** | `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | `.doc`, `.docx` | 16 MB | [x] Soportado |
+| **Excel** | `application/vnd.ms-excel`, `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | `.xls`, `.xlsx` | 16 MB | [x] Soportado |
+| **Texto** | `text/plain` | `.txt` | 16 MB | [x] Soportado |
 
 ### Validación en el Cliente
 
@@ -402,8 +402,8 @@ export async function sendMessage(
     message: content.trim(),
     messageType: mediaUrl ? mediaType || 'image' : 'text',
     mediaUrl: mediaUrl || null,
-    filename: filename || null, // ✅ Nombre original del documento
-    caption: caption || null,   // ✅ Texto del usuario como caption
+    filename: filename || null, // [x] Nombre original del documento
+    caption: caption || null,   // [x] Texto del usuario como caption
     timestamp: new Date().toISOString(),
     accessToken: accessToken || '',
     phoneNumberId: phoneNumberId || '',
@@ -457,7 +457,7 @@ if (messageType === 'image' && mediaUrl) {
     link: mediaUrl,
   };
   if (caption) {
-    responsePayload.image.caption = caption; // ✅ Caption del usuario
+    responsePayload.image.caption = caption; // [x] Caption del usuario
   }
 } else if (messageType === 'video' && mediaUrl) {
   responsePayload.type = 'video';
@@ -465,7 +465,7 @@ if (messageType === 'image' && mediaUrl) {
     link: mediaUrl,
   };
   if (caption) {
-    responsePayload.video.caption = caption; // ✅ Caption del usuario
+    responsePayload.video.caption = caption; // [x] Caption del usuario
   }
 } else if (messageType === 'document' && mediaUrl) {
   responsePayload.type = 'document';
@@ -473,10 +473,10 @@ if (messageType === 'image' && mediaUrl) {
     link: mediaUrl,
   };
   if (filename) {
-    responsePayload.document.filename = filename; // ✅ Nombre original
+    responsePayload.document.filename = filename; // [x] Nombre original
   }
   if (caption) {
-    responsePayload.document.caption = caption; // ✅ Caption del usuario
+    responsePayload.document.caption = caption; // [x] Caption del usuario
   }
 } else {
   // Mensaje de texto puro
@@ -676,7 +676,7 @@ await fetch(lead.project.n8nWebhookUrl, {
 <input
   ref={videoInputRef}
   type="file"
-  accept="video/mp4"  // ✅ Solo MP4
+  accept="video/mp4"  // [x] Solo MP4
   onChange={(e) => handleFileSelect(e, 'video')}
 />
 ```
@@ -777,7 +777,7 @@ export async function sendMessage(
   content: string,
   mediaUrl?: string,
   mediaType?: 'image' | 'video' | 'document',
-  filename?: string, // ✅ Nuevo parámetro
+  filename?: string, // [x] Nuevo parámetro
   caption?: string
 ) {
   const n8nPayload = {
@@ -795,7 +795,7 @@ if (messageType === 'document' && mediaUrl) {
     link: mediaUrl,
   };
   if (filename) {
-    responsePayload.document.filename = filename; // ✅ Mapear filename
+    responsePayload.document.filename = filename; // [x] Mapear filename
   }
 }
 ```
@@ -827,7 +827,7 @@ export async function sendMessage(
   mediaUrl?: string,
   mediaType?: 'image' | 'video' | 'document',
   filename?: string,
-  caption?: string // ✅ Nuevo parámetro
+  caption?: string // [x] Nuevo parámetro
 ) {
   const n8nPayload = {
     // ...
@@ -842,7 +842,7 @@ export async function sendMessage(
 if (messageType === 'image' && mediaUrl) {
   responsePayload.image = { link: mediaUrl };
   if (caption) {
-    responsePayload.image.caption = caption; // ✅ Caption del usuario
+    responsePayload.image.caption = caption; // [x] Caption del usuario
   }
 }
 
@@ -850,7 +850,7 @@ if (messageType === 'image' && mediaUrl) {
 if (messageType === 'video' && mediaUrl) {
   responsePayload.video = { link: mediaUrl };
   if (caption) {
-    responsePayload.video.caption = caption; // ✅ Caption del usuario
+    responsePayload.video.caption = caption; // [x] Caption del usuario
   }
 }
 
@@ -861,7 +861,7 @@ if (messageType === 'document' && mediaUrl) {
     responsePayload.document.filename = filename;
   }
   if (caption) {
-    responsePayload.document.caption = caption; // ✅ Caption del usuario
+    responsePayload.document.caption = caption; // [x] Caption del usuario
   }
 }
 ```
@@ -883,7 +883,7 @@ if (messageType === 'document' && mediaUrl) {
 <input
   ref={videoInputRef}
   type="file"
-  accept="video/mp4"  // ✅ Solo MP4 (H.264 + AAC)
+  accept="video/mp4"  // [x] Solo MP4 (H.264 + AAC)
   onChange={(e) => handleFileSelect(e, 'video')}
 />
 ```

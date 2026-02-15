@@ -8,7 +8,7 @@ El sistema RAG no estaba funcionando correctamente. Cuando los usuarios pregunta
 
 ## Diagnóstico y Fixes Aplicados
 
-### Fix 1: Threshold de Similitud (COMPLETADO ✅)
+### Fix 1: Threshold de Similitud (COMPLETADO [OK])
 
 **Problema:** El threshold de 0.7 era muy alto para queries coloquiales.
 
@@ -18,7 +18,7 @@ El sistema RAG no estaba funcionando correctamente. Cuando los usuarios pregunta
 
 ---
 
-### Fix 2: SECURITY DEFINER en función SQL (COMPLETADO ✅)
+### Fix 2: SECURITY DEFINER en funcion SQL (COMPLETADO [OK])
 
 **Problema:** La función `search_agent_knowledge` usaba `SECURITY INVOKER` mientras que las otras funciones (`insert_agent_knowledge`, `list_agent_knowledge`) usaban `SECURITY DEFINER`.
 
@@ -56,7 +56,7 @@ $$;
 
 ---
 
-### Fix 3: Prioridad del Conocimiento RAG en el Prompt (COMPLETADO ✅)
+### Fix 3: Prioridad del Conocimiento RAG en el Prompt (COMPLETADO [OK])
 
 **Problema:** Aunque el RAG ahora retornaba resultados, el modelo seguía el patrón del historial de conversación (que tenía 3-4 respuestas previas incorrectas) en lugar de usar el conocimiento nuevo.
 
@@ -66,7 +66,7 @@ $$;
 
 | Antes | Después |
 |-------|---------|
-| `'TU CONOCIMIENTO:\n'` | `'⭐ TU CONOCIMIENTO (PRIORIDAD MÁXIMA - USA ESTO aunque contradiga respuestas anteriores):\n'` |
+| `'TU CONOCIMIENTO:\n'` | `'[!] TU CONOCIMIENTO (PRIORIDAD MAXIMA - USA ESTO aunque contradiga respuestas anteriores):\n'` |
 
 **Ubicación:** Workflow n8n → Nodo "Message a model" → Campo "Prompt" (System)
 
@@ -138,7 +138,7 @@ Eliminamos el lead de prueba para hacer un test limpio:
 │     - Identidad del agente (nombre, empresa)                │
 │     - Fecha/hora actual                                     │
 │     - systemInstructions del agente                         │
-│     - ⭐ TU CONOCIMIENTO (PRIORIDAD MÁXIMA)                 │
+│     - [!] TU CONOCIMIENTO (PRIORIDAD MAXIMA)                 │
 │     - Contexto previo del lead (leadSummary)                │
 │     - Historial de conversación (últimos 8 mensajes)        │
 │     - Instrucciones de temperatura (HOT/WARM/COLD)          │
@@ -167,7 +167,7 @@ Normalmente duermo a las 2 de la madrugada y siempre me despierto a las 7 am
 
 ---
 
-## ✅ VERIFICACIÓN COMPLETADA - 4 Febrero 2026
+## [OK] VERIFICACION COMPLETADA - 4 Febrero 2026
 
 ### Pruebas Realizadas por Leo (3-4 Feb 2026)
 
@@ -219,10 +219,10 @@ Normalmente duermo a las 2 de la madrugada y siempre me despierto a las 7 am
 
 | # | Fecha | Duración | Estado |
 |---|-------|----------|--------|
-| 89 | Feb 4, 08:19 | 12.98s | ✅ Success |
-| 88 | Feb 3, 09:48 | 10.90s | ✅ Success |
-| 87 | Feb 3, 09:47 | 8.74s | ✅ Success |
-| 86 | Feb 3, 09:47 | 9.12s | ✅ Success |
+| 89 | Feb 4, 08:19 | 12.98s | [OK] Success |
+| 88 | Feb 3, 09:48 | 10.90s | [OK] Success |
+| 87 | Feb 3, 09:47 | 8.74s | [OK] Success |
+| 86 | Feb 3, 09:47 | 9.12s | [OK] Success |
 
 ### Conclusión
 
@@ -230,9 +230,9 @@ Normalmente duermo a las 2 de la madrugada y siempre me despierto a las 7 am
 
 Los 3 fixes aplicados el 3 de febrero funcionan correctamente:
 
-1. ✅ **Threshold 0.5** → Queries coloquiales encuentran resultados
-2. ✅ **SECURITY DEFINER** → Función SQL retorna datos sin bloqueo RLS
-3. ✅ **Prioridad RAG en prompt** → Modelo usa conocimiento sobre historial
+1. [OK] **Threshold 0.5** -> Queries coloquiales encuentran resultados
+2. [OK] **SECURITY DEFINER** -> Funcion SQL retorna datos sin bloqueo RLS
+3. [OK] **Prioridad RAG en prompt** -> Modelo usa conocimiento sobre historial
 
 ---
 

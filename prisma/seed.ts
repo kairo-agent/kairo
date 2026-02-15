@@ -17,7 +17,7 @@ const SUPER_ADMIN = {
 };
 
 async function main() {
-  console.log('🚀 Starting KAIRO seed...\n');
+  console.log('[START] KAIRO seed...\n');
 
   // Initialize Supabase admin client
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -40,14 +40,14 @@ async function main() {
   });
 
   if (existingUser) {
-    console.log(`✅ Super admin already exists: ${SUPER_ADMIN.email}`);
+    console.log(`[OK] Super admin already exists: ${SUPER_ADMIN.email}`);
     console.log(`   ID: ${existingUser.id}`);
     console.log(`   Role: ${existingUser.systemRole}`);
     return;
   }
 
   // Create user in Supabase Auth
-  console.log(`📧 Creating Supabase Auth user: ${SUPER_ADMIN.email}`);
+  console.log(`[AUTH] Creating Supabase Auth user: ${SUPER_ADMIN.email}`);
 
   const { data: authData, error: authError } = await supabase.auth.admin.createUser({
     email: SUPER_ADMIN.email,
@@ -62,7 +62,7 @@ async function main() {
   if (authError) {
     // Check if user already exists in Auth but not in our DB
     if (authError.message.includes('already been registered')) {
-      console.log('⚠️  User exists in Supabase Auth, fetching ID...');
+      console.log('[WARN] User exists in Supabase Auth, fetching ID...');
 
       // List users to find the existing one
       const { data: users } = await supabase.auth.admin.listUsers();
@@ -88,7 +88,7 @@ async function main() {
           },
         });
 
-        console.log('\n✅ Super admin synced to database!');
+        console.log('\n[OK] Super admin synced to database!');
         console.log(`   ID: ${user.id}`);
         console.log(`   Email: ${user.email}`);
         console.log(`   Role: ${user.systemRole}`);
@@ -102,10 +102,10 @@ async function main() {
     throw new Error('No user returned from Supabase Auth');
   }
 
-  console.log(`✅ Supabase Auth user created: ${authData.user.id}`);
+  console.log(`[OK] Supabase Auth user created: ${authData.user.id}`);
 
   // Create user in Prisma DB
-  console.log('💾 Creating user in database...');
+  console.log('[DB] Creating user in database...');
 
   const user = await prisma.user.create({
     data: {
@@ -125,18 +125,18 @@ async function main() {
     },
   });
 
-  console.log('\n✅ Super admin created successfully!');
+  console.log('\n[OK] Super admin created successfully!');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`   Email:    ${user.email}`);
   console.log(`   Password: ${SUPER_ADMIN.password}`);
   console.log(`   Role:     ${user.systemRole}`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('\n⚠️  IMPORTANTE: Cambia tu contraseña después del primer login\n');
+  console.log('\n[WARN] IMPORTANTE: Cambia tu contrasena despues del primer login\n');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed error:', e);
+    console.error('[ERROR] Seed error:', e);
     process.exit(1);
   })
   .finally(async () => {

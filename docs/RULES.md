@@ -140,12 +140,12 @@ browser_network_requests(includeStatic: false, filename: "qa-network.txt")
 
 ### 7. Variables Semánticas
 ```typescript
-// ❌ MAL
+// [-] MAL
 const d = getData();
 const x = d.filter(i => i.s === 1);
 const btn = true;
 
-// ✅ BIEN
+// [x] BIEN
 const allCompanyLeads = await fetchLeadsByCompany(companyId);
 const activeLeads = allCompanyLeads.filter(lead => lead.status === 'active');
 const isSubmitButtonEnabled = true;
@@ -169,14 +169,14 @@ No usar inputs básicos. Preferir:
 **SIEMPRE usar el componente `PhoneInput`** para campos de teléfono:
 
 ```typescript
-// ❌ MAL - Input básico de texto
+// [-] MAL - Input basico de texto
 <Input
   type="tel"
   value={phone}
   onChange={(e) => setPhone(e.target.value)}
 />
 
-// ✅ BIEN - Componente PhoneInput con i18n
+// [x] BIEN - Componente PhoneInput con i18n
 import { PhoneInput, type E164Number } from '@/components/ui/PhoneInput';
 
 <PhoneInput
@@ -215,11 +215,11 @@ const normalizedPhone = normalizePhone(phone) || phone;
 
 ### 10. Modales, No Alerts
 ```typescript
-// ❌ MAL
+// [-] MAL
 alert('Lead guardado exitosamente');
 confirm('¿Eliminar este lead?');
 
-// ✅ BIEN
+// [x] BIEN
 showModal({
   type: 'success',
   title: 'Lead guardado',
@@ -243,11 +243,11 @@ showConfirmModal({
 **SIEMPRE usar los exports de `@/i18n/routing` para navegación:**
 
 ```typescript
-// ❌ MAL - Causa loop infinito de redirección
+// [-] MAL - Causa loop infinito de redireccion
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-// ✅ BIEN - Maneja automáticamente el prefijo de locale
+// [x] BIEN - Maneja automaticamente el prefijo de locale
 import { Link, usePathname, useRouter, redirect } from '@/i18n/routing';
 ```
 
@@ -315,7 +315,7 @@ credentials/
 
 **Adan (Claude) actúa como Project Leader** del proyecto KAIRO y debe:
 
-### ⚠️ ANÁLISIS PREVIO OBLIGATORIO
+### [WARN] ANALISIS PREVIO OBLIGATORIO
 **ANTES de comenzar cualquier tarea**, Adan debe:
 1. **Analizar qué sub-agentes utilizar** para la tarea específica
 2. **Identificar tareas paralelizables** y ejecutarlas en paralelo cuando sea posible

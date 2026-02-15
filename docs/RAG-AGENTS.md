@@ -1,6 +1,6 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** ✅ COMPLETADO Y VERIFICADO - Fases 1-4 + Temperature Scoring + Memoria + Lead Summary
+> **Estado:** [OK] COMPLETADO Y VERIFICADO - Fases 1-4 + Temperature Scoring + Memoria + Lead Summary
 > **Fecha de planificación:** 2026-01-25
 > **Última actualización:** 2026-02-04
 > **Logro:** Flujo RAG completo + HOT/WARM/COLD + Historial 8 msgs + Summary para chats largos
@@ -460,7 +460,7 @@ Cuando se implemente el soporte de archivos:
 
 ## Implementación por Fases
 
-### Fase 1: Infraestructura Base (BD + pgvector) ✅ COMPLETADA
+### Fase 1: Infraestructura Base (BD + pgvector) [OK] COMPLETADA
 **Duración estimada:** 2-3 horas
 
 - [x] Habilitar extensión pgvector en Supabase
@@ -474,7 +474,7 @@ Cuando se implemente el soporte de archivos:
 **Archivos SQL creados:**
 - `scripts/create-insert-knowledge-function.sql` - Función de inserción + políticas RLS
 
-### Fase 2: API de Gestión de Conocimiento ✅ COMPLETADA
+### Fase 2: API de Gestion de Conocimiento [OK] COMPLETADA
 **Duración estimada:** 3-4 horas
 
 - [x] Server Action: `addAgentKnowledge(input)` - Chunking + embedding + inserción
@@ -491,7 +491,7 @@ Cuando se implemente el soporte de archivos:
 - `src/lib/openai/embeddings.ts` - Helper para OpenAI embeddings
 - `src/lib/utils/chunking.ts` - Utilidad de chunking semántico
 
-### Fase 3: UI Admin para RAG (Solo Texto Manual) ✅ COMPLETADA
+### Fase 3: UI Admin para RAG (Solo Texto Manual) [OK] COMPLETADA
 **Duración estimada:** 4-5 horas
 
 - [x] Tab "Conocimiento" en ProjectSettingsModal (por agente)
@@ -513,26 +513,26 @@ Cuando se implemente el soporte de archivos:
 - `src/messages/es.json` - Traducciones knowledgeSettings
 - `src/messages/en.json` - Traducciones knowledgeSettings
 
-### Fase 4: Workflow n8n ✅ COMPLETADA
+### Fase 4: Workflow n8n [OK] COMPLETADA
 **Duración real:** ~4 horas (incluye debugging y ajustes)
 
-- [x] Endpoint `/api/rag/search` creado en KAIRO ✅
+- [x] Endpoint `/api/rag/search` creado en KAIRO [OK]
   - Autenticación: Header `X-N8N-Secret` (shared secret)
   - Request body: `{ agentId, projectId, query, limit?, threshold? }`
   - Response: `{ success, results[], metadata }`
   - Features: Validación de agente/proyecto, generación de embeddings, búsqueda semántica
   - Logging detallado con timings (embedding, search, total)
   - Health check endpoint (GET) con documentación
-- [x] Workflow n8n configurado en Railway ✅
+- [x] Workflow n8n configurado en Railway [OK]
   - URL: `n8n-production-5d42.up.railway.app`
   - Nodo "RAG Search" llama a `/api/rag/search` con header `X-N8N-Secret`
   - Parseo correcto de respuesta `results[]`
-- [x] Nodo OpenAI configurado con System Prompt dinámico ✅
+- [x] Nodo OpenAI configurado con System Prompt dinamico [OK]
   - Usa `body.agentName` del webhook para identificarse (nombre de KAIRO settings)
   - Usa `body.companyName` para contexto de empresa
   - RAG context inyectado condicionalmente si hay resultados
   - Expresión correcta: `$('Message a model').item.json.output[0].content[0].text`
-- [x] Flujo end-to-end verificado con Playwright MCP ✅
+- [x] Flujo end-to-end verificado con Playwright MCP [OK]
   - WhatsApp → KAIRO webhook → n8n → RAG Search → OpenAI → WhatsApp
   - Bot responde como "Leo" (nombre del agente en KAIRO)
   - Personalidad del RAG aplicada en respuestas

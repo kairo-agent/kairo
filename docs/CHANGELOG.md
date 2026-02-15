@@ -396,9 +396,9 @@ Webhook → Check Message Type (Fallback) → Switch → RAG Search → Message 
 | `664c1037` | Fix expresión condicional para path de texto |
 
 ### Verificación
-- ✅ Audio: Bot responde basado en contenido transcrito de notas de voz
-- ✅ Texto: Bot responde normalmente a mensajes de texto
-- ✅ RAG: Funciona en ambos paths (audio y texto)
+- [x] Audio: Bot responde basado en contenido transcrito de notas de voz
+- [x] Texto: Bot responde normalmente a mensajes de texto
+- [x] RAG: Funciona en ambos paths (audio y texto)
 
 ---
 
@@ -536,11 +536,11 @@ Al FINAL de cada respuesta, en una línea separada, indica:
   - Nodo "Send to WhatsApp" envía `suggestedTemperature` a KAIRO
 
 ### Validación
-- ✅ System Prompt usa `systemInstructions` de KAIRO (no hardcodeado)
-- ✅ Extracción de temperatura funciona con regex
-- ✅ Mensaje enviado al usuario NO contiene marcador de temperatura
-- ✅ Lead se actualiza automáticamente en BD
-- ✅ Summary solo se guarda después de 5+ mensajes (defense in depth)
+- [x] System Prompt usa `systemInstructions` de KAIRO (no hardcodeado)
+- [x] Extracción de temperatura funciona con regex
+- [x] Mensaje enviado al usuario NO contiene marcador de temperatura
+- [x] Lead se actualiza automáticamente en BD
+- [x] Summary solo se guarda después de 5+ mensajes (defense in depth)
 
 ---
 
@@ -614,13 +614,13 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 - **Auditoría de seguridad completada** - Verificación de OWASP Top 10, encriptación AES-256-GCM confirmada, HMAC-SHA256 en webhooks
 
 ### Validación
-- ✅ Bot WhatsApp funciona correctamente post-security-fixes
-- ✅ Read receipt sigue funcionando (✓✓ azul)
-- ✅ Build exitoso sin errores TypeScript
+- [x] Bot WhatsApp funciona correctamente post-security-fixes
+- [x] Read receipt sigue funcionando (vv azul)
+- [x] Build exitoso sin errores TypeScript
 
 ---
 
-## [0.7.5] - 2026-01-30 ✅ COMPLETADO
+## [0.7.5] - 2026-01-30 [x] COMPLETADO
 
 ### Features
 - **Nuevo endpoint `/api/ai/respond` - Guardar y enviar en un solo paso**
@@ -655,9 +655,9 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 
 | Endpoint | Propósito | Guarda en BD | Envía a WhatsApp |
 |----------|-----------|--------------|------------------|
-| `/api/ai/respond` | Respuestas IA de n8n | ✅ Sí | ✅ Sí |
-| `/api/whatsapp/send` | Proxy directo | ❌ No | ✅ Sí |
-| `/api/messages/confirm` | Callback legacy | ✅ Actualiza | ❌ No |
+| `/api/ai/respond` | Respuestas IA de n8n | [x] Sí | [x] Sí |
+| `/api/whatsapp/send` | Proxy directo | [-] No | [x] Sí |
+| `/api/messages/confirm` | Callback legacy | [x] Actualiza | [-] No |
 
 ### Request/Response del nuevo endpoint
 
@@ -687,22 +687,22 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 - `src/app/api/ai/respond/route.ts` - Endpoint completo con health check
 
 ### Fixes
-- **Read Receipt automático - Lead ve ✓✓ azul**
+- **Read Receipt automático - Lead ve vv azul**
   - Cuando el webhook recibe un mensaje, KAIRO ahora envía automáticamente el read receipt a WhatsApp API
-  - El lead ve doble check azul (✓✓) en sus mensajes, indicando que el bot "leyó" su mensaje
+  - El lead ve doble check azul (vv) en sus mensajes, indicando que el bot "leyó" su mensaje
   - Implementado en `handleIncomingMessage()` como fire-and-forget (no bloquea el response)
   - Función: `sendReadReceipt(projectId, messageId)` en webhook WhatsApp
 
 ### Validación
-- ✅ Mensaje enviado por WhatsApp y respuesta recibida
-- ✅ Historial de conversación guardado en BD
-- ✅ Bot se identifica con nombre del agente configurado
-- ✅ Metadata completa en mensajes (agentId, agentName, source)
-- ✅ Read receipt funciona - Lead ve ✓✓ azul inmediatamente
+- [x] Mensaje enviado por WhatsApp y respuesta recibida
+- [x] Historial de conversación guardado en BD
+- [x] Bot se identifica con nombre del agente configurado
+- [x] Metadata completa en mensajes (agentId, agentName, source)
+- [x] Read receipt funciona - Lead ve vv azul inmediatamente
 
 ---
 
-## [0.7.4] - 2026-01-30 ✅ COMPLETADO
+## [0.7.4] - 2026-01-30 [x] COMPLETADO
 
 ### Features
 - **RAG Fase 4 COMPLETADA - Flujo end-to-end funcional**
@@ -756,7 +756,7 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 
 ### Documentación
 - **docs/RAG-AGENTS.md actualizado**
-  - Estado: Fases 1-4 COMPLETADAS ✅
+  - Estado: Fases 1-4 COMPLETADAS [x]
   - Nueva sección "Configuración Final n8n (Producción)"
   - System Prompt documentado con expresiones correctas
   - Flujo de datos en n8n diagramado
@@ -771,10 +771,10 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 - `docs/CHANGELOG.md` - Esta entrada
 
 ### Validación
-- ✅ WhatsApp Web: Mensaje enviado y respuesta recibida
-- ✅ Bot se identifica como "Leo" (nombre del agente en KAIRO)
-- ✅ RAG context aplicado en respuestas
-- ✅ Flujo completo: WhatsApp → KAIRO → n8n → OpenAI → WhatsApp
+- [x] WhatsApp Web: Mensaje enviado y respuesta recibida
+- [x] Bot se identifica como "Leo" (nombre del agente en KAIRO)
+- [x] RAG context aplicado en respuestas
+- [x] Flujo completo: WhatsApp → KAIRO → n8n → OpenAI → WhatsApp
 
 ---
 
@@ -838,11 +838,11 @@ Al FINAL de cada respuesta, en una línea separada, indica:
   - Lead principal de prueba: "Leo D Leon" (real user)
 
 ### Estado del Proyecto
-- **RAG Fases 1-3**: ✅ Completamente funcionales
+- **RAG Fases 1-3**: [x] Completamente funcionales
   - Fase 1: pgvector + tablas + funciones RPC + RLS
   - Fase 2: Server Actions + embeddings OpenAI + chunking
   - Fase 3: UI en ProjectSettingsModal + traducciones i18n
-- **RAG Fase 4**: ⏳ Pendiente - Workflow n8n para usar conocimiento en respuestas
+- **RAG Fase 4**: [...] Pendiente - Workflow n8n para usar conocimiento en respuestas
 
 ### Archivos Clave
 - `scripts/create-search-knowledge-function.sql` - Función corregida con parámetro TEXT
@@ -1162,10 +1162,10 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 
 - **WhatsApp Status Indicators en Chat**
   - Iconos estilo WhatsApp para estado de mensajes:
-    - ⏱️ Reloj (pendiente/enviando)
-    - ✓ Check gris (enviado a WhatsApp)
-    - ✓✓ Doble check gris (entregado)
-    - ✓✓ Doble check azul (leído)
+    - [TIME] Reloj (pendiente/enviando)
+    - v Check gris (enviado a WhatsApp)
+    - vv Doble check gris (entregado)
+    - vv Doble check azul (leído)
   - Actualización en tiempo real via Supabase Realtime (UPDATE events)
 
 - **Supabase Realtime para Updates de Estado**
@@ -1509,7 +1509,7 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 
 ### Documentación
 - **Regla 13 actualizada (RULES.md)**
-  - Agregada sección "⚠️ ANÁLISIS PREVIO OBLIGATORIO"
+  - Agregada sección "[!] ANÁLISIS PREVIO OBLIGATORIO"
   - Adan debe analizar qué sub-agentes usar ANTES de cada tarea
   - Priorizar paralelización cuando sea posible
   - Solo asumir tareas personalmente si no hay agente adecuado
@@ -1520,7 +1520,7 @@ Al FINAL de cada respuesta, en una línea separada, indica:
 
 ### Agregado
 - **Formulario de contraseña mejorado en Perfil**
-  - Validación en tiempo real con indicadores visuales (✓/✗)
+  - Validación en tiempo real con indicadores visuales (v/[-])
   - Barra de fortaleza de contraseña (Débil/Aceptable/Buena/Fuerte)
   - Colores por nivel: rojo → naranja → amarillo → verde
   - Requisitos de contraseña mostrados en panel:
@@ -1698,8 +1698,8 @@ Al FINAL de cada respuesta, en una línea separada, indica:
   - Renombrado el campo de clasificación de leads para mayor claridad
   - Nuevas etiquetas con contexto educativo para usuarios nuevos:
     - [fire] Potencial Alto (lead caliente)
-    - ⚡ Potencial Medio (lead tibio)
-    - ❄️ Potencial Bajo (lead frío)
+    - [FAST] Potencial Medio (lead tibio)
+    - [COLD] Potencial Bajo (lead frío)
   - Los valores internos del enum (`HOT`, `WARM`, `COLD`) permanecen sin cambios
   - Traducciones actualizadas en español e inglés
 

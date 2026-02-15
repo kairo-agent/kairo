@@ -28,6 +28,8 @@ nul
 # Claude Code
 .claude/
 .playwright-mcp/
+qa-*.md
+qa-*.png
 
 # debug
 npm-debug.log*

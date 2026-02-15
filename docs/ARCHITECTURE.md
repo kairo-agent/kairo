@@ -428,11 +428,11 @@ export async function getLeadConversation(
 
 | Dato | Cache Permitido | Ubicación |
 |------|-----------------|-----------|
-| Tokens de autenticación | ❌ NO | Solo server-side (Supabase) |
-| Mensajes de chat | ✅ SI | React Query (RAM, no localStorage) |
-| Credenciales WhatsApp | ❌ NO | Solo DB encriptado |
-| Preferencias UI | ✅ SI | localStorage (tema, vista, workspace) |
-| User info (auth) | ✅ SI | React cache() (request-scoped) |
+| Tokens de autenticacion | [-] NO | Solo server-side (Supabase) |
+| Mensajes de chat | [x] SI | React Query (RAM, no localStorage) |
+| Credenciales WhatsApp | [-] NO | Solo DB encriptado |
+| Preferencias UI | [x] SI | localStorage (tema, vista, workspace) |
+| User info (auth) | [x] SI | React cache() (request-scoped) |
 
 **Principio:** Nunca persistir datos sensibles en localStorage. React Query usa solo RAM.
 

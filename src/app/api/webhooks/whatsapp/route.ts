@@ -192,7 +192,7 @@ export async function GET(request: NextRequest) {
 
   // Check if this is a verification request
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('✅ WhatsApp webhook verified successfully');
+    console.log('[OK] WhatsApp webhook verified successfully');
     // Return the challenge as plain text (required by Meta)
     return new NextResponse(challenge, {
       status: 200,
@@ -201,7 +201,7 @@ export async function GET(request: NextRequest) {
   }
 
   // If verification fails
-  console.warn('❌ WhatsApp webhook verification failed', { mode, token });
+  console.warn('[FAIL] WhatsApp webhook verification failed', { mode, token });
   return NextResponse.json(
     { error: 'Verification failed' },
     { status: 403 }
@@ -352,14 +352,14 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
   const cachedResult = getCachedProject(phoneNumberId);
   if (cachedResult !== undefined) {
     if (cachedResult) {
-      console.log(`⚡ Cache hit for phone_number_id: ${phoneNumberId} → ${cachedResult.name}`);
+      console.log(`[CACHE HIT] phone_number_id: ${phoneNumberId} -> ${cachedResult.name}`);
     } else {
-      console.log(`⚡ Cache hit (no project) for phone_number_id: ${phoneNumberId}`);
+      console.log(`[CACHE HIT] (no project) for phone_number_id: ${phoneNumberId}`);
     }
     return cachedResult;
   }
 
-  console.log(`🔍 Cache miss - Looking for project with phone_number_id: ${phoneNumberId}`);
+  console.log(`[CACHE MISS] Looking for project with phone_number_id: ${phoneNumberId}`);
 
   // Get all projects with whatsapp_phone_number_id configured
   const secrets = await prisma.projectSecret.findMany({
@@ -383,7 +383,7 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
       });
 
       if (decryptedPhoneNumberId === phoneNumberId) {
-        console.log(`✅ Found project: ${secret.project.name} (${secret.projectId})`);
+        console.log(`[OK] Found project: ${secret.project.name} (${secret.projectId})`);
         // Cache the successful match
         setCachedProject(phoneNumberId, secret.project);
         return secret.project;
@@ -599,7 +599,7 @@ async function handleIncomingMessage(
       },
     });
 
-    console.log(`✅ New lead created: ${lead.id} (${contactName})`);
+    console.log(`[OK] New lead created: ${lead.id} (${contactName})`);
   } else {
     // Add message to existing conversation
     let conversationId = lead.conversation?.id;
@@ -644,7 +644,7 @@ async function handleIncomingMessage(
         ]);
         // Update lead object for n8n trigger
         lead.assignedAgent = defaultAgent;
-        console.log(`✅ Assigned agent ${defaultAgent.name} to existing lead: ${lead.id}`);
+        console.log(`[OK] Assigned agent ${defaultAgent.name} to existing lead: ${lead.id}`);
       } else {
         await Promise.all([
           messageCreatePromise,
@@ -674,7 +674,7 @@ async function handleIncomingMessage(
       ]);
     }
 
-    console.log(`✅ Message added to lead: ${lead.id}`);
+    console.log(`[OK] Message added to lead: ${lead.id}`);
   }
 
   // Fire-and-forget: notify project members about new message
@@ -696,7 +696,7 @@ async function handleIncomingMessage(
     }
   }).catch((err) => console.error('Notification project lookup error:', err));
 
-  // Send read receipt to WhatsApp so lead sees ✓✓ (blue checkmarks)
+  // Send read receipt to WhatsApp so lead sees double checkmarks (blue)
   // This runs in background - don't await to not delay response
   sendReadReceipt(projectId, message.id).catch((err) =>
     console.error('Read receipt error:', err)
@@ -790,7 +790,7 @@ async function handleStatusUpdate(projectId: string, status: WhatsAppStatus) {
     return;
   }
 
-  console.log(`🔍 Found message ${message.id} for status update: ${status.status}`);
+  console.log(`[FOUND] Message ${message.id} for status update: ${status.status}`);
 
   const now = new Date();
   const existingMetadata = (message.metadata as Record<string, unknown>) || {};
@@ -812,7 +812,7 @@ async function handleStatusUpdate(projectId: string, status: WhatsAppStatus) {
   if (status.status === 'delivered') {
     updateData.isDelivered = true;
     updateData.deliveredAt = now;
-    console.log(`📬 Message delivered: ${status.id}`);
+    console.log(`[DELIVERED] Message: ${status.id}`);
   }
 
   // Update read status (also implies delivered)
@@ -821,7 +821,7 @@ async function handleStatusUpdate(projectId: string, status: WhatsAppStatus) {
     updateData.deliveredAt = message.deliveredAt || now;
     updateData.isRead = true;
     updateData.readAt = now;
-    console.log(`👁️ Message read: ${status.id}`);
+    console.log(`[READ] Message: ${status.id}`);
   }
 
   await prisma.message.update({
@@ -829,5 +829,5 @@ async function handleStatusUpdate(projectId: string, status: WhatsAppStatus) {
     data: updateData,
   });
 
-  console.log(`✅ Message ${status.id} status updated: ${status.status}`);
+  console.log(`[OK] Message ${status.id} status updated: ${status.status}`);
 }

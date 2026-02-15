@@ -137,7 +137,7 @@ function randomValue(): Decimal | null {
 // ============================================
 
 async function main() {
-  console.log('🚀 Starting KAIRO fake data seed...\n');
+  console.log('[START] KAIRO fake data seed...\n');
 
   // Get super_admin user (must exist from previous seed)
   const superAdmin = await prisma.user.findFirst({
@@ -148,12 +148,12 @@ async function main() {
     throw new Error('Super admin not found. Run `npx prisma db seed` first.');
   }
 
-  console.log(`✅ Found super admin: ${superAdmin.email}\n`);
+  console.log(`[OK] Found super admin: ${superAdmin.email}\n`);
 
   // ============================================
   // 1. Create Organization
   // ============================================
-  console.log('📁 Creating organization...');
+  console.log('[ORG] Creating organization...');
 
   let organization = await prisma.organization.findUnique({
     where: { slug: ORG_CONFIG.slug },
@@ -173,7 +173,7 @@ async function main() {
         defaultLocale: 'es-PE',
       },
     });
-    console.log(`   ✅ Created organization: ${organization.name}`);
+    console.log(`   [OK] Created organization: ${organization.name}`);
   }
 
   // Add super_admin as org owner
@@ -194,13 +194,13 @@ async function main() {
         isOwner: true,
       },
     });
-    console.log(`   ✅ Added ${superAdmin.firstName} as org owner`);
+    console.log(`   [OK] Added ${superAdmin.firstName} as org owner`);
   }
 
   // ============================================
   // 2. Create Project
   // ============================================
-  console.log('\n📂 Creating project...');
+  console.log('\n[PROJECT] Creating project...');
 
   let project = await prisma.project.findFirst({
     where: {
@@ -224,7 +224,7 @@ async function main() {
         isActive: true,
       },
     });
-    console.log(`   ✅ Created project: ${project.name}`);
+    console.log(`   [OK] Created project: ${project.name}`);
   }
 
   // Add super_admin as project admin
@@ -245,13 +245,13 @@ async function main() {
         role: ProjectRole.admin,
       },
     });
-    console.log(`   ✅ Added ${superAdmin.firstName} as project admin`);
+    console.log(`   [OK] Added ${superAdmin.firstName} as project admin`);
   }
 
   // ============================================
   // 3. Create AI Agents
   // ============================================
-  console.log('\n🤖 Creating AI agents...');
+  console.log('\n[AI] Creating AI agents...');
 
   const createdAgents: { id: string; name: string }[] = [];
 
@@ -283,7 +283,7 @@ async function main() {
           },
         },
       });
-      console.log(`   ✅ Created agent: ${agent.name} (${agent.type})`);
+      console.log(`   [OK] Created agent: ${agent.name} (${agent.type})`);
       createdAgents.push({ id: agent.id, name: agent.name });
     }
   }
@@ -291,7 +291,7 @@ async function main() {
   // ============================================
   // 4. Create 100 Leads
   // ============================================
-  console.log('\n👥 Creating 100 leads...');
+  console.log('\n[LEADS] Creating 100 leads...');
 
   // Check existing leads count
   const existingLeadsCount = await prisma.lead.count({
@@ -372,14 +372,14 @@ async function main() {
       }
     }
 
-    console.log(`   ✅ Created ${leadsToCreate} leads successfully!`);
+    console.log(`   [OK] Created ${leadsToCreate} leads successfully!`);
   }
 
   // ============================================
   // 5. Summary
   // ============================================
   console.log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📊 SEED SUMMARY');
+  console.log('SEED SUMMARY');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
   const finalLeadsCount = await prisma.lead.count({ where: { projectId: project.id } });
@@ -400,12 +400,12 @@ async function main() {
     console.log(`     - ${sc.status}: ${sc._count}`);
   }
 
-  console.log('\n✅ Fake data seed completed!\n');
+  console.log('\n[OK] Fake data seed completed!\n');
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed error:', e);
+    console.error('[ERROR] Seed error:', e);
     process.exit(1);
   })
   .finally(async () => {

@@ -4,7 +4,7 @@
 
 KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) siguiendo las mejores prácticas de OWASP. Este documento describe todas las protecciones implementadas, configuraciones requeridas y checklist para futuras features.
 
-**Estado:** ✅ Security Audit v1 Completado (Enero 2026)
+**Estado:** [OK] Security Audit v1 Completado (Enero 2026)
 
 ---
 
@@ -196,7 +196,7 @@ BYPASS_AUTH_DEV=true
 WEBHOOK_BYPASS_SIGNATURE=true
 ```
 
-⚠️ **NUNCA** incluir bypass flags en producción
+[WARN] **NUNCA** incluir bypass flags en produccion
 
 ---
 
@@ -326,12 +326,12 @@ Si Redis no está configurado o falla, KAIRO usa automáticamente rate limiting 
 - Secrets management
 
 **Hallazgos:**
-- ✅ 0 vulnerabilidades CRÍTICAS
-- ✅ 0 vulnerabilidades ALTAS
-- ⚠️ 3 issues MEDIOS (resueltos en v0.7.7)
-- ⚠️ 2 issues BAJOS (resueltos en v0.7.8)
+- [OK] 0 vulnerabilidades CRITICAS
+- [OK] 0 vulnerabilidades ALTAS
+- [WARN] 3 issues MEDIOS (resueltos en v0.7.7)
+- [WARN] 2 issues BAJOS (resueltos en v0.7.8)
 
-**Estado:** ✅ COMPLETADO - Todas las recomendaciones implementadas
+**Estado:** [OK] COMPLETADO - Todas las recomendaciones implementadas
 
 **Próxima auditoría:** Post-MVP (después de implementar features de monetización)
 

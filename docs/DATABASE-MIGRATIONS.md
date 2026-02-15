@@ -40,7 +40,7 @@ Creadas directamente en Supabase porque usan tipos que Prisma no soporta (ej: pg
 
 ## Comandos Prisma
 
-### ✅ PERMITIDOS
+### [OK] PERMITIDOS
 
 ```bash
 # Generar cliente Prisma después de cambios en schema
@@ -56,7 +56,7 @@ npx prisma migrate deploy
 npx prisma migrate status
 ```
 
-### ⛔ PROHIBIDO
+### [FAIL] PROHIBIDO
 
 ```bash
 # NUNCA USAR - Elimina tablas no-Prisma

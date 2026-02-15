@@ -131,7 +131,7 @@ export function useRealtimeMessages({
    */
   const cleanup = useCallback(() => {
     if (channelRef.current) {
-      console.log(`🔌 [Realtime] Desconectando canal: messages:${conversationId}`);
+      console.log(`[RT] Desconectando canal: messages:${conversationId}`);
       supabaseRef.current.removeChannel(channelRef.current);
       channelRef.current = null;
       connectionStatusRef.current = 'disconnected';
@@ -170,7 +170,7 @@ export function useRealtimeMessages({
     const supabase = supabaseRef.current;
     const channelName = `messages:${conversationId}`;
 
-    console.log(`🔌 [Realtime] Conectando a canal: ${channelName}`);
+    console.log(`[RT] Conectando a canal: ${channelName}`);
     connectionStatusRef.current = 'connecting';
 
     // Crear canal con suscripción a cambios de PostgreSQL
@@ -186,7 +186,7 @@ export function useRealtimeMessages({
           filter: `conversationId=eq.${conversationId}`,
         },
         (payload: MessageInsertPayload) => {
-          console.log('📨 [Realtime] Nuevo mensaje recibido:', payload.new.id);
+          console.log('[RT] Nuevo mensaje recibido:', payload.new.id);
 
           // Transformar el payload al tipo esperado
           const message: RealtimeMessage = {
@@ -227,7 +227,7 @@ export function useRealtimeMessages({
           const whatsappIdChanged = oldData.whatsappMsgId !== newData.whatsappMsgId;
 
           if (deliveryChanged || readChanged || whatsappIdChanged) {
-            console.log(`📬 [Realtime] Estado actualizado: ${newData.id} - delivered: ${newData.isDelivered}, read: ${newData.isRead}`);
+            console.log(`[Realtime] Status updated: ${newData.id} - delivered: ${newData.isDelivered}, read: ${newData.isRead}`);
 
             const update: MessageStatusUpdate = {
               id: newData.id,
@@ -243,7 +243,7 @@ export function useRealtimeMessages({
         }
       )
       .subscribe((status) => {
-        console.log(`🔌 [Realtime] Estado del canal ${channelName}:`, status);
+        console.log(`[RT] Estado del canal ${channelName}:`, status);
 
         switch (status) {
           case 'SUBSCRIBED':
@@ -269,7 +269,7 @@ export function useRealtimeMessages({
 
     // Cleanup al desmontar o cuando cambien las dependencias
     return () => {
-      console.log(`🔌 [Realtime] Cleanup del canal: ${channelName}`);
+      console.log(`[RT] Cleanup del canal: ${channelName}`);
       supabase.removeChannel(channel);
       channelRef.current = null;
       connectionStatusRef.current = 'disconnected';

@@ -15,6 +15,7 @@ import {
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
+import { TemperatureIcon, ActivityIcon } from '@/components/icons/LeadIcons';
 import {
   getLeadNotes,
   addLeadNote,
@@ -339,17 +340,8 @@ export function LeadDetailPanel({
     }, 500);
   };
 
-  const getActivityTypeIcon = (type: string) => {
-    switch (type) {
-      case 'status_change':
-        return '🔄';
-      case 'note_added':
-        return '📝';
-      case 'contact':
-        return '💬';
-      default:
-        return '•';
-    }
+  const renderActivityIcon = (type: string) => {
+    return <ActivityIcon type={type} className="w-3.5 h-3.5" />;
   };
 
   return (
@@ -499,7 +491,7 @@ export function LeadDetailPanel({
                 customBgColor={`${temperatureConfig.color}20`}
                 size="md"
               >
-                {temperatureConfig.icon} {t(`potential.${lead.temperature}`)}
+                <TemperatureIcon temperature={lead.temperature} className="w-4 h-4 inline-block mr-1" /> {t(`potential.${lead.temperature}`)}
               </Badge>
 
               {/* Channel */}
@@ -739,7 +731,7 @@ export function LeadDetailPanel({
                   <div key={activity.id} className="flex gap-3">
                     <div className="flex flex-col items-center">
                       <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center text-xs">
-                        {getActivityTypeIcon(activity.type)}
+                        {renderActivityIcon(activity.type)}
                       </div>
                       {index < activities.length - 1 && (
                         <div className="w-px flex-1 bg-[var(--border-primary)] mt-1" />

@@ -372,7 +372,7 @@ export async function sendMessage(
           },
         };
 
-        console.log(`📤 Sending human message via n8n: ${lead.project.n8nWebhookUrl}`);
+        console.log(`[SEND] Sending human message via n8n: ${lead.project.n8nWebhookUrl}`);
 
         const n8nResponse = await fetch(lead.project.n8nWebhookUrl, {
           method: 'POST',
@@ -381,7 +381,7 @@ export async function sendMessage(
         });
 
         if (!n8nResponse.ok) {
-          console.error(`❌ n8n webhook failed: ${n8nResponse.status}`);
+          console.error(`[FAIL] n8n webhook failed: ${n8nResponse.status}`);
           await prisma.message.update({
             where: { id: message.id },
             data: {
@@ -392,7 +392,7 @@ export async function sendMessage(
             },
           });
         } else {
-          console.log(`✅ Human message sent via n8n successfully`);
+          console.log(`[OK] Human message sent via n8n successfully`);
           await prisma.message.update({
             where: { id: message.id },
             data: {
@@ -403,7 +403,7 @@ export async function sendMessage(
           });
         }
       } catch (n8nError) {
-        console.error('❌ Error sending to n8n:', n8nError);
+        console.error('[FAIL] Error sending to n8n:', n8nError);
         // Don't fail the whole operation - message is saved in DB
       }
     }

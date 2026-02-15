@@ -19,6 +19,7 @@ import {
   LEAD_TYPE_CONFIG,
 } from '@/types';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
+import { TemperatureIcon, LeadTypeIcon } from '@/components/icons/LeadIcons';
 import { DateRangeDropdown } from '@/components/ui/DateRangePicker';
 
 // ============================================
@@ -540,7 +541,7 @@ export function LeadFilters({
               onClick={() => handleTemperatureChange(temp as LeadTemperature)}
               activeColor={config.color}
               activeBgColor={`${config.color}20`}
-              icon={config.icon}
+              icon={<TemperatureIcon temperature={temp as LeadTemperature} className="w-3.5 h-3.5" />}
             />
           ))}
         </FilterSection>
@@ -586,7 +587,7 @@ export function LeadFilters({
               onClick={() => handleTypeChange(type)}
               activeColor={LEAD_TYPE_CONFIG[type].color}
               activeBgColor={LEAD_TYPE_CONFIG[type].bgColor}
-              icon={LEAD_TYPE_CONFIG[type].icon}
+              icon={<LeadTypeIcon type={type} className="w-3.5 h-3.5" />}
             />
           ))}
         </FilterSection>

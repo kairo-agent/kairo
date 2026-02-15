@@ -10,15 +10,15 @@
 
 | Opción evaluada | Decisión | Razón |
 |-----------------|----------|-------|
-| Código directo en KAIRO | ❌ Descartado (MVP) | Más tiempo de desarrollo inicial |
-| n8n Cloud | ❌ Descartado | Límite de 2,500 ejecuciones/mes, costoso para escalar |
-| **n8n Self-hosted** | ✅ Elegido | Ejecuciones ilimitadas, bajo costo, UI visual |
+| Código directo en KAIRO | [-] Descartado (MVP) | Más tiempo de desarrollo inicial |
+| n8n Cloud | [-] Descartado | Límite de 2,500 ejecuciones/mes, costoso para escalar |
+| **n8n Self-hosted** | [x] Elegido | Ejecuciones ilimitadas, bajo costo, UI visual |
 
 ### ¿Por qué Railway para hosting?
 
 | Plataforma | Costo | Decisión |
 |------------|-------|----------|
-| Railway (Hobby) | ~$5-10/mes | ✅ Elegido |
+| Railway (Hobby) | ~$5-10/mes | [x] Elegido |
 | Render | ~$7/mes | Similar, más caro por RAM |
 | Hetzner + Coolify | ~$4.50/mes | Futuro (más setup) |
 | n8n Cloud | $20+/mes | Límites de ejecución |
@@ -42,8 +42,8 @@
 │         │                                                        │
 │         ▼                                                        │
 │   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐      │
-│   │   Railway   │────▶│    KAIRO    │────▶│  Supabase   │      │
-│   │    (n8n)    │◀────│  (Vercel)   │◀────│ (PostgreSQL)│      │
+│   │   Railway   │────>│    KAIRO    │────>│  Supabase   │      │
+│   │    (n8n)    │<────│  (Vercel)   │<────│ (PostgreSQL)│      │
 │   └─────────────┘     └─────────────┘     └─────────────┘      │
 │         │                                                        │
 │         ▼                                                        │
@@ -171,10 +171,10 @@ cloudflared tunnel run --url http://localhost:5678 n8n-dev
 
 | Aspecto | Estado |
 |---------|--------|
-| Docker aislado | ✅ n8n no accede a archivos de tu PC |
-| Puerto específico | ✅ Solo 5678 expuesto |
-| Autenticación | ✅ Usuario/password en n8n |
-| HTTPS | ✅ ngrok/Cloudflare lo manejan |
+| Docker aislado | [x] n8n no accede a archivos de tu PC |
+| Puerto específico | [x] Solo 5678 expuesto |
+| Autenticación | [x] Usuario/password en n8n |
+| HTTPS | [x] ngrok/Cloudflare lo manejan |
 
 ### Buenas prácticas
 
@@ -225,12 +225,12 @@ Si KAIRO crece significativamente, evaluar:
 ## Canales Soportados
 
 ### MVP
-- ✅ WhatsApp (Cloud API)
+- [x] WhatsApp (Cloud API)
 
 ### Futuro (post-MVP)
-- ⏳ Facebook Messenger (Graph API)
-- ⏳ Instagram DM (Graph API)
-- ❌ TikTok (No hay API pública para DMs)
+- [...] Facebook Messenger (Graph API)
+- [...] Instagram DM (Graph API)
+- [-] TikTok (No hay API pública para DMs)
 
 ---
 
@@ -249,7 +249,7 @@ Además de la integración via n8n, KAIRO puede recibir mensajes de WhatsApp dir
 │         │                                                        │
 │         ▼                                                        │
 │   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐      │
-│   │   ngrok     │────▶│    KAIRO    │────▶│  Supabase   │      │
+│   │   ngrok     │────>│    KAIRO    │────>│  Supabase   │      │
 │   │   tunnel    │     │ (localhost) │     │ (PostgreSQL)│      │
 │   └─────────────┘     └─────────────┘     └─────────────┘      │
 │                                                                  │
@@ -314,7 +314,7 @@ Forwarding    https://abc123.ngrok-free.dev -> http://localhost:3000
    - **URL del webhook**: `https://abc123.ngrok-free.dev/api/webhooks/whatsapp`
    - **Token de verificación**: `kairo_wh_v3r1fy_2026` (mismo de `.env.local`)
 5. Suscribirse a campos:
-   - `messages` ✅
+   - `messages` [x]
 
 ### Endpoints del Webhook
 
@@ -325,16 +325,16 @@ Forwarding    https://abc123.ngrok-free.dev -> http://localhost:3000
 
 ### Tipos de mensajes soportados
 
-- ✅ Texto
-- ✅ Imagen (con caption)
-- ✅ Audio
-- ✅ Video (con caption)
-- ✅ Documento (con filename)
-- ⏳ Ubicación
-- ⏳ Contactos
-- ⏳ Botones/Interactivos
+- [x] Texto
+- [x] Imagen (con caption)
+- [x] Audio
+- [x] Video (con caption)
+- [x] Documento (con filename)
+- [...] Ubicación
+- [...] Contactos
+- [...] Botones/Interactivos
 
-### ⚠️ Limitaciones de ngrok free
+### [!] Limitaciones de ngrok free
 
 - URL cambia cada vez que reinicias ngrok
 - Necesitas actualizar webhook en Meta cada vez
@@ -514,10 +514,10 @@ return {
 
 | Tipo | Formatos WhatsApp | Implementado en KAIRO |
 |------|-------------------|----------------------|
-| Imagen | JPG, PNG, WebP | ✅ JPG, PNG, WebP |
-| Video | MP4 (H.264 + AAC) | ✅ MP4 únicamente |
-| Documento | PDF, DOC, DOCX, XLS, XLSX, TXT | ✅ Todos |
-| Audio | MP3, OGG, M4A, AMR | ❌ Pendiente |
+| Imagen | JPG, PNG, WebP | [x] JPG, PNG, WebP |
+| Video | MP4 (H.264 + AAC) | [x] MP4 únicamente |
+| Documento | PDF, DOC, DOCX, XLS, XLSX, TXT | [x] Todos |
+| Audio | MP3, OGG, M4A, AMR | [-] Pendiente |
 
 ### Limitaciones
 
