@@ -317,7 +317,38 @@ async function transcribeAudio(
     }
 
     const audioBuffer = await audioResponse.arrayBuffer();
+
+    // Validate audio size (max 10MB)
+    const MAX_AUDIO_SIZE = 10 * 1024 * 1024;
+    if (audioBuffer.byteLength > MAX_AUDIO_SIZE) {
+      console.warn(`[AI Pipeline] Audio too large: ${audioBuffer.byteLength} bytes, skipping`);
+      return null;
+    }
+
     const mimeType = mediaInfo.mime_type || 'audio/ogg';
+
+    // Validate MIME type
+    const ALLOWED_AUDIO_TYPES = new Set([
+      'audio/ogg', 'audio/opus', 'audio/mpeg',
+      'audio/mp4', 'audio/wav', 'audio/webm',
+    ]);
+    if (!ALLOWED_AUDIO_TYPES.has(mimeType)) {
+      console.warn(`[AI Pipeline] Unsupported audio MIME type: ${mimeType}, skipping`);
+      return null;
+    }
+
+    // Validate media URL hostname (must be Facebook CDN)
+    try {
+      const mediaUrl = new URL(mediaInfo.url);
+      if (!mediaUrl.hostname.endsWith('.fbcdn.net') && !mediaUrl.hostname.endsWith('.facebook.com')) {
+        console.warn(`[AI Pipeline] Suspicious media URL hostname: ${mediaUrl.hostname}`);
+        return null;
+      }
+    } catch {
+      console.warn('[AI Pipeline] Invalid media URL');
+      return null;
+    }
+
     const audioBlob = new Blob([audioBuffer], { type: mimeType });
 
     const extMap: Record<string, string> = {

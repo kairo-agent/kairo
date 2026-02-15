@@ -98,10 +98,14 @@ export async function setProjectSecret(
 }
 
 /**
- * Retrieves and decrypts a project secret
- * INTERNAL USE ONLY - use with caution, never expose to client
+ * Retrieves and decrypts a project secret.
  *
- * @param projectId - The project ID
+ * WARNING: INTERNAL USE ONLY - Does NOT verify caller permissions.
+ * Only call from validated internal contexts (webhook handler, AI pipeline, cron).
+ * For user-facing access, use getProjectSecretForUser() instead.
+ *
+ * @internal
+ * @param projectId - The project ID (must be pre-validated by caller)
  * @param key - The secret key identifier
  * @returns Decrypted secret value or null
  */
@@ -355,7 +359,8 @@ async function verifyProjectAdminAccess(
 }
 
 /**
- * Logs secret access for audit trail
+ * Logs secret access for audit trail.
+ * Gracefully handles cases outside request context (webhook, cron).
  */
 async function logSecretAccess(
   projectId: string,
@@ -364,7 +369,17 @@ async function logSecretAccess(
   action: 'read' | 'write' | 'delete'
 ): Promise<void> {
   try {
-    const headersList = await headers();
+    let ipAddress: string | null = null;
+    let userAgent: string | null = null;
+
+    // Attempt to read from request headers (may fail outside request context)
+    try {
+      const headersList = await headers();
+      ipAddress = headersList.get('x-forwarded-for') || headersList.get('x-real-ip') || null;
+      userAgent = headersList.get('user-agent') || null;
+    } catch {
+      // Outside request context (webhook fire-and-forget, cron): headers unavailable
+    }
 
     await prisma.secretAccessLog.create({
       data: {
@@ -372,11 +387,8 @@ async function logSecretAccess(
         secretKey,
         userId,
         action,
-        ipAddress:
-          headersList.get('x-forwarded-for') ||
-          headersList.get('x-real-ip') ||
-          null,
-        userAgent: headersList.get('user-agent') || null,
+        ipAddress,
+        userAgent,
       },
     });
   } catch (error) {

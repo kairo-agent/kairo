@@ -37,6 +37,7 @@ interface CachedProject {
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_PHONE_CACHE_SIZE = 500;
 const phoneNumberIdCache = new Map<string, CachedProject>();
 
 function getCachedProject(phoneNumberId: string): { id: string; name: string } | null | undefined {
@@ -53,6 +54,19 @@ function getCachedProject(phoneNumberId: string): { id: string; name: string } |
 }
 
 function setCachedProject(phoneNumberId: string, project: { id: string; name: string } | null): void {
+  // Evict expired entries if cache approaching limit
+  if (phoneNumberIdCache.size >= MAX_PHONE_CACHE_SIZE) {
+    const now = Date.now();
+    for (const [k, v] of phoneNumberIdCache.entries()) {
+      if (now - v.timestamp > CACHE_TTL_MS) phoneNumberIdCache.delete(k);
+    }
+    // If still over limit, remove oldest entry
+    if (phoneNumberIdCache.size >= MAX_PHONE_CACHE_SIZE) {
+      const oldestKey = phoneNumberIdCache.keys().next().value;
+      if (oldestKey) phoneNumberIdCache.delete(oldestKey);
+    }
+  }
+
   phoneNumberIdCache.set(phoneNumberId, {
     project,
     timestamp: Date.now(),
@@ -194,8 +208,13 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // Check if this is a verification request
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+  // Check if this is a verification request (timing-safe comparison)
+  if (mode === 'subscribe' && token && VERIFY_TOKEN &&
+      token.length === VERIFY_TOKEN.length &&
+      crypto.timingSafeEqual(
+        Buffer.from(token, 'utf8'),
+        Buffer.from(VERIFY_TOKEN, 'utf8')
+      )) {
     console.log('[OK] WhatsApp webhook verified successfully');
     // Return the challenge as plain text (required by Meta)
     return new NextResponse(challenge, {
@@ -204,8 +223,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // If verification fails
-  console.warn('[FAIL] WhatsApp webhook verification failed', { mode, token });
+  // If verification fails (don't log the token value)
+  console.warn('[FAIL] WhatsApp webhook verification failed', {
+    mode,
+    hasToken: !!token,
+    tokenLength: token?.length || 0,
+  });
   return NextResponse.json(
     { error: 'Verification failed' },
     { status: 403 }
@@ -403,34 +426,30 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
       });
 
       if (decryptedPhoneNumberId === phoneNumberId) {
-        console.log(`[OK] Found project: ${secret.project.name} (${secret.projectId})`);
+        console.log(`[OK] Found project: ${secret.projectId.substring(0, 8)}...`);
         // Cache the successful match
         setCachedProject(phoneNumberId, secret.project);
         return secret.project;
       }
     } catch (error) {
-      console.error(`Error decrypting secret for project ${secret.projectId}:`, error);
+      console.error(`Error decrypting secret for project ${secret.projectId.substring(0, 8)}...:`, error);
     }
   }
 
-  // Fallback only in development (security: prevents cross-tenant message routing in production)
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn('No matching project found, using fallback for development');
+  // Fallback only in development with explicit opt-in (prevents cross-tenant routing)
+  if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_WEBHOOK_FALLBACK === 'true') {
+    console.warn('[DEV] No matching project found, using fallback (ALLOW_WEBHOOK_FALLBACK=true)');
     const fallbackProject = await prisma.project.findFirst({
       where: { isActive: true },
       select: { id: true, name: true },
     });
-
-    if (fallbackProject) {
-      console.log(`Using fallback project: ${fallbackProject.name}`);
-    }
 
     setCachedProject(phoneNumberId, fallbackProject);
     return fallbackProject;
   }
 
   // Production: no fallback, discard message
-  console.warn(`No matching project for phoneNumberId: ${phoneNumberId}`);
+  console.warn(`No matching project for phoneNumberId: ${phoneNumberId.substring(0, 6)}...`);
   setCachedProject(phoneNumberId, null);
   return null;
 }
@@ -629,12 +648,12 @@ async function handleIncomingMessage(
       data: {
         leadId: lead.id,
         type: 'lead_created',
-        description: `Lead creado desde WhatsApp: ${contactName}`,
+        description: 'Lead creado desde WhatsApp',
         metadata: { source: 'whatsapp_direct', channel: 'whatsapp' },
       },
     });
 
-    console.log(`[OK] New lead created: ${lead.id} (${contactName})`);
+    console.log(`[OK] New lead created: ${lead.id.substring(0, 8)}...`);
   } else {
     // Add message to existing conversation
     let conversationId = lead.conversation?.id;
@@ -709,7 +728,7 @@ async function handleIncomingMessage(
       ]);
     }
 
-    console.log(`[OK] Message added to lead: ${lead.id}`);
+    console.log(`[OK] Message added to lead: ${lead.id.substring(0, 8)}...`);
   }
 
   // Background: notify project members about new message
@@ -745,6 +764,17 @@ async function handleIncomingMessage(
   // Process AI response internally if handoffMode is 'ai'
   // Fire-and-forget: don't block webhook response to Meta (must respond <20s)
   if (lead.handoffMode === HandoffMode.ai) {
+    // Rate limit per project to protect OpenAI credits
+    const aiRateLimit = await checkRateLimit(`ai:pipeline:${projectId}`, {
+      maxRequests: 60, // 60 AI responses per minute per project
+      windowMs: 60_000,
+    });
+
+    if (!aiRateLimit.success) {
+      console.warn(`[WhatsApp Webhook] AI pipeline rate limit for project ${projectId.substring(0, 8)}...`);
+      return; // Message is saved, lead just won't get AI response this time
+    }
+
     const mediaId = (metadata.mediaId as string) || null;
 
     // Fetch conversation history + message count for AI pipeline
@@ -829,11 +859,11 @@ async function handleStatusUpdate(projectId: string, status: WhatsAppStatus) {
     // Message might not be saved yet (race condition with /api/ai/respond)
     // This is acceptable - WhatsApp sends status updates repeatedly
     // and the status will be picked up on the next delivery
-    console.log(`[WhatsApp Webhook] Message not found for status ${status.id} - will be updated on next status event`);
+    console.log(`[WhatsApp Webhook] Message not found for status update - will be updated on next event`);
     return;
   }
 
-  console.log(`[FOUND] Message ${message.id} for status update: ${status.status}`);
+  console.log(`[FOUND] Message ${message.id.substring(0, 8)}... status: ${status.status}`);
 
   const now = new Date();
   const existingMetadata = (message.metadata as Record<string, unknown>) || {};
