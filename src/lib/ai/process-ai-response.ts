@@ -154,7 +154,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage },
+            { role: 'user', content: userMessage.slice(0, 4096) },
           ],
           temperature: 0.7,
           max_tokens: 500,

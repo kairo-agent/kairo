@@ -7,6 +7,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
 import * as crypto from 'crypto';
+
+// Vercel serverless config
+export const maxDuration = 25; // 25s max (Meta expects 200 within 20s)
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import {
@@ -219,9 +222,16 @@ export async function POST(request: NextRequest) {
     // Rate Limiting (by IP to prevent DDoS)
     // Higher limit for webhooks as Meta can send bursts
     // ============================================
-    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] ||
-                     request.headers.get('x-real-ip') ||
-                     'unknown';
+    const rawIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+                  request.headers.get('x-real-ip')?.trim();
+
+    // Reject requests without identifiable IP in production
+    if (!rawIp && process.env.NODE_ENV === 'production') {
+      console.warn('[WhatsApp Webhook] Request without identifiable IP rejected');
+      return NextResponse.json({ success: true });
+    }
+
+    const clientIp = rawIp || `dev-${Date.now()}`;
 
     const rateLimit = await checkRateLimit(`webhook:whatsapp:${clientIp}`, {
       maxRequests: 300, // 300 requests per minute per IP (Meta can burst)
@@ -237,6 +247,13 @@ export async function POST(request: NextRequest) {
     // IMPORTANTE: Leer body raw ANTES de cualquier otra cosa
     // Necesitamos el texto crudo para verificar la firma HMAC
     const rawBody = await request.text();
+
+    // Reject abnormally large payloads (Meta webhooks are typically <50KB)
+    const MAX_WEBHOOK_BODY_SIZE = 1_048_576; // 1MB
+    if (rawBody.length > MAX_WEBHOOK_BODY_SIZE) {
+      console.warn(`[WhatsApp Webhook] Payload too large: ${rawBody.length} bytes`);
+      return NextResponse.json({ success: true });
+    }
 
     // ============================================
     // Verificar firma de Meta (X-Hub-Signature-256)
@@ -479,6 +496,21 @@ async function handleIncomingMessage(
   const whatsappId = message.from;
   const contactName = contact?.profile?.name || 'Unknown';
 
+  // === DEDUP: Skip if message already processed ===
+  // Meta retries webhooks when it doesn't receive 200 fast enough.
+  // Without this check, duplicate messages trigger duplicate AI responses.
+  if (message.id) {
+    const existingMessage = await prisma.message.findFirst({
+      where: { whatsappMsgId: message.id },
+      select: { id: true },
+    });
+
+    if (existingMessage) {
+      console.log(`[DEDUP] Message ${message.id} already processed, skipping`);
+      return;
+    }
+  }
+
   // Extract message content based on type
   let content = '';
   let metadata: Record<string, unknown> = {
@@ -488,10 +520,10 @@ async function handleIncomingMessage(
 
   switch (message.type) {
     case 'text':
-      content = message.text?.body || '';
+      content = (message.text?.body || '').slice(0, 4096);
       break;
     case 'image':
-      content = message.image?.caption || '[Imagen recibida]';
+      content = (message.image?.caption || '[Imagen recibida]').slice(0, 2048);
       metadata.mediaId = message.image?.id;
       metadata.mimeType = message.image?.mime_type;
       break;
@@ -501,12 +533,12 @@ async function handleIncomingMessage(
       metadata.mimeType = message.audio?.mime_type;
       break;
     case 'video':
-      content = message.video?.caption || '[Video recibido]';
+      content = (message.video?.caption || '[Video recibido]').slice(0, 2048);
       metadata.mediaId = message.video?.id;
       metadata.mimeType = message.video?.mime_type;
       break;
     case 'document':
-      content = `[Documento: ${message.document?.filename || 'archivo'}]`;
+      content = `[Documento: ${(message.document?.filename || 'archivo').slice(0, 255)}]`;
       metadata.mediaId = message.document?.id;
       metadata.mimeType = message.document?.mime_type;
       metadata.filename = message.document?.filename;
