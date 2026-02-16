@@ -53,6 +53,8 @@ Auditoria de seguridad completa del webhook WhatsApp y pipeline AI interno. 19 h
 |---------|--------|
 | `src/app/api/webhooks/whatsapp/route.ts` | `sanitizeContactName()`: strip emojis (above-BMP + BMP decorativos + ZWJ), escape HTML (anti-XSS), NFC normalize, limite 100 chars, fallback a telefono si vacio |
 
+**Limpieza de datos existentes (one-time):** 4 de 8 leads tenian emojis o caracteres HTML en nombres. Limpiados via script directo a DB: `Lumar [rayo]` -> `Lumar`, `Leo D. Leon [musculos][lentes]` -> `Leo D. Leon`, `Leysi [perro][corazon]` -> `Leysi`, `ANP Tour & Travel` -> `ANP Tour Travel`.
+
 **10 controles aprobados (sin cambios necesarios):** Verificacion HMAC-SHA256, fail-closed en produccion, cifrado AES-256-GCM, rate limiting atomico Lua/Redis, Prisma ORM (sin SQL raw), AbortController timeout 30s, degradacion graceful del pipeline, respuestas genericas, audit trail de secretos, 13 security headers.
 
 ---
