@@ -202,6 +202,7 @@ export default function ProjectSettingsModal({
   const [whatsappToken, setWhatsappToken] = useState('');
   const [whatsappPhoneNumberId, setWhatsappPhoneNumberId] = useState('');
   const [whatsappBusinessAccountId, setWhatsappBusinessAccountId] = useState('');
+  const [whatsappAppSecret, setWhatsappAppSecret] = useState('');
 
   // OpenAI form
   const [openaiApiKey, setOpenaiApiKey] = useState('');
@@ -211,6 +212,7 @@ export default function ProjectSettingsModal({
     whatsapp_access_token: null,
     whatsapp_phone_number_id: null,
     whatsapp_business_account_id: null,
+    whatsapp_app_secret: null,
     openai_api_key: null,
     anthropic_api_key: null,
   });
@@ -218,6 +220,7 @@ export default function ProjectSettingsModal({
     whatsapp_access_token: 0,
     whatsapp_phone_number_id: 0,
     whatsapp_business_account_id: 0,
+    whatsapp_app_secret: 0,
     openai_api_key: 0,
     anthropic_api_key: 0,
   });
@@ -232,6 +235,7 @@ export default function ProjectSettingsModal({
     whatsapp_access_token: false,
     whatsapp_phone_number_id: false,
     whatsapp_business_account_id: false,
+    whatsapp_app_secret: false,
     openai_api_key: false,
     anthropic_api_key: false,
   });
@@ -505,6 +509,9 @@ export default function ProjectSettingsModal({
       if (whatsappBusinessAccountId.trim()) {
         secrets.whatsapp_business_account_id = whatsappBusinessAccountId.trim();
       }
+      if (whatsappAppSecret.trim()) {
+        secrets.whatsapp_app_secret = whatsappAppSecret.trim();
+      }
       if (openaiApiKey.trim()) {
         secrets.openai_api_key = openaiApiKey.trim();
       }
@@ -522,6 +529,7 @@ export default function ProjectSettingsModal({
         setWhatsappToken('');
         setWhatsappPhoneNumberId('');
         setWhatsappBusinessAccountId('');
+        setWhatsappAppSecret('');
         setOpenaiApiKey('');
         await loadSecretsStatus();
         onSuccess();
@@ -1254,6 +1262,7 @@ export default function ProjectSettingsModal({
               {renderSecretStatus('whatsapp_access_token', 'Access Token')}
               {renderSecretStatus('whatsapp_phone_number_id', 'Phone Number ID')}
               {renderSecretStatus('whatsapp_business_account_id', 'Business Account ID')}
+              {renderSecretStatus('whatsapp_app_secret', 'App Secret')}
               {renderSecretStatus('openai_api_key', 'OpenAI API Key')}
             </div>
 
@@ -1471,6 +1480,82 @@ export default function ProjectSettingsModal({
                   )}
                 </div>
                 {secretsStatus.whatsapp_business_account_id && !revealedSecrets.whatsapp_business_account_id && (
+                  <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.leaveEmptyToKeep')}</p>
+                )}
+              </div>
+
+              {/* App Secret */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                  App Secret
+                  {secretsStatus.whatsapp_app_secret && (
+                    <span className="ml-2 text-xs text-green-500 font-normal">[OK] {t('settings.configured')}</span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={whatsappAppSecret}
+                    onChange={(e) => setWhatsappAppSecret(e.target.value)}
+                    autoComplete="off"
+                    placeholder={
+                      revealedSecrets.whatsapp_app_secret
+                        ? revealedSecrets.whatsapp_app_secret
+                        : secretsStatus.whatsapp_app_secret
+                          ? t('settings.keepCurrent')
+                          : t('settings.enterAppSecret')
+                    }
+                    className="w-full px-3 py-2 pr-24 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm"
+                  />
+                  {secretsStatus.whatsapp_app_secret && (
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                      {/* Copy button - only when revealed */}
+                      {revealedSecrets.whatsapp_app_secret && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopySecret('whatsapp_app_secret')}
+                          className={cn(
+                            'p-1 rounded transition-colors',
+                            copiedSecret === 'whatsapp_app_secret'
+                              ? 'text-green-500'
+                              : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                          )}
+                          title={copiedSecret === 'whatsapp_app_secret' ? t('settings.copied') : t('settings.copySecret')}
+                        >
+                          {copiedSecret === 'whatsapp_app_secret' ? <CheckIcon /> : <CopyIcon />}
+                        </button>
+                      )}
+                      {/* Reveal button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRevealSecret('whatsapp_app_secret')}
+                        disabled={loadingReveal === 'whatsapp_app_secret'}
+                        className={cn(
+                          'p-1 flex items-center gap-1 text-xs rounded transition-colors',
+                          revealedSecrets.whatsapp_app_secret
+                            ? 'text-[var(--kairo-cyan)]'
+                            : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                        )}
+                        title={revealedSecrets.whatsapp_app_secret ? t('settings.hideSecret') : t('settings.revealSecret')}
+                      >
+                        {loadingReveal === 'whatsapp_app_secret' ? (
+                          <span className="animate-pulse">...</span>
+                        ) : revealedSecrets.whatsapp_app_secret ? (
+                          <>
+                            <EyeOffIcon />
+                            <span className="text-xs font-medium">{revealTimers.whatsapp_app_secret}s</span>
+                          </>
+                        ) : (
+                          <EyeIcon />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  {t('settings.appSecretHelp')}
+                </p>
+                {secretsStatus.whatsapp_app_secret && !revealedSecrets.whatsapp_app_secret && (
                   <p className="text-xs text-[var(--text-muted)] mt-1">{t('settings.leaveEmptyToKeep')}</p>
                 )}
               </div>

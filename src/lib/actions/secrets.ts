@@ -19,6 +19,7 @@ export type SecretKey =
   | 'whatsapp_access_token'
   | 'whatsapp_phone_number_id'
   | 'whatsapp_business_account_id'
+  | 'whatsapp_app_secret'
   | 'openai_api_key'
   | 'anthropic_api_key';
 
@@ -254,6 +255,7 @@ export async function getProjectSecretsStatus(
       'whatsapp_access_token',
       'whatsapp_phone_number_id',
       'whatsapp_business_account_id',
+      'whatsapp_app_secret',
       'openai_api_key',
       'anthropic_api_key',
     ];

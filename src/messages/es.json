@@ -558,6 +558,8 @@
       "enterToken": "Ingresa el Access Token",
       "enterPhoneNumberId": "Ingresa el Phone Number ID",
       "enterBusinessAccountId": "Ingresa el Business Account ID",
+      "enterAppSecret": "Ingresa el App Secret de Meta",
+      "appSecretHelp": "App Secret de tu Meta Developer App. Requerido para verificar webhooks. Cada proyecto puede tener su propio App Secret.",
       "noChanges": "No hay cambios para guardar",
       "savedSuccessfully": "Configuración guardada correctamente",
       "saveFailed": "Error al guardar la configuración",

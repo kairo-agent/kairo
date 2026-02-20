@@ -33,14 +33,20 @@ import { processAIResponse } from '@/lib/ai/process-ai-response';
 
 interface CachedProject {
   project: { id: string; name: string } | null;
+  appSecret: string | null; // Per-project App Secret (null = use global fallback)
   timestamp: number;
+}
+
+interface ProjectLookupResult {
+  project: { id: string; name: string } | null;
+  appSecret: string | null;
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_PHONE_CACHE_SIZE = 500;
 const phoneNumberIdCache = new Map<string, CachedProject>();
 
-function getCachedProject(phoneNumberId: string): { id: string; name: string } | null | undefined {
+function getCachedProject(phoneNumberId: string): ProjectLookupResult | undefined {
   const cached = phoneNumberIdCache.get(phoneNumberId);
   if (!cached) return undefined; // Not in cache
 
@@ -50,10 +56,10 @@ function getCachedProject(phoneNumberId: string): { id: string; name: string } |
     return undefined; // Expired
   }
 
-  return cached.project;
+  return { project: cached.project, appSecret: cached.appSecret };
 }
 
-function setCachedProject(phoneNumberId: string, project: { id: string; name: string } | null): void {
+function setCachedProject(phoneNumberId: string, project: { id: string; name: string } | null, appSecret: string | null = null): void {
   // Evict expired entries if cache approaching limit
   if (phoneNumberIdCache.size >= MAX_PHONE_CACHE_SIZE) {
     const now = Date.now();
@@ -69,6 +75,7 @@ function setCachedProject(phoneNumberId: string, project: { id: string; name: st
 
   phoneNumberIdCache.set(phoneNumberId, {
     project,
+    appSecret,
     timestamp: Date.now(),
   });
 }
@@ -279,46 +286,14 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // Verificar firma de Meta (X-Hub-Signature-256)
-    // ============================================
-    const signature = request.headers.get('X-Hub-Signature-256');
-    const appSecret = process.env.WHATSAPP_APP_SECRET;
-
-    const isDev = process.env.NODE_ENV === 'development';
-    const bypassSignature = process.env.WEBHOOK_BYPASS_SIGNATURE === 'true';
-
-    if (!isDev || !bypassSignature) {
-      // Produccion o desarrollo sin bypass: verificar firma obligatoriamente
-      if (!appSecret) {
-        console.error('[WhatsApp Webhook] WHATSAPP_APP_SECRET not configured');
-        // Retornar 200 para no exponer error de configuracion a posibles atacantes
-        return NextResponse.json({ success: true });
-      }
-
-      if (!verifyWebhookSignature(rawBody, signature, appSecret)) {
-        console.warn('[WhatsApp Webhook] Invalid signature - possible spoofing attempt', {
-          hasSignature: !!signature,
-          timestamp: new Date().toISOString(),
-          ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
-        });
-        // Retornar 200 para no dar pistas a atacantes (security by obscurity)
-        return NextResponse.json({ success: true });
-      }
-
-      console.log('[WhatsApp Webhook] Signature verified successfully');
-    } else {
-      console.warn('[WhatsApp Webhook] DEV MODE: Signature verification bypassed');
-    }
-
-    // ============================================
-    // Parsear JSON despues de verificar firma
+    // Parse JSON tentatively (needed for per-project HMAC)
+    // Safe: 1MB limit enforced above, JSON.parse is robust
     // ============================================
     let payload: WhatsAppWebhookPayload;
     try {
       payload = JSON.parse(rawBody);
     } catch (parseError) {
       console.error('[WhatsApp Webhook] Invalid JSON payload:', parseError);
-      // Retornar 200 para no exponer errores
       return NextResponse.json({ success: true });
     }
 
@@ -328,7 +303,86 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Process each entry
+    // ============================================
+    // HMAC Signature Verification (per-project with global fallback)
+    // 1. Extract phone_number_ids from payload
+    // 2. Look up project + per-project App Secret
+    // 3. Verify HMAC with per-project secret
+    // 4. Fallback to global WHATSAPP_APP_SECRET if no per-project
+    // ============================================
+    const signature = request.headers.get('X-Hub-Signature-256');
+    const isDev = process.env.NODE_ENV === 'development';
+    const bypassSignature = process.env.WEBHOOK_BYPASS_SIGNATURE === 'true';
+
+    if (!isDev || !bypassSignature) {
+      // Extract unique phone_number_ids from payload
+      const phoneNumberIds = new Set<string>();
+      for (const entry of payload.entry) {
+        for (const change of entry.changes) {
+          if (change.field === 'messages' && change.value?.metadata?.phone_number_id) {
+            phoneNumberIds.add(change.value.metadata.phone_number_id);
+          }
+        }
+      }
+
+      let hmacVerified = false;
+
+      // Try per-project App Secret first
+      if (phoneNumberIds.size > 0) {
+        for (const phoneNumberId of phoneNumberIds) {
+          const result = await findProjectByPhoneNumberId(phoneNumberId);
+          if (result.appSecret) {
+            if (verifyWebhookSignature(rawBody, signature, result.appSecret)) {
+              hmacVerified = true;
+              console.log('[WhatsApp Webhook] Signature verified with per-project App Secret');
+              break;
+            }
+            // Per-project secret exists but HMAC failed -> do NOT fallback to global
+            // (Security: prevents global secret from bypassing per-project verification)
+            console.warn('[WhatsApp Webhook] Per-project App Secret HMAC failed, rejecting');
+            return NextResponse.json({ success: true });
+          }
+        }
+      }
+
+      // Fallback to global App Secret ONLY if no per-project secret was found
+      if (!hmacVerified) {
+        const globalAppSecret = process.env.WHATSAPP_APP_SECRET;
+
+        if (!globalAppSecret) {
+          console.error('[WhatsApp Webhook] No App Secret configured (neither per-project nor global)');
+          return NextResponse.json({ success: true });
+        }
+
+        if (verifyWebhookSignature(rawBody, signature, globalAppSecret)) {
+          hmacVerified = true;
+          console.log('[WhatsApp Webhook] Signature verified with global WHATSAPP_APP_SECRET');
+        }
+      }
+
+      if (!hmacVerified) {
+        // Track HMAC failures per IP - block after 10 failures in 5 minutes
+        const hmacFailLimit = await checkRateLimit(`webhook:hmac-fail:${clientIp}`, {
+          maxRequests: 10,
+          windowMs: 5 * 60_000, // 5 minutes
+        });
+
+        if (!hmacFailLimit.success) {
+          console.warn(`[WhatsApp Webhook] HMAC failure rate limit exceeded for IP: ${clientIp}`);
+        } else {
+          console.warn('[WhatsApp Webhook] Invalid signature - possible spoofing attempt', {
+            hasSignature: !!signature,
+            timestamp: new Date().toISOString(),
+            ip: clientIp,
+          });
+        }
+        return NextResponse.json({ success: true });
+      }
+    } else {
+      console.warn('[WhatsApp Webhook] DEV MODE: Signature verification bypassed');
+    }
+
+    // Process each entry (payload already parsed and verified)
     for (const entry of payload.entry) {
       for (const change of entry.changes) {
         if (change.field === 'messages') {
@@ -355,8 +409,9 @@ async function processMessagesChange(value: WhatsAppValue, businessAccountId: st
   const { metadata, contacts, messages, statuses } = value;
   const phoneNumberId = metadata.phone_number_id;
 
-  // Find project by phone number ID
-  const project = await findProjectByPhoneNumberId(phoneNumberId);
+  // Find project by phone number ID (likely cache hit from HMAC step)
+  const result = await findProjectByPhoneNumberId(phoneNumberId);
+  const project = result.project;
 
   if (!project) {
     console.warn(`No project found for phone_number_id: ${phoneNumberId}`);
@@ -390,12 +445,12 @@ async function processMessagesChange(value: WhatsAppValue, businessAccountId: st
 // PERFORMANCE: Uses in-memory cache with 5-minute TTL
 // ============================================
 
-async function findProjectByPhoneNumberId(phoneNumberId: string) {
+async function findProjectByPhoneNumberId(phoneNumberId: string): Promise<ProjectLookupResult> {
   // Check cache first
   const cachedResult = getCachedProject(phoneNumberId);
   if (cachedResult !== undefined) {
-    if (cachedResult) {
-      console.log(`[CACHE HIT] phone_number_id: ${phoneNumberId} -> ${cachedResult.name}`);
+    if (cachedResult.project) {
+      console.log(`[CACHE HIT] phone_number_id: ${phoneNumberId} -> ${cachedResult.project.name}`);
     } else {
       console.log(`[CACHE HIT] (no project) for phone_number_id: ${phoneNumberId}`);
     }
@@ -427,9 +482,18 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
 
       if (decryptedPhoneNumberId === phoneNumberId) {
         console.log(`[OK] Found project: ${secret.projectId.substring(0, 8)}...`);
-        // Cache the successful match
-        setCachedProject(phoneNumberId, secret.project);
-        return secret.project;
+
+        // Also fetch the project's App Secret (if configured)
+        let projectAppSecret: string | null = null;
+        try {
+          projectAppSecret = await getProjectSecret(secret.projectId, 'whatsapp_app_secret');
+        } catch {
+          // No app secret configured - will use global fallback
+        }
+
+        // Cache the successful match WITH app secret
+        setCachedProject(phoneNumberId, secret.project, projectAppSecret);
+        return { project: secret.project, appSecret: projectAppSecret };
       }
     } catch (error) {
       console.error(`Error decrypting secret for project ${secret.projectId.substring(0, 8)}...:`, error);
@@ -444,14 +508,14 @@ async function findProjectByPhoneNumberId(phoneNumberId: string) {
       select: { id: true, name: true },
     });
 
-    setCachedProject(phoneNumberId, fallbackProject);
-    return fallbackProject;
+    setCachedProject(phoneNumberId, fallbackProject, null);
+    return { project: fallbackProject, appSecret: null };
   }
 
   // Production: no fallback, discard message
   console.warn(`No matching project for phoneNumberId: ${phoneNumberId.substring(0, 6)}...`);
-  setCachedProject(phoneNumberId, null);
-  return null;
+  setCachedProject(phoneNumberId, null, null);
+  return { project: null, appSecret: null };
 }
 
 // ============================================
