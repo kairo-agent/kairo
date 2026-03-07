@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * Server Actions para gestión de AI Agents
+ * Server Actions para gestion de AI Agents
  *
  * CRUD completo para agentes de IA por proyecto
  */
@@ -9,6 +9,10 @@
 import { prisma } from '@/lib/supabase/server';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import {
+  PromptStructure,
+  composeSystemPrompt,
+} from '@/lib/knowledge/prompt-builder';
 
 // ============================================
 // Types
@@ -32,6 +36,7 @@ export interface UpdateAgentInput {
   avatarUrl?: string;
   isActive?: boolean;
   systemInstructions?: string;
+  promptStructure?: Record<string, unknown>;
 }
 
 export interface AIAgentData {
@@ -41,6 +46,7 @@ export interface AIAgentData {
   description: string | null;
   avatarUrl: string | null;
   systemInstructions: string | null;
+  promptStructure: Record<string, unknown> | null;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -81,7 +87,7 @@ async function verifyProjectAccess(projectId: string): Promise<{ userId: string;
     return { userId: user.id, isSuperAdmin: true };
   }
 
-  // Verificar membresía al proyecto con rol admin o manager
+  // Verificar membresia al proyecto con rol admin o manager
   const membership = await prisma.projectMember.findFirst({
     where: {
       projectId,
@@ -125,6 +131,7 @@ export async function getProjectAgents(projectId: string): Promise<{
       agents: agents.map(agent => ({
         ...agent,
         type: agent.type as AIAgentType,
+        promptStructure: agent.promptStructure as Record<string, unknown> | null,
         stats: agent.stats as AIAgentData['stats']
       }))
     };
@@ -167,6 +174,7 @@ export async function getAgent(agentId: string): Promise<{
       agent: {
         ...agent,
         type: agent.type as AIAgentType,
+        promptStructure: agent.promptStructure as Record<string, unknown> | null,
         stats: agent.stats as AIAgentData['stats']
       }
     };
@@ -191,7 +199,7 @@ export async function createAgent(input: CreateAgentInput): Promise<{
       return { success: false, error: 'Unauthorized' };
     }
 
-    // Validar nombre único dentro del proyecto
+    // Validar nombre unico dentro del proyecto
     const existing = await prisma.aIAgent.findFirst({
       where: {
         projectId: input.projectId,
@@ -234,6 +242,7 @@ export async function createAgent(input: CreateAgentInput): Promise<{
       agent: {
         ...agent,
         type: agent.type as AIAgentType,
+        promptStructure: agent.promptStructure as Record<string, unknown> | null,
         stats: agent.stats as AIAgentData['stats']
       }
     };
@@ -290,7 +299,8 @@ export async function updateAgent(agentId: string, input: UpdateAgentInput): Pro
         ...(input.description !== undefined && { description: input.description }),
         ...(input.avatarUrl !== undefined && { avatarUrl: input.avatarUrl }),
         ...(input.isActive !== undefined && { isActive: input.isActive }),
-        ...(input.systemInstructions !== undefined && { systemInstructions: input.systemInstructions })
+        ...(input.systemInstructions !== undefined && { systemInstructions: input.systemInstructions }),
+        ...(input.promptStructure !== undefined && { promptStructure: JSON.parse(JSON.stringify(input.promptStructure)) })
       },
       include: {
         _count: {
@@ -307,6 +317,7 @@ export async function updateAgent(agentId: string, input: UpdateAgentInput): Pro
       agent: {
         ...agent,
         type: agent.type as AIAgentType,
+        promptStructure: agent.promptStructure as Record<string, unknown> | null,
         stats: agent.stats as AIAgentData['stats']
       }
     };
@@ -391,7 +402,7 @@ export async function toggleAgentStatus(agentId: string): Promise<{
 
     const willBeActive = !agent.isActive;
 
-    // Si se está ACTIVANDO este agente, desactivar todos los demás del proyecto
+    // Si se esta ACTIVANDO este agente, desactivar todos los demas del proyecto
     if (willBeActive) {
       await prisma.aIAgent.updateMany({
         where: {
@@ -421,11 +432,97 @@ export async function toggleAgentStatus(agentId: string): Promise<{
       agent: {
         ...updated,
         type: updated.type as AIAgentType,
+        promptStructure: updated.promptStructure as Record<string, unknown> | null,
         stats: updated.stats as AIAgentData['stats']
       }
     };
   } catch (error) {
     console.error('Error toggling agent status:', error);
     return { success: false, error: 'Failed to toggle agent status' };
+  }
+}
+
+// ============================================
+// SAVE: Guardar instrucciones estructuradas
+// ============================================
+
+export async function saveAgentInstructions(
+  agentId: string,
+  promptStructure: PromptStructure
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const agent = await prisma.aIAgent.findUnique({
+      where: { id: agentId },
+      select: { projectId: true }
+    });
+
+    if (!agent) {
+      return { success: false, error: 'Agent not found' };
+    }
+
+    const access = await verifyProjectAccess(agent.projectId);
+    if (!access) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    // Compose structured fields into system prompt text
+    const systemInstructions = composeSystemPrompt(promptStructure);
+
+    await prisma.aIAgent.update({
+      where: { id: agentId },
+      data: {
+        promptStructure: JSON.parse(JSON.stringify(promptStructure)),
+        systemInstructions,
+      }
+    });
+
+    revalidatePath('/admin');
+    revalidatePath('/leads');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error saving agent instructions:', error);
+    return { success: false, error: 'Failed to save agent instructions' };
+  }
+}
+
+// ============================================
+// GET: Obtener instrucciones estructuradas
+// ============================================
+
+export async function getAgentInstructions(agentId: string): Promise<{
+  success: boolean;
+  data?: { promptStructure: PromptStructure | null; systemInstructions: string | null };
+  error?: string;
+}> {
+  try {
+    const agent = await prisma.aIAgent.findUnique({
+      where: { id: agentId },
+      select: {
+        projectId: true,
+        promptStructure: true,
+        systemInstructions: true,
+      }
+    });
+
+    if (!agent) {
+      return { success: false, error: 'Agent not found' };
+    }
+
+    const access = await verifyProjectAccess(agent.projectId);
+    if (!access) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    return {
+      success: true,
+      data: {
+        promptStructure: agent.promptStructure as PromptStructure | null,
+        systemInstructions: agent.systemInstructions,
+      }
+    };
+  } catch (error) {
+    console.error('Error getting agent instructions:', error);
+    return { success: false, error: 'Failed to get agent instructions' };
   }
 }

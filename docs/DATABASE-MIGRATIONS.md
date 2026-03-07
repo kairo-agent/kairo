@@ -103,6 +103,10 @@ npx prisma migrate dev --name add_lead_summary_fields
 3. Actualizar `scripts/setup-rag-complete.sql` con el cambio
 4. Documentar en CHANGELOG.md
 
+> **IMPORTANTE:** Todas las operaciones CRUD sobre `agent_knowledge` DEBEN usar RPCs SECURITY DEFINER.
+> Las RLS policies referencian `pm.project_id` pero la columna real es `pm."projectId"` (camelCase de Prisma),
+> lo que causa fallos silenciosos en queries directas con anon key.
+
 **Ejemplo: Agregar columna**
 ```sql
 -- Ejecutar en Supabase SQL Editor
@@ -116,6 +120,27 @@ CREATE TABLE IF NOT EXISTS agent_knowledge (
   tags TEXT[],  -- NUEVO
 );
 ```
+
+### RPCs SECURITY DEFINER para agent_knowledge
+
+Todas las funciones usan `SECURITY DEFINER` para bypassear RLS:
+
+| RPC | Params | Retorna | Proposito |
+|-----|--------|---------|-----------|
+| `insert_agent_knowledge` | 12 params (project_id, agent_id, title, content, source, source_url, metadata, chunk_index, embedding, created_by, category, structured_data) | `TABLE (id UUID)` | Insert con upsert atomico: DELETE existente por category + INSERT nuevo |
+| `list_agent_knowledge` | agent_id, project_id | `TABLE (id, title, content, source, source_url, chunk_index, category, structured_data, created_at, updated_at)` | Listar todo el conocimiento de un agente |
+| `delete_agent_knowledge` | knowledge_id | `INT` (count) | Eliminar entrada individual por ID |
+| `delete_structured_knowledge` | agent_id, project_id, category | `INT` (count) | Eliminar conocimiento estructurado por categoria (protege free_text) |
+| `search_agent_knowledge` | query_embedding, agent_id, project_id, match_threshold, match_count | `TABLE (id, content, title, source, similarity)` | Busqueda semantica por similitud vectorial |
+
+**Migraciones SQL (v0.9.0):**
+
+| Archivo | Cambio |
+|---------|--------|
+| `prisma/migrations/20260306_add_prompt_structure/migration.sql` | `category VARCHAR(50)` + `structured_data JSONB` en agent_knowledge, indice unico |
+| `prisma/migrations/20260306_update_insert_knowledge_rpc/migration.sql` | RPC actualizado con 12 params + upsert atomico |
+| `prisma/migrations/20260306_update_list_knowledge_rpc/migration.sql` | RPC actualizado con category + structured_data |
+| `prisma/migrations/20260306_delete_structured_knowledge_rpc/migration.sql` | Nuevo RPC delete por categoria |
 
 ---
 

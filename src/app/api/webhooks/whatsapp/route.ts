@@ -25,6 +25,8 @@ import { getProjectSecret } from '@/lib/actions/secrets';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { processAIResponse } from '@/lib/ai/process-ai-response';
+import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
+import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
 
 // ============================================
 // In-Memory Cache for phoneNumberId → Project
@@ -669,7 +671,7 @@ async function handleIncomingMessage(
       handoffMode: true,
       conversation: true,
       assignedAgent: {
-        select: { id: true, name: true, systemInstructions: true },
+        select: { id: true, name: true, systemInstructions: true, promptStructure: true },
       },
     },
   });
@@ -683,7 +685,7 @@ async function handleIncomingMessage(
     // Find default agent for the project (first active agent)
     const defaultAgent = await prisma.aIAgent.findFirst({
       where: { projectId, isActive: true },
-      select: { id: true, name: true, systemInstructions: true },
+      select: { id: true, name: true, systemInstructions: true, promptStructure: true },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -725,7 +727,7 @@ async function handleIncomingMessage(
         handoffMode: true,
         conversation: true,
         assignedAgent: {
-          select: { id: true, name: true, systemInstructions: true },
+          select: { id: true, name: true, systemInstructions: true, promptStructure: true },
         },
       },
     });
@@ -768,7 +770,7 @@ async function handleIncomingMessage(
 
       const defaultAgent = await prisma.aIAgent.findFirst({
         where: { projectId, isActive: true },
-        select: { id: true, name: true, systemInstructions: true },
+        select: { id: true, name: true, systemInstructions: true, promptStructure: true },
         orderBy: { createdAt: 'asc' },
       });
 
@@ -909,7 +911,7 @@ async function handleIncomingMessage(
         messageType: message.type,
         mediaId,
         agentId: lead.assignedAgent?.id || null,
-        agentName: lead.assignedAgent?.name || 'Asistente',
+        agentName: (lead.assignedAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() || DEFAULT_AGENT_NAME,
         systemInstructions: lead.assignedAgent?.systemInstructions || null,
         companyName: project?.name || 'KAIRO',
         conversationHistory,

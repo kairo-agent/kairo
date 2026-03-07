@@ -12,6 +12,7 @@ KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) sigui
 
 | Version | Fecha | Mejoras Clave |
 |---------|-------|---------------|
+| **v0.8.2** | 2026-02-20 | Per-project App Secret: HMAC multi-tenant, smart fallback, HMAC failure rate limiting |
 | **v0.8.1** | 2026-02-15 | Security Audit v2: 19 hallazgos (dedup, body limit, prompt injection, contact sanitization, cache limits, audio validation, per-project AI rate limit, log masking, timing-safe verify) |
 | **v0.7.8** | 2026-01-31 | Redis para rate limiting, headers OWASP adicionales (LOW) |
 | **v0.7.7** | 2026-01-31 | Input validation, error handling (MEDIUM) |
@@ -56,6 +57,7 @@ KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) sigui
 |----------|--------|---------|-----|--------|
 | `/api/webhooks/whatsapp` | 300 req | 1 min | IP address | Alto (Meta bursts) |
 | `/api/webhooks/whatsapp` (AI pipeline) | 60 req | 1 min | projectId | Alto (OpenAI cost protection) |
+| `/api/webhooks/whatsapp` (HMAC fail) | 10 req | 5 min | IP address | Alto (brute force prevention) |
 | `/api/whatsapp/send` | 100 req | 1 min | projectId | Alto (WhatsApp API limit) |
 | `/api/ai/respond` | 60 req | 1 min | projectId | Medio (OpenAI API cost) |
 | `/api/rag/search` | 120 req | 1 min | agentId | Medio (embeddings cost) |
@@ -150,7 +152,7 @@ if (!timingSafeEqual(
 **Implementado en:**
 - `/api/ai/respond` - Falla si N8N_CALLBACK_SECRET no configurado
 - `/api/rag/search` - Falla si N8N_CALLBACK_SECRET no configurado
-- `/api/webhooks/whatsapp` - Falla si WHATSAPP_APP_SECRET no configurado (verificación HMAC)
+- `/api/webhooks/whatsapp` - Usa App Secret per-project si configurado, fallback a global `WHATSAPP_APP_SECRET`. Si proyecto tiene per-project secret, NO fallback a global (previene bypass)
 
 **Bypass solo en desarrollo:**
 ```typescript
@@ -162,7 +164,25 @@ if (process.env.NODE_ENV === 'production' && !process.env.N8N_CALLBACK_SECRET) {
 }
 ```
 
-### 6. Webhook Message Deduplication (v0.8.1)
+### 6. Per-Project HMAC Verification (v0.8.2)
+
+Soporte multi-tenant para App Secret. Cada proyecto puede tener su propio App Secret de Meta Developer App.
+
+**Flujo de verificacion:**
+1. Parse JSON tentativo (pre-HMAC, seguro con 1MB body limit)
+2. Extraer `phone_number_id` del payload
+3. Buscar proyecto y su App Secret per-project (cache 5min/500 LRU)
+4. Si tiene per-project: verificar HMAC con ese secret. Si falla, rechazar (NO fallback a global)
+5. Si no tiene per-project: verificar HMAC con global `WHATSAPP_APP_SECRET`
+
+**Protecciones adicionales:**
+- HMAC failure rate limiting: 10 fallos / 5 min / IP
+- Smart fallback: per-project secret existe -> NO fallback a global (previene bypass)
+- App Secret cifrado con AES-256-GCM (mismo sistema que otros secrets)
+
+**Archivos:** `route.ts`, `secrets.ts`, `ProjectSettingsModal.tsx`
+
+### 7. Webhook Message Deduplication (v0.8.1)
 
 Meta reenvia webhooks cuando no recibe 200 a tiempo. Sin deduplicacion, cada reintento genera respuesta AI duplicada + gasto OpenAI duplicado.
 

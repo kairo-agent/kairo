@@ -146,7 +146,7 @@ const navigationItems: NavItem[] = [
   { labelKey: 'conversations', href: '/conversations', icon: <MessageIcon />, disabled: true, hasBadge: true },
   { labelKey: 'agents', href: '/agents', icon: <BotIcon />, disabled: true, hasBadge: true },
   { labelKey: 'reports', href: '/reports', icon: <ChartIcon />, disabled: true, hasBadge: true },
-  { labelKey: 'settings', href: '/settings', icon: <SettingsIcon />, disabled: true, hasBadge: true },
+  { labelKey: 'settings', href: '/settings', icon: <SettingsIcon /> },
 ];
 
 interface SidebarProps {

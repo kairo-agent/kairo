@@ -6,7 +6,7 @@
 // Supports persistence across page reloads
 // ============================================
 
-import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 
 const LOADING_STORAGE_KEY = 'kairo-loading-state';
 
@@ -40,6 +40,29 @@ function isValidLoadingState(state: LoadingState | null): boolean {
 export function LoadingProvider({ children }: LoadingProviderProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Safety timeout: auto-hide loading after 8 seconds max
+  // Prevents overlay getting stuck when hideLoading() is never called
+  const clearSafetyTimeout = useCallback(() => {
+    if (safetyTimeoutRef.current) {
+      clearTimeout(safetyTimeoutRef.current);
+      safetyTimeoutRef.current = null;
+    }
+  }, []);
+
+  const startSafetyTimeout = useCallback(() => {
+    clearSafetyTimeout();
+    safetyTimeoutRef.current = setTimeout(() => {
+      setIsLoading(false);
+      setLoadingMessage('');
+      try {
+        localStorage.removeItem(LOADING_STORAGE_KEY);
+      } catch {
+        // Ignore
+      }
+    }, 8000);
+  }, [clearSafetyTimeout]);
 
   // Check for persisted loading state on mount
   useEffect(() => {
@@ -83,11 +106,14 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
         requestAnimationFrame(hideAfterLoad);
       });
     }
-  }, []);
+
+    return () => clearSafetyTimeout();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const showLoading = useCallback((message: string = '', persist: boolean = false) => {
     setLoadingMessage(message);
     setIsLoading(true);
+    startSafetyTimeout();
 
     // Persist to localStorage if needed (for page reloads)
     if (persist) {
@@ -102,9 +128,10 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
         // Ignore errors
       }
     }
-  }, []);
+  }, [startSafetyTimeout]);
 
   const hideLoading = useCallback(() => {
+    clearSafetyTimeout();
     setIsLoading(false);
     setLoadingMessage('');
 
@@ -114,7 +141,7 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
     } catch {
       // Ignore errors
     }
-  }, []);
+  }, [clearSafetyTimeout]);
 
   return (
     <LoadingContext.Provider

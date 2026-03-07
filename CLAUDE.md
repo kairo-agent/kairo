@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.8.1 (security audit v2 complete) |
+| **Version** | v0.9.0 (Settings + Structured Knowledge) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -100,6 +100,7 @@ src/
   contexts/                        # Theme, Modal, Workspace, Loading
   lib/
     ai/                            # AI Pipeline (process-ai-response, build-system-prompt)
+    knowledge/                     # Structured knowledge (prompt-builder, business-hours, faqs, pricing, location-contact, policies)
     actions/                       # Server Actions (admin, agents, auth, knowledge, leads, media, messages, notifications, profile, secrets, workspace)
     supabase/                      # Client/Server Supabase + Prisma
     auth-helpers.ts                # verifySuperAdmin, getCurrentUser
@@ -146,13 +147,13 @@ npm run lint     # Verificar codigo
 
 ---
 
-## Estado Actual (Feb 2026)
+## Estado Actual (Mar 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, **AI pipeline interno (n8n removido del core)**, RAG (4 fases), **OWASP audit v2 (19 hallazgos resueltos)**, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s), follow-up scheduling con badges, **sanitizacion de contactos WhatsApp**, **anti-prompt-injection**, **waitUntil Vercel serverless**.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, **AI pipeline interno (n8n removido del core)**, RAG (4 fases), **OWASP audit v2 (19 hallazgos resueltos)**, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s), follow-up scheduling con badges, **sanitizacion de contactos WhatsApp**, **anti-prompt-injection**, **waitUntil Vercel serverless**, **per-project App Secret (HMAC multi-tenant)**, **pagina Settings con Instructions + Knowledge Base estructurada (5 secciones)**.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 
-**Pendiente:** Crear lead, paginas de reportes/settings/agents, moneda dinamica.
+**Pendiente:** Crear lead, paginas de reportes/agents, moneda dinamica.
 
 **Perf completo:** Todas las optimizaciones implementadas (P2-4, P1-1, P1-5 cerrados). P1-3 rechazado. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 

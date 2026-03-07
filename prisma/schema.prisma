@@ -176,6 +176,7 @@ model AIAgent {
   description        String?
   avatarUrl          String?
   systemInstructions String?     @db.Text
+  promptStructure    Json?
   isActive           Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt

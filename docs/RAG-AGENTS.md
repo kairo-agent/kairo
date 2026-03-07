@@ -104,16 +104,20 @@ CREATE TABLE agent_knowledge (
   "sourceUrl" TEXT,                -- URL o path del archivo original
 
   -- === METADATA ===
-  metadata JSONB DEFAULT '{}',     -- Info adicional (página, sección, etc.)
-  "chunkIndex" INT DEFAULT 0,      -- Índice si el doc fue dividido en chunks
+  metadata JSONB DEFAULT '{}',     -- Info adicional (pagina, seccion, etc.)
+  "chunkIndex" INT DEFAULT 0,      -- Indice si el doc fue dividido en chunks
+
+  -- === STRUCTURED KNOWLEDGE (v0.9.0) ===
+  category VARCHAR(50) DEFAULT 'free_text',  -- 'free_text', 'business_hours', 'faqs', 'pricing', 'location_contact', 'policies'
+  structured_data JSONB,                      -- JSON estructurado de la seccion (solo para category != 'free_text')
 
   -- === VECTOR ===
   embedding VECTOR(1536),          -- Embedding (1536 = OpenAI text-embedding-3-small)
 
-  -- === AUDITORÍA ===
+  -- === AUDITORIA ===
   "createdAt" TIMESTAMPTZ DEFAULT NOW(),
   "updatedAt" TIMESTAMPTZ DEFAULT NOW(),
-  "createdBy" TEXT,                -- Usuario que subió el conocimiento (cuid)
+  "createdBy" TEXT,                -- Usuario que subio el conocimiento (cuid)
 
   -- === CONSTRAINTS ===
   CONSTRAINT fk_project FOREIGN KEY ("projectId") REFERENCES projects(id) ON DELETE CASCADE,
@@ -133,8 +137,14 @@ CREATE INDEX idx_knowledge_embedding ON agent_knowledge
   USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);
 
--- Índice para búsqueda por source (útil para admin)
+-- Indice para busqueda por source (util para admin)
 CREATE INDEX idx_knowledge_source ON agent_knowledge(source);
+
+-- Indice unico para conocimiento estructurado (v0.9.0)
+-- Solo una entrada por agente+proyecto+categoria (excepto free_text)
+CREATE UNIQUE INDEX idx_agent_knowledge_unique_category
+  ON agent_knowledge("agentId", "projectId", category)
+  WHERE category IS NOT NULL AND category != 'free_text';
 ```
 
 ### Modelo Prisma (Alternativo)

@@ -1,5 +1,111 @@
 # KAIRO - Changelog
 
+## [0.9.0] - 2026-03-06
+
+### Settings / Configuration Page + Structured Knowledge Base
+
+Nueva pagina de configuracion de agentes con dos tabs: **Instructions** (prompt structure) y **Knowledge Base** (conocimiento estructurado + RAG free-text).
+
+**Tab Instructions:**
+
+| Campo | Descripcion |
+|-------|-------------|
+| Agent Name | Nombre del agente (max 50 chars) |
+| Role | Rol/descripcion larga del agente |
+| Rules | Lista dinamica de reglas (add/remove/reorder) |
+| Personality | Personalidad del agente |
+| Additional Instructions | Instrucciones adicionales libres |
+
+Datos guardados en `ai_agents.promptStructure` (JSONB). El system prompt se compone dinamicamente via `composeSystemPrompt()` en `prompt-builder.ts`.
+
+**Tab Knowledge Base - 5 secciones estructuradas:**
+
+| Seccion | Datos | Composicion |
+|---------|-------|-------------|
+| Business Hours | Dias, horarios, feriados, timezone | Texto bilingue ES/EN |
+| FAQs | Pares pregunta/respuesta dinamicos | Lista numerada |
+| Pricing | Servicios con precio/moneda/notas | Tabla de precios + notas |
+| Location & Contact | Direccion, telefono, email, web, redes sociales, sedes adicionales | Info de contacto completa |
+| Policies | Politicas con titulo/contenido + presets predefinidos | Politicas enumeradas |
+
+Cada seccion: Zod validation -> compose bilingual text -> OpenAI embedding (text-embedding-3-small) -> pgvector storage via RPC.
+
+**Archivos nuevos:**
+
+| Archivo | Proposito |
+|---------|-----------|
+| `src/app/[locale]/(dashboard)/settings/page.tsx` | Server component de la pagina |
+| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Client component principal (~700 lineas) |
+| `src/lib/knowledge/prompt-builder.ts` | `PromptStructure` interface + `composeSystemPrompt()` |
+| `src/lib/knowledge/business-hours.ts` | Tipos + `composeBusinessHoursText()` |
+| `src/lib/knowledge/faqs.ts` | Tipos + `composeFAQsText()` |
+| `src/lib/knowledge/pricing.ts` | Tipos + `composePricingText()` |
+| `src/lib/knowledge/location-contact.ts` | Tipos + `composeLocationContactText()` |
+| `src/lib/knowledge/policies.ts` | Tipos + `composePoliciesText()` + presets |
+| `src/components/knowledge/BusinessHoursForm.tsx` | Formulario horarios + feriados |
+| `src/components/knowledge/FAQsForm.tsx` | Formulario preguntas/respuestas |
+| `src/components/knowledge/PricingForm.tsx` | Formulario servicios + precios |
+| `src/components/knowledge/LocationContactForm.tsx` | Formulario ubicacion + contacto |
+| `src/components/knowledge/PoliciesForm.tsx` | Formulario politicas + presets |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/knowledge.ts` | `upsertStructuredKnowledge()`, `getAllStructuredKnowledge()`, `getStructuredKnowledge()`, `deleteStructuredKnowledge()` - todas usan RPCs SECURITY DEFINER |
+| `src/lib/actions/agents.ts` | `updateAgentPromptStructure()` server action |
+| `src/components/layout/Sidebar.tsx` | Link a /settings en sidebar |
+| `prisma/schema.prisma` | Campo `promptStructure Json?` en modelo AIAgent |
+| `src/messages/es.json` + `en.json` | Keys i18n para settings, knowledge sections, formularios |
+
+**Migraciones SQL (3 nuevas):**
+
+| Migracion | Cambio |
+|-----------|--------|
+| `20260306_add_prompt_structure` | `promptStructure JSONB` en `ai_agents`, `category VARCHAR(50)` + `structured_data JSONB` en `agent_knowledge`, indice unico `idx_agent_knowledge_unique_category` |
+| `20260306_update_insert_knowledge_rpc` | RPC `insert_agent_knowledge` actualizado: 12 params (+ `p_category`, `p_structured_data`), upsert atomico (DELETE + INSERT dentro de SECURITY DEFINER) |
+| `20260306_update_list_knowledge_rpc` | RPC `list_agent_knowledge` actualizado: retorna `category` y `structured_data`, casts `::TEXT` para VARCHAR |
+| `20260306_delete_structured_knowledge_rpc` | Nuevo RPC `delete_structured_knowledge(agent_id, project_id, category)` - bypass RLS |
+
+**Bugs corregidos (RLS):**
+
+| Bug | Causa raiz | Fix |
+|-----|-----------|-----|
+| `structured_data`/`category` no persistian | `.update()` via anon client sin RLS UPDATE policy | Movido a params del RPC `insert_agent_knowledge` (SECURITY DEFINER) |
+| Knowledge no cargaba tras reload | `.select()` via anon client con RLS SELECT policy rota (`project_id` vs `"projectId"`) | Cambiado a RPC `list_agent_knowledge` |
+| Duplicate key constraint en upsert | `.delete()` via anon client con RLS DELETE policy rota | DELETE movido dentro del RPC (atomico) |
+
+**Leccion clave:** Todas las operaciones CRUD sobre `agent_knowledge` DEBEN usar RPCs SECURITY DEFINER. Las RLS policies existentes referencian `pm.project_id` pero la columna real es `pm."projectId"` (camelCase de Prisma), causando fallos silenciosos.
+
+---
+
+## [0.8.2] - 2026-02-20
+
+### Per-Project WhatsApp App Secret (Multi-Tenant HMAC)
+
+Soporte para App Secret por proyecto. Cada cliente puede tener su propia Meta Developer App con su propio App Secret para verificacion HMAC de webhooks.
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/secrets.ts` | Agregado `whatsapp_app_secret` a `SecretKey` type y `allKeys` array |
+| `src/components/admin/ProjectSettingsModal.tsx` | Nuevo campo App Secret en tab WhatsApp (password input, reveal/copy/timer) |
+| `src/messages/es.json` + `en.json` | 2 keys i18n: `enterAppSecret`, `appSecretHelp` |
+| `src/app/api/webhooks/whatsapp/route.ts` | Reestructuracion HMAC: parse JSON primero, extraer `phone_number_id`, buscar App Secret per-project, verificar HMAC. Fallback a global solo si no hay per-project. HMAC failure rate limiting (10/5min/IP) |
+
+**Backward compatibility:**
+
+| Escenario | Comportamiento |
+|-----------|---------------|
+| Proyecto sin App Secret configurado | Usa global `WHATSAPP_APP_SECRET` |
+| Proyecto con App Secret configurado | Usa per-project, NO fallback a global |
+| Ni proyecto ni global | Rechaza silenciosamente |
+
+**Seguridad:** Auditado por agente de ciberseguridad antes de implementar. Smart fallback (no global bypass si existe per-project), HMAC failure rate limiting, cache de App Secret (5min TTL, 500 LRU).
+
+---
+
 ## [0.8.1] - 2026-02-15
 
 ### Security Audit v2 + Vercel Serverless Fix

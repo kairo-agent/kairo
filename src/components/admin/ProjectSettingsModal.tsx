@@ -12,7 +12,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui';
-import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 import { cn } from '@/lib/utils';
 import {
   getProjectSecretsStatus,
@@ -31,14 +30,7 @@ import {
 } from '@/lib/actions/agents';
 import { updateProject } from '@/lib/actions/admin';
 import {
-  addAgentKnowledge,
-  deleteAgentKnowledge,
-  listAgentKnowledge,
-  type KnowledgeEntry
-} from '@/lib/actions/knowledge';
-import {
   AgentIcon,
-  NoteIcon,
   AGENT_ICON_MAP,
   AGENT_ICON_NAMES,
   DEFAULT_AGENT_ICON,
@@ -143,12 +135,6 @@ const CheckIcon = () => (
   </svg>
 );
 
-const BookIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-  </svg>
-);
-
 // ============================================
 // Agent Icon Options (visual only, not type)
 // ============================================
@@ -170,7 +156,7 @@ export default function ProjectSettingsModal({
   const tCommon = useTranslations('common');
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'agents' | 'knowledge' | 'whatsapp' | 'webhooks'>('agents');
+  const [activeTab, setActiveTab] = useState<'agents' | 'whatsapp' | 'webhooks'>('agents');
 
   // Agents state
   const [agents, setAgents] = useState<AIAgentData[]>([]);
@@ -180,23 +166,11 @@ export default function ProjectSettingsModal({
   const [deletingAgent, setDeletingAgent] = useState<AIAgentData | null>(null);
   const [togglingAgentId, setTogglingAgentId] = useState<string | null>(null);
 
-  // Knowledge state
-  const [selectedAgentForKnowledge, setSelectedAgentForKnowledge] = useState<string>('');
-  const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
-  const [loadingKnowledge, setLoadingKnowledge] = useState(false);
-  const [showKnowledgeForm, setShowKnowledgeForm] = useState(false);
-  const [knowledgeTitle, setKnowledgeTitle] = useState('');
-  const [knowledgeContent, setKnowledgeContent] = useState('');
-  const [savingKnowledge, setSavingKnowledge] = useState(false);
-  const [deletingKnowledge, setDeletingKnowledge] = useState<KnowledgeEntry | null>(null);
-
   // Agent form
   const [agentName, setAgentName] = useState('');
   const [agentType, setAgentType] = useState<AIAgentType>('sales');
   const [agentIcon, setAgentIcon] = useState(DEFAULT_AGENT_ICON);
   const [agentDescription, setAgentDescription] = useState('');
-  const [agentAvatarUrl, setAgentAvatarUrl] = useState('');
-  const [agentSystemInstructions, setAgentSystemInstructions] = useState('');
 
   // WhatsApp form
   const [whatsappToken, setWhatsappToken] = useState('');
@@ -309,8 +283,6 @@ export default function ProjectSettingsModal({
     setAgentType('sales');
     setAgentIcon(DEFAULT_AGENT_ICON);
     setAgentDescription('');
-    setAgentAvatarUrl('');
-    setAgentSystemInstructions('');
     setShowAgentForm(false);
     setEditingAgent(null);
     setDeletingAgent(null);
@@ -324,8 +296,6 @@ export default function ProjectSettingsModal({
     const iconName = agent.avatarUrl && AGENT_ICON_MAP[agent.avatarUrl] ? agent.avatarUrl : DEFAULT_AGENT_ICON;
     setAgentIcon(iconName);
     setAgentDescription(agent.description || '');
-    setAgentAvatarUrl('');
-    setAgentSystemInstructions(agent.systemInstructions || '');
     setShowAgentForm(true);
   };
 
@@ -343,8 +313,7 @@ export default function ProjectSettingsModal({
           name: agentName.trim(),
           type: agentType,
           description: agentDescription.trim() || undefined,
-          avatarUrl: agentIcon, // Guardar emoji como avatarUrl
-          systemInstructions: agentSystemInstructions.trim() || undefined
+          avatarUrl: agentIcon,
         });
 
         if (result.success) {
@@ -362,8 +331,7 @@ export default function ProjectSettingsModal({
           name: agentName.trim(),
           type: agentType,
           description: agentDescription.trim() || undefined,
-          avatarUrl: agentIcon, // Guardar emoji como avatarUrl
-          systemInstructions: agentSystemInstructions.trim() || undefined
+          avatarUrl: agentIcon,
         });
 
         if (result.success) {
@@ -576,111 +544,11 @@ export default function ProjectSettingsModal({
   };
 
   // ============================================
-  // Knowledge Handlers
-  // ============================================
-
-  const loadKnowledge = async (agentId: string) => {
-    if (!project?.id || !agentId) return;
-
-    setLoadingKnowledge(true);
-    try {
-      const result = await listAgentKnowledge(agentId, project.id);
-      if (result.success && result.data) {
-        setKnowledgeEntries(result.data);
-      } else {
-        setError(result.error || t('knowledgeSettings.loadError'));
-      }
-    } catch (err) {
-      console.error('Error loading knowledge:', err);
-      setError(t('knowledgeSettings.loadError'));
-    } finally {
-      setLoadingKnowledge(false);
-    }
-  };
-
-  const handleAgentSelectForKnowledge = (agentId: string) => {
-    setSelectedAgentForKnowledge(agentId);
-    setKnowledgeEntries([]);
-    setShowKnowledgeForm(false);
-    setDeletingKnowledge(null);
-    if (agentId) {
-      loadKnowledge(agentId);
-    }
-  };
-
-  const resetKnowledgeForm = () => {
-    setKnowledgeTitle('');
-    setKnowledgeContent('');
-    setShowKnowledgeForm(false);
-  };
-
-  const handleSaveKnowledge = async () => {
-    if (!project?.id || !selectedAgentForKnowledge) return;
-
-    if (!knowledgeContent.trim()) {
-      setError(t('knowledgeSettings.emptyContent'));
-      return;
-    }
-
-    setSavingKnowledge(true);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      const result = await addAgentKnowledge({
-        agentId: selectedAgentForKnowledge,
-        projectId: project.id,
-        title: knowledgeTitle.trim() || undefined,
-        content: knowledgeContent.trim(),
-        source: 'manual',
-      });
-
-      if (result.success) {
-        setSuccessMessage(t('knowledgeSettings.addSuccess'));
-        resetKnowledgeForm();
-        await loadKnowledge(selectedAgentForKnowledge);
-      } else {
-        setError(result.error || t('knowledgeSettings.addError'));
-      }
-    } catch (err) {
-      console.error('Error saving knowledge:', err);
-      setError(t('knowledgeSettings.addError'));
-    } finally {
-      setSavingKnowledge(false);
-    }
-  };
-
-  const handleDeleteKnowledge = async () => {
-    if (!project?.id || !deletingKnowledge) return;
-
-    setSaving(true);
-    setError('');
-
-    try {
-      const result = await deleteAgentKnowledge(deletingKnowledge.id, project.id);
-
-      if (result.success) {
-        setSuccessMessage(t('knowledgeSettings.deleteSuccess'));
-        setDeletingKnowledge(null);
-        await loadKnowledge(selectedAgentForKnowledge);
-      } else {
-        setError(result.error || t('knowledgeSettings.deleteError'));
-      }
-    } catch (err) {
-      console.error('Error deleting knowledge:', err);
-      setError(t('knowledgeSettings.deleteError'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================
   // Render Helpers
   // ============================================
 
   const tabs = [
     { id: 'agents' as const, label: t('settings.agents'), icon: <BotIcon /> },
-    { id: 'knowledge' as const, label: t('knowledgeSettings.title'), icon: <BookIcon /> },
     { id: 'whatsapp' as const, label: 'WhatsApp', icon: <WhatsAppIcon /> },
     { id: 'webhooks' as const, label: 'Webhooks', icon: <WebhookIcon /> },
   ];
@@ -759,38 +627,6 @@ export default function ProjectSettingsModal({
           placeholder={t('agentSettings.descriptionPlaceholder')}
           rows={2}
           className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none"
-        />
-      </div>
-
-      {/* System Instructions */}
-      <div>
-        <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-          {t('agentSettings.systemInstructions')}
-        </label>
-        <ExpandableTextarea
-          value={agentSystemInstructions}
-          onChange={setAgentSystemInstructions}
-          placeholder={t('agentSettings.systemInstructionsPlaceholder')}
-          rows={6}
-          expandLabel={tCommon('buttons.expand')}
-          modalTitle={t('agentSettings.systemInstructions')}
-        />
-        <p className="text-xs text-[var(--text-muted)] mt-1">
-          {t('agentSettings.systemInstructionsHelp')}
-        </p>
-      </div>
-
-      {/* Avatar URL */}
-      <div>
-        <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-          {t('agentSettings.avatarUrl')}
-        </label>
-        <input
-          type="url"
-          value={agentAvatarUrl}
-          onChange={(e) => setAgentAvatarUrl(e.target.value)}
-          placeholder="https://..."
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm"
         />
       </div>
 
@@ -1026,224 +862,6 @@ export default function ProjectSettingsModal({
                 {agents.map(renderAgentCard)}
               </div>
             )}
-          </div>
-        )}
-
-        {/* Tab Content: Knowledge */}
-        {activeTab === 'knowledge' && !deletingKnowledge && (
-          <div className="space-y-4">
-            <p className="text-sm text-[var(--text-secondary)]">
-              {t('knowledgeSettings.description')}
-            </p>
-
-            {/* OpenAI API Key Warning */}
-            {!secretsStatus.openai_api_key && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-amber-500">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  <span className="text-sm">{t('knowledgeSettings.openaiNotConfigured')}</span>
-                </div>
-                <button
-                  onClick={() => setActiveTab('whatsapp')}
-                  className="px-3 py-1 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors whitespace-nowrap"
-                >
-                  {t('knowledgeSettings.configureNow')}
-                </button>
-              </div>
-            )}
-
-            {/* Agent Selector */}
-            {agents.length === 0 ? (
-              <div className="py-8 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
-                  <NoteIcon className="w-6 h-6 text-[var(--text-muted)]" />
-                </div>
-                <p className="text-sm text-[var(--text-muted)]">
-                  {t('knowledgeSettings.noAgentsAvailable')}
-                </p>
-              </div>
-            ) : (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                    {t('knowledgeSettings.selectAgent')}
-                  </label>
-                  <select
-                    value={selectedAgentForKnowledge}
-                    onChange={(e) => handleAgentSelectForKnowledge(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm"
-                  >
-                    <option value="">{t('knowledgeSettings.selectAgentPlaceholder')}</option>
-                    {agents.filter(a => a.isActive).map((agent) => (
-                      <option key={agent.id} value={agent.id}>
-                        {agent.name} ({agent.type})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Knowledge Content (only when agent selected) */}
-                {selectedAgentForKnowledge && (
-                  <div className="space-y-4">
-                    {/* Add Knowledge Button */}
-                    {!showKnowledgeForm && (
-                      <button
-                        onClick={() => setShowKnowledgeForm(true)}
-                        className="w-full py-3 rounded-lg border-2 border-dashed border-[var(--border-primary)] text-[var(--text-muted)] hover:border-[var(--kairo-cyan)] hover:text-[var(--kairo-cyan)] transition-colors flex items-center justify-center gap-2"
-                      >
-                        <PlusIcon />
-                        {t('knowledgeSettings.addKnowledge')}
-                      </button>
-                    )}
-
-                    {/* Knowledge Form */}
-                    {showKnowledgeForm && (
-                      <div className="space-y-4 p-4 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
-                        <h4 className="font-medium text-[var(--text-primary)]">
-                          {t('knowledgeSettings.addKnowledge')}
-                        </h4>
-
-                        {/* Title */}
-                        <div>
-                          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                            {t('knowledgeSettings.titleLabel')}
-                          </label>
-                          <input
-                            type="text"
-                            value={knowledgeTitle}
-                            onChange={(e) => setKnowledgeTitle(e.target.value)}
-                            placeholder={t('knowledgeSettings.titlePlaceholder')}
-                            className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm"
-                          />
-                        </div>
-
-                        {/* Content */}
-                        <div>
-                          <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-                            {t('knowledgeSettings.contentLabel')} *
-                          </label>
-                          <ExpandableTextarea
-                            value={knowledgeContent}
-                            onChange={setKnowledgeContent}
-                            placeholder={t('knowledgeSettings.contentPlaceholder')}
-                            rows={6}
-                            expandLabel={tCommon('buttons.expand')}
-                            modalTitle={t('knowledgeSettings.contentLabel')}
-                          />
-                          <p className="text-xs text-[var(--text-muted)] mt-1">
-                            {t('knowledgeSettings.contentHelp')}
-                          </p>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex gap-2 pt-2">
-                          <button
-                            onClick={handleSaveKnowledge}
-                            disabled={savingKnowledge || !knowledgeContent.trim()}
-                            className="flex-1 py-2 rounded-lg bg-[var(--kairo-cyan)] text-white font-medium hover:bg-[var(--kairo-cyan)]/90 transition-colors disabled:opacity-50"
-                          >
-                            {savingKnowledge ? t('knowledgeSettings.processing') : tCommon('buttons.save')}
-                          </button>
-                          <button
-                            onClick={resetKnowledgeForm}
-                            disabled={savingKnowledge}
-                            className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                          >
-                            {tCommon('buttons.cancel')}
-                          </button>
-                        </div>
-                        {savingKnowledge && (
-                          <p className="text-xs text-[var(--text-muted)] text-center">
-                            {t('knowledgeSettings.processingHelp')}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Knowledge List */}
-                    {loadingKnowledge ? (
-                      <div className="py-8 text-center text-[var(--text-muted)]">
-                        {tCommon('buttons.loading')}
-                      </div>
-                    ) : knowledgeEntries.length === 0 ? (
-                      <div className="py-8 text-center">
-                        <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
-                          <NoteIcon className="w-6 h-6 text-[var(--text-muted)]" />
-                        </div>
-                        <h4 className="text-[var(--text-primary)] font-medium mb-1">
-                          {t('knowledgeSettings.noKnowledge')}
-                        </h4>
-                        <p className="text-sm text-[var(--text-muted)]">
-                          {t('knowledgeSettings.noKnowledgeMessage')}
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {knowledgeEntries.map((entry) => (
-                          <div
-                            key={entry.id}
-                            className="p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex-1 min-w-0">
-                                <h4 className="font-medium text-[var(--text-primary)] truncate">
-                                  {entry.title || t('knowledgeSettings.sourceManual')}
-                                </h4>
-                                <p className="text-sm text-[var(--text-muted)] line-clamp-2 mt-1">
-                                  {entry.content}
-                                </p>
-                                <div className="flex items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
-                                  <span>{t('knowledgeSettings.source')}: {t('knowledgeSettings.sourceManual')}</span>
-                                  <span>•</span>
-                                  <span>{t('knowledgeSettings.createdAt')}: {new Date(entry.createdAt).toLocaleDateString()}</span>
-                                </div>
-                              </div>
-                              <button
-                                onClick={() => setDeletingKnowledge(entry)}
-                                className="p-2 rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
-                                title={tCommon('buttons.delete')}
-                              >
-                                <TrashIcon />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Delete Knowledge Confirmation */}
-        {activeTab === 'knowledge' && deletingKnowledge && (
-          <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 space-y-3">
-            <p className="text-sm text-[var(--text-primary)]">
-              {t('knowledgeSettings.confirmDelete')}
-            </p>
-            <p className="text-sm text-[var(--text-muted)]">
-              {deletingKnowledge.title || t('knowledgeSettings.sourceManual')}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={handleDeleteKnowledge}
-                disabled={saving}
-                className="px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
-              >
-                {saving ? tCommon('buttons.loading') : tCommon('buttons.delete')}
-              </button>
-              <button
-                onClick={() => setDeletingKnowledge(null)}
-                disabled={saving}
-                className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-tertiary)] transition-colors"
-              >
-                {tCommon('buttons.cancel')}
-              </button>
-            </div>
           </div>
         )}
 

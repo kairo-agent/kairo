@@ -18,6 +18,12 @@ import {
 } from '@/lib/openai/embeddings';
 import { chunkText, prepareTextForEmbedding } from '@/lib/utils/chunking';
 import { createClient } from '@/lib/supabase/server';
+import { KnowledgeCategory } from '@/lib/knowledge/business-hours';
+import { businessHoursSchema, composeBusinessHoursText } from '@/lib/knowledge/business-hours';
+import { faqsSchema, composeFaqsText } from '@/lib/knowledge/faqs';
+import { pricingSchema, composePricingText } from '@/lib/knowledge/pricing';
+import { locationContactSchema, composeLocationContactText } from '@/lib/knowledge/location-contact';
+import { policiesSchema, composePoliciesText } from '@/lib/knowledge/policies';
 
 // ============================================
 // Types
@@ -65,6 +71,18 @@ interface ActionResult<T = void> {
   data?: T;
   error?: string;
 }
+
+// ============================================
+// Category title mapping
+// ============================================
+
+const CATEGORY_TITLES: Record<string, string> = {
+  business_hours: 'Business Hours',
+  faqs: 'FAQs',
+  pricing: 'Pricing',
+  location_contact: 'Location & Contact',
+  policies: 'Policies',
+};
 
 // ============================================
 // Knowledge Management Actions
@@ -115,7 +133,7 @@ export async function addAgentKnowledge(
     });
 
     if (chunks.length === 0) {
-      return { success: false, error: 'El contenido es muy corto o vacío' };
+      return { success: false, error: 'El contenido es muy corto o vacio' };
     }
 
     // Generate embeddings for all chunks in batch
@@ -185,10 +203,10 @@ export async function addAgentKnowledge(
     if (error instanceof Error) {
       // Check for specific OpenAI errors
       if (error.message.includes('API key')) {
-        return { success: false, error: 'API key de OpenAI inválida o no configurada' };
+        return { success: false, error: 'API key de OpenAI invalida o no configurada' };
       }
       if (error.message.includes('insufficient_quota')) {
-        return { success: false, error: 'Sin créditos en tu cuenta de OpenAI' };
+        return { success: false, error: 'Sin creditos en tu cuenta de OpenAI' };
       }
       return { success: false, error: error.message };
     }
@@ -336,7 +354,7 @@ export async function searchAgentKnowledge(
 
     if (error) {
       console.error('Search failed:', error);
-      return { success: false, error: 'Error en la búsqueda' };
+      return { success: false, error: 'Error en la busqueda' };
     }
 
     const results: SearchResult[] = (data || []).map(
@@ -385,7 +403,7 @@ export async function getAgentKnowledgeStats(
       .eq('project_id', projectId);
 
     if (error) {
-      return { success: false, error: 'Error al obtener estadísticas' };
+      return { success: false, error: 'Error al obtener estadisticas' };
     }
 
     const entries = data || [];
@@ -407,6 +425,286 @@ export async function getAgentKnowledgeStats(
   } catch (error) {
     console.error('Failed to get knowledge stats:', error);
     return { success: false, error: 'Error interno' };
+  }
+}
+
+// ============================================
+// Structured Knowledge Actions
+// ============================================
+
+/**
+ * Upserts structured knowledge to pgvector.
+ * Validates with zod, composes to text, generates embedding, and stores.
+ * Uses delete-then-insert pattern because existing RPC doesn't support
+ * the category/structured_data columns.
+ */
+export async function upsertStructuredKnowledge(input: {
+  agentId: string;
+  projectId: string;
+  category: KnowledgeCategory;
+  structuredData: Record<string, unknown>;
+  knowledgeId?: string;
+}): Promise<ActionResult<{ id: string }>> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const { agentId, projectId, category, structuredData } = input;
+
+    if (category === 'free_text') {
+      return { success: false, error: 'Use addAgentKnowledge for free text entries' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin permisos para este proyecto' };
+    }
+
+    // Verify agent belongs to this project
+    const agent = await prisma.aIAgent.findFirst({
+      where: { id: agentId, projectId },
+    });
+    if (!agent) {
+      return { success: false, error: 'Agente no encontrado en este proyecto' };
+    }
+
+    // Parse and validate with the appropriate zod schema, then compose text
+    let composedText: string;
+    try {
+      switch (category) {
+        case 'business_hours': {
+          const parsed = businessHoursSchema.parse(structuredData);
+          composedText = composeBusinessHoursText(parsed);
+          break;
+        }
+        case 'faqs': {
+          const parsed = faqsSchema.parse(structuredData);
+          composedText = composeFaqsText(parsed);
+          break;
+        }
+        case 'pricing': {
+          const parsed = pricingSchema.parse(structuredData);
+          composedText = composePricingText(parsed);
+          break;
+        }
+        case 'location_contact': {
+          const parsed = locationContactSchema.parse(structuredData);
+          composedText = composeLocationContactText(parsed);
+          break;
+        }
+        case 'policies': {
+          const parsed = policiesSchema.parse(structuredData);
+          composedText = composePoliciesText(parsed);
+          break;
+        }
+        default:
+          return { success: false, error: `Categoria no soportada: ${category}` };
+      }
+    } catch (validationError) {
+      console.error('Structured data validation failed:', validationError);
+      return { success: false, error: 'Datos invalidos para esta categoria' };
+    }
+
+    // Generate embedding from composed text
+    const embedding = await generateEmbedding(composedText, projectId);
+    const embeddingStr = formatEmbeddingForPg(embedding);
+
+    const supabase = await createClient();
+    const title = CATEGORY_TITLES[category] || category;
+
+    // Insert with category + structured_data in one RPC call
+    // RPC is SECURITY DEFINER (bypasses RLS) and auto-deletes existing entry for the same category
+    const { data: insertData, error: insertError } = await supabase.rpc('insert_agent_knowledge', {
+      p_project_id: projectId,
+      p_agent_id: agentId,
+      p_title: title,
+      p_content: composedText,
+      p_source: 'structured',
+      p_source_url: null,
+      p_metadata: {},
+      p_chunk_index: 0,
+      p_embedding: embeddingStr,
+      p_created_by: user.id,
+      p_category: category,
+      p_structured_data: structuredData,
+    });
+
+    if (insertError) {
+      console.error('Failed to insert structured knowledge:', insertError);
+      return {
+        success: false,
+        error: `Error en Supabase: ${insertError.message || insertError.code || JSON.stringify(insertError)}`
+      };
+    }
+
+    const newId = Array.isArray(insertData) ? insertData[0]?.id : insertData?.id;
+
+    if (!newId) {
+      return { success: false, error: 'No se pudo obtener el ID del registro creado' };
+    }
+
+    return { success: true, data: { id: newId } };
+  } catch (error) {
+    console.error('Failed to upsert structured knowledge:', error);
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        return { success: false, error: 'API key de OpenAI invalida o no configurada' };
+      }
+      if (error.message.includes('insufficient_quota')) {
+        return { success: false, error: 'Sin creditos en tu cuenta de OpenAI' };
+      }
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: 'Error interno desconocido' };
+  }
+}
+
+/**
+ * Gets structured knowledge for a specific category
+ */
+export async function getStructuredKnowledge(
+  agentId: string,
+  projectId: string,
+  category: KnowledgeCategory
+): Promise<ActionResult<{ id: string; structuredData: Record<string, unknown>; content: string } | null>> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin permisos para este proyecto' };
+    }
+
+    const supabase = await createClient();
+
+    // Use SECURITY DEFINER RPC to bypass RLS (same pattern as listAgentKnowledge)
+    const { data, error } = await supabase.rpc('list_agent_knowledge', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+    });
+
+    if (error) {
+      console.error('Failed to get structured knowledge:', error);
+      return { success: false, error: `Error al obtener conocimiento: ${error.message}` };
+    }
+
+    const match = (data || []).find(
+      (row: { category: string }) => row.category === category && row.category !== 'free_text'
+    );
+
+    if (!match) {
+      return { success: true, data: null };
+    }
+
+    return {
+      success: true,
+      data: {
+        id: match.id,
+        structuredData: match.structured_data as Record<string, unknown>,
+        content: match.content,
+      },
+    };
+  } catch (error) {
+    console.error('Failed to get structured knowledge:', error);
+    return { success: false, error: 'Error interno' };
+  }
+}
+
+/**
+ * Gets all structured knowledge categories for an agent
+ */
+export async function getAllStructuredKnowledge(
+  agentId: string,
+  projectId: string
+): Promise<ActionResult<Array<{ id: string; category: string; structuredData: Record<string, unknown>; content: string }>>> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin permisos para este proyecto' };
+    }
+
+    const supabase = await createClient();
+
+    // Use SECURITY DEFINER RPC to bypass RLS (same pattern as listAgentKnowledge)
+    const { data, error } = await supabase.rpc('list_agent_knowledge', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+    });
+
+    if (error) {
+      console.error('Failed to get all structured knowledge:', error);
+      return { success: false, error: `Error al obtener conocimiento: ${error.message}` };
+    }
+
+    const entries = (data || [])
+      .filter((row: { category: string; structured_data: unknown }) =>
+        row.category && row.category !== 'free_text' && row.structured_data
+      )
+      .map((row: { id: string; category: string; structured_data: Record<string, unknown>; content: string }) => ({
+        id: row.id as string,
+        category: row.category as string,
+        structuredData: row.structured_data as Record<string, unknown>,
+        content: row.content as string,
+      }));
+
+    return { success: true, data: entries };
+  } catch (error) {
+    console.error('Failed to get all structured knowledge:', error);
+    return { success: false, error: 'Error interno' };
+  }
+}
+
+/**
+ * Deletes structured knowledge for a specific category
+ */
+export async function deleteStructuredKnowledge(
+  agentId: string,
+  projectId: string,
+  category: KnowledgeCategory
+): Promise<ActionResult> {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin permisos para este proyecto' };
+    }
+
+    if (category === 'free_text') {
+      return { success: false, error: 'Use deleteAgentKnowledge for free text entries' };
+    }
+
+    const supabase = await createClient();
+
+    // Use SECURITY DEFINER RPC to bypass RLS
+    const { error } = await supabase.rpc('delete_structured_knowledge', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+      p_category: category,
+    });
+
+    if (error) {
+      console.error('Failed to delete structured knowledge:', error);
+      return { success: false, error: `Error al eliminar: ${error.message}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to delete structured knowledge:', error);
+    return { success: false, error: 'Error interno al eliminar' };
   }
 }
 
