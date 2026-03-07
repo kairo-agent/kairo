@@ -1,10 +1,35 @@
 # KAIRO - Changelog
 
-## [0.9.0] - 2026-03-06
+## [0.9.0] - 2026-03-07
 
 ### Settings / Configuration Page + Structured Knowledge Base
 
 Nueva pagina de configuracion de agentes con dos tabs: **Instructions** (prompt structure) y **Knowledge Base** (conocimiento estructurado + RAG free-text).
+
+**Dual-Name System:**
+
+| Nombre | Ubicacion | Proposito |
+|--------|-----------|-----------|
+| `ai_agents.name` | ProjectSettingsModal (admin) | Etiqueta administrativa (ej: "Agente 1") |
+| `promptStructure.agentName` | Settings > Instructions | Nombre con el que el bot se presenta (default: "Kaira") |
+
+El webhook ahora lee `promptStructure.agentName` en lugar de `agent.name` para el pipeline AI. Fallback a "Kaira" en todos los niveles.
+
+**E2E Testing (Playwright MCP via WhatsApp):**
+
+| Test | Resultado | Verificado |
+|------|-----------|------------|
+| Nombre del agente | PASS | Bot se identifica con el nombre configurado |
+| Rol del agente | PASS | Responde como asistente de ventas |
+| Reglas | PASS | Cumple las 5 reglas configuradas |
+| Personalidad | PASS | Tono amigable con humor ligero |
+| Instrucciones adicionales | PASS | Ofrece llamada 15 min, pregunta alcance |
+| Horarios (KB) | PASS | Devuelve horarios exactos por dia |
+| FAQs (KB) | PASS | Responde con servicios del KB |
+| Precios (KB) | PASS | Montos exactos S/1,500, S/2,500, S/2,000 |
+| Ubicacion/Contacto (KB) | PASS | Telefono, email, direccion reales del KB |
+| Politicas (KB) | PASS | Reembolso 15 dias, proporcional despues |
+| RAG texto libre (KB) | PASS | Promo marzo 30%, auditoria S/500 |
 
 **Tab Instructions:**
 
@@ -57,6 +82,9 @@ Cada seccion: Zod validation -> compose bilingual text -> OpenAI embedding (text
 | `src/components/layout/Sidebar.tsx` | Link a /settings en sidebar |
 | `prisma/schema.prisma` | Campo `promptStructure Json?` en modelo AIAgent |
 | `src/messages/es.json` + `en.json` | Keys i18n para settings, knowledge sections, formularios |
+| `src/app/api/webhooks/whatsapp/route.ts` | Lee `promptStructure.agentName` (con fallback Kaira) en lugar de `agent.name` |
+| `src/components/admin/ProjectSettingsModal.tsx` | Removida seccion de instrucciones (movida a /settings) |
+| `src/contexts/LoadingContext.tsx` | Safety timeout para loading overlay (previene estados infinitos) |
 
 **Migraciones SQL (3 nuevas):**
 
