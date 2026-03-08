@@ -1,10 +1,10 @@
 # RAG para Agentes IA - Plan de Implementación
 
-> **Estado:** [OK] COMPLETADO Y VERIFICADO - Fases 1-4 + Temperature Scoring + Memoria + Lead Summary
+> **Estado:** [OK] COMPLETADO Y VERIFICADO - Fases 1-4 + Temperature Scoring + Memoria + Lead Summary + Structured Knowledge
 > **Fecha de planificación:** 2026-01-25
-> **Última actualización:** 2026-02-04
-> **Logro:** Flujo RAG completo + HOT/WARM/COLD + Historial 8 msgs + Summary para chats largos
-> **Verificación:** 4 Feb 2026 - RAG 100% operativo, similarity 0.704, tiempo ~4.3s
+> **Última actualización:** 2026-03-07
+> **Logro:** Flujo RAG completo + HOT/WARM/COLD + Historial 8 msgs + Summary + 5 secciones estructuradas + RAG free-text UI
+> **Verificación:** 7 Mar 2026 - E2E testing via WhatsApp: 11 tests passed (todas las secciones KB)
 
 ---
 
@@ -1099,4 +1099,9 @@ Si escribe en espanol, responde en espanol.
 | 2026-02-02 | **Lead Summary (Fase 2.5)**: Webhook envía `leadSummary`, `messageCount`, `summaryThreshold` a n8n | Adan (Claude) |
 | 2026-02-02 | **/api/ai/respond**: Soporte para `suggestedSummary` con validación defense-in-depth (5+ msgs) | Adan (Claude) |
 | 2026-02-10 | **Soporte Multilingue**: Analisis cross-language RAG, guia de duplicacion de conocimiento, instrucciones de idioma | Leo + Adan |
-| 2026-02-02 | **DATABASE-MIGRATIONS.md**: Nueva guía crítica para evitar pérdida de datos (prisma db push) | Adan (Claude) |
+| 2026-02-02 | **DATABASE-MIGRATIONS.md**: Nueva guia critica para evitar perdida de datos (prisma db push) | Adan (Claude) |
+| 2026-03-06 | **Structured Knowledge (v0.9.0)**: 5 secciones estructuradas (horarios, FAQs, precios, ubicacion, politicas) con Zod validation + compose bilingue + embeddings | Leo + Adan |
+| 2026-03-06 | **4 migraciones SQL**: add_prompt_structure, update_insert/list_knowledge_rpc, delete_structured_knowledge_rpc | Adan (Claude) |
+| 2026-03-07 | **Dual-name system**: `promptStructure.agentName` (AI persona) vs `ai_agents.name` (admin label). Default: "Kaira" | Leo + Adan |
+| 2026-03-07 | **E2E Testing via WhatsApp**: 11 tests passed - nombre, rol, reglas, personalidad, instrucciones, 5 KB sections, RAG free-text | Adan (Claude) |
+| 2026-03-07 | **Settings page UI**: `/settings` con tabs Instructions + Knowledge Base. RAG free-text management (add/delete) | Leo + Adan |

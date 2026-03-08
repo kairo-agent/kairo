@@ -19,13 +19,13 @@
 | Documento | Contenido clave |
 |-----------|----------------|
 | [N8N-SETUP.md](N8N-SETUP.md) | Railway deploy, workflows, WhatsApp Cloud API integration, webhook flow, message types, ngrok dev setup |
-| [RAG-AGENTS.md](RAG-AGENTS.md) | pgvector, embeddings OpenAI, search functions, knowledge management, soporte multilingue |
+| [RAG-AGENTS.md](RAG-AGENTS.md) | pgvector, embeddings OpenAI, search functions, knowledge management, soporte multilingue, structured knowledge (v0.9.0) |
 | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) | Supabase Storage, RLS policies, image compression, cleanup cron, n8n media sending |
 
 ### Frontend y UI
 | Documento | Contenido clave |
 |-----------|----------------|
-| [COMPONENTS.md](COMPONENTS.md) | Catalogo de componentes UI (Button, Modal, PhoneInput, etc.) |
+| [COMPONENTS.md](COMPONENTS.md) | Catalogo de componentes UI (Button, Modal, PhoneInput, etc.) + Knowledge Base forms (v0.9.0) |
 | [I18N.md](I18N.md) | next-intl config, useTranslations, namespaces, Link de @/i18n/routing |
 | [RULES.md](RULES.md) | 14 reglas obligatorias (Playwright validation, i18n Link, PhoneInput, etc.) |
 
@@ -53,8 +53,10 @@
 | Endpoints API y seguridad | [SECURITY.md](SECURITY.md) |
 | Variables de entorno | [SECURITY.md](SECURITY.md) seccion "Obligatorias" |
 | WhatsApp webhook flow | [N8N-SETUP.md](N8N-SETUP.md) seccion "WhatsApp" |
-| Cómo funciona el RAG | [RAG-AGENTS.md](RAG-AGENTS.md) |
+| Como funciona el RAG | [RAG-AGENTS.md](RAG-AGENTS.md) |
 | RAG multilingue / cross-language | [RAG-AGENTS.md](RAG-AGENTS.md) seccion "Soporte Multilingue" |
+| Configuracion de agentes (Settings) | [CHANGELOG.md](CHANGELOG.md) seccion v0.9.0 |
+| Knowledge Base estructurada | [RAG-AGENTS.md](RAG-AGENTS.md) + [COMPONENTS.md](COMPONENTS.md) seccion "Knowledge Base" |
 | Roles y permisos | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Multi-tenant" |
 | Estado actual del MVP | [CHANGELOG.md](CHANGELOG.md) version mas reciente |
 | Reglas de desarrollo | [RULES.md](RULES.md) |

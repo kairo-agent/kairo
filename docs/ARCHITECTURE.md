@@ -21,58 +21,57 @@
 
 ```
 src/
-├── app/                      # App Router (páginas)
-│   ├── (auth)/              # Grupo: rutas de autenticación
-│   │   ├── login/
-│   │   │   └── page.tsx
-│   │   └── layout.tsx
-│   ├── (dashboard)/         # Grupo: rutas protegidas
-│   │   ├── layout.tsx       # Layout con sidebar
-│   │   ├── page.tsx         # Dashboard home
-│   │   └── leads/
-│   │       └── page.tsx
-│   ├── layout.tsx           # Root layout
-│   ├── globals.css          # Variables CSS, themes
-│   └── page.tsx             # Redirect a login o dashboard
+├── app/
+│   ├── [locale]/(auth)/login/         # Login page
+│   ├── [locale]/(dashboard)/          # Layout con sidebar
+│   │   ├── leads/page.tsx             # Vista principal de leads
+│   │   ├── dashboard/page.tsx         # Dashboard (placeholder)
+│   │   ├── profile/page.tsx           # Perfil de usuario
+│   │   └── settings/                  # Configuracion de agentes (v0.9.0)
+│   │       ├── page.tsx               # Server component
+│   │       └── SettingsPageClient.tsx  # Instructions + Knowledge Base tabs
+│   ├── [locale]/(admin)/admin/        # Panel admin (super_admin only)
+│   ├── [locale]/select-workspace/     # Selector org/project
+│   └── api/
+│       ├── ai/respond/                # Guardar + enviar WhatsApp
+│       ├── audio/transcribe/          # Whisper transcription
+│       ├── webhooks/whatsapp/         # Recibir mensajes WhatsApp
+│       ├── webhooks/n8n/              # Eventos de conversacion
+│       ├── whatsapp/send/             # Proxy a WhatsApp Cloud API
+│       ├── whatsapp/mark-read/        # Read receipts
+│       ├── rag/search/                # Busqueda semantica para n8n
+│       └── cron/cleanup-media/        # Limpieza archivos >24h
 │
-├── components/              # Componentes React
-│   ├── ui/                  # Primitivos reutilizables
-│   │   ├── Button.tsx
-│   │   ├── Modal.tsx
-│   │   ├── Input.tsx
-│   │   ├── Select.tsx
-│   │   └── Card.tsx
-│   ├── layout/              # Estructura de página
-│   │   ├── Header.tsx
-│   │   ├── Sidebar.tsx
-│   │   └── PageContainer.tsx
-│   └── features/            # Componentes de dominio
-│       ├── LeadCard.tsx
-│       ├── LeadGrid.tsx
-│       ├── LeadTable.tsx
-│       └── LeadFilters.tsx
+├── components/
+│   ├── ui/                            # Button, Input, Modal, PhoneInput, etc.
+│   ├── layout/                        # Sidebar, Header, WorkspaceSelector
+│   ├── admin/                         # ProjectSettingsModal
+│   ├── features/                      # LeadCard, LeadTable, LeadChat, etc.
+│   └── knowledge/                     # Formularios KB estructurada (v0.9.0)
+│       ├── BusinessHoursForm.tsx
+│       ├── FAQsForm.tsx
+│       ├── PricingForm.tsx
+│       ├── LocationContactForm.tsx
+│       └── PoliciesForm.tsx
 │
-├── contexts/                # React Contexts
-│   ├── ThemeContext.tsx
-│   └── AuthContext.tsx      # Mock por ahora
+├── contexts/                          # Theme, Modal, Workspace, Loading
 │
-├── hooks/                   # Custom hooks
-│   ├── useTheme.ts
-│   └── useModal.ts
+├── lib/
+│   ├── ai/                            # AI Pipeline (process-ai-response, build-system-prompt)
+│   ├── knowledge/                     # Structured knowledge (v0.9.0)
+│   │   ├── prompt-builder.ts          # PromptStructure + composeSystemPrompt()
+│   │   ├── business-hours.ts          # Horarios + compose
+│   │   ├── faqs.ts                    # FAQs + compose
+│   │   ├── pricing.ts                 # Precios + compose
+│   │   ├── location-contact.ts        # Ubicacion + compose
+│   │   └── policies.ts               # Politicas + compose
+│   ├── actions/                       # Server Actions
+│   ├── supabase/                      # Client/Server Supabase + Prisma
+│   ├── auth-helpers.ts                # verifySuperAdmin, getCurrentUser
+│   └── rate-limit.ts                  # Rate limiting
 │
-├── lib/                     # Utilidades
-│   ├── utils.ts             # Helpers generales
-│   └── cn.ts                # Classname merger
-│
-├── types/                   # TypeScript definitions
-│   ├── lead.ts
-│   ├── user.ts
-│   └── company.ts
-│
-└── data/                    # Data fake para MVP
-    ├── leads.ts
-    ├── users.ts
-    └── companies.ts
+├── messages/                          # es.json, en.json
+└── i18n/routing.ts                    # Locales y navegacion
 ```
 
 ## Decisiones Arquitectónicas

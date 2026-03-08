@@ -197,3 +197,23 @@ Vista tabular alternativa:
 --bp-xl: 1280px;
 --bp-2xl: 1536px;
 ```
+
+---
+
+## Componentes Knowledge Base (v0.9.0)
+
+**Ubicacion:** `src/components/knowledge/`
+
+Formularios para las 5 secciones de conocimiento estructurado. Cada uno valida con Zod, compone texto bilingue, genera embedding y guarda via RPC.
+
+| Componente | Seccion | Campos principales |
+|------------|---------|-------------------|
+| `BusinessHoursForm` | Horarios | 7 dias (open/close/closed), timezone, feriados |
+| `FAQsForm` | Preguntas Frecuentes | Lista dinamica pregunta/respuesta |
+| `PricingForm` | Precios y Servicios | Nombre, precio, moneda, descripcion, notas |
+| `LocationContactForm` | Ubicacion y Contacto | Direccion, telefono, email, web, redes sociales, sedes adicionales |
+| `PoliciesForm` | Politicas | Titulo/contenido + presets (reembolso, privacidad, envios, garantia) |
+
+**Patron comun:** Cada form recibe `agentId`, `projectId`, `initialData?`, `onSave`, `onCancel`. Usa `upsertStructuredKnowledge()` server action.
+
+**Page principal:** `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` (~1200 lineas) - Contiene tabs Instructions + Knowledge Base con toda la logica de carga/guardado.
