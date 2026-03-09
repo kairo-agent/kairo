@@ -20,6 +20,7 @@ import { PricingForm } from '@/components/knowledge/PricingForm';
 import { LocationContactForm } from '@/components/knowledge/LocationContactForm';
 import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
+import { FlameIcon, SunIcon, SnowflakeIcon } from '@/components/icons/LeadIcons';
 import { toast } from 'sonner';
 import { DEFAULT_BUSINESS_HOURS, type BusinessHoursData } from '@/lib/knowledge/business-hours';
 import { DEFAULT_FAQS, type FAQsData } from '@/lib/knowledge/faqs';
@@ -776,19 +777,19 @@ export default function SettingsPageClient() {
 // ============================================
 
 function TemperatureCriteriaLevel({
-  level,
   label,
   help,
   placeholder,
-  color,
+  colorClass,
+  icon,
   criteria,
   onChange,
 }: {
-  level: string;
   label: string;
   help: string;
   placeholder: string;
-  color: string;
+  colorClass: string;
+  icon: React.ReactNode;
   criteria: string[];
   onChange: (criteria: string[]) => void;
 }) {
@@ -803,13 +804,13 @@ function TemperatureCriteriaLevel({
 
   return (
     <div className="rounded-lg border border-[var(--border-primary)] overflow-hidden">
-      <div className={cn('px-4 py-2.5 border-b border-[var(--border-primary)]', `bg-${color}/5`)}>
+      <div className="px-4 py-2.5 border-b border-[var(--border-primary)] bg-[var(--bg-secondary)]">
         <div className="flex items-center gap-2">
-          <span className={cn('w-2.5 h-2.5 rounded-full', `bg-${color}`)} />
+          <span className={colorClass}>{icon}</span>
           <span className="text-sm font-medium text-[var(--text-primary)]">{label}</span>
           <span className="text-xs text-[var(--text-tertiary)]">({criteria.length})</span>
         </div>
-        <p className="text-xs text-[var(--text-tertiary)] mt-0.5 ml-[18px]">{help}</p>
+        <p className="text-xs text-[var(--text-tertiary)] mt-0.5 ml-[24px]">{help}</p>
       </div>
       <div className="p-3 space-y-2">
         {/* Input */}
@@ -873,29 +874,29 @@ function TemperatureCriteriaSection({
 
       <div className="space-y-3 mt-3">
         <TemperatureCriteriaLevel
-          level="hot"
           label={t('instructions.temperatureHot')}
           help={t('instructions.temperatureHotHelp')}
           placeholder={t('instructions.temperatureHotPlaceholder')}
-          color="red-500"
+          colorClass="text-red-500"
+          icon={<FlameIcon className="w-4 h-4" />}
           criteria={criteria.hot}
           onChange={(hot) => onChange({ ...criteria, hot })}
         />
         <TemperatureCriteriaLevel
-          level="warm"
           label={t('instructions.temperatureWarm')}
           help={t('instructions.temperatureWarmHelp')}
           placeholder={t('instructions.temperatureWarmPlaceholder')}
-          color="orange-400"
+          colorClass="text-amber-500"
+          icon={<SunIcon className="w-4 h-4" />}
           criteria={criteria.warm}
           onChange={(warm) => onChange({ ...criteria, warm })}
         />
         <TemperatureCriteriaLevel
-          level="cold"
           label={t('instructions.temperatureCold')}
           help={t('instructions.temperatureColdHelp')}
           placeholder={t('instructions.temperatureColdPlaceholder')}
-          color="blue-400"
+          colorClass="text-blue-400"
+          icon={<SnowflakeIcon className="w-4 h-4" />}
           criteria={criteria.cold}
           onChange={(cold) => onChange({ ...criteria, cold })}
         />
