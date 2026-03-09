@@ -173,8 +173,11 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       ? (tempMatch[1].toLowerCase() as 'hot' | 'warm' | 'cold')
       : null;
 
-    // Clean message (remove temperature marker)
-    const cleanMessage = rawResponse.replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '').trim();
+    // Clean message (remove temperature marker - strict format + fallback for GPT variations)
+    const cleanMessage = rawResponse
+      .replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '')
+      .replace(/\n?\*{0,2}[Tt]emperatura\*{0,2}\s*:\s*.+$/gm, '')
+      .trim();
 
     if (!cleanMessage) {
       throw new Error('OpenAI returned empty response');
