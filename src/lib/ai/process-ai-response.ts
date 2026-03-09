@@ -111,15 +111,6 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       steps.push({ name: 'rag_search', duration: Date.now() - stepStart });
     }
 
-    // --- DEBUG: Log RAG results and instructions (TEMPORARY) ---
-    console.log(`[AI DEBUG] Query: "${userMessage.slice(0, 100)}"`);
-    console.log(`[AI DEBUG] RAG results: ${ragResults.length}`);
-    ragResults.forEach((r, i) => {
-      console.log(`[AI DEBUG] RAG[${i}] similarity=${r.similarity.toFixed(3)} title="${r.title}" content="${r.content.slice(0, 150)}..."`);
-    });
-    console.log(`[AI DEBUG] systemInstructions: ${params.systemInstructions ? params.systemInstructions.slice(0, 300) + '...' : 'NULL'}`);
-    console.log(`[AI DEBUG] agentId=${params.agentId} agentName=${params.agentName}`);
-
     // --- Step 3: Build system prompt ---
     const currentDate = new Date().toLocaleDateString('es-PE', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -143,9 +134,6 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       messageCount: params.messageCount,
       summaryThreshold: params.summaryThreshold,
     });
-
-    // --- DEBUG: Log full system prompt (TEMPORARY) ---
-    console.log(`[AI DEBUG] FULL SYSTEM PROMPT:\n${systemPrompt}`);
 
     // --- Step 4: Call OpenAI ---
     const stepOpenAI = Date.now();
@@ -178,9 +166,6 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       clearTimeout(timeout);
     }
     steps.push({ name: 'openai_chat', duration: Date.now() - stepOpenAI });
-
-    // --- DEBUG: Log raw GPT response (TEMPORARY) ---
-    console.log(`[AI DEBUG] RAW GPT RESPONSE:\n${rawResponse}`);
 
     // --- Step 5: Extract temperature ---
     const tempMatch = rawResponse.match(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/i);
