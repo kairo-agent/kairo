@@ -862,74 +862,49 @@ function TemperatureCriteriaSection({
   criteria: TemperatureCriteria;
   onChange: (criteria: TemperatureCriteria) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(
-    criteria.hot.length > 0 || criteria.warm.length > 0 || criteria.cold.length > 0
-  );
-
   const totalCriteria = criteria.hot.length + criteria.warm.length + criteria.cold.length;
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between py-2 group"
-      >
-        <div>
-          <span className="text-sm font-medium text-[var(--text-primary)]">
-            {t('instructions.temperature')}
-          </span>
-          {totalCriteria > 0 && (
-            <span className="ml-2 text-xs text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-full">
-              {totalCriteria} criterios
-            </span>
-          )}
-          <p className="text-xs text-[var(--text-tertiary)] text-left">{t('instructions.temperatureHelp')}</p>
-        </div>
-        <ChevronDownIcon
-          className={cn(
-            'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200 shrink-0',
-            isOpen && 'rotate-180'
-          )}
-        />
-      </button>
+      <label className="block text-sm font-medium text-[var(--text-primary)]">
+        {t('instructions.temperature')}
+      </label>
+      <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.temperatureHelp')}</p>
 
-      {isOpen && (
-        <div className="space-y-3 mt-2">
-          <TemperatureCriteriaLevel
-            level="hot"
-            label={t('instructions.temperatureHot')}
-            help={t('instructions.temperatureHotHelp')}
-            placeholder={t('instructions.temperatureHotPlaceholder')}
-            color="red-500"
-            criteria={criteria.hot}
-            onChange={(hot) => onChange({ ...criteria, hot })}
-          />
-          <TemperatureCriteriaLevel
-            level="warm"
-            label={t('instructions.temperatureWarm')}
-            help={t('instructions.temperatureWarmHelp')}
-            placeholder={t('instructions.temperatureWarmPlaceholder')}
-            color="orange-400"
-            criteria={criteria.warm}
-            onChange={(warm) => onChange({ ...criteria, warm })}
-          />
-          <TemperatureCriteriaLevel
-            level="cold"
-            label={t('instructions.temperatureCold')}
-            help={t('instructions.temperatureColdHelp')}
-            placeholder={t('instructions.temperatureColdPlaceholder')}
-            color="blue-400"
-            criteria={criteria.cold}
-            onChange={(cold) => onChange({ ...criteria, cold })}
-          />
-          {totalCriteria === 0 && (
-            <p className="text-xs text-[var(--text-tertiary)] text-center py-2">
-              {t('instructions.temperatureNoCriteria')}
-            </p>
-          )}
-        </div>
-      )}
+      <div className="space-y-3 mt-3">
+        <TemperatureCriteriaLevel
+          level="hot"
+          label={t('instructions.temperatureHot')}
+          help={t('instructions.temperatureHotHelp')}
+          placeholder={t('instructions.temperatureHotPlaceholder')}
+          color="red-500"
+          criteria={criteria.hot}
+          onChange={(hot) => onChange({ ...criteria, hot })}
+        />
+        <TemperatureCriteriaLevel
+          level="warm"
+          label={t('instructions.temperatureWarm')}
+          help={t('instructions.temperatureWarmHelp')}
+          placeholder={t('instructions.temperatureWarmPlaceholder')}
+          color="orange-400"
+          criteria={criteria.warm}
+          onChange={(warm) => onChange({ ...criteria, warm })}
+        />
+        <TemperatureCriteriaLevel
+          level="cold"
+          label={t('instructions.temperatureCold')}
+          help={t('instructions.temperatureColdHelp')}
+          placeholder={t('instructions.temperatureColdPlaceholder')}
+          color="blue-400"
+          criteria={criteria.cold}
+          onChange={(cold) => onChange({ ...criteria, cold })}
+        />
+        {totalCriteria === 0 && (
+          <p className="text-xs text-[var(--text-tertiary)] text-center py-2">
+            {t('instructions.temperatureNoCriteria')}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
