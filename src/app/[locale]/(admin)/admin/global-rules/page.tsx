@@ -146,7 +146,7 @@ export default function GlobalRulesPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <div className="p-2 rounded-lg bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]">

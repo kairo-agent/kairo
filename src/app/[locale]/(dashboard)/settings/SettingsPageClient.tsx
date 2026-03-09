@@ -441,7 +441,7 @@ export default function SettingsPageClient() {
   if (!selectedProject) {
     return (
       <div className="flex-1 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
+        <div>
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <FolderIcon className="text-[var(--text-tertiary)] mb-4" />
             <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-2">{t('noProject')}</h2>
@@ -458,7 +458,7 @@ export default function SettingsPageClient() {
   if (loadingAgents) {
     return (
       <div className="flex-1 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
+        <div>
           <div className="flex items-center justify-center py-20">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--accent-primary)]" />
           </div>
@@ -474,7 +474,7 @@ export default function SettingsPageClient() {
   if (agents.length === 0) {
     return (
       <div className="flex-1 p-4 sm:p-6 lg:p-8">
-        <div className="max-w-4xl mx-auto">
+        <div>
           <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-1">{t('title')}</h1>
           <p className="text-sm text-[var(--text-secondary)] mb-8">{t('subtitle')}</p>
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -511,7 +511,7 @@ export default function SettingsPageClient() {
 
   return (
     <div className="flex-1 p-4 sm:p-6 lg:p-8">
-      <div className="max-w-4xl mx-auto">
+      <div>
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-1">{t('title')}</h1>
