@@ -19,6 +19,7 @@ import { FAQsForm } from '@/components/knowledge/FAQsForm';
 import { PricingForm } from '@/components/knowledge/PricingForm';
 import { LocationContactForm } from '@/components/knowledge/LocationContactForm';
 import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
+import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { toast } from 'sonner';
 import { DEFAULT_BUSINESS_HOURS, type BusinessHoursData } from '@/lib/knowledge/business-hours';
 import { DEFAULT_FAQS, type FAQsData } from '@/lib/knowledge/faqs';
@@ -169,6 +170,9 @@ export default function SettingsPageClient() {
   // Additional instructions collapsible
   const [additionalOpen, setAdditionalOpen] = useState(false);
 
+  // Global rules (read-only, fetched from admin)
+  const [globalRules, setGlobalRules] = useState<string[]>([]);
+
   // Knowledge state
   const [structuredKnowledge, setStructuredKnowledge] = useState<StructuredKnowledgeMap>({});
   const [knowledgeEntries, setKnowledgeEntries] = useState<KnowledgeEntry[]>([]);
@@ -273,6 +277,11 @@ export default function SettingsPageClient() {
       setLoadingKnowledge(false);
     }
   }, [selectedAgent, selectedProject, tCommon]);
+
+  // Load global rules on mount (read-only, admin-managed)
+  useEffect(() => {
+    getActiveGlobalRules().then(setGlobalRules).catch(() => setGlobalRules([]));
+  }, []);
 
   // Load agents when project changes
   useEffect(() => {
@@ -613,6 +622,7 @@ export default function SettingsPageClient() {
             }}
             setEditingRuleText={setEditingRuleText}
             onClearAllRules={() => setShowClearRulesConfirm(true)}
+            globalRules={globalRules}
             additionalOpen={additionalOpen}
             setAdditionalOpen={setAdditionalOpen}
           />
@@ -787,6 +797,7 @@ interface InstructionsTabProps {
   onCancelEditRule: () => void;
   setEditingRuleText: (v: string) => void;
   onClearAllRules: () => void;
+  globalRules: string[];
   additionalOpen: boolean;
   setAdditionalOpen: (v: boolean) => void;
 }
@@ -813,9 +824,11 @@ function InstructionsTab({
   onCancelEditRule,
   setEditingRuleText,
   onClearAllRules,
+  globalRules,
   additionalOpen,
   setAdditionalOpen,
 }: InstructionsTabProps) {
+  const [globalRulesOpen, setGlobalRulesOpen] = useState(false);
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -856,6 +869,57 @@ function InstructionsTab({
           <p className="text-xs text-[var(--text-tertiary)]">{instructions.role.length}/1000</p>
         </div>
       </div>
+
+      {/* Global Rules (read-only, collapsible) */}
+      {globalRules.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setGlobalRulesOpen(!globalRulesOpen)}
+            className="w-full flex items-center justify-between py-2 group"
+          >
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-[var(--kairo-cyan)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-sm font-medium text-[var(--text-primary)]">
+                {t('instructions.globalRules')}
+              </span>
+              <span className="text-xs text-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 px-2 py-0.5 rounded-full">
+                {t('instructions.globalRulesCount', { count: globalRules.length.toString() })}
+              </span>
+            </div>
+            <svg
+              className={cn(
+                'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
+                globalRulesOpen && 'rotate-180'
+              )}
+              fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {globalRulesOpen && (
+            <div className="mt-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-tertiary)]/50 overflow-hidden">
+              <div className="divide-y divide-[var(--border-primary)]">
+                {globalRules.map((rule, index) => (
+                  <div key={index} className="flex items-start gap-3 px-4 py-2.5">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)] mt-0.5">
+                      {index + 1}
+                    </span>
+                    <span className="text-sm text-[var(--text-secondary)]">{rule}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="px-4 py-2 border-t border-[var(--border-primary)] bg-[var(--bg-tertiary)]">
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  {t('instructions.globalRulesReadonly')}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Rules */}
       <div>
