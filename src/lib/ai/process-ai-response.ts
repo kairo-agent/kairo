@@ -457,7 +457,7 @@ async function searchRAG(
       p_project_id: projectId,
       p_query_embedding: embeddingStr,
       p_match_count: 5,
-      p_match_threshold: 0.5,
+      p_match_threshold: 0.35,
     });
 
     if (error) {

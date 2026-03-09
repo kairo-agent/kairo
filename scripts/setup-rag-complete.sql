@@ -3,7 +3,7 @@
 -- Run this in Supabase SQL Editor
 -- ============================================
 --
--- ⛔⛔⛔ ADVERTENCIA CRÍTICA ⛔⛔⛔
+-- [CRITICAL WARNING] ADVERTENCIA CRITICA [CRITICAL WARNING]
 --
 -- Esta tabla NO está en prisma/schema.prisma porque usa pgvector (VECTOR type).
 --
@@ -133,11 +133,11 @@ CREATE OR REPLACE FUNCTION search_agent_knowledge(
   p_project_id TEXT,
   p_query_embedding TEXT,
   p_match_count INT DEFAULT 5,
-  p_match_threshold FLOAT DEFAULT 0.7
+  p_match_threshold FLOAT DEFAULT 0.35
 )
 RETURNS TABLE (id UUID, content TEXT, title VARCHAR(255), source VARCHAR(100), similarity FLOAT)
 LANGUAGE plpgsql
-SECURITY INVOKER
+SECURITY DEFINER
 AS $$
 BEGIN
   RETURN QUERY
@@ -152,7 +152,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION search_agent_knowledge TO authenticated;
+GRANT EXECUTE ON FUNCTION search_agent_knowledge TO authenticated, anon;
 
 -- Function to delete agent knowledge
 CREATE OR REPLACE FUNCTION delete_agent_knowledge(
