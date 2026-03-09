@@ -39,7 +39,7 @@
 | Documento | Contenido clave |
 |-----------|----------------|
 | [PERFORMANCE.md](PERFORMANCE.md) | Phases 1-3 completadas, React cache(), cursor pagination, React Query |
-| [CHANGELOG.md](CHANGELOG.md) | Historial completo, estado MVP, business decisions, v0.7.12 plan |
+| [CHANGELOG.md](CHANGELOG.md) | Ultimas 5 versiones (v0.8.0+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md) |
 
 ### Brand
 | Documento | Contenido clave |
@@ -56,6 +56,7 @@
 | Como funciona el RAG | [RAG-AGENTS.md](RAG-AGENTS.md) |
 | RAG multilingue / cross-language | [RAG-AGENTS.md](RAG-AGENTS.md) seccion "Soporte Multilingue" |
 | Configuracion de agentes (Settings) | [CHANGELOG.md](CHANGELOG.md) seccion v0.9.0 |
+| Global Rules (reglas para todos los agentes) | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Global Rules" + [CHANGELOG.md](CHANGELOG.md) seccion v0.9.1 |
 | Knowledge Base estructurada | [RAG-AGENTS.md](RAG-AGENTS.md) + [COMPONENTS.md](COMPONENTS.md) seccion "Knowledge Base" |
 | Roles y permisos | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Multi-tenant" |
 | Estado actual del MVP | [CHANGELOG.md](CHANGELOG.md) version mas reciente |

@@ -31,6 +31,7 @@ src/
 │   │       ├── page.tsx               # Server component
 │   │       └── SettingsPageClient.tsx  # Instructions + Knowledge Base tabs
 │   ├── [locale]/(admin)/admin/        # Panel admin (super_admin only)
+│   │   └── global-rules/             # CRUD reglas globales (v0.9.1)
 │   ├── [locale]/select-workspace/     # Selector org/project
 │   └── api/
 │       ├── ai/respond/                # Guardar + enviar WhatsApp
@@ -223,6 +224,29 @@ function MyComponent() {
 1. **Moneda**: `formatCurrency()` usa PEN/es-PE fijo (ver I18N.md para futuro)
 2. **Fechas**: `formatDate()` usa es-PE fijo
 3. **Nuevos componentes**: Siempre usar `useTranslations`, nunca hardcodear texto
+
+---
+
+## Global Rules (v0.9.1)
+
+Super admins pueden crear reglas globales que se aplican a TODOS los agentes de todos los proyectos.
+
+```
+GlobalRule (super_admin only)
+  ├── content: Text
+  ├── order: Int
+  └── isActive: Boolean
+
+Inyeccion en system prompt (antes de reglas del agente):
+=== REGLAS GLOBALES (OBLIGATORIAS) ===
+1. [regla global 1]
+2. [regla global 2]
+```
+
+**Admin UI:** `/admin/global-rules` (full-width, solo super_admin)
+**Settings:** Vista read-only de reglas globales activas antes de reglas del agente
+
+Ver [CHANGELOG.md](CHANGELOG.md) seccion v0.9.1 para detalle completo.
 
 ---
 

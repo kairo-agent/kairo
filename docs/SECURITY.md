@@ -12,6 +12,7 @@ KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) sigui
 
 | Version | Fecha | Mejoras Clave |
 |---------|-------|---------------|
+| **v0.9.1** | 2026-03-09 | RAG search SECURITY DEFINER fix, fbsbx.com a CDN whitelist, Global Rules anti-injection delimiters |
 | **v0.8.2** | 2026-02-20 | Per-project App Secret: HMAC multi-tenant, smart fallback, HMAC failure rate limiting |
 | **v0.8.1** | 2026-02-15 | Security Audit v2: 19 hallazgos (dedup, body limit, prompt injection, contact sanitization, cache limits, audio validation, per-project AI rate limit, log masking, timing-safe verify) |
 | **v0.7.8** | 2026-01-31 | Redis para rate limiting, headers OWASP adicionales (LOW) |
@@ -221,7 +222,7 @@ Nombres de contactos WhatsApp pueden contener emojis, HTML malicioso, o ser solo
 Audio descargado de WhatsApp para transcripcion se valida antes de procesar:
 - Tamano maximo: 10MB (WhatsApp permite hasta 16MB)
 - MIME whitelist: `audio/ogg`, `audio/opus`, `audio/mpeg`, `audio/mp4`, `audio/wav`, `audio/webm`
-- Hostname check: solo URLs de `*.fbcdn.net` o `*.facebook.com`
+- Hostname check: solo URLs de `*.fbcdn.net`, `*.facebook.com` o `*.fbsbx.com` (3 dominios Facebook CDN)
 
 **Archivo:** `src/lib/ai/process-ai-response.ts` - funcion `transcribeAudio()`
 
