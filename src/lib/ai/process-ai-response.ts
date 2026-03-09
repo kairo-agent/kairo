@@ -345,7 +345,7 @@ async function transcribeAudio(
     // Validate media URL hostname (must be Facebook CDN)
     try {
       const mediaUrl = new URL(mediaInfo.url);
-      if (!mediaUrl.hostname.endsWith('.fbcdn.net') && !mediaUrl.hostname.endsWith('.facebook.com')) {
+      if (!mediaUrl.hostname.endsWith('.fbcdn.net') && !mediaUrl.hostname.endsWith('.facebook.com') && !mediaUrl.hostname.endsWith('.fbsbx.com')) {
         console.warn(`[AI Pipeline] Suspicious media URL hostname: ${mediaUrl.hostname}`);
         return null;
       }
