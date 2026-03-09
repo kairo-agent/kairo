@@ -54,12 +54,6 @@ const ShieldIcon = () => (
 );
 
 // ============================================
-// Constants
-// ============================================
-
-const MAX_RULES = 20;
-
-// ============================================
 // Component
 // ============================================
 
@@ -171,12 +165,11 @@ export default function GlobalRulesPage() {
             onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
             placeholder={t('placeholder')}
             maxLength={500}
-            disabled={rules.length >= MAX_RULES}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)]/50 focus:border-[var(--kairo-cyan)] disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)]/50 focus:border-[var(--kairo-cyan)]"
           />
           <button
             onClick={handleAdd}
-            disabled={!newRule.trim() || saving || rules.length >= MAX_RULES}
+            disabled={!newRule.trim() || saving}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--kairo-cyan)] text-white text-sm font-medium hover:bg-[var(--kairo-cyan)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <PlusIcon />
@@ -185,7 +178,7 @@ export default function GlobalRulesPage() {
         </div>
         <div className="flex justify-between mt-2">
           <span className="text-xs text-[var(--text-muted)]">
-            {rules.length}/{MAX_RULES} {t('maxRules', { max: MAX_RULES.toString() })}
+            {rules.length} {rules.length === 1 ? 'regla' : 'reglas'}
           </span>
         </div>
       </Card>
