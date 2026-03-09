@@ -99,13 +99,25 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
 
   // --- Temperature scoring instruction (if threshold met) ---
   if (params.messageCount >= params.summaryThreshold) {
-    parts.push(
-      `INSTRUCCION INTERNA (NO mostrar al usuario): Al final de tu respuesta, agrega en una linea aparte un marcador con este formato EXACTO:\n` +
-      `[TEMPERATURA: HOT] si el lead muestra alta intencion de compra\n` +
-      `[TEMPERATURA: WARM] si muestra interes moderado\n` +
-      `[TEMPERATURA: COLD] si solo pregunta sin intencion clara\n` +
-      `Este marcador sera removido automaticamente antes de enviar el mensaje. NO uses otro formato.`
-    );
+    // Check if custom criteria exist in systemInstructions (composed from promptStructure)
+    const hasCustomCriteria = params.systemInstructions?.includes('LEAD QUALIFICATION CRITERIA:');
+
+    if (hasCustomCriteria) {
+      parts.push(
+        `INSTRUCCION INTERNA (NO mostrar al usuario): Al final de tu respuesta, agrega en una linea aparte un marcador con este formato EXACTO:\n` +
+        `[TEMPERATURA: HOT] o [TEMPERATURA: WARM] o [TEMPERATURA: COLD]\n` +
+        `Usa los criterios de calificacion de leads definidos en tus instrucciones (LEAD QUALIFICATION CRITERIA) para decidir.\n` +
+        `Este marcador sera removido automaticamente antes de enviar el mensaje. NO uses otro formato.`
+      );
+    } else {
+      parts.push(
+        `INSTRUCCION INTERNA (NO mostrar al usuario): Al final de tu respuesta, agrega en una linea aparte un marcador con este formato EXACTO:\n` +
+        `[TEMPERATURA: HOT] si el lead muestra alta intencion de compra\n` +
+        `[TEMPERATURA: WARM] si muestra interes moderado\n` +
+        `[TEMPERATURA: COLD] si solo pregunta sin intencion clara\n` +
+        `Este marcador sera removido automaticamente antes de enviar el mensaje. NO uses otro formato.`
+      );
+    }
   }
 
   return parts.join('\n\n');

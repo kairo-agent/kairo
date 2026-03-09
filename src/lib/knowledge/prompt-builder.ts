@@ -9,18 +9,38 @@ import { z } from 'zod';
 
 // --- Types ---
 
+export interface TemperatureCriteria {
+  hot: string[];
+  warm: string[];
+  cold: string[];
+}
+
 export interface PromptStructure {
   agentName: string;
   role: string;
   rules: string[];
+  temperatureCriteria: TemperatureCriteria;
   personality: string;
   additionalInstructions: string;
 }
+
+export const temperatureCriteriaSchema = z.object({
+  hot: z.array(z.string().max(300)).max(20).default([]),
+  warm: z.array(z.string().max(300)).max(20).default([]),
+  cold: z.array(z.string().max(300)).max(20).default([]),
+});
+
+export const DEFAULT_TEMPERATURE_CRITERIA: TemperatureCriteria = {
+  hot: [],
+  warm: [],
+  cold: [],
+};
 
 export const promptStructureSchema = z.object({
   agentName: z.string().max(100).default('Kaira'),
   role: z.string().max(1000).default(''),
   rules: z.array(z.string().max(500)).max(50).default([]),
+  temperatureCriteria: temperatureCriteriaSchema.default({ hot: [], warm: [], cold: [] }),
   personality: z.string().max(1000).default(''),
   additionalInstructions: z.string().max(2000).default(''),
 });
@@ -31,6 +51,7 @@ export const EMPTY_PROMPT_STRUCTURE: PromptStructure = {
   agentName: DEFAULT_AGENT_NAME,
   role: '',
   rules: [],
+  temperatureCriteria: { ...DEFAULT_TEMPERATURE_CRITERIA },
   personality: '',
   additionalInstructions: '',
 };
@@ -58,6 +79,22 @@ export function composeSystemPrompt(structure: PromptStructure): string | null {
     if (ruleLines) {
       sections.push(`RULES:\n${ruleLines}`);
     }
+  }
+
+  // Temperature criteria (only if at least one level has criteria)
+  const tc = structure.temperatureCriteria;
+  if (tc && (tc.hot.length > 0 || tc.warm.length > 0 || tc.cold.length > 0)) {
+    const levels: string[] = [];
+    if (tc.hot.length > 0) {
+      levels.push(`HOT (High potential):\n${tc.hot.map(c => `- ${c}`).join('\n')}`);
+    }
+    if (tc.warm.length > 0) {
+      levels.push(`WARM (Medium potential):\n${tc.warm.map(c => `- ${c}`).join('\n')}`);
+    }
+    if (tc.cold.length > 0) {
+      levels.push(`COLD (Low potential):\n${tc.cold.map(c => `- ${c}`).join('\n')}`);
+    }
+    sections.push(`LEAD QUALIFICATION CRITERIA:\n${levels.join('\n\n')}`);
   }
 
   if (structure.personality.trim()) {

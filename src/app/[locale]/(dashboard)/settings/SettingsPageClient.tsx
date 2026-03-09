@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal, AlertModal } from '@/components/ui/Modal';
 import { getProjectAgents, saveAgentInstructions, getAgentInstructions } from '@/lib/actions/agents';
 import { getAllStructuredKnowledge, upsertStructuredKnowledge, addAgentKnowledge, listAgentKnowledge, deleteAgentKnowledge } from '@/lib/actions/knowledge';
-import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
+import type { PromptStructure, TemperatureCriteria } from '@/lib/knowledge/prompt-builder';
 import { EMPTY_PROMPT_STRUCTURE } from '@/lib/knowledge/prompt-builder';
 import type { AIAgentData } from '@/lib/actions/agents';
 import type { KnowledgeEntry } from '@/lib/actions/knowledge';
@@ -772,6 +772,169 @@ export default function SettingsPageClient() {
 }
 
 // ============================================
+// Temperature Criteria Section
+// ============================================
+
+function TemperatureCriteriaLevel({
+  level,
+  label,
+  help,
+  placeholder,
+  color,
+  criteria,
+  onChange,
+}: {
+  level: string;
+  label: string;
+  help: string;
+  placeholder: string;
+  color: string;
+  criteria: string[];
+  onChange: (criteria: string[]) => void;
+}) {
+  const [newCriteria, setNewCriteria] = useState('');
+
+  const handleAdd = () => {
+    const trimmed = newCriteria.trim();
+    if (!trimmed || criteria.length >= 20) return;
+    onChange([...criteria, trimmed]);
+    setNewCriteria('');
+  };
+
+  return (
+    <div className="rounded-lg border border-[var(--border-primary)] overflow-hidden">
+      <div className={cn('px-4 py-2.5 border-b border-[var(--border-primary)]', `bg-${color}/5`)}>
+        <div className="flex items-center gap-2">
+          <span className={cn('w-2.5 h-2.5 rounded-full', `bg-${color}`)} />
+          <span className="text-sm font-medium text-[var(--text-primary)]">{label}</span>
+          <span className="text-xs text-[var(--text-tertiary)]">({criteria.length})</span>
+        </div>
+        <p className="text-xs text-[var(--text-tertiary)] mt-0.5 ml-[18px]">{help}</p>
+      </div>
+      <div className="p-3 space-y-2">
+        {/* Input */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newCriteria}
+            onChange={(e) => setNewCriteria(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
+            placeholder={placeholder}
+            maxLength={300}
+            className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+          />
+          <button
+            onClick={handleAdd}
+            disabled={!newCriteria.trim() || criteria.length >= 20}
+            className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <PlusIcon />
+          </button>
+        </div>
+        {/* List */}
+        {criteria.length > 0 && (
+          <div className="space-y-1">
+            {criteria.map((c, i) => (
+              <div key={i} className="flex items-center gap-2 group px-2 py-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors">
+                <span className="text-xs text-[var(--text-tertiary)] w-4 text-center">{i + 1}</span>
+                <span className="flex-1 text-sm text-[var(--text-primary)]">{c}</span>
+                <button
+                  onClick={() => onChange(criteria.filter((_, idx) => idx !== i))}
+                  className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] opacity-0 group-hover:opacity-100 transition-all"
+                >
+                  <XIcon />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TemperatureCriteriaSection({
+  t,
+  criteria,
+  onChange,
+}: {
+  t: ReturnType<typeof useTranslations>;
+  criteria: TemperatureCriteria;
+  onChange: (criteria: TemperatureCriteria) => void;
+}) {
+  const [isOpen, setIsOpen] = useState(
+    criteria.hot.length > 0 || criteria.warm.length > 0 || criteria.cold.length > 0
+  );
+
+  const totalCriteria = criteria.hot.length + criteria.warm.length + criteria.cold.length;
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between py-2 group"
+      >
+        <div>
+          <span className="text-sm font-medium text-[var(--text-primary)]">
+            {t('instructions.temperature')}
+          </span>
+          {totalCriteria > 0 && (
+            <span className="ml-2 text-xs text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-full">
+              {totalCriteria} criterios
+            </span>
+          )}
+          <p className="text-xs text-[var(--text-tertiary)] text-left">{t('instructions.temperatureHelp')}</p>
+        </div>
+        <ChevronDownIcon
+          className={cn(
+            'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200 shrink-0',
+            isOpen && 'rotate-180'
+          )}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="space-y-3 mt-2">
+          <TemperatureCriteriaLevel
+            level="hot"
+            label={t('instructions.temperatureHot')}
+            help={t('instructions.temperatureHotHelp')}
+            placeholder={t('instructions.temperatureHotPlaceholder')}
+            color="red-500"
+            criteria={criteria.hot}
+            onChange={(hot) => onChange({ ...criteria, hot })}
+          />
+          <TemperatureCriteriaLevel
+            level="warm"
+            label={t('instructions.temperatureWarm')}
+            help={t('instructions.temperatureWarmHelp')}
+            placeholder={t('instructions.temperatureWarmPlaceholder')}
+            color="orange-400"
+            criteria={criteria.warm}
+            onChange={(warm) => onChange({ ...criteria, warm })}
+          />
+          <TemperatureCriteriaLevel
+            level="cold"
+            label={t('instructions.temperatureCold')}
+            help={t('instructions.temperatureColdHelp')}
+            placeholder={t('instructions.temperatureColdPlaceholder')}
+            color="blue-400"
+            criteria={criteria.cold}
+            onChange={(cold) => onChange({ ...criteria, cold })}
+          />
+          {totalCriteria === 0 && (
+            <p className="text-xs text-[var(--text-tertiary)] text-center py-2">
+              {t('instructions.temperatureNoCriteria')}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
 // Instructions Tab
 // ============================================
 
@@ -1056,6 +1219,13 @@ function InstructionsTab({
           </p>
         )}
       </div>
+
+      {/* Temperature Criteria */}
+      <TemperatureCriteriaSection
+        t={t}
+        criteria={instructions.temperatureCriteria || { hot: [], warm: [], cold: [] }}
+        onChange={(criteria) => setInstructions((prev) => ({ ...prev, temperatureCriteria: criteria }))}
+      />
 
       {/* Personality */}
       <div>
