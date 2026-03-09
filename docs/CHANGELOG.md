@@ -1,5 +1,53 @@
 # KAIRO - Changelog
 
+## [0.9.1] - 2026-03-09
+
+### RAG Search Fix - SECURITY DEFINER + Threshold Optimization
+
+**Bug critico**: RAG search retornaba 0 resultados en produccion. El bot inventaba datos (ubicacion, redes sociales, telefonos) en lugar de usar el Knowledge Base.
+
+**Causa raiz (cadena de 3 problemas):**
+
+| # | Problema | Efecto |
+|---|---------|--------|
+| 1 | `search_agent_knowledge` usaba `SECURITY INVOKER` (unica RPC sin migrar) | RLS se aplica al caller |
+| 2 | Webhook WhatsApp no tiene sesion de usuario (anon key, sin cookies) | RLS evalua como usuario anonimo |
+| 3 | RLS policies referencian `pm.project_id` pero columna real es `pm."projectId"` | RLS filtra silenciosamente TODOS los rows |
+
+**Resultado**: GPT nunca recibia datos del KB -> inventaba respuestas -> datos falsos se guardaban en lead summary -> se auto-reforzaban via historial.
+
+**Fix aplicado:**
+
+| Cambio | Archivo | Detalle |
+|--------|---------|---------|
+| RPC a SECURITY DEFINER | `search_agent_knowledge` (SQL) | Bypasea RLS rota, consistente con insert/list/delete |
+| GRANT a anon | RPC search | Webhook context sin sesion puede ejecutar la funcion |
+| Threshold 0.5 -> 0.35 | `process-ai-response.ts` | Alineado con ChatFlow360 (probado en produccion) |
+| Threshold default 0.7 -> 0.35 | RPC SQL + setup script | Default mas permisivo para mejor recall |
+
+**Fixes adicionales (misma sesion):**
+
+| Fix | Archivo | Detalle |
+|-----|---------|---------|
+| Temperatura visible al usuario | `build-system-prompt.ts` | GPT usaba formato libre `*Temperatura*: texto` en vez de `[TEMPERATURA: HOT]`. Fix: instruccion explicita del formato + regex fallback en `process-ai-response.ts` |
+| Emoji en setup SQL | `scripts/setup-rag-complete.sql` | Pre-commit hook bloqueaba por emojis above-BMP |
+
+**Migracion SQL:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `prisma/migrations/20260309_fix_search_knowledge_rpc/migration.sql` | DROP + CREATE con SECURITY DEFINER, threshold 0.35, GRANT authenticated + anon |
+
+**Patron obligatorio (actualizado):**
+
+> TODAS las operaciones sobre `agent_knowledge` (INSERT, SELECT, UPDATE, DELETE, **SEARCH**) DEBEN usar RPCs SECURITY DEFINER.
+> Nunca usar SECURITY INVOKER ni queries directas con anon key.
+> Threshold RAG: **0.35** (no 0.5 ni 0.7).
+
+**Verificacion E2E**: Bot respondio con datos exactos del KB (direccion, telefono, email, redes sociales con URLs correctas, politicas, precios).
+
+---
+
 ## [0.9.0] - 2026-03-07
 
 ### Settings / Configuration Page + Structured Knowledge Base
@@ -103,7 +151,7 @@ Cada seccion: Zod validation -> compose bilingual text -> OpenAI embedding (text
 | Knowledge no cargaba tras reload | `.select()` via anon client con RLS SELECT policy rota (`project_id` vs `"projectId"`) | Cambiado a RPC `list_agent_knowledge` |
 | Duplicate key constraint en upsert | `.delete()` via anon client con RLS DELETE policy rota | DELETE movido dentro del RPC (atomico) |
 
-**Leccion clave:** Todas las operaciones CRUD sobre `agent_knowledge` DEBEN usar RPCs SECURITY DEFINER. Las RLS policies existentes referencian `pm.project_id` pero la columna real es `pm."projectId"` (camelCase de Prisma), causando fallos silenciosos.
+**Leccion clave:** Todas las operaciones sobre `agent_knowledge` (CRUD + SEARCH) DEBEN usar RPCs SECURITY DEFINER. Las RLS policies referencian `pm.project_id` pero la columna real es `pm."projectId"` (Prisma camelCase), causando fallos silenciosos. Ver v0.9.1 para el fix de search que quedo pendiente.
 
 ---
 

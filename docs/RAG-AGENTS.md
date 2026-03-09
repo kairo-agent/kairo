@@ -1,10 +1,16 @@
 # RAG para Agentes IA - Plan de Implementación
 
 > **Estado:** [OK] COMPLETADO Y VERIFICADO - Fases 1-4 + Temperature Scoring + Memoria + Lead Summary + Structured Knowledge
-> **Fecha de planificación:** 2026-01-25
-> **Última actualización:** 2026-03-07
+> **Fecha de planificacion:** 2026-01-25
+> **Ultima actualizacion:** 2026-03-09
 > **Logro:** Flujo RAG completo + HOT/WARM/COLD + Historial 8 msgs + Summary + 5 secciones estructuradas + RAG free-text UI
-> **Verificación:** 7 Mar 2026 - E2E testing via WhatsApp: 11 tests passed (todas las secciones KB)
+> **Verificacion:** 9 Mar 2026 - RAG fix (SECURITY DEFINER + threshold 0.35) verificado E2E con datos exactos del KB
+>
+> **REGLA CRITICA RAG:**
+> - Todas las RPCs de `agent_knowledge` DEBEN ser `SECURITY DEFINER` (nunca INVOKER)
+> - Threshold de busqueda: **0.35** (probado en produccion, alineado con ChatFlow360)
+> - El webhook WhatsApp ejecuta sin sesion (anon key) -> SECURITY INVOKER = 0 resultados silenciosos
+> - Ver [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) para tabla completa de RPCs
 
 ---
 

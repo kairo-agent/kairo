@@ -125,22 +125,25 @@ CREATE TABLE IF NOT EXISTS agent_knowledge (
 
 Todas las funciones usan `SECURITY DEFINER` para bypassear RLS:
 
-| RPC | Params | Retorna | Proposito |
-|-----|--------|---------|-----------|
-| `insert_agent_knowledge` | 12 params (project_id, agent_id, title, content, source, source_url, metadata, chunk_index, embedding, created_by, category, structured_data) | `TABLE (id UUID)` | Insert con upsert atomico: DELETE existente por category + INSERT nuevo |
-| `list_agent_knowledge` | agent_id, project_id | `TABLE (id, title, content, source, source_url, chunk_index, category, structured_data, created_at, updated_at)` | Listar todo el conocimiento de un agente |
-| `delete_agent_knowledge` | knowledge_id | `INT` (count) | Eliminar entrada individual por ID |
-| `delete_structured_knowledge` | agent_id, project_id, category | `INT` (count) | Eliminar conocimiento estructurado por categoria (protege free_text) |
-| `search_agent_knowledge` | query_embedding, agent_id, project_id, match_threshold, match_count | `TABLE (id, content, title, source, similarity)` | Busqueda semantica por similitud vectorial |
+> **REGLA CRITICA:** TODAS las operaciones sobre `agent_knowledge` (INSERT, SELECT, DELETE, **SEARCH**) DEBEN usar RPCs SECURITY DEFINER. Nunca usar SECURITY INVOKER ni queries directas con anon key. Las RLS policies referencian `pm.project_id` pero la columna real es `pm."projectId"` (Prisma camelCase), causando fallos silenciosos que retornan 0 rows sin error.
 
-**Migraciones SQL (v0.9.0):**
+| RPC | Security | Params | Retorna | Proposito |
+|-----|----------|--------|---------|-----------|
+| `insert_agent_knowledge` | DEFINER | 12 params (project_id, agent_id, title, content, source, source_url, metadata, chunk_index, embedding, created_by, category, structured_data) | `TABLE (id UUID)` | Insert con upsert atomico: DELETE existente por category + INSERT nuevo |
+| `list_agent_knowledge` | DEFINER | agent_id, project_id | `TABLE (id, title, content, source, source_url, chunk_index, category, structured_data, created_at, updated_at)` | Listar todo el conocimiento de un agente |
+| `delete_agent_knowledge` | DEFINER | knowledge_id | `INT` (count) | Eliminar entrada individual por ID |
+| `delete_structured_knowledge` | DEFINER | agent_id, project_id, category | `INT` (count) | Eliminar conocimiento estructurado por categoria (protege free_text) |
+| `search_agent_knowledge` | DEFINER | query_embedding, agent_id, project_id, match_threshold (default 0.35), match_count | `TABLE (id, content, title, source, similarity)` | Busqueda semantica por similitud vectorial. Threshold 0.35 (no 0.5 ni 0.7) |
 
-| Archivo | Cambio |
-|---------|--------|
-| `prisma/migrations/20260306_add_prompt_structure/migration.sql` | `category VARCHAR(50)` + `structured_data JSONB` en agent_knowledge, indice unico |
-| `prisma/migrations/20260306_update_insert_knowledge_rpc/migration.sql` | RPC actualizado con 12 params + upsert atomico |
-| `prisma/migrations/20260306_update_list_knowledge_rpc/migration.sql` | RPC actualizado con category + structured_data |
-| `prisma/migrations/20260306_delete_structured_knowledge_rpc/migration.sql` | Nuevo RPC delete por categoria |
+**Migraciones SQL:**
+
+| Archivo | Version | Cambio |
+|---------|---------|--------|
+| `20260306_add_prompt_structure/migration.sql` | v0.9.0 | `category VARCHAR(50)` + `structured_data JSONB` en agent_knowledge, indice unico |
+| `20260306_update_insert_knowledge_rpc/migration.sql` | v0.9.0 | RPC actualizado con 12 params + upsert atomico |
+| `20260306_update_list_knowledge_rpc/migration.sql` | v0.9.0 | RPC actualizado con category + structured_data |
+| `20260306_delete_structured_knowledge_rpc/migration.sql` | v0.9.0 | Nuevo RPC delete por categoria |
+| `20260309_fix_search_knowledge_rpc/migration.sql` | v0.9.1 | search_agent_knowledge: INVOKER -> DEFINER, threshold 0.7 -> 0.35, GRANT anon |
 
 ---
 
