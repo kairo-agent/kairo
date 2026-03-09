@@ -429,7 +429,22 @@
       "organizations": "Organizaciones",
       "projects": "Proyectos",
       "users": "Usuarios",
+      "globalRules": "Reglas Globales",
       "backToDashboard": "Volver al Dashboard"
+    },
+    "globalRules": {
+      "title": "Reglas Globales",
+      "description": "Reglas que se aplican a TODOS los agentes de todos los proyectos. No pueden ser modificadas por los usuarios.",
+      "placeholder": "Escribe una regla...",
+      "add": "Agregar regla",
+      "empty": "No hay reglas globales configuradas. Agrega reglas para controlar el comportamiento de todos los agentes.",
+      "active": "Activa",
+      "inactive": "Inactiva",
+      "confirmDelete": "Eliminar esta regla afectara a todos los agentes. Continuar?",
+      "maxRules": "maximo {max} reglas",
+      "saved": "Regla guardada",
+      "deleted": "Regla eliminada",
+      "error": "Error al procesar la regla"
     },
     "modals": {
       "timezone": "Zona horaria",

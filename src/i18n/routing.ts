@@ -33,6 +33,7 @@ export const routing = defineRouting({
     '/admin/organizations': '/admin/organizations',
     '/admin/projects': '/admin/projects',
     '/admin/users': '/admin/users',
+    '/admin/global-rules': '/admin/global-rules',
   }
 });
 

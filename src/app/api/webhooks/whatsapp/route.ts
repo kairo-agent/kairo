@@ -25,6 +25,7 @@ import { getProjectSecret } from '@/lib/actions/secrets';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { processAIResponse } from '@/lib/ai/process-ai-response';
+import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
 import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
 
@@ -891,11 +892,14 @@ async function handleIncomingMessage(
         }));
     }
 
-    // Get project name for company context
-    const project = await prisma.project.findUnique({
-      where: { id: projectId },
-      select: { name: true },
-    });
+    // Get project name + global rules in parallel
+    const [project, globalRules] = await Promise.all([
+      prisma.project.findUnique({
+        where: { id: projectId },
+        select: { name: true },
+      }),
+      getActiveGlobalRules(),
+    ]);
 
     // Fire-and-forget: process AI response in background
     // waitUntil keeps the serverless function alive after response is sent
@@ -912,6 +916,7 @@ async function handleIncomingMessage(
         mediaId,
         agentId: lead.assignedAgent?.id || null,
         agentName: (lead.assignedAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() || DEFAULT_AGENT_NAME,
+        globalRules,
         systemInstructions: lead.assignedAgent?.systemInstructions || null,
         companyName: project?.name || 'KAIRO',
         conversationHistory,

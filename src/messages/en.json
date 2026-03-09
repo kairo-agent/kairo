@@ -429,7 +429,22 @@
       "organizations": "Organizations",
       "projects": "Projects",
       "users": "Users",
+      "globalRules": "Global Rules",
       "backToDashboard": "Back to Dashboard"
+    },
+    "globalRules": {
+      "title": "Global Rules",
+      "description": "Rules applied to ALL agents across all projects. Cannot be modified by users.",
+      "placeholder": "Write a rule...",
+      "add": "Add rule",
+      "empty": "No global rules configured. Add rules to control the behavior of all agents.",
+      "active": "Active",
+      "inactive": "Inactive",
+      "confirmDelete": "Deleting this rule will affect all agents. Continue?",
+      "maxRules": "maximum {max} rules",
+      "saved": "Rule saved",
+      "deleted": "Rule deleted",
+      "error": "Error processing rule"
     },
     "modals": {
       "timezone": "Timezone",

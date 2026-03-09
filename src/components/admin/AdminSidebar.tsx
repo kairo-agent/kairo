@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useTheme } from '@/contexts/ThemeContext';
+import { usePathname } from 'next/navigation';
 import { Link } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
@@ -18,6 +19,12 @@ const OverviewIcon = () => (
   </svg>
 );
 
+const GlobalRulesIcon = () => (
+  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+  </svg>
+);
+
 const BackIcon = () => (
   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -27,8 +34,15 @@ const BackIcon = () => (
 export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
   const { theme } = useTheme();
   const t = useTranslations('admin');
+  const pathname = usePathname();
 
   const logoSrc = theme === 'dark' ? '/images/logo-main.png' : '/images/logo-oscuro.png';
+
+  const isActive = (path: string) => {
+    const cleanPath = pathname.replace(/^\/(es|en)/, '');
+    if (path === '/admin') return cleanPath === '/admin';
+    return cleanPath.startsWith(path);
+  };
 
   return (
     <>
@@ -66,15 +80,33 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
           </Link>
         </div>
 
-        {/* Navigation - Solo Overview */}
+        {/* Navigation */}
         <nav className="p-4 space-y-1">
           <Link
             href="/admin"
             onClick={onClose}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]"
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              isActive('/admin') && !isActive('/admin/global-rules')
+                ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+            )}
           >
             <OverviewIcon />
             {t('nav.overview')}
+          </Link>
+          <Link
+            href="/admin/global-rules"
+            onClick={onClose}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              isActive('/admin/global-rules')
+                ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+            )}
+          >
+            <GlobalRulesIcon />
+            {t('nav.globalRules')}
           </Link>
         </nav>
 

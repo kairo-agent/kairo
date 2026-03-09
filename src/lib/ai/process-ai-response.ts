@@ -32,6 +32,7 @@ export interface AIProcessParams {
   mediaId: string | null;
   agentId: string | null;
   agentName: string;
+  globalRules: string[];
   systemInstructions: string | null;
   companyName: string;
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
@@ -124,6 +125,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const systemPrompt = buildSystemPrompt({
       agentName: params.agentName,
       companyName: params.companyName,
+      globalRules: params.globalRules,
       systemInstructions: params.systemInstructions,
       ragResults,
       conversationHistory: params.conversationHistory,

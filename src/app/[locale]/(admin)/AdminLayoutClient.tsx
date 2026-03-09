@@ -42,6 +42,7 @@ function AdminLayoutContent({ children, user }: AdminLayoutClientProps) {
       '/admin/organizations': t('organizations.title'),
       '/admin/projects': t('projects.title'),
       '/admin/users': t('users.title'),
+      '/admin/global-rules': t('globalRules.title'),
     };
 
     if (titles[cleanPath]) {
