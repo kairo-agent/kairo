@@ -172,10 +172,16 @@ export function PricingForm({
                   </label>
                   <input
                     type="text"
+                    inputMode="decimal"
                     value={item.price}
-                    onChange={(e) => updateItem(index, 'price', e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '' || /^\d+\.?\d{0,2}$/.test(val)) {
+                        updateItem(index, 'price', val);
+                      }
+                    }}
                     placeholder={labels.pricePlaceholder}
-                    maxLength={50}
+                    maxLength={15}
                     className={inputClass}
                   />
                 </div>
