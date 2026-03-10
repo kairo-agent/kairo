@@ -1,6 +1,6 @@
 // ============================================
 // KAIRO - Middleware (i18n + Supabase Auth + RBAC)
-// Optimized: Single verification per request
+// Auth check runs BEFORE intl to preserve query params on redirects
 // ============================================
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -29,30 +29,9 @@ function isAdminRoute(pathname: string): boolean {
   return adminRoutes.some(route => pathWithoutLocale.startsWith(route));
 }
 
-export async function middleware(request: NextRequest) {
-  // First, handle i18n
-  const intlResponse = intlMiddleware(request);
-
-  // If intl middleware wants to redirect (e.g., add locale prefix), let it go first.
-  // Our auth logic will run on the subsequent request after the redirect.
-  if (intlResponse.headers.get('location')) {
-    return intlResponse;
-  }
-
-  // Create response with request headers
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  // Copy headers from intl response
-  intlResponse.headers.forEach((value, key) => {
-    response.headers.set(key, value);
-  });
-
-  // Create Supabase client
-  const supabase = createServerClient(
+// Create Supabase client for auth check
+function createAuthClient(request: NextRequest, response: NextResponse) {
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -69,63 +48,75 @@ export async function middleware(request: NextRequest) {
       },
     }
   );
+}
 
-  // Refresh session if needed
-  const { data: { user } } = await supabase.auth.getUser();
-
+export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
 
-  // If user is not authenticated and trying to access protected route
-  if (!user && !isPublicRoute(pathname)) {
-    // Preserve full path with query params for post-login redirect
-    const fullPath = request.nextUrl.pathname + request.nextUrl.search;
-    const loginUrl = new URL(`/${locale}/login`, request.url);
-    loginUrl.searchParams.set('redirect', fullPath);
-    return NextResponse.redirect(loginUrl);
-  }
+  // ── Auth check BEFORE intl middleware ──
+  // This prevents intl redirects from stripping query params (e.g. ?leadId=xxx)
+  // on protected routes that need to redirect to login.
+  if (!isPublicRoute(pathname)) {
+    const tempResponse = NextResponse.next({ request: { headers: request.headers } });
+    const supabase = createAuthClient(request, tempResponse);
+    const { data: { user } } = await supabase.auth.getUser();
 
-  // If user is authenticated and trying to access login page
-  if (user && isPublicRoute(pathname) && pathname.includes('/login')) {
-    const redirectTo = request.nextUrl.searchParams.get('redirect');
-    // SECURITY: Only allow internal redirects (prevent Open Redirect - OWASP A01:2021)
-    // Must start with / but not // (protocol-relative URL attack)
-    if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') && !isAdminRoute(redirectTo)) {
-      return NextResponse.redirect(new URL(redirectTo, request.url));
+    if (!user) {
+      // Preserve full path with query params for post-login redirect
+      const fullPath = pathname + request.nextUrl.search;
+      const loginUrl = new URL(`/${locale}/login`, request.url);
+      loginUrl.searchParams.set('redirect', fullPath);
+      return NextResponse.redirect(loginUrl);
     }
-    return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
-  }
 
-  // For admin routes: verify super_admin role via internal API
-  if (user && isAdminRoute(pathname)) {
-    try {
-      // Call internal API to verify admin status
-      const verifyUrl = new URL('/api/auth/verify-admin', request.url);
-      const verifyResponse = await fetch(verifyUrl, {
-        headers: {
-          cookie: request.headers.get('cookie') || '',
-        },
-      });
+    // ── Admin route RBAC ──
+    if (isAdminRoute(pathname)) {
+      try {
+        const verifyUrl = new URL('/api/auth/verify-admin', request.url);
+        const verifyResponse = await fetch(verifyUrl, {
+          headers: { cookie: request.headers.get('cookie') || '' },
+        });
 
-      if (verifyResponse.ok) {
-        const { isAdmin } = await verifyResponse.json();
-
-        if (!isAdmin) {
-          // Not a super_admin, redirect to leads
-          return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
+        if (verifyResponse.ok) {
+          const { isAdmin } = await verifyResponse.json();
+          if (!isAdmin) {
+            return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
+          }
+        } else {
+          return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
         }
-        // Note: Server actions verify directly with Supabase/Prisma (see auth-helpers.ts)
-        // No headers are set here to avoid spoofing vulnerabilities
-      } else {
-        // API error, redirect to login
+      } catch (error) {
+        console.error('Error verifying admin in middleware:', error);
         return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
       }
-    } catch (error) {
-      console.error('Error verifying admin in middleware:', error);
-      return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
     }
+  }
 
-    return response;
+  // ── i18n middleware (runs after auth is verified) ──
+  const intlResponse = intlMiddleware(request);
+
+  // Create response with intl headers + Supabase session refresh
+  const response = NextResponse.next({ request: { headers: request.headers } });
+  intlResponse.headers.forEach((value, key) => {
+    response.headers.set(key, value);
+  });
+
+  // Refresh Supabase session cookies
+  const supabase = createAuthClient(request, response);
+  await supabase.auth.getUser();
+
+  // ── Authenticated user on login page → redirect away ──
+  if (isPublicRoute(pathname) && pathname.includes('/login')) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const redirectTo = request.nextUrl.searchParams.get('redirect');
+      // SECURITY: Only allow internal redirects (prevent Open Redirect - OWASP A01:2021)
+      if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') && !isAdminRoute(redirectTo)) {
+        return NextResponse.redirect(new URL(redirectTo, request.url));
+      }
+      return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
+    }
   }
 
   return intlResponse;
