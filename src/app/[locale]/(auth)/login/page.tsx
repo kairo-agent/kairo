@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
-import { useSearchParams } from 'next/navigation';
 import { Link, useRouter, usePathname } from '@/i18n/routing';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useModal } from '@/contexts/ModalContext';
@@ -62,8 +61,6 @@ export default function LoginPage() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const redirectParam = searchParams.get('redirect');
 
   // Funcion para cambiar el idioma
   const switchLocale = (newLocale: 'es' | 'en') => {
@@ -148,15 +145,20 @@ export default function LoginPage() {
           // Otherwise, redirectTo is already /select-workspace
         }
 
-        // Use redirect param from URL if present (e.g. deep-link from email)
-        // Security: must start with / and not // (anti open-redirect)
-        if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
-          // Strip locale prefix if present (next-intl router adds it automatically)
-          const stripped = redirectParam.replace(/^\/(es|en)/, '') || '/leads';
-          // Use window.location for redirects with query params (next-intl router may not preserve them)
-          showLoading(t('success.message'), true);
-          window.location.href = `/${locale}${stripped}`;
-          return;
+        // Check for redirect cookie set by middleware (e.g. deep-link from email)
+        const cookieMatch = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('kairo-redirect-after-login='));
+        if (cookieMatch) {
+          const redirectPath = decodeURIComponent(cookieMatch.split('=')[1]);
+          // Clear the cookie immediately
+          document.cookie = 'kairo-redirect-after-login=; path=/; max-age=0';
+          // Security: must start with / and not // (anti open-redirect)
+          if (redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
+            showLoading(t('success.message'), true);
+            window.location.href = redirectPath;
+            return;
+          }
         }
 
         // Show loading overlay and redirect immediately

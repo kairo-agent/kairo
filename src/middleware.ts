@@ -73,12 +73,18 @@ export async function middleware(request: NextRequest) {
   // If user is not authenticated and trying to access protected route
   if (!user && !isPublicRoute(pathname)) {
     const redirectUrl = new URL(`/${locale}/login`, request.url);
-    // Preserve query params (e.g. ?leadId=xxx) in the redirect path
-    // Use raw URL parsing to avoid nextUrl issues in edge runtime
+    // Store full path (with query params) in a short-lived cookie
+    // This avoids query param loss through intl middleware redirects
     const rawUrl = new URL(request.url);
     const fullPath = rawUrl.search ? `${pathname}${rawUrl.search}` : pathname;
-    redirectUrl.searchParams.set('redirect', fullPath);
-    return NextResponse.redirect(redirectUrl);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    redirectResponse.cookies.set('kairo-redirect-after-login', fullPath, {
+      path: '/',
+      maxAge: 300, // 5 minutes
+      httpOnly: false, // readable by client JS after login
+      sameSite: 'lax',
+    });
+    return redirectResponse;
   }
 
   // If user is authenticated and trying to access login page
