@@ -65,9 +65,12 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       // Preserve full path with query params for post-login redirect
       const fullPath = pathname + request.nextUrl.search;
-      const loginUrl = new URL(`/${locale}/login`, request.url);
-      loginUrl.searchParams.set('redirect', fullPath);
-      return NextResponse.redirect(loginUrl);
+      // Use raw Response to bypass NextResponse.redirect() which may strip search params
+      const locationHeader = `/${locale}/login?redirect=${encodeURIComponent(fullPath)}`;
+      return new Response(null, {
+        status: 307,
+        headers: { Location: locationHeader },
+      });
     }
 
     // ── Admin route RBAC ──
