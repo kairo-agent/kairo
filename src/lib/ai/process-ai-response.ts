@@ -242,7 +242,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           prisma.lead.update({
             where: { id: leadId },
             data: {
-              summary: suggestedSummary.trim().slice(0, 500),
+              summary: suggestedSummary.trim().slice(0, 1000),
               summaryUpdatedAt: new Date(),
             },
           })
@@ -593,24 +593,33 @@ async function generateSummary(
       .map(m => `${m.role === 'user' ? 'Lead' : 'Agent'}: ${m.content}`)
       .join('\n');
 
-    const prompt = `Based on this conversation, create a brief summary (max 500 chars) of the lead's interests, needs, and current status.${existingSummary ? `\n\nPrevious summary: ${existingSummary}` : ''}
+    const prompt = `You are a lead qualification analyst. Summarize this conversation into a complete, self-contained summary in Spanish.
 
-Recent conversation:
+RULES:
+- Maximum 1000 characters. NEVER exceed this limit.
+- The summary MUST end in a complete sentence. Never cut mid-sentence.
+- Prioritize: (1) what the lead wants, (2) key decisions/commitments, (3) current status/next steps.
+- Omit greetings, filler, and repetitive exchanges.
+- If space is tight, keep only the most actionable information.
+- Write in third person (e.g. "El lead esta interesado en...").
+${existingSummary ? `\nPrevious summary (update with new info, don't repeat): ${existingSummary}` : ''}
+
+Conversation:
 ${historyText}
 Lead: ${latestUserMessage}
 Agent: ${latestAIResponse}
 
-Summary (Spanish, max 500 chars):`;
+Summary (Spanish, complete sentences, max 1000 chars):`;
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.3,
-      max_tokens: 200,
+      max_tokens: 400,
     });
 
     const summary = completion.choices[0]?.message?.content?.trim();
-    return summary && summary.length > 0 ? summary.slice(0, 500) : null;
+    return summary && summary.length > 0 ? summary.slice(0, 1000) : null;
   } catch (error) {
     console.error('[AI Pipeline] Summary generation failed:', error);
     return null; // Non-critical: don't fail pipeline for summary
