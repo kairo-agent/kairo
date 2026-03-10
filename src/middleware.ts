@@ -51,9 +51,14 @@ function createAuthClient(request: NextRequest, response: NextResponse) {
 }
 
 export async function middleware(request: NextRequest) {
-  // DEBUG: Test if middleware runs at all for leads with query params
-  if (request.nextUrl.pathname.includes('/leads') && request.nextUrl.search.includes('leadId')) {
-    return new NextResponse(JSON.stringify({ debug: true, pathname: request.nextUrl.pathname, search: request.nextUrl.search }), {
+  // DEBUG: Return JSON for ANY request with ?_debug=1
+  if (request.nextUrl.searchParams.get('_debug') === '1') {
+    return new NextResponse(JSON.stringify({
+      works: true,
+      pathname: request.nextUrl.pathname,
+      search: request.nextUrl.search,
+      url: request.url.substring(0, 120),
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
