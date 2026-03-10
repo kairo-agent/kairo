@@ -14,6 +14,7 @@ import { LeadFilters, FloatingFilterToggle } from '@/components/features/LeadFil
 import { LeadDetailPanel } from '@/components/features/LeadDetailPanel';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useLoading } from '@/contexts/LoadingContext';
+import { useCurrentUser } from '@/app/[locale]/(dashboard)/DashboardLayoutClient';
 import { useLeads, type TransformedLead } from '@/hooks/useLeadsQuery';
 import {
   LeadStatus,
@@ -562,6 +563,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const locale = useLocale() as 'es' | 'en';
   const { selectedOrganization, selectedProject } = useWorkspace();
   const { hideLoading } = useLoading();
+  const user = useCurrentUser();
+  const isSuperAdmin = user.systemRole === 'super_admin';
   const searchParams = useSearchParams();
 
   // Local UI state
@@ -1041,11 +1044,13 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
               <RefreshIcon className={cn('w-5 h-5', isFetching && 'animate-spin')} />
             </button>
 
-            {/* New Lead Button */}
-            <Button variant="primary">
-              <PlusIcon />
-              <span className="hidden sm:inline">{t('newLead')}</span>
-            </Button>
+            {/* New Lead Button - Only visible for super_admin until feature is built */}
+            {isSuperAdmin && (
+              <Button variant="primary">
+                <PlusIcon />
+                <span className="hidden sm:inline">{t('newLead')}</span>
+              </Button>
+            )}
           </div>
         </div>
 

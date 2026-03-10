@@ -240,6 +240,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           const active = isActive(item.href);
 
           if (item.disabled) {
+            // Hide disabled/coming-soon items for non-super_admin users
+            if (!isSuperAdmin) return null;
+
             return (
               <div
                 key={item.href}
