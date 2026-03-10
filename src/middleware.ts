@@ -73,7 +73,9 @@ export async function middleware(request: NextRequest) {
   // If user is not authenticated and trying to access protected route
   if (!user && !isPublicRoute(pathname)) {
     const redirectUrl = new URL(`/${locale}/login`, request.url);
-    redirectUrl.searchParams.set('redirect', pathname);
+    // Preserve query params (e.g. ?leadId=xxx) in the redirect path
+    const search = request.nextUrl.search;
+    redirectUrl.searchParams.set('redirect', search ? `${pathname}${search}` : pathname);
     return NextResponse.redirect(redirectUrl);
   }
 

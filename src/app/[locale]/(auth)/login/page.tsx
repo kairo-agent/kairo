@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Link, useRouter, usePathname } from '@/i18n/routing';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useModal } from '@/contexts/ModalContext';
@@ -61,6 +62,8 @@ export default function LoginPage() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
 
   // Funcion para cambiar el idioma
   const switchLocale = (newLocale: 'es' | 'en') => {
@@ -145,9 +148,17 @@ export default function LoginPage() {
           // Otherwise, redirectTo is already /select-workspace
         }
 
+        // Use redirect param from URL if present (e.g. deep-link from email)
+        // Security: must start with / and not // (anti open-redirect)
+        if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+          // Strip locale prefix if present (next-intl router adds it automatically)
+          const stripped = redirectParam.replace(/^\/(es|en)/, '') || '/leads';
+          finalRedirect = stripped;
+        }
+
         // Show loading overlay and redirect immediately
         showLoading(t('success.message'), true);
-        router.push(finalRedirect as '/select-workspace' | '/leads');
+        router.push(finalRedirect as string as '/select-workspace' | '/leads');
       } else if (result.error) {
         // Use the error code to get translated message
         const errorMessage = t(`errors.${result.error}`);
