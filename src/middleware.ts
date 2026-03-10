@@ -72,12 +72,9 @@ export async function middleware(request: NextRequest) {
 
   // If user is not authenticated and trying to access protected route
   if (!user && !isPublicRoute(pathname)) {
-    // Encode full path (with query params) in URL hash fragment
-    // Hash fragments are client-side only - immune to server-side redirect stripping
-    const rawUrl = new URL(request.url);
-    const fullPath = rawUrl.search ? `${pathname}${rawUrl.search}` : pathname;
-    const redirectUrl = new URL(`/${locale}/login#redirect=${encodeURIComponent(fullPath)}`, request.url);
-    return NextResponse.redirect(redirectUrl);
+    // DEBUG: Test if Vercel preserves query params on redirect
+    const testUrl = new URL(`/${locale}/login?debugtest=works`, request.url);
+    return NextResponse.redirect(testUrl);
   }
 
   // If user is authenticated and trying to access login page
