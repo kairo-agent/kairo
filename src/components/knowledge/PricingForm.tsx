@@ -175,13 +175,15 @@ export function PricingForm({
                     inputMode="decimal"
                     value={item.price}
                     onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === '' || /^\d+\.?\d{0,2}$/.test(val)) {
-                        updateItem(index, 'price', val);
+                      const raw = e.target.value.replace(/,/g, '');
+                      if (raw === '' || /^\d+\.?\d{0,2}$/.test(raw)) {
+                        const parts = raw.split('.');
+                        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+                        updateItem(index, 'price', parts.join('.'));
                       }
                     }}
                     placeholder={labels.pricePlaceholder}
-                    maxLength={15}
+                    maxLength={20}
                     className={inputClass}
                   />
                 </div>
