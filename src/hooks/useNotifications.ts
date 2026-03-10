@@ -31,24 +31,48 @@ interface Notification {
 }
 
 /**
+ * Singleton AudioContext — unlocked on first user interaction.
+ * Browsers suspend AudioContext created without a user gesture,
+ * so we resume it the first time the user clicks/touches/presses a key.
+ */
+let sharedAudioCtx: AudioContext | null = null;
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined' || typeof AudioContext === 'undefined') return null;
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new AudioContext();
+    // Unlock on first user gesture (required by Chrome autoplay policy)
+    const unlock = () => {
+      if (sharedAudioCtx?.state === 'suspended') {
+        sharedAudioCtx.resume().catch(() => {});
+      }
+      window.removeEventListener('click', unlock);
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+    window.addEventListener('click', unlock, { once: true });
+    window.addEventListener('touchstart', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+  }
+  return sharedAudioCtx;
+}
+
+/**
  * Play a short beep using Web Audio API.
  * Catches all errors silently (autoplay restrictions, missing API, etc.)
  */
 function playNotificationBeep() {
   try {
-    const audioCtx = new AudioContext();
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state === 'suspended') return;
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
     oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
+    gainNode.connect(ctx.destination);
     oscillator.frequency.value = 800;
     gainNode.gain.value = 0.3;
     oscillator.start();
-    oscillator.stop(audioCtx.currentTime + 0.15);
-    // Clean up after sound finishes
-    oscillator.onended = () => {
-      audioCtx.close().catch(() => {});
-    };
+    oscillator.stop(ctx.currentTime + 0.15);
   } catch {
     // Silently ignore - browser may not support Web Audio API
   }
@@ -122,6 +146,16 @@ export function useNotifications(projectId?: string) {
       await fetchNotifications();
     }
   }, [fetchNotifications, projectId]);
+
+  // Initialize AudioContext early so user gestures can unlock it
+  useEffect(() => {
+    getAudioContext();
+  }, []);
+
+  // Reset baseline when projectId changes (avoid false positive beeps)
+  useEffect(() => {
+    previousUnreadCountRef.current = null;
+  }, [projectId]);
 
   // Initial fetch
   useEffect(() => {
