@@ -115,7 +115,8 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  return intlResponse;
+  // Return response (has both intl headers + custom x-kairo-* request headers)
+  return response;
 }
 
 export const config = {
