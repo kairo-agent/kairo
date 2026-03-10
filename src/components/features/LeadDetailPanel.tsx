@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
+import { useCurrentUser } from '@/app/[locale]/(dashboard)/DashboardLayoutClient';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -216,6 +217,8 @@ export function LeadDetailPanel({
   const t = useTranslations('leads');
   const locale = useLocale();
   const dateLocale = locale === 'es' ? es : enUS;
+  const user = useCurrentUser();
+  const isSuperAdmin = user.systemRole === 'super_admin';
   const panelRef = useRef<HTMLDivElement>(null);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
@@ -778,10 +781,12 @@ export function LeadDetailPanel({
         {/* Footer Actions */}
         <div className="flex-shrink-0 border-t border-[var(--border-primary)] p-4 lg:p-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button variant="primary" fullWidth disabled>
-              <PhoneIconSmall />
-              <span>{t('detail.call')}</span>
-            </Button>
+            {isSuperAdmin && (
+              <Button variant="primary" fullWidth disabled>
+                <PhoneIconSmall />
+                <span>{t('detail.call')}</span>
+              </Button>
+            )}
             <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(true)}>
               <EditIcon />
               <span>{t('detail.edit')}</span>
