@@ -145,14 +145,10 @@ export default function LoginPage() {
           // Otherwise, redirectTo is already /select-workspace
         }
 
-        // Check for redirect cookie set by middleware (e.g. deep-link from email)
-        const cookieMatch = document.cookie
-          .split('; ')
-          .find(row => row.startsWith('kairo-redirect-after-login='));
-        if (cookieMatch) {
-          const redirectPath = decodeURIComponent(cookieMatch.split('=')[1]);
-          // Clear the cookie immediately
-          document.cookie = 'kairo-redirect-after-login=; path=/; max-age=0';
+        // Check for redirect hash set by middleware (e.g. deep-link from email)
+        const hash = window.location.hash;
+        if (hash.startsWith('#redirect=')) {
+          const redirectPath = decodeURIComponent(hash.substring('#redirect='.length));
           // Security: must start with / and not // (anti open-redirect)
           if (redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
             showLoading(t('success.message'), true);

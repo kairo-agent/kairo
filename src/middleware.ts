@@ -72,19 +72,12 @@ export async function middleware(request: NextRequest) {
 
   // If user is not authenticated and trying to access protected route
   if (!user && !isPublicRoute(pathname)) {
-    const redirectUrl = new URL(`/${locale}/login`, request.url);
-    // Store full path (with query params) in a short-lived cookie
-    // This avoids query param loss through intl middleware redirects
+    // Encode full path (with query params) in URL hash fragment
+    // Hash fragments are client-side only - immune to server-side redirect stripping
     const rawUrl = new URL(request.url);
     const fullPath = rawUrl.search ? `${pathname}${rawUrl.search}` : pathname;
-    const redirectResponse = NextResponse.redirect(redirectUrl);
-    redirectResponse.cookies.set('kairo-redirect-after-login', fullPath, {
-      path: '/',
-      maxAge: 300, // 5 minutes
-      httpOnly: false, // readable by client JS after login
-      sameSite: 'lax',
-    });
-    return redirectResponse;
+    const redirectUrl = new URL(`/${locale}/login#redirect=${encodeURIComponent(fullPath)}`, request.url);
+    return NextResponse.redirect(redirectUrl);
   }
 
   // If user is authenticated and trying to access login page
