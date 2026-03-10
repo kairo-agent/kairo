@@ -29,6 +29,23 @@ function isAdminRoute(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  const pathWithoutLocale = pathname.replace(/^\/(es|en)/, '');
+  const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
+
+  // Quick auth check via cookie presence (runs before any async/SDK calls)
+  // This must happen BEFORE intl middleware to prevent layout redirect from
+  // stripping query params (layout's redirect() creates a new response)
+  const isProtectedRoute = !publicRoutes.some(r => pathWithoutLocale.startsWith(r)) && pathWithoutLocale !== '';
+  const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-'));
+
+  if (isProtectedRoute && !hasAuthCookie) {
+    const fullPath = pathname + request.nextUrl.search;
+    return NextResponse.redirect(
+      new URL(`/${locale}/login?redirect=${encodeURIComponent(fullPath)}`, request.url)
+    );
+  }
+
   // First, handle i18n
   const intlResponse = intlMiddleware(request);
 
@@ -70,19 +87,6 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session if needed
   const { data: { user } } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-  const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
-
-  // If user is NOT authenticated and trying to access protected route → redirect to login
-  // This MUST happen in middleware (not layout) to preserve query params in the redirect URL.
-  // Layout's redirect() creates a new HTTP response that discards middleware headers.
-  if (!user && !isPublicRoute(pathname)) {
-    const fullPath = pathname + request.nextUrl.search;
-    return NextResponse.redirect(
-      new URL(`/${locale}/login?redirect=${encodeURIComponent(fullPath)}`, request.url)
-    );
-  }
 
   // If user is authenticated and trying to access login page
   if (user && isPublicRoute(pathname) && pathname.includes('/login')) {
