@@ -4,6 +4,34 @@
 
 ---
 
+## [0.9.3] - 2026-03-10
+
+### Coming-Soon Features Ocultas (UX)
+
+Items del sidebar sin funcionalidad (Conversaciones, Sub-agentes, Reportes) y boton "Nuevo Lead" ahora solo visibles para `super_admin`.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/layout/Sidebar.tsx` | Items `disabled` ocultos si `!isSuperAdmin` |
+| `src/app/[locale]/(dashboard)/leads/LeadsPageClient.tsx` | Boton "Nuevo Lead" condicionado a `isSuperAdmin` |
+
+---
+
+### AI Summary Mejorado
+
+Resumen IA en panel de detalle ya no se corta a mitad de frase. Limite aumentado de 500 a 1000 caracteres con prompt mejorado que prioriza informacion accionable.
+
+| Aspecto | Antes | Ahora |
+|---------|-------|-------|
+| Limite chars | 500 | 1000 |
+| max_tokens | 200 | 400 |
+| Prompt | Generico | Prioriza: intereses, decisiones, next steps. Nunca corta mid-sentence |
+| Estilo | Libre | Tercera persona, oraciones completas |
+
+**Archivo:** `src/lib/ai/process-ai-response.ts` (funcion `generateSummary`)
+
+---
+
 ## [0.9.2] - 2026-03-09
 
 ### AI-Initiated Handoff System
