@@ -29,6 +29,7 @@ function isAdminRoute(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
+  try {
   // First, handle i18n
   const intlResponse = intlMiddleware(request);
 
@@ -74,6 +75,14 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
 
+  // Debug: confirm middleware ran and what it detected
+  response.headers.set('x-kairo-middleware-ran', 'true');
+  response.headers.set('x-kairo-user', user ? 'authenticated' : 'anonymous');
+  response.headers.set('x-kairo-path', pathname);
+  if (request.nextUrl.search) {
+    response.headers.set('x-kairo-search-debug', request.nextUrl.search.substring(0, 100));
+  }
+
   // If user is authenticated and trying to access login page
   if (user && isPublicRoute(pathname) && pathname.includes('/login')) {
     const redirectTo = request.nextUrl.searchParams.get('redirect');
@@ -117,6 +126,12 @@ export async function middleware(request: NextRequest) {
 
   // Return response (has both intl headers + custom x-kairo-* request headers)
   return response;
+  } catch (error) {
+    // If middleware throws, pass through with error header for debugging
+    const errorResponse = NextResponse.next();
+    errorResponse.headers.set('x-kairo-middleware-error', String(error).substring(0, 200));
+    return errorResponse;
+  }
 }
 
 export const config = {
