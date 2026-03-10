@@ -192,6 +192,9 @@ export default function SettingsPageClient() {
   // Confirm delete knowledge entry
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null);
 
+  // Edit knowledge entry
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+
   // Track if we have unsaved changes
   const hasUnsavedChanges = JSON.stringify(instructions) !== JSON.stringify(originalInstructions);
 
@@ -401,10 +404,28 @@ export default function SettingsPageClient() {
     }
   };
 
-  const handleAddFreeKnowledge = async () => {
+  // handleAddFreeKnowledge merged into handleSaveKnowledge (supports both add and edit)
+
+  const handleEditKnowledgeEntry = (entry: KnowledgeEntry) => {
+    setEditingEntryId(entry.id);
+    setNewKnowledgeTitle(entry.title || '');
+    setNewKnowledgeContent(entry.content);
+    setActiveModal('add_knowledge');
+  };
+
+  const handleSaveKnowledge = async () => {
     if (!selectedAgent || !selectedProject || !newKnowledgeContent.trim()) return;
     setSavingKnowledge(true);
     try {
+      // If editing, delete old entry first
+      if (editingEntryId) {
+        const deleteResult = await deleteAgentKnowledge(editingEntryId, selectedProject.id);
+        if (!deleteResult.success) {
+          toast.error(deleteResult.error || t('knowledge.saveError'));
+          return;
+        }
+      }
+
       const result = await addAgentKnowledge({
         agentId: selectedAgent.id,
         projectId: selectedProject.id,
@@ -416,6 +437,7 @@ export default function SettingsPageClient() {
         setActiveModal(null);
         setNewKnowledgeTitle('');
         setNewKnowledgeContent('');
+        setEditingEntryId(null);
         toast.success(t('knowledge.saveSuccess'));
         loadKnowledge();
       } else {
@@ -640,6 +662,7 @@ export default function SettingsPageClient() {
             loading={loadingKnowledge}
             onOpenModal={setActiveModal}
             onDeleteEntry={setDeletingEntryId}
+            onEditEntry={handleEditKnowledgeEntry}
           />
         )}
       </div>
@@ -710,9 +733,19 @@ export default function SettingsPageClient() {
         </Modal>
       )}
 
-      {/* Add Free Knowledge Modal */}
+      {/* Add/Edit Free Knowledge Modal */}
       {activeModal === 'add_knowledge' && (
-        <Modal isOpen onClose={() => setActiveModal(null)} title={t('knowledge.addKnowledge')} size="lg">
+        <Modal
+          isOpen
+          onClose={() => {
+            setActiveModal(null);
+            setEditingEntryId(null);
+            setNewKnowledgeTitle('');
+            setNewKnowledgeContent('');
+          }}
+          title={editingEntryId ? t('knowledge.editKnowledge') : t('knowledge.addKnowledge')}
+          size="lg"
+        >
           <div className="space-y-4">
             <Input
               label={t('knowledge.titleLabel')}
@@ -734,12 +767,17 @@ export default function SettingsPageClient() {
               />
             </div>
             <div className="flex justify-end gap-3 pt-2">
-              <Button variant="ghost" onClick={() => setActiveModal(null)}>
+              <Button variant="ghost" onClick={() => {
+                setActiveModal(null);
+                setEditingEntryId(null);
+                setNewKnowledgeTitle('');
+                setNewKnowledgeContent('');
+              }}>
                 {tCommon('buttons.cancel')}
               </Button>
               <Button
                 variant="primary"
-                onClick={handleAddFreeKnowledge}
+                onClick={handleSaveKnowledge}
                 isLoading={savingKnowledge}
                 disabled={!newKnowledgeContent.trim()}
               >
@@ -1293,6 +1331,7 @@ interface KnowledgeTabProps {
   loading: boolean;
   onOpenModal: (modal: KnowledgeModal) => void;
   onDeleteEntry: (id: string) => void;
+  onEditEntry: (entry: KnowledgeEntry) => void;
 }
 
 function KnowledgeTab({
@@ -1304,6 +1343,7 @@ function KnowledgeTab({
   loading,
   onOpenModal,
   onDeleteEntry,
+  onEditEntry,
 }: KnowledgeTabProps) {
   if (loading) {
     return (
@@ -1409,13 +1449,22 @@ function KnowledgeTab({
                     {entry.source} - {new Date(entry.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <button
-                  onClick={() => onDeleteEntry(entry.id)}
-                  className="flex-shrink-0 p-1.5 rounded-md text-[var(--text-tertiary)] opacity-0 group-hover:opacity-100 hover:text-[var(--status-lost)] hover:bg-red-500/10 transition-all"
-                  title={t('knowledge.deleteEntry')}
-                >
-                  <TrashIcon />
-                </button>
+                <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  <button
+                    onClick={() => onEditEntry(entry)}
+                    className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors"
+                    title={t('knowledge.editEntry')}
+                  >
+                    <PencilIcon />
+                  </button>
+                  <button
+                    onClick={() => onDeleteEntry(entry.id)}
+                    className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 transition-colors"
+                    title={t('knowledge.deleteEntry')}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

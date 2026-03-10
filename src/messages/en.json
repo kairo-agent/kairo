@@ -768,6 +768,8 @@
       "titlePlaceholder": "E.g: Pricing 2026, Sales process...",
       "contentLabel": "Content",
       "contentPlaceholder": "Paste here the text the agent should know...",
+      "editEntry": "Edit entry",
+      "editKnowledge": "Edit knowledge",
       "deleteEntry": "Delete entry",
       "deleteEntryConfirm": "Delete this knowledge?",
       "deleteEntryMessage": "This will be permanently removed from the agent.",

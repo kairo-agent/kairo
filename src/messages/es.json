@@ -768,6 +768,8 @@
       "titlePlaceholder": "Ej: Precios 2026, Proceso de venta...",
       "contentLabel": "Contenido",
       "contentPlaceholder": "Pega aqui el texto que el agente debe conocer...",
+      "editEntry": "Editar entrada",
+      "editKnowledge": "Editar conocimiento",
       "deleteEntry": "Eliminar entrada",
       "deleteEntryConfirm": "Eliminar este conocimiento?",
       "deleteEntryMessage": "Se eliminara permanentemente del agente.",
