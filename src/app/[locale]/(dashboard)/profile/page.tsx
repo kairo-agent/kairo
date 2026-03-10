@@ -437,14 +437,18 @@ export default function ProfilePage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+              'flex items-center gap-2 px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-colors',
               activeTab === tab.id
                 ? 'bg-[var(--bg-primary)] text-[var(--text-primary)] shadow-sm'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             )}
           >
             <tab.icon />
-            {tab.label}
+            <span className={cn(
+              activeTab === tab.id ? 'inline' : 'hidden sm:inline'
+            )}>
+              {tab.label}
+            </span>
           </button>
         ))}
       </div>
