@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRouter } from '@/i18n/routing';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useWorkspaceOptional } from '@/contexts/WorkspaceContext';
 
 const BellIcon = () => (
   <svg
@@ -120,7 +120,8 @@ export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const { selectedProject } = useWorkspace();
+  const workspace = useWorkspaceOptional();
+  const selectedProject = workspace?.selectedProject ?? null;
   const {
     notifications,
     unreadCount,

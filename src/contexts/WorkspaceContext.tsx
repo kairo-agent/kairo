@@ -152,3 +152,8 @@ export function useWorkspace() {
   }
   return context;
 }
+
+// Safe version that returns null when outside WorkspaceProvider (e.g., admin layout)
+export function useWorkspaceOptional() {
+  return useContext(WorkspaceContext) ?? null;
+}
