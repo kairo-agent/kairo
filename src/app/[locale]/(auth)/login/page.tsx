@@ -148,10 +148,13 @@ export default function LoginPage() {
           // Otherwise, redirectTo is already /select-workspace
         }
 
-        // Check for redirect param from middleware (e.g. deep-link from email)
-        if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+        // Check for redirect param from middleware or sessionStorage deep-link
+        const savedRedirect = sessionStorage.getItem('kairo-redirect-after-login');
+        const deepLink = redirectParam || savedRedirect;
+        if (deepLink && deepLink.startsWith('/') && !deepLink.startsWith('//')) {
+          sessionStorage.removeItem('kairo-redirect-after-login');
           showLoading(t('success.message'), true);
-          window.location.href = redirectParam;
+          window.location.href = deepLink;
           return;
         }
 

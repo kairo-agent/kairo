@@ -29,35 +29,13 @@ function isAdminRoute(pathname: string): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
-  const pathWithoutLocale = pathname.replace(/^\/(es|en)/, '');
-  const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
-
-  // Quick auth check via cookie presence (runs before any async/SDK calls)
-  // This must happen BEFORE intl middleware to prevent layout redirect from
-  // stripping query params (layout's redirect() creates a new response)
-  const isProtectedRoute = !publicRoutes.some(r => pathWithoutLocale.startsWith(r)) && pathWithoutLocale !== '';
-  const hasAuthCookie = request.cookies.getAll().some(c => c.name.startsWith('sb-'));
-
-  if (isProtectedRoute && !hasAuthCookie) {
-    const fullPath = pathname + request.nextUrl.search;
-    return NextResponse.redirect(
-      new URL(`/${locale}/login?redirect=${encodeURIComponent(fullPath)}`, request.url)
-    );
-  }
-
   // First, handle i18n
   const intlResponse = intlMiddleware(request);
 
-  // Create response with request headers + original URL for server components
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-kairo-pathname', request.nextUrl.pathname);
-  if (request.nextUrl.search) {
-    requestHeaders.set('x-kairo-search', request.nextUrl.search);
-  }
+  // Create response with request headers
   const response = NextResponse.next({
     request: {
-      headers: requestHeaders,
+      headers: request.headers,
     },
   });
 
@@ -87,6 +65,9 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session if needed
   const { data: { user } } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+  const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
 
   // If user is authenticated and trying to access login page
   if (user && isPublicRoute(pathname) && pathname.includes('/login')) {
@@ -129,7 +110,7 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  return response;
+  return intlResponse;
 }
 
 export const config = {
