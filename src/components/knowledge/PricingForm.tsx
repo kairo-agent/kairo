@@ -194,15 +194,15 @@ export function PricingForm({
                 <label className="block text-xs font-medium text-[var(--text-secondary)]">
                   {labels.description}
                 </label>
-                <input
-                  type="text"
+                <textarea
                   value={item.description || ''}
                   onChange={(e) =>
                     updateItem(index, 'description', e.target.value)
                   }
                   placeholder={labels.descriptionPlaceholder}
-                  maxLength={300}
-                  className={inputClass}
+                  maxLength={500}
+                  rows={3}
+                  className={inputClass + ' resize-y'}
                 />
               </div>
             </div>
