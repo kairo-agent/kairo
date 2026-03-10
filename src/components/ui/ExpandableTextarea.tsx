@@ -43,7 +43,7 @@ export function ExpandableTextarea({
           placeholder={placeholder}
           rows={rows}
           className={cn(
-            'w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none pr-10',
+            'w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm resize-none pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]',
             className
           )}
           {...rest}
@@ -74,6 +74,7 @@ export function ExpandableTextarea({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          maxLength={rest.maxLength}
           className="w-full px-4 py-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none min-h-[60vh] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
         />
       </Modal>

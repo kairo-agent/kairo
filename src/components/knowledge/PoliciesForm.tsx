@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { PoliciesData, PolicyItem } from '@/lib/knowledge/policies';
 import { POLICY_PRESETS } from '@/lib/knowledge/policies';
+import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 
 // =============================================================================
 // Types
@@ -261,13 +262,13 @@ export function PoliciesForm({
                 <label className="block text-xs font-medium text-[var(--text-secondary)]">
                   {labels.policyContent}
                 </label>
-                <textarea
+                <ExpandableTextarea
                   value={item.content}
-                  onChange={(e) => updateItem(index, 'content', e.target.value)}
+                  onChange={(val) => updateItem(index, 'content', val)}
                   placeholder={labels.policyContentPlaceholder}
                   maxLength={MAX_CONTENT}
                   rows={5}
-                  className={`${inputClass} resize-none`}
+                  modalTitle={item.title || labels.policyContent}
                 />
                 <p className="text-xs text-[var(--text-tertiary)] text-right">
                   {item.content.length}/{MAX_CONTENT}

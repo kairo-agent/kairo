@@ -21,6 +21,7 @@ import { LocationContactForm } from '@/components/knowledge/LocationContactForm'
 import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { FlameIcon, SunIcon, SnowflakeIcon } from '@/components/icons/LeadIcons';
+import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 import { toast } from 'sonner';
 import { DEFAULT_BUSINESS_HOURS, type BusinessHoursData } from '@/lib/knowledge/business-hours';
 import { DEFAULT_FAQS, type FAQsData } from '@/lib/knowledge/faqs';
@@ -724,12 +725,12 @@ export default function SettingsPageClient() {
               <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
                 {t('knowledge.contentLabel')}
               </label>
-              <textarea
+              <ExpandableTextarea
                 value={newKnowledgeContent}
-                onChange={(e) => setNewKnowledgeContent(e.target.value)}
+                onChange={setNewKnowledgeContent}
                 placeholder={t('knowledge.contentPlaceholder')}
                 rows={10}
-                className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+                modalTitle={t('knowledge.contentLabel')}
               />
             </div>
             <div className="flex justify-end gap-3 pt-2">
@@ -995,13 +996,13 @@ function InstructionsTab({
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
           {t('instructions.role')}
         </label>
-        <textarea
+        <ExpandableTextarea
           value={instructions.role}
-          onChange={(e) => setInstructions((prev) => ({ ...prev, role: e.target.value }))}
+          onChange={(val) => setInstructions((prev) => ({ ...prev, role: val }))}
           placeholder={t('instructions.rolePlaceholder')}
           maxLength={1000}
           rows={4}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+          modalTitle={t('instructions.role')}
         />
         <div className="flex justify-between mt-1">
           <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.roleHelp')}</p>
@@ -1208,13 +1209,13 @@ function InstructionsTab({
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
           {t('instructions.personality')}
         </label>
-        <textarea
+        <ExpandableTextarea
           value={instructions.personality}
-          onChange={(e) => setInstructions((prev) => ({ ...prev, personality: e.target.value }))}
+          onChange={(val) => setInstructions((prev) => ({ ...prev, personality: val }))}
           placeholder={t('instructions.personalityPlaceholder')}
           maxLength={1000}
           rows={3}
-          className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+          modalTitle={t('instructions.personality')}
         />
         <div className="flex justify-between mt-1">
           <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.personalityHelp')}</p>
@@ -1238,15 +1239,15 @@ function InstructionsTab({
         </button>
         {additionalOpen && (
           <div className="px-4 pb-4">
-            <textarea
+            <ExpandableTextarea
               value={instructions.additionalInstructions}
-              onChange={(e) =>
-                setInstructions((prev) => ({ ...prev, additionalInstructions: e.target.value }))
+              onChange={(val) =>
+                setInstructions((prev) => ({ ...prev, additionalInstructions: val }))
               }
               placeholder={t('instructions.additionalPlaceholder')}
               maxLength={2000}
               rows={5}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+              modalTitle={t('instructions.additional')}
             />
             <div className="flex justify-between mt-1">
               <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.additionalHelp')}</p>
