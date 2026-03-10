@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRouter } from '@/i18n/routing';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 const BellIcon = () => (
   <svg
@@ -40,6 +41,12 @@ const UserIcon = () => (
   </svg>
 );
 
+const HandoffIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+  </svg>
+);
+
 function getNotificationIcon(type: string) {
   switch (type) {
     case 'new_message':
@@ -48,6 +55,8 @@ function getNotificationIcon(type: string) {
       return <CalendarIcon />;
     case 'lead_assigned':
       return <UserIcon />;
+    case 'handoff_request':
+      return <HandoffIcon />;
     default:
       return <MessageIcon />;
   }
@@ -61,6 +70,8 @@ function getNotificationIconColor(type: string) {
       return 'text-orange-500 bg-orange-500/10';
     case 'lead_assigned':
       return 'text-green-500 bg-green-500/10';
+    case 'handoff_request':
+      return 'text-red-500 bg-red-500/10';
     default:
       return 'text-[var(--text-tertiary)] bg-[var(--bg-tertiary)]';
   }
@@ -109,13 +120,14 @@ export function NotificationDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const { selectedProject } = useWorkspace();
   const {
     notifications,
     unreadCount,
     markAsRead,
     markAllAsRead,
     refetch,
-  } = useNotifications();
+  } = useNotifications(selectedProject?.id);
 
   // Close on outside click
   useEffect(() => {

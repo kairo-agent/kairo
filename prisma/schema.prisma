@@ -353,6 +353,7 @@ enum NotificationType {
   new_message
   follow_up_due
   lead_assigned
+  handoff_request
 }
 
 model Notification {

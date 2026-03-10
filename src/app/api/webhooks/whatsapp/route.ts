@@ -896,7 +896,7 @@ async function handleIncomingMessage(
     const [project, globalRules] = await Promise.all([
       prisma.project.findUnique({
         where: { id: projectId },
-        select: { name: true },
+        select: { name: true, organizationId: true },
       }),
       getActiveGlobalRules(),
     ]);
@@ -906,6 +906,7 @@ async function handleIncomingMessage(
     waitUntil(
       processAIResponse({
         projectId,
+        organizationId: project?.organizationId || '',
         conversationId: lead.conversation?.id || '',
         leadId: lead.id,
         leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),

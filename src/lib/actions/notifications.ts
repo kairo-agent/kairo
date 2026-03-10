@@ -22,6 +22,7 @@ function sanitizeText(input: string, maxLength: number): string {
 export async function getNotifications(options?: {
   limit?: number;
   unreadOnly?: boolean;
+  projectId?: string;
 }) {
   const user = await verifyAuth();
   if (!user) return { success: false as const, error: 'No autorizado' };
@@ -29,10 +30,13 @@ export async function getNotifications(options?: {
   const limit = options?.limit ?? 20;
 
   try {
+    const projectFilter = options?.projectId ? { projectId: options.projectId } : {};
+
     const [notifications, unreadCount] = await Promise.all([
       prisma.notification.findMany({
         where: {
           userId: user.id,
+          ...projectFilter,
           ...(options?.unreadOnly ? { readAt: null } : {}),
         },
         orderBy: { createdAt: 'desc' },
@@ -51,6 +55,7 @@ export async function getNotifications(options?: {
       prisma.notification.count({
         where: {
           userId: user.id,
+          ...projectFilter,
           readAt: null,
         },
       }),
@@ -100,7 +105,7 @@ export async function getNotifications(options?: {
 // Query: Get unread count only (lightweight)
 // ============================================
 
-export async function getUnreadNotificationCount() {
+export async function getUnreadNotificationCount(projectId?: string) {
   const user = await verifyAuth();
   if (!user) return 0;
 
@@ -109,6 +114,7 @@ export async function getUnreadNotificationCount() {
       where: {
         userId: user.id,
         readAt: null,
+        ...(projectId ? { projectId } : {}),
       },
     });
   } catch {
@@ -149,7 +155,7 @@ export async function markNotificationRead(notificationId: string) {
 // Mutation: Mark all notifications as read
 // ============================================
 
-export async function markAllNotificationsRead() {
+export async function markAllNotificationsRead(projectId?: string) {
   const user = await verifyAuth();
   if (!user) return { success: false, error: 'No autorizado' };
 
@@ -158,6 +164,7 @@ export async function markAllNotificationsRead() {
       where: {
         userId: user.id,
         readAt: null,
+        ...(projectId ? { projectId } : {}),
       },
       data: { readAt: new Date() },
     });

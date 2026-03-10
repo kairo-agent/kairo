@@ -16,6 +16,7 @@ import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings';
 import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
+import { notifyProjectMembers } from '@/lib/actions/notifications';
 
 // ============================================
 // Types
@@ -23,6 +24,7 @@ import { buildSystemPrompt } from './build-system-prompt';
 
 export interface AIProcessParams {
   projectId: string;
+  organizationId: string;
   conversationId: string;
   leadId: string;
   leadName: string;
@@ -272,6 +274,19 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
         },
       });
       console.log(`[AI Pipeline] HANDOFF leadId=${leadId.slice(0, 8)}... agent=${agentName} -> human mode`);
+
+      // Notify project team about handoff
+      notifyProjectMembers({
+        projectId,
+        organizationId: params.organizationId,
+        type: 'handoff_request',
+        title: `${params.leadName} solicita atencion`,
+        message: `${agentName || 'Kaira'} transfirio la conversacion a un asesor humano`,
+        metadata: { leadId, agentName: agentName || 'Kaira', initiatedBy: 'ai' },
+        source: 'ai_pipeline',
+      }).catch((err) =>
+        console.error('[AI Pipeline] Failed to send handoff notification:', err)
+      );
     }
 
     steps.push({ name: 'db_save', duration: Date.now() - stepDB });
