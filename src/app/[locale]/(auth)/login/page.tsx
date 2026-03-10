@@ -153,7 +153,10 @@ export default function LoginPage() {
         if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
           // Strip locale prefix if present (next-intl router adds it automatically)
           const stripped = redirectParam.replace(/^\/(es|en)/, '') || '/leads';
-          finalRedirect = stripped;
+          // Use window.location for redirects with query params (next-intl router may not preserve them)
+          showLoading(t('success.message'), true);
+          window.location.href = `/${locale}${stripped}`;
+          return;
         }
 
         // Show loading overlay and redirect immediately

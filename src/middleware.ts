@@ -74,8 +74,10 @@ export async function middleware(request: NextRequest) {
   if (!user && !isPublicRoute(pathname)) {
     const redirectUrl = new URL(`/${locale}/login`, request.url);
     // Preserve query params (e.g. ?leadId=xxx) in the redirect path
-    const search = request.nextUrl.search;
-    redirectUrl.searchParams.set('redirect', search ? `${pathname}${search}` : pathname);
+    // Use raw URL parsing to avoid nextUrl issues in edge runtime
+    const rawUrl = new URL(request.url);
+    const fullPath = rawUrl.search ? `${pathname}${rawUrl.search}` : pathname;
+    redirectUrl.searchParams.set('redirect', fullPath);
     return NextResponse.redirect(redirectUrl);
   }
 
