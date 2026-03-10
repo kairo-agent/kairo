@@ -33,6 +33,12 @@ export async function middleware(request: NextRequest) {
   // First, handle i18n
   const intlResponse = intlMiddleware(request);
 
+  // If intl middleware wants to redirect (e.g., add locale prefix), let it go first.
+  // Our auth logic will run on the subsequent request after the redirect.
+  if (intlResponse.headers.get('location')) {
+    return intlResponse;
+  }
+
   // Create response with request headers
   const response = NextResponse.next({
     request: {
@@ -72,9 +78,11 @@ export async function middleware(request: NextRequest) {
 
   // If user is not authenticated and trying to access protected route
   if (!user && !isPublicRoute(pathname)) {
-    // DEBUG: Test if Vercel preserves query params on redirect
-    const testUrl = new URL(`/${locale}/login?debugtest=works`, request.url);
-    return NextResponse.redirect(testUrl);
+    // Preserve full path with query params for post-login redirect
+    const fullPath = request.nextUrl.pathname + request.nextUrl.search;
+    const loginUrl = new URL(`/${locale}/login`, request.url);
+    loginUrl.searchParams.set('redirect', fullPath);
+    return NextResponse.redirect(loginUrl);
   }
 
   // If user is authenticated and trying to access login page

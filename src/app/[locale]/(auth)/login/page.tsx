@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Link, useRouter, usePathname } from '@/i18n/routing';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useModal } from '@/contexts/ModalContext';
@@ -61,6 +62,8 @@ export default function LoginPage() {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect');
 
   // Funcion para cambiar el idioma
   const switchLocale = (newLocale: 'es' | 'en') => {
@@ -145,16 +148,11 @@ export default function LoginPage() {
           // Otherwise, redirectTo is already /select-workspace
         }
 
-        // Check for redirect hash set by middleware (e.g. deep-link from email)
-        const hash = window.location.hash;
-        if (hash.startsWith('#redirect=')) {
-          const redirectPath = decodeURIComponent(hash.substring('#redirect='.length));
-          // Security: must start with / and not // (anti open-redirect)
-          if (redirectPath.startsWith('/') && !redirectPath.startsWith('//')) {
-            showLoading(t('success.message'), true);
-            window.location.href = redirectPath;
-            return;
-          }
+        // Check for redirect param from middleware (e.g. deep-link from email)
+        if (redirectParam && redirectParam.startsWith('/') && !redirectParam.startsWith('//')) {
+          showLoading(t('success.message'), true);
+          window.location.href = redirectParam;
+          return;
         }
 
         // Show loading overlay and redirect immediately
