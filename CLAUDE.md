@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.9.1 (Global Rules + Temperature Criteria + Audio Fix) |
+| **Version** | v0.9.2 (AI Handoff + Notification Sound + KB/UI Improvements) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -123,6 +123,7 @@ src/
 8. **PhoneInput**: SIEMPRE usar `@/components/ui/PhoneInput` para telefonos
 9. **NO eliminar leads**: Usar campo `archivedAt` (no status) en lugar de delete
 10. **1 agente activo por proyecto**: Radio button, no toggle multiple
+11. **ExpandableTextarea**: Usar `@/components/ui/ExpandableTextarea` para textareas de contenido largo
 
 ---
 
@@ -149,7 +150,7 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Mar 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, **AI pipeline interno (n8n removido del core)**, RAG (4 fases), **OWASP audit v2 (19 hallazgos resueltos)**, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s), follow-up scheduling con badges, **sanitizacion de contactos WhatsApp**, **anti-prompt-injection**, **waitUntil Vercel serverless**, **per-project App Secret (HMAC multi-tenant)**, **pagina Settings con Instructions + Knowledge Base estructurada (5 secciones)**, **dual-name system (admin vs AI persona, default Kaira)**, **RAG search fix (SECURITY DEFINER + threshold 0.35)**, **temperature marker cleanup**, **Global Rules system (super admin, all agents)**, **Temperature Criteria UI (HOT/WARM/COLD por agente)**, **audio fix fbsbx.com CDN**.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, **AI pipeline interno (n8n removido del core)**, RAG (4 fases), **OWASP audit v2 (19 hallazgos resueltos)**, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s + sonido), follow-up scheduling con badges, **sanitizacion de contactos WhatsApp**, **anti-prompt-injection**, **waitUntil Vercel serverless**, **per-project App Secret (HMAC multi-tenant)**, **pagina Settings con Instructions + Knowledge Base estructurada (5 secciones)**, **dual-name system (admin vs AI persona, default Kaira)**, **RAG search fix (SECURITY DEFINER + threshold 0.35)**, **temperature marker cleanup**, **Global Rules system (super admin, all agents)**, **Temperature Criteria UI (HOT/WARM/COLD por agente)**, **audio fix fbsbx.com CDN**, **AI-initiated handoff ([HANDOFF] marker)**, **notification sound (Web Audio API)**, **per-project notification filtering**, **KB free-text edit**, **ExpandableTextarea en long-form fields**, **pricing thousand separators**.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 

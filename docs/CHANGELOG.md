@@ -4,6 +4,89 @@
 
 ---
 
+## [0.9.2] - 2026-03-09
+
+### AI-Initiated Handoff System
+
+El agente IA puede transferir automaticamente la conversacion a un asesor humano cuando detecta que el lead lo necesita (agendar cita, negociar precio, pide hablar con alguien).
+
+**Mecanismo:**
+
+| Paso | Descripcion |
+|------|-------------|
+| 1 | System prompt instruye al agente sobre cuando transferir + formato `[HANDOFF]` |
+| 2 | AI pipeline detecta `[HANDOFF]` en respuesta via regex |
+| 3 | Marker removido del mensaje enviado al lead |
+| 4 | Lead actualizado a `HandoffMode.human` |
+| 5 | Activity log creado (tipo `handoff_change`) |
+| 6 | Notificacion `handoff_request` enviada al equipo |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/ai/build-system-prompt.ts` | Instruccion de handoff antes del cierre anti-injection |
+| `src/lib/ai/process-ai-response.ts` | Deteccion `[HANDOFF]`, limpieza, update lead, activity log, notificacion |
+| `src/app/api/webhooks/whatsapp/route.ts` | `organizationId` en query + `maxDuration` 25->55s (audio pipeline) |
+| `prisma/schema.prisma` | `handoff_request` en enum `NotificationType` |
+| `src/components/layout/NotificationDropdown.tsx` | HandoffIcon SVG + estilo rojo para handoff_request |
+
+---
+
+### Notification Sound (Web Audio API)
+
+Sonido de notificacion (beep 800Hz, 0.15s) cuando llegan nuevas notificaciones.
+
+| Aspecto | Detalle |
+|---------|---------|
+| AudioContext | Singleton reutilizado (no crea nuevo por beep) |
+| Autoplay policy | Listeners `click`/`touchstart`/`keydown` desbloquean AudioContext suspendido |
+| Inicializacion | AudioContext creado al montar el hook (listeners listos desde inicio) |
+| Deteccion | `count > previousUnreadCountRef` entre polls (no suena al cargar pagina) |
+| Reset | `previousUnreadCountRef` se resetea al cambiar de proyecto |
+
+**Archivo:** `src/hooks/useNotifications.ts`
+
+---
+
+### Per-Project Notification Filtering
+
+Notificaciones filtradas por proyecto seleccionado en el workspace.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/notifications.ts` | `projectId` opcional en `getNotifications()`, `getUnreadNotificationCount()`, `markAllNotificationsRead()` |
+| `src/hooks/useNotifications.ts` | Acepta `projectId`, lo pasa a todas las server actions |
+| `src/components/layout/NotificationDropdown.tsx` | Usa `useWorkspaceOptional()` + pasa `selectedProject?.id` |
+| `src/contexts/WorkspaceContext.tsx` | Nuevo hook `useWorkspaceOptional()` (retorna null sin provider, no lanza error) |
+
+**Fix:** Admin page crash resuelto - `useWorkspace()` lanzaba error en `/admin` que no tiene WorkspaceProvider.
+
+---
+
+### Smart Notification Routing
+
+Notificaciones `new_message` solo se envian cuando el lead esta en modo `human`. En modo `ai`, el pipeline maneja sus propias notificaciones via handoff.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/app/api/webhooks/whatsapp/route.ts` | `notifyProjectMembers` condicionado a `lead.handoffMode === HandoffMode.human` |
+
+---
+
+### KB & UI Improvements
+
+| Mejora | Archivo | Detalle |
+|--------|---------|---------|
+| Precio con thousand separators | `PricingForm.tsx` | `inputMode="decimal"`, regex validation, auto-format con `,` y `.` |
+| Descripcion como textarea | `PricingForm.tsx` | Campo descripcion de `<input>` a `<textarea rows={3}>` |
+| ExpandableTextarea en 5 campos | `SettingsPageClient.tsx` | KB free text, role, personality, additional instructions, pricing description |
+| KB free-text edit | `SettingsPageClient.tsx` | Boton editar (lapiz) en cada entry, modal dinamico add/edit |
+
+**Regla 11 agregada:** Usar `ExpandableTextarea` para textareas de contenido largo.
+
+---
+
 ## [0.9.1] - 2026-03-09
 
 ### RAG Search Fix - SECURITY DEFINER + Threshold Optimization

@@ -1,7 +1,7 @@
 # Sistema de Notificaciones - KAIRO
 
-> **Estado**: v0.7.16 - Implementado Feb 2026
-> **Mecanismo**: Polling cada 15s (escalable a Supabase Realtime)
+> **Estado**: v0.9.2 - Actualizado Mar 2026
+> **Mecanismo**: Polling cada 15s + sonido Web Audio API (escalable a Supabase Realtime)
 
 ## Arquitectura
 
@@ -40,8 +40,9 @@ Evento (webhook/cron/action)
 
 | Tipo | Trigger | Source |
 |------|---------|--------|
-| `new_message` | WhatsApp webhook recibe mensaje inbound | webhook |
+| `new_message` | WhatsApp webhook recibe mensaje inbound (solo modo human) | webhook |
 | `follow_up_due` | pg_cron detecta `nextFollowUpAt <= NOW()` | pg_cron |
+| `handoff_request` | AI pipeline detecta `[HANDOFF]` marker en respuesta del agente | ai_pipeline |
 | `lead_assigned` | (futuro) Server action asigna lead | server_action |
 
 ## Archivos clave
@@ -50,7 +51,7 @@ Evento (webhook/cron/action)
 |---------|-----------|
 | `prisma/schema.prisma` | Modelo Notification + enum NotificationType |
 | `src/lib/actions/notifications.ts` | Server actions: get (con enrichment de lead), markRead, markAllRead, create, notifyProjectMembers |
-| `src/hooks/useNotifications.ts` | Hook de polling (15s) con optimistic updates. Interface incluye `lead` con datos enriquecidos |
+| `src/hooks/useNotifications.ts` | Hook de polling (15s) con optimistic updates, sonido Web Audio API, filtro por projectId |
 | `src/components/layout/NotificationDropdown.tsx` | UI: nombre completo, badge temperatura, fecha follow-up, click -> deep-link a panel |
 | `src/lib/actions/leads.ts` | `getLeadById()` para fetch individual (deep-link desde notificacion) |
 | `src/components/layout/Header.tsx` | Integra NotificationDropdown |
@@ -139,13 +140,21 @@ const channel = supabase.channel('user-notifications')
   .subscribe();
 ```
 
+### Sonido de notificacion (Web Audio API)
+
+Beep de 800Hz / 0.15s cuando llegan nuevas notificaciones (entre polls).
+
+- **Singleton AudioContext**: Se crea una vez, se reutiliza. Los browsers suspenden AudioContext sin gesto del usuario.
+- **Unlock**: Listeners `click`/`touchstart`/`keydown` reanudan el AudioContext suspendido.
+- **No suena al cargar**: `previousUnreadCountRef` inicializado en `null`, set en primer fetch.
+- **Reset por proyecto**: Ref reseteado cuando `projectId` cambia (evita falsos positivos).
+
 ### Otros tipos de notificacion futuros
 
 Solo agregar al enum `NotificationType`:
 1. `lead_assigned` - Cuando un admin asigna un lead
 2. `lead_status_changed` - Cambio de status automatico
-3. `agent_handoff` - AI transfiere a humano
-4. `system_alert` - Errores de integracion
+3. `system_alert` - Errores de integracion
 
 ### Push notifications (browser)
 
