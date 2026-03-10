@@ -412,6 +412,19 @@
       "owner": "Owner",
       "member": "Member"
     },
+    "notifications": {
+      "title": "Notifications",
+      "emailToggle": "Receive email notifications",
+      "emailDescription": "Get alerts when an AI agent transfers a conversation to a human advisor",
+      "ccEmails": "Additional emails",
+      "ccEmailsHelper": "Notifications will be sent to your registration email ({email}). Add additional emails that will also receive a copy.",
+      "ccEmailsPlaceholder": "example@email.com",
+      "addEmail": "Add",
+      "maxEmails": "Maximum 5 additional emails",
+      "invalidEmail": "Invalid email",
+      "duplicateEmail": "This email was already added",
+      "notificationsSaved": "Notification preferences updated"
+    },
     "messages": {
       "profileUpdated": "Profile updated successfully",
       "passwordMismatch": "Passwords don't match",

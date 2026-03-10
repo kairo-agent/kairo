@@ -284,6 +284,9 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
         message: `${agentName || 'Kaira'} transfirio la conversacion a un asesor humano`,
         metadata: { leadId, agentName: agentName || 'Kaira', initiatedBy: 'ai' },
         source: 'ai_pipeline',
+        leadName: params.leadName,
+        agentName: agentName || 'Kaira',
+        projectName: params.companyName,
       }).catch((err) =>
         console.error('[AI Pipeline] Failed to send handoff notification:', err)
       );

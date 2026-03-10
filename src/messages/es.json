@@ -412,6 +412,19 @@
       "owner": "Owner",
       "member": "Miembro"
     },
+    "notifications": {
+      "title": "Notificaciones",
+      "emailToggle": "Recibir notificaciones por email",
+      "emailDescription": "Recibe alertas cuando un agente IA transfiere una conversacion a un asesor humano",
+      "ccEmails": "Emails adicionales",
+      "ccEmailsHelper": "Las notificaciones se enviaran a tu email de registro ({email}). Agrega emails adicionales que tambien recibiran copia.",
+      "ccEmailsPlaceholder": "ejemplo@correo.com",
+      "addEmail": "Agregar",
+      "maxEmails": "Maximo 5 emails adicionales",
+      "invalidEmail": "Email invalido",
+      "duplicateEmail": "Este email ya fue agregado",
+      "notificationsSaved": "Preferencias de notificacion actualizadas"
+    },
     "messages": {
       "profileUpdated": "Perfil actualizado correctamente",
       "passwordMismatch": "Las contraseñas no coinciden",

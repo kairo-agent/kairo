@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/actions/auth';
 import { NotificationType, type Prisma } from '@prisma/client';
+import { sendHandoffEmail } from '@/lib/email';
 
 // ============================================
 // Sanitization
@@ -225,6 +226,10 @@ export async function notifyProjectMembers(params: {
   metadata?: Record<string, unknown>;
   source: string;
   excludeUserId?: string;
+  // Optional params for email notifications (no breaking change for existing callers)
+  leadName?: string;
+  agentName?: string;
+  projectName?: string;
 }) {
   try {
     // Get project members with relevant roles
@@ -256,6 +261,49 @@ export async function notifyProjectMembers(params: {
         expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       })),
     });
+
+    // --- Email notifications (handoff_request and new_message only) ---
+    const emailTypes: NotificationType[] = ['handoff_request', 'new_message'];
+    if (emailTypes.includes(params.type) && params.leadName) {
+      const recipientIds = recipients.map((r) => r.userId);
+
+      // Fetch user emails and preferences in a single query
+      prisma.user
+        .findMany({
+          where: { id: { in: recipientIds } },
+          select: { id: true, email: true, preferences: true, locale: true },
+        })
+        .then((users) => {
+          for (const user of users) {
+            const prefs = (user.preferences as Record<string, unknown>) || {};
+
+            // Default: email notifications enabled unless explicitly disabled
+            if (prefs.notifyEmail === false) continue;
+
+            const ccEmails = Array.isArray(prefs.notifyCcEmails)
+              ? (prefs.notifyCcEmails as string[])
+              : [];
+            const locale =
+              (user.locale as 'es' | 'en') ||
+              (prefs.language as 'es' | 'en') ||
+              'es';
+            const validLocale = locale === 'en' ? 'en' : 'es';
+
+            sendHandoffEmail({
+              recipientEmail: user.email,
+              ccEmails,
+              leadName: params.leadName!,
+              agentName: params.agentName || 'Kaira',
+              projectName: params.projectName || '',
+              leadId: (params.metadata?.leadId as string) || '',
+              locale: validLocale,
+            }).catch((err) =>
+              console.error(`[Email] Error for ${user.id.slice(0, 8)}...:`, err)
+            );
+          }
+        })
+        .catch((err) => console.error('[Email] Failed to fetch recipients:', err));
+    }
   } catch (error) {
     console.error('Error notifying project members:', error);
   }

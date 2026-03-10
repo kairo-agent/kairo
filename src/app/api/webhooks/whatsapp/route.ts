@@ -828,7 +828,7 @@ async function handleIncomingMessage(
     waitUntil(
       prisma.project.findUnique({
         where: { id: projectId },
-        select: { organizationId: true },
+        select: { organizationId: true, name: true },
       }).then((project) => {
         if (project) {
           return notifyProjectMembers({
@@ -839,6 +839,8 @@ async function handleIncomingMessage(
             message: content.substring(0, 100),
             metadata: { leadId: lead.id },
             source: 'webhook',
+            leadName,
+            projectName: project.name,
           });
         }
       }).catch((err) => console.error('Notification error:', err))

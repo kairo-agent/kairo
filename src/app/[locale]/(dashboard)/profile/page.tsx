@@ -103,6 +103,27 @@ const CopyIcon = () => (
   </svg>
 );
 
+const BellIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+
+const MailIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+  </svg>
+);
+
+const PlusIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
 // Password validation helpers
 interface PasswordValidation {
   minLength: boolean;
@@ -162,6 +183,14 @@ interface Profile {
   systemRole: string;
   timezone: string | null;
   locale: string | null;
+  preferences: {
+    theme?: string;
+    language?: string;
+    timezone?: string;
+    displayCurrency?: string;
+    notifyEmail?: boolean;
+    notifyCcEmails?: string[];
+  } | null;
   organizationMemberships: Array<{
     isOwner: boolean;
     organization: {
@@ -207,7 +236,13 @@ export default function ProfilePage() {
     avatarUrl: '',
     timezone: '',
     locale: '',
+    notifyEmail: true,
+    notifyCcEmails: [] as string[],
   });
+
+  // CC email input
+  const [newCcEmail, setNewCcEmail] = useState('');
+  const [ccEmailError, setCcEmailError] = useState('');
 
   // Password form
   const [passwordData, setPasswordData] = useState({
@@ -236,13 +271,17 @@ export default function ProfilePage() {
     if (result.error) {
       setError(result.error);
     } else if (result.profile) {
-      setProfile(result.profile as Profile);
+      const p = result.profile as Profile;
+      setProfile(p);
+      const prefs = p.preferences || {};
       setFormData({
-        firstName: result.profile.firstName,
-        lastName: result.profile.lastName,
-        avatarUrl: result.profile.avatarUrl || '',
-        timezone: result.profile.timezone || '',
-        locale: result.profile.locale || '',
+        firstName: p.firstName,
+        lastName: p.lastName,
+        avatarUrl: p.avatarUrl || '',
+        timezone: p.timezone || '',
+        locale: p.locale || '',
+        notifyEmail: prefs.notifyEmail !== undefined ? prefs.notifyEmail : true,
+        notifyCcEmails: prefs.notifyCcEmails || [],
       });
     }
     setLoading(false);
@@ -260,6 +299,8 @@ export default function ProfilePage() {
       avatarUrl: formData.avatarUrl || undefined,
       timezone: formData.timezone || undefined,
       locale: formData.locale || undefined,
+      notifyEmail: formData.notifyEmail,
+      notifyCcEmails: formData.notifyCcEmails,
     });
 
     if (result.error) {
@@ -324,6 +365,34 @@ export default function ProfilePage() {
     await navigator.clipboard.writeText(passwordData.newPassword);
     setPasswordCopied(true);
     setTimeout(() => setPasswordCopied(false), 2000);
+  };
+
+  const handleAddCcEmail = () => {
+    const email = newCcEmail.trim().toLowerCase();
+    if (!email) return;
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setCcEmailError(t('notifications.invalidEmail'));
+      return;
+    }
+
+    // Check for duplicates
+    if (formData.notifyCcEmails.includes(email)) {
+      setCcEmailError(t('notifications.duplicateEmail'));
+      return;
+    }
+
+    // Check max limit
+    if (formData.notifyCcEmails.length >= 5) return;
+
+    setFormData(prev => ({
+      ...prev,
+      notifyCcEmails: [...prev.notifyCcEmails, email],
+    }));
+    setNewCcEmail('');
+    setCcEmailError('');
   };
 
   const getRoleLabel = (role: string) => {
@@ -471,6 +540,129 @@ export default function ProfilePage() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Notifications Section */}
+            <hr className="border-[var(--border-primary)]" />
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <BellIcon />
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+                  {t('notifications.title')}
+                </h3>
+              </div>
+
+              {/* Email toggle */}
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <div className="relative mt-0.5">
+                  <input
+                    type="checkbox"
+                    checked={formData.notifyEmail}
+                    onChange={(e) => setFormData(prev => ({ ...prev, notifyEmail: e.target.checked }))}
+                    className="sr-only peer"
+                  />
+                  <div className={cn(
+                    'w-10 h-6 rounded-full transition-colors',
+                    formData.notifyEmail
+                      ? 'bg-[var(--kairo-cyan)]'
+                      : 'bg-[var(--bg-tertiary)]'
+                  )} />
+                  <div className={cn(
+                    'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow-sm',
+                    formData.notifyEmail && 'translate-x-4'
+                  )} />
+                </div>
+                <div className="flex-1">
+                  <span className="block text-sm font-medium text-[var(--text-primary)]">
+                    {t('notifications.emailToggle')}
+                  </span>
+                  <span className="block text-xs text-[var(--text-secondary)] mt-0.5">
+                    {t('notifications.emailDescription')}
+                  </span>
+                </div>
+              </label>
+
+              {/* CC Emails (visible only when toggle is ON) */}
+              {formData.notifyEmail && (
+                <div className="space-y-3 pl-13">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                      {t('notifications.ccEmails')}
+                    </label>
+                    <p className="text-xs text-[var(--text-secondary)] mb-2">
+                      {t('notifications.ccEmailsHelper', { email: profile?.email || '' })}
+                    </p>
+                  </div>
+
+                  {/* Email chips */}
+                  {formData.notifyCcEmails.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {formData.notifyCcEmails.map((email) => (
+                        <span
+                          key={email}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)] border border-[var(--kairo-cyan)]/20"
+                        >
+                          <MailIcon />
+                          {email}
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              notifyCcEmails: prev.notifyCcEmails.filter(e => e !== email),
+                            }))}
+                            className="ml-0.5 hover:text-red-400 transition-colors"
+                          >
+                            <XIcon />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add email input */}
+                  {formData.notifyCcEmails.length < 5 && (
+                    <div>
+                      <div className="flex gap-2">
+                        <div className="flex-1">
+                          <Input
+                            type="email"
+                            value={newCcEmail}
+                            onChange={(e) => {
+                              setNewCcEmail(e.target.value);
+                              setCcEmailError('');
+                            }}
+                            placeholder={t('notifications.ccEmailsPlaceholder')}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCcEmail();
+                              }
+                            }}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={handleAddCcEmail}
+                          disabled={!newCcEmail.trim()}
+                        >
+                          <span className="flex items-center gap-1">
+                            <PlusIcon />
+                            {t('notifications.addEmail')}
+                          </span>
+                        </Button>
+                      </div>
+                      {ccEmailError && (
+                        <p className="mt-1 text-xs text-red-500">{ccEmailError}</p>
+                      )}
+                      <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+                        {t('notifications.maxEmails')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end">

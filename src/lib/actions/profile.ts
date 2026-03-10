@@ -20,7 +20,16 @@ export async function getProfile() {
 
     const profile = await prisma.user.findUnique({
       where: { id: user.id },
-      include: {
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        systemRole: true,
+        timezone: true,
+        locale: true,
+        preferences: true,
         organizationMemberships: {
           include: {
             organization: {
@@ -72,6 +81,8 @@ export async function updateProfile(data: {
   avatarUrl?: string;
   timezone?: string;
   locale?: string;
+  notifyEmail?: boolean;
+  notifyCcEmails?: string[];
 }) {
   try {
     const supabase = await createServerClient();
@@ -79,6 +90,23 @@ export async function updateProfile(data: {
 
     if (!user) {
       return { error: 'No autorizado' };
+    }
+
+    // Read current preferences to merge notification settings
+    const currentUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { preferences: true },
+    });
+
+    const currentPreferences = (currentUser?.preferences as Record<string, unknown>) || {};
+
+    // Build updated preferences by merging
+    const updatedPreferences: Record<string, unknown> = { ...currentPreferences };
+    if (data.notifyEmail !== undefined) {
+      updatedPreferences.notifyEmail = data.notifyEmail;
+    }
+    if (data.notifyCcEmails !== undefined) {
+      updatedPreferences.notifyCcEmails = data.notifyCcEmails;
     }
 
     const updatedUser = await prisma.user.update({
@@ -89,6 +117,7 @@ export async function updateProfile(data: {
         avatarUrl: data.avatarUrl,
         timezone: data.timezone,
         locale: data.locale,
+        preferences: JSON.parse(JSON.stringify(updatedPreferences)),
       },
     });
 
