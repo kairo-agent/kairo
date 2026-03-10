@@ -11,6 +11,7 @@
 
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+import { HandoffMode } from '@prisma/client';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings';
 import { createClient } from '@/lib/supabase/server';
@@ -169,14 +170,17 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     }
     steps.push({ name: 'openai_chat', duration: Date.now() - stepOpenAI });
 
-    // --- Step 5: Extract temperature ---
+    // --- Step 5: Extract temperature + handoff markers ---
     const tempMatch = rawResponse.match(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/i);
     const suggestedTemperature = tempMatch
       ? (tempMatch[1].toLowerCase() as 'hot' | 'warm' | 'cold')
       : null;
 
-    // Clean message (remove temperature marker - strict format + fallback for GPT variations)
+    const shouldHandoff = /\[HANDOFF\]/i.test(rawResponse);
+
+    // Clean message (remove markers - strict format + fallback for GPT variations)
     const cleanMessage = rawResponse
+      .replace(/\[HANDOFF\]/gi, '')
       .replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '')
       .replace(/\n?\*{0,2}[Tt]emperatura\*{0,2}\s*:\s*.+$/gm, '')
       .trim();
@@ -248,6 +252,28 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       await Promise.all(leadUpdates);
     }
 
+    // Auto-handoff: AI decided to transfer to human
+    if (shouldHandoff) {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          handoffMode: HandoffMode.human,
+          handoffAt: new Date(),
+          handoffUserId: null, // AI-initiated, no specific user
+        },
+      });
+      await prisma.activity.create({
+        data: {
+          leadId,
+          type: 'handoff_change',
+          description: `${agentName || 'Kaira'} transfirio la conversacion a un asesor humano`,
+          performedBy: null, // AI-initiated
+          metadata: { mode: 'human', initiatedBy: 'ai', agentName: agentName || 'Kaira' },
+        },
+      });
+      console.log(`[AI Pipeline] HANDOFF leadId=${leadId.slice(0, 8)}... agent=${agentName} -> human mode`);
+    }
+
     steps.push({ name: 'db_save', duration: Date.now() - stepDB });
 
     // --- Step 8: Send to WhatsApp ---
@@ -263,7 +289,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const stepsLog = steps.map(s => `${s.name}=${s.duration}ms`).join(' ');
     console.log(
       `[AI Pipeline] OK leadId=${leadId} agent=${agentName} temp=${suggestedTemperature || 'none'} ` +
-      `rag=${ragResults.length} ${stepsLog} total=${totalDuration}ms`
+      `handoff=${shouldHandoff} rag=${ragResults.length} ${stepsLog} total=${totalDuration}ms`
     );
 
   } catch (error) {
