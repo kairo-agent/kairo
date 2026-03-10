@@ -9,7 +9,7 @@ import { waitUntil } from '@vercel/functions';
 import * as crypto from 'crypto';
 
 // Vercel serverless config
-export const maxDuration = 25; // 25s max (Meta expects 200 within 20s)
+export const maxDuration = 55; // 55s max for audio transcription pipeline (200 sent immediately via waitUntil)
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import {
