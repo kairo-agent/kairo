@@ -822,26 +822,28 @@ async function handleIncomingMessage(
   }
 
   // Background: notify project members about new message
-  // waitUntil keeps the function alive on Vercel after response is sent
+  // Notify team only when lead is in human mode (AI mode handles its own notifications via handoff)
   const leadName = lead.firstName || contactName;
-  waitUntil(
-    prisma.project.findUnique({
-      where: { id: projectId },
-      select: { organizationId: true },
-    }).then((project) => {
-      if (project) {
-        return notifyProjectMembers({
-          projectId,
-          organizationId: project.organizationId,
-          type: 'new_message',
-          title: `Nuevo mensaje de ${leadName}`,
-          message: content.substring(0, 100),
-          metadata: { leadId: lead.id },
-          source: 'webhook',
-        });
-      }
-    }).catch((err) => console.error('Notification error:', err))
-  );
+  if (lead.handoffMode === HandoffMode.human) {
+    waitUntil(
+      prisma.project.findUnique({
+        where: { id: projectId },
+        select: { organizationId: true },
+      }).then((project) => {
+        if (project) {
+          return notifyProjectMembers({
+            projectId,
+            organizationId: project.organizationId,
+            type: 'new_message',
+            title: `Nuevo mensaje de ${leadName}`,
+            message: content.substring(0, 100),
+            metadata: { leadId: lead.id },
+            source: 'webhook',
+          });
+        }
+      }).catch((err) => console.error('Notification error:', err))
+    );
+  }
 
   // Send read receipt to WhatsApp so lead sees double checkmarks (blue)
   // waitUntil keeps the function alive on Vercel after response is sent
