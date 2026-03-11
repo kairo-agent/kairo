@@ -47,6 +47,10 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#00E5FF" />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`}>
         <NextTopLoader
           color="#00E5FF"

@@ -4,9 +4,11 @@
 // KAIRO - Dashboard Layout Client Component
 // ============================================
 
-import { useState, useCallback, createContext, useContext } from 'react';
+import { useState, useCallback, useEffect, createContext, useContext } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import PushPermissionModal from '@/components/features/PushPermissionModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ModalProvider } from '@/contexts/ModalContext';
 import { WorkspaceProvider, type WorkspaceOrganization } from '@/contexts/WorkspaceContext';
@@ -55,8 +57,17 @@ interface DashboardLayoutClientProps {
 
 function DashboardLayoutContent({ children, user }: DashboardLayoutClientProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showPushModal, setShowPushModal] = useState(false);
   const pathname = usePathname();
   const t = useTranslations('navigation');
+  const { shouldShowModal, requestAndSubscribe, dismissModal } = usePushNotifications(user.id);
+
+  // Show push modal after a brief delay post-login (non-intrusive)
+  useEffect(() => {
+    if (!shouldShowModal) return;
+    const timer = setTimeout(() => setShowPushModal(true), 3000);
+    return () => clearTimeout(timer);
+  }, [shouldShowModal]);
 
   // Map pathname to page titles using translations
   const getPageTitle = (path: string): string => {
@@ -113,6 +124,20 @@ function DashboardLayoutContent({ children, user }: DashboardLayoutClientProps) 
           <main className="w-full">{children}</main>
         </div>
       </div>
+
+      {/* Push notification permission modal (pre-permission pattern) */}
+      {showPushModal && (
+        <PushPermissionModal
+          onAccept={async () => {
+            await requestAndSubscribe();
+            setShowPushModal(false);
+          }}
+          onDismiss={() => {
+            dismissModal();
+            setShowPushModal(false);
+          }}
+        />
+      )}
     </UserContext.Provider>
   );
 }

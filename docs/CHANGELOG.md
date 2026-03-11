@@ -32,6 +32,70 @@ Resumen IA en panel de detalle ya no se corta a mitad de frase. Limite aumentado
 
 ---
 
+### Email Notifications on Handoff (Resend)
+
+Notificacion por email cuando el agente IA transfiere una conversacion a modo humano. Usa Resend como proveedor de email.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Trigger | AI handoff (`[HANDOFF]` marker detectado) |
+| Destinatario | Miembros del proyecto con `emailNotifications: true` en su perfil |
+| Contenido | Email HTML branded (KAIRO dark theme) con nombre del lead, agente, proyecto y boton CTA |
+| Deep-link | Boton "Ver en KAIRO" apunta a `/{locale}/leads?leadId=xxx` |
+| i18n | Templates en ES y EN segun locale del destinatario |
+| CC | Otros miembros del proyecto incluidos como CC |
+| Fire-and-forget | Nunca bloquea el pipeline; errores se loguean sin propagar |
+
+**Archivos:**
+
+| Archivo | Proposito |
+|---------|-----------|
+| `src/lib/email.ts` | Cliente Resend singleton, HTML builder, `sendHandoffEmail()` |
+| `src/lib/actions/notifications.ts` | Invoca `sendHandoffEmail()` tras crear notificacion de handoff |
+| `src/app/[locale]/(dashboard)/profile/ProfilePageClient.tsx` | Toggle "Email Notifications" en preferencias de perfil |
+
+**Env vars:** `RESEND_API_KEY`, `RESEND_FROM_EMAIL` (default: `KAIRO <no-reply@kairoagent.com>`)
+
+---
+
+### Deep-Link Post-Login Redirect Fix
+
+Cuando un usuario no autenticado accede a una URL con query params (ej: `/es/leads?leadId=xxx` desde el email de handoff), ahora se preserva la URL completa tras el login.
+
+**Problema:** `redirect()` de Next.js App Router crea una nueva respuesta HTTP que descarta headers del middleware, query params y cookies. Intentos con middleware redirect, cookies, hash fragments - todos fallaban por limitaciones de Vercel Edge Runtime.
+
+**Solucion:** `AuthRedirect` client component + `sessionStorage`.
+
+| Paso | Descripcion |
+|------|-------------|
+| 1 | Dashboard layout detecta usuario no autenticado |
+| 2 | Renderiza `<AuthRedirect />` en vez de `redirect()` server-side |
+| 3 | AuthRedirect guarda `pathname + search` en `sessionStorage` |
+| 4 | Redirige a login via `window.location.href` |
+| 5 | Login page post-auth lee `sessionStorage` y navega a la URL guardada |
+
+**Archivos:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/layout/AuthRedirect.tsx` | Nuevo: guarda URL en sessionStorage antes de redirect a login |
+| `src/app/[locale]/(dashboard)/layout.tsx` | `<AuthRedirect />` en vez de `redirect()` para usuarios no autenticados |
+| `src/app/[locale]/(auth)/login/page.tsx` | Post-login: lee `sessionStorage` para deep-link redirect |
+
+---
+
+### Boton Llamar Oculto para No-Super_Admin
+
+Boton "Llamar" en panel de detalle del lead solo visible para `super_admin` (feature no lista para usuarios regulares).
+
+---
+
+### Mobile Tabs (Icon-Only Pattern)
+
+Tabs en paginas con pestanas usan solo iconos en mobile para evitar overflow horizontal, con labels completos en desktop.
+
+---
+
 ## [0.9.2] - 2026-03-09
 
 ### AI-Initiated Handoff System

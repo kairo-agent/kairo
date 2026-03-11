@@ -6,6 +6,8 @@ import { Card } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { getProfile, updateProfile, changePassword } from '@/lib/actions/profile';
+import { getPushStatus, toggleAllPushSubscriptions } from '@/lib/actions/push-subscriptions';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { cn } from '@/lib/utils';
 
 // Timezones (same as OrganizationModal)
@@ -221,6 +223,7 @@ export default function ProfilePage() {
   const t = useTranslations('profile');
   const tCommon = useTranslations('common');
   const tRoles = useTranslations('admin.roles');
+  const tPush = useTranslations('pushNotifications.profile');
 
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [loading, setLoading] = useState(true);
@@ -243,6 +246,11 @@ export default function ProfilePage() {
   // CC email input
   const [newCcEmail, setNewCcEmail] = useState('');
   const [ccEmailError, setCcEmailError] = useState('');
+
+  // Push notifications
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushDeviceCount, setPushDeviceCount] = useState(0);
+  const { permission: pushPermission, requestAndSubscribe, isSubscribed: pushSubscribed } = usePushNotifications(profile?.id);
 
   // Password form
   const [passwordData, setPasswordData] = useState({
@@ -282,6 +290,12 @@ export default function ProfilePage() {
         locale: p.locale || '',
         notifyEmail: prefs.notifyEmail !== undefined ? prefs.notifyEmail : true,
         notifyCcEmails: prefs.notifyCcEmails || [],
+      });
+
+      // Load push status
+      getPushStatus().then((status) => {
+        setPushEnabled(status.enabled);
+        setPushDeviceCount(status.subscriptionCount);
       });
     }
     setLoading(false);
@@ -667,6 +681,81 @@ export default function ProfilePage() {
                   )}
                 </div>
               )}
+
+              {/* Push notifications toggle */}
+              <div className="pt-3 border-t border-[var(--border-primary)]">
+                {pushPermission === 'unsupported' ? (
+                  <p className="text-xs text-[var(--text-tertiary)]">
+                    {tPush('pushUnsupported')}
+                  </p>
+                ) : pushPermission === 'denied' ? (
+                  <div className="space-y-1">
+                    <label className="flex items-start gap-3 opacity-50">
+                      <div className="relative mt-0.5">
+                        <div className="w-10 h-6 rounded-full bg-[var(--bg-tertiary)]" />
+                        <div className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm" />
+                      </div>
+                      <div className="flex-1">
+                        <span className="block text-sm font-medium text-[var(--text-primary)]">
+                          {tPush('pushToggle')}
+                        </span>
+                      </div>
+                    </label>
+                    <p className="text-xs text-orange-500 pl-13">{tPush('pushDenied')}</p>
+                    <p className="text-xs text-[var(--text-tertiary)] pl-13">{tPush('pushDeniedHelp')}</p>
+                  </div>
+                ) : (
+                  <label className="flex items-start gap-3 cursor-pointer group">
+                    <div className="relative mt-0.5">
+                      <input
+                        type="checkbox"
+                        checked={pushEnabled}
+                        onChange={async (e) => {
+                          const newValue = e.target.checked;
+                          if (newValue && !pushSubscribed) {
+                            // Need to subscribe this browser first
+                            const ok = await requestAndSubscribe();
+                            if (ok) {
+                              setPushEnabled(true);
+                              const status = await getPushStatus();
+                              setPushDeviceCount(status.subscriptionCount);
+                            }
+                          } else {
+                            setPushEnabled(newValue);
+                            await toggleAllPushSubscriptions(newValue);
+                            const status = await getPushStatus();
+                            setPushDeviceCount(status.subscriptionCount);
+                          }
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className={cn(
+                        'w-10 h-6 rounded-full transition-colors',
+                        pushEnabled
+                          ? 'bg-[var(--kairo-cyan)]'
+                          : 'bg-[var(--bg-tertiary)]'
+                      )} />
+                      <div className={cn(
+                        'absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform shadow-sm',
+                        pushEnabled && 'translate-x-4'
+                      )} />
+                    </div>
+                    <div className="flex-1">
+                      <span className="block text-sm font-medium text-[var(--text-primary)]">
+                        {tPush('pushToggle')}
+                      </span>
+                      <span className="block text-xs text-[var(--text-secondary)] mt-0.5">
+                        {tPush('pushDescription')}
+                      </span>
+                      {pushDeviceCount > 0 && pushEnabled && (
+                        <span className="block text-xs text-[var(--kairo-cyan)] mt-1">
+                          {tPush('devicesActive', { count: pushDeviceCount })}
+                        </span>
+                      )}
+                    </div>
+                  </label>
+                )}
+              </div>
             </div>
 
             <div className="flex justify-end">

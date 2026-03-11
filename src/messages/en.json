@@ -868,5 +868,22 @@
       "presets": "Add from template",
       "maxPolicies": "Maximum 20 policies"
     }
+  },
+  "pushNotifications": {
+    "modal": {
+      "title": "Enable push notifications",
+      "description": "Get real-time alerts when an AI agent transfers a conversation, even when KAIRO is not open.",
+      "accept": "Enable notifications",
+      "dismiss": "Not now",
+      "browserNote": "Your browser will ask you to confirm permission."
+    },
+    "profile": {
+      "pushToggle": "Receive push notifications",
+      "pushDescription": "Get alerts on your browser/device, even when KAIRO is not open.",
+      "pushDenied": "Notifications blocked by your browser.",
+      "pushDeniedHelp": "Click the lock icon in your browser's address bar and enable notifications.",
+      "pushUnsupported": "Your browser does not support push notifications.",
+      "devicesActive": "{count} active {count, plural, one {device} other {devices}}"
+    }
   }
 }

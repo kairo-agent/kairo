@@ -43,7 +43,7 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'", // Tailwind uses inline styles
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://graph.facebook.com https://*.railway.app",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://graph.facebook.com https://*.railway.app https://fcm.googleapis.com https://*.push.services.mozilla.com https://*.notify.windows.com https://*.push.apple.com",
       "frame-ancestors 'none'",
       "form-action 'self'",
       "base-uri 'self'",

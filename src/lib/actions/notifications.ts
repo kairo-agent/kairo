@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/actions/auth';
 import { NotificationType, type Prisma } from '@prisma/client';
 import { sendHandoffEmail } from '@/lib/email';
+import { sendPush, type PushPayload } from '@/lib/push/send-push';
 
 // ============================================
 // Sanitization
@@ -304,7 +305,60 @@ export async function notifyProjectMembers(params: {
         })
         .catch((err) => console.error('[Email] Failed to fetch recipients:', err));
     }
+
+    // --- Web Push notifications (all notification types) ---
+    const recipientIds = recipients.map((r) => r.userId);
+    sendPushToUsers(recipientIds, {
+      title: sanitizeText(params.title, 255),
+      body: sanitizeText(params.message, 200),
+      url: params.metadata?.leadId
+        ? `/leads?leadId=${params.metadata.leadId}`
+        : '/leads',
+      tag: `kairo-${params.type}-${params.projectId}`,
+    }).catch((err) => console.error('[Push] Failed:', err));
   } catch (error) {
     console.error('Error notifying project members:', error);
+  }
+}
+
+// ============================================
+// Internal: Send push to multiple users
+// Fetches active subscriptions, sends, cleans expired
+// ============================================
+
+async function sendPushToUsers(userIds: string[], payload: PushPayload) {
+  // Fetch users with push enabled + their active subscriptions
+  const users = await prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: {
+      id: true,
+      preferences: true,
+      pushSubscriptions: {
+        where: { active: true },
+        select: { id: true, endpoint: true, p256dh: true, auth: true },
+      },
+    },
+  });
+
+  const expiredIds: string[] = [];
+
+  for (const user of users) {
+    const prefs = (user.preferences as Record<string, unknown>) || {};
+    if (prefs.notifyPush === false) continue;
+    if (user.pushSubscriptions.length === 0) continue;
+
+    for (const sub of user.pushSubscriptions) {
+      const alive = await sendPush(sub, payload);
+      if (!alive) {
+        expiredIds.push(sub.id);
+      }
+    }
+  }
+
+  // Clean up expired subscriptions
+  if (expiredIds.length > 0) {
+    await prisma.pushSubscription.deleteMany({
+      where: { id: { in: expiredIds } },
+    }).catch((err) => console.error('[Push] Cleanup error:', err));
   }
 }

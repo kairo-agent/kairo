@@ -868,5 +868,22 @@
       "presets": "Agregar desde plantilla",
       "maxPolicies": "Maximo 20 politicas"
     }
+  },
+  "pushNotifications": {
+    "modal": {
+      "title": "Activa notificaciones push",
+      "description": "Recibe alertas en tiempo real cuando un agente IA transfiere una conversacion, incluso si no tienes KAIRO abierto.",
+      "accept": "Activar notificaciones",
+      "dismiss": "Ahora no",
+      "browserNote": "Tu navegador te pedira confirmar el permiso."
+    },
+    "profile": {
+      "pushToggle": "Recibir notificaciones push",
+      "pushDescription": "Recibe alertas en tu navegador/dispositivo, incluso cuando KAIRO no esta abierto.",
+      "pushDenied": "Notificaciones bloqueadas por tu navegador.",
+      "pushDeniedHelp": "Haz clic en el icono de candado en la barra de tu navegador y activa las notificaciones.",
+      "pushUnsupported": "Tu navegador no soporta notificaciones push.",
+      "devicesActive": "{count} {count, plural, one {dispositivo activo} other {dispositivos activos}}"
+    }
   }
 }
