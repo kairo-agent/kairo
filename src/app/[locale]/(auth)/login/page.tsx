@@ -161,7 +161,10 @@ function LoginPageContent() {
         const deepLink = redirectParam || savedRedirect;
         if (deepLink && deepLink.startsWith('/') && !deepLink.startsWith('//')) {
           sessionStorage.removeItem('kairo-redirect-after-login');
-          finalRedirect = deepLink;
+          // Deep-links from middleware already include locale (e.g., /es/leads)
+          showLoading(t('success.message'), true);
+          window.location.href = deepLink;
+          return;
         }
 
         // Show loading overlay and use full navigation (faster than router.push
