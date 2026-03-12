@@ -11,9 +11,10 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify super admin
+    // Verify super admin (lightweight select)
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
+      select: { systemRole: true },
     });
 
     if (dbUser?.systemRole !== 'super_admin') {
