@@ -274,6 +274,14 @@ La server action `scheduleFollowUp` ahora verifica que el usuario tenga acceso a
 
 **Archivo:** `src/lib/actions/leads.ts`
 
+### 17. Human Chat via Direct WhatsApp API (v0.9.5 bug fix)
+
+Los mensajes enviados por humanos desde el chat de KAIRO ahora van directamente a WhatsApp Cloud API en vez de pasar por el webhook de n8n. Esto elimina la exposicion del contenido del mensaje y del `n8nWebhookUrl` a un servicio externo para este flujo.
+
+**Implicacion de seguridad:** El token de WhatsApp (`WHATSAPP_ACCESS_TOKEN`) y el contenido de los mensajes ya no transitan por n8n para el flujo de respuesta humana. Consistente con el pipeline AI que ya usaba llamadas directas desde v0.8.0.
+
+**Archivo:** `src/lib/actions/messages.ts`
+
 ---
 
 ## Variables de Entorno Requeridas para Seguridad

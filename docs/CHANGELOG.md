@@ -48,6 +48,31 @@ Auditoria integral de rendimiento y seguridad en 4 fases (7 commits). Consolida 
 | M8 | verify-admin endpoint sanitizado: no expone userId, systemRole ni reason en response | `verify-admin/route.ts` |
 | -- | Admin stats usa `select: { systemRole: true }` en vez de fetch completo de usuario | `admin.ts` |
 
+**Bug Fix - Human chat messages not reaching WhatsApp (commit `fc9f381`):**
+
+`sendMessage()` en `messages.ts` enviaba mensajes del chat humano via n8n webhook (`lead.project.n8nWebhookUrl`), pero n8n fue removido del critical path en v0.8.0. Los mensajes se guardaban en DB pero nunca llegaban a WhatsApp.
+
+| Cambio | Detalle |
+|--------|---------|
+| Reemplazar llamada a n8n webhook | Llamadas directas a WhatsApp Cloud API (mismo patron que `process-ai-response.ts`). Soporta text, image, video y document con captions. |
+| Limpiar codigo obsoleto | Removido bloque de notificacion handoff de n8n y `n8nWebhookUrl` de los Prisma selects del mismo archivo. |
+
+**Archivo modificado:** `src/lib/actions/messages.ts`
+
+**Bug Fix - Emoji picker no renderizaba (commit `ad56a11`):**
+
+El picker `@emoji-mart/react` renderizaba en el DOM con `width: 0` (Shadow DOM solo tenia un STYLE tag, sin contenido). Causa raiz: `dynamic()` import de Next.js + lazy-loading de datos en `useEffect` hacian que el core vanilla JS de `emoji-mart` no recibiera el prop `data` correctamente y fallara silenciosamente al intentar fetch de `cdn.jsdelivr.net`.
+
+| Cambio | Detalle |
+|--------|---------|
+| Reemplazar `dynamic()` con imports directos | `@emoji-mart/data` y `@emoji-mart/react` importados estaticamente |
+| Pre-inicializar datos | `emojiInit({ data: emojiData })` a nivel de modulo (antes del render) |
+| Usar emojis nativos del sistema | `set="native"` en el componente (elimina dependencia de sprite sheets via CDN) |
+| Eliminar estado y efecto de datos | `emojiData` state y `useEffect` de lazy-loading removidos |
+| Fix race condition click-outside | `onMouseDown stopPropagation` en boton de emoji en `ChatInput.tsx` para prevenir que el handler click-outside cierre el picker antes de que abra |
+
+**Archivos modificados:** `src/components/features/LeadChat.tsx`, `src/components/features/ChatInput.tsx`
+
 ---
 
 ## [0.9.4] - 2026-03-11
