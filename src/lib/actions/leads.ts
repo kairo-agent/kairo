@@ -6,7 +6,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser, verifyAuth, verifyProjectAccess } from './auth';
+import { verifyAuth, verifyProjectAccess } from './auth';
 import { validatePhone, normalizePhone } from '@/lib/utils';
 import type { Lead as PrismaLead, AIAgent, Prisma, Note, Activity, User, LeadStatus as PrismaLeadStatus } from '@prisma/client';
 import type {
@@ -76,13 +76,9 @@ export type LeadsStats = {
 // HELPER: Get accessible project IDs for user
 // ============================================
 
-interface UserWithMemberships {
-  systemRole: string;
-  projectMemberships?: Array<{ projectId: string }>;
-}
-
 async function getAccessibleProjectIds(
-  user: UserWithMemberships,
+  userId: string,
+  systemRole: string,
   projectId?: string,
   organizationId?: string
 ): Promise<string[] | 'all_in_org' | null> {
@@ -92,16 +88,15 @@ async function getAccessibleProjectIds(
   }
 
   if (organizationId) {
-    if (user.systemRole === 'super_admin') {
+    if (systemRole === 'super_admin') {
       // Super admin can see all projects in org
       return 'all_in_org';
     }
     // Regular users: get intersection of their projects and org projects
-    const userProjectIds = user.projectMemberships?.map((m) => m.projectId) || [];
     const orgProjects = await prisma.project.findMany({
       where: {
         organizationId,
-        id: { in: userProjectIds },
+        members: { some: { userId } },
       },
       select: { id: true },
     });
@@ -110,7 +105,7 @@ async function getAccessibleProjectIds(
   }
 
   // No project or org specified: fallback to first accessible project
-  if (user.systemRole === 'super_admin') {
+  if (systemRole === 'super_admin') {
     const firstProject = await prisma.project.findFirst({
       orderBy: { createdAt: 'asc' },
     });
@@ -118,8 +113,14 @@ async function getAccessibleProjectIds(
     return [firstProject.id];
   }
 
-  if (user.projectMemberships && user.projectMemberships.length > 0) {
-    return [user.projectMemberships[0].projectId];
+  const firstMembership = await prisma.projectMember.findFirst({
+    where: { userId },
+    select: { projectId: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (firstMembership) {
+    return [firstMembership.projectId];
   }
 
   return null;
@@ -243,7 +244,7 @@ export async function getLeadsPaginated(
   pagination?: PaginationParams
 ): Promise<PaginatedResponse<LeadGridItem>> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return {
@@ -260,7 +261,7 @@ export async function getLeadsPaginated(
     }
 
     // Get accessible projects for this user
-    const accessibleProjects = await getAccessibleProjectIds(user, projectId, organizationId);
+    const accessibleProjects = await getAccessibleProjectIds(user.id, user.systemRole, projectId, organizationId);
 
     if (!accessibleProjects) {
       return {
@@ -380,13 +381,13 @@ export async function getLeads(
   organizationId?: string
 ): Promise<LeadGridItem[]> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return [];
     }
 
-    const accessibleProjects = await getAccessibleProjectIds(user, projectId, organizationId);
+    const accessibleProjects = await getAccessibleProjectIds(user.id, user.systemRole, projectId, organizationId);
 
     if (!accessibleProjects) {
       return [];
@@ -462,13 +463,13 @@ export async function getLeadsStatsFromDB(
   filters?: Partial<LeadFilters>
 ): Promise<LeadsStats> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return { total: 0, byStatus: {}, byTemperature: {} };
     }
 
-    const accessibleProjects = await getAccessibleProjectIds(user, projectId, organizationId);
+    const accessibleProjects = await getAccessibleProjectIds(user.id, user.systemRole, projectId, organizationId);
 
     if (!accessibleProjects) {
       return { total: 0, byStatus: {}, byTemperature: {} };
@@ -803,7 +804,7 @@ export async function scheduleFollowUp(
 
 export async function getAIAgents(projectId?: string) {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
 
     if (!user) {
       return [];
@@ -817,8 +818,13 @@ export async function getAIAgents(projectId?: string) {
           orderBy: { createdAt: 'asc' },
         });
         targetProjectId = firstProject?.id;
-      } else if (user.projectMemberships && user.projectMemberships.length > 0) {
-        targetProjectId = user.projectMemberships[0].projectId;
+      } else {
+        const firstMembership = await prisma.projectMember.findFirst({
+          where: { userId: user.id },
+          select: { projectId: true },
+          orderBy: { createdAt: 'asc' },
+        });
+        targetProjectId = firstMembership?.projectId;
       }
     }
 

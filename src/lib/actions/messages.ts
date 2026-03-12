@@ -6,7 +6,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { getCurrentUser, verifyAuth, verifyProjectAccess } from './auth';
+import { verifyAuth, verifyProjectAccess } from './auth';
 import { getProjectSecret } from './secrets';
 import type { Message, Conversation, Prisma } from '@prisma/client';
 import { MessageSender, HandoffMode } from '@prisma/client';

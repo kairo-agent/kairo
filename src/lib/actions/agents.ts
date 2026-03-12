@@ -7,7 +7,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { createClient } from '@/lib/supabase/server';
+import { verifyAuth, verifyProjectAccess } from '@/lib/actions/auth';
 import { revalidatePath } from 'next/cache';
 import {
   PromptStructure,
@@ -63,43 +63,9 @@ export interface AIAgentData {
 }
 
 // ============================================
-// Helper: Verificar acceso al proyecto
+// Helper: Verificar auth + acceso al proyecto
+// Uses verifyAuth() + verifyProjectAccess() from auth.ts
 // ============================================
-
-async function verifyProjectAccess(projectId: string): Promise<{ userId: string; isSuperAdmin: boolean } | null> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) return null;
-
-  // Obtener usuario de la BD
-  const dbUser = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { systemRole: true }
-  });
-
-  if (!dbUser) return null;
-
-  const isSuperAdmin = dbUser.systemRole === 'super_admin';
-
-  // Super admin tiene acceso a todo
-  if (isSuperAdmin) {
-    return { userId: user.id, isSuperAdmin: true };
-  }
-
-  // Verificar membresia al proyecto con rol admin o manager
-  const membership = await prisma.projectMember.findFirst({
-    where: {
-      projectId,
-      userId: user.id,
-      role: { in: ['admin', 'manager'] }
-    }
-  });
-
-  if (!membership) return null;
-
-  return { userId: user.id, isSuperAdmin: false };
-}
 
 // ============================================
 // GET: Obtener agentes de un proyecto
@@ -111,8 +77,13 @@ export async function getProjectAgents(projectId: string): Promise<{
   error?: string;
 }> {
   try {
-    const access = await verifyProjectAccess(projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 
@@ -164,8 +135,13 @@ export async function getAgent(agentId: string): Promise<{
       return { success: false, error: 'Agent not found' };
     }
 
-    const access = await verifyProjectAccess(agent.projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, agent.projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 
@@ -194,8 +170,13 @@ export async function createAgent(input: CreateAgentInput): Promise<{
   error?: string;
 }> {
   try {
-    const access = await verifyProjectAccess(input.projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, input.projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 
@@ -271,8 +252,13 @@ export async function updateAgent(agentId: string, input: UpdateAgentInput): Pro
       return { success: false, error: 'Agent not found' };
     }
 
-    const access = await verifyProjectAccess(existingAgent.projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, existingAgent.projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 
@@ -349,8 +335,13 @@ export async function deleteAgent(agentId: string): Promise<{
       return { success: false, error: 'Agent not found' };
     }
 
-    const access = await verifyProjectAccess(agent.projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, agent.projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 
@@ -395,8 +386,13 @@ export async function toggleAgentStatus(agentId: string): Promise<{
       return { success: false, error: 'Agent not found' };
     }
 
-    const access = await verifyProjectAccess(agent.projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, agent.projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 
@@ -460,8 +456,13 @@ export async function saveAgentInstructions(
       return { success: false, error: 'Agent not found' };
     }
 
-    const access = await verifyProjectAccess(agent.projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, agent.projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 
@@ -509,8 +510,13 @@ export async function getAgentInstructions(agentId: string): Promise<{
       return { success: false, error: 'Agent not found' };
     }
 
-    const access = await verifyProjectAccess(agent.projectId);
-    if (!access) {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, agent.projectId);
+    if (!hasAccess) {
       return { success: false, error: 'Unauthorized' };
     }
 

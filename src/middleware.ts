@@ -69,12 +69,22 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
 
+  // Redirect unauthenticated users from protected routes to login
+  if (!user && !isPublicRoute(pathname)) {
+    const loginUrl = new URL(`/${locale}/login`, request.url);
+    // Preserve the original URL so user can return after login
+    loginUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
   // If user is authenticated and trying to access login page
   if (user && isPublicRoute(pathname) && pathname.includes('/login')) {
     const redirectTo = request.nextUrl.searchParams.get('redirect');
     // SECURITY: Only allow internal redirects (prevent Open Redirect - OWASP A01:2021)
     // Must start with / but not // (protocol-relative URL attack)
-    if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') && !isAdminRoute(redirectTo)) {
+    // Also decode to catch encoded bypasses like %2F%2F -> //
+    const decodedRedirect = redirectTo ? decodeURIComponent(redirectTo) : null;
+    if (redirectTo && decodedRedirect && decodedRedirect.startsWith('/') && !decodedRedirect.startsWith('//') && !isAdminRoute(decodedRedirect)) {
       return NextResponse.redirect(new URL(redirectTo, request.url));
     }
     return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
