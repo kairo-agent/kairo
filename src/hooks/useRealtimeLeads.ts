@@ -104,11 +104,19 @@ export function useRealtimeLeads({
           ...(filter ? { filter } : {}),
         };
 
+        // UPDATE events: do NOT apply the projectId filter here.
+        // With REPLICA IDENTITY DEFAULT (PostgreSQL default), the OLD record in
+        // the WAL only carries the primary key. Supabase Realtime needs the full
+        // OLD row to evaluate a non-PK filter like `projectId=eq.xxx` on UPDATE
+        // events — without it the event is silently dropped.
+        // The permanent fix is `ALTER TABLE leads REPLICA IDENTITY FULL;` in
+        // Supabase SQL Editor, which makes this filter safe to restore.
+        // Until then, subscribing without a filter means all projects in the org
+        // trigger an invalidation, but TanStack Query scopes the actual refetch.
         const updateConfig = {
           event: 'UPDATE' as const,
           schema: 'public',
           table: 'leads',
-          ...(filter ? { filter } : {}),
         };
 
         channel = supabase
