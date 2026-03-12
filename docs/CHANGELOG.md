@@ -1,6 +1,52 @@
 # KAIRO - Changelog
 
-> Solo se mantienen las ultimas 5 versiones (v0.9.0+). Versiones anteriores en [docs/changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Solo se mantienen las ultimas 5 versiones (v0.9.1+). Versiones anteriores en [docs/changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+
+---
+
+## [0.9.5] - 2026-03-11
+
+### Performance + Security Audit v3 (4 Phases)
+
+Auditoria integral de rendimiento y seguridad en 4 fases (7 commits). Consolida Prisma, elimina auth redundante, endurece endpoints.
+
+**Phase 1 - Infrastructure + Endpoint Hardening (commit `7e894f5`):**
+
+| ID | Cambio | Archivo |
+|----|--------|---------|
+| C2 | Consolidar Prisma singleton (eliminar duplicado en supabase/server.ts, centralizar en prisma.ts) | `prisma.ts`, `supabase/server.ts` |
+| M3 | `serverExternalPackages` en next.config.ts (prisma, openai, web-push, resend) | `next.config.ts` |
+| L1 | Guardia en script `db:push` en package.json (previene ejecucion accidental) | `package.json` |
+| H5 | ThemeProvider render fix (no mas null return, renderiza children inmediatamente) | `ThemeContext.tsx` |
+| C4 | n8n webhook hardening: rate limiting 60req/min, timingSafeEqual, fix null-key bypass | `webhooks/n8n/route.ts` |
+| H6 | Access check en scheduleFollowUp (verificacion de acceso al proyecto) | `leads.ts` |
+| H7 | Push subscription validation: HTTPS endpoint, p256dh/auth length, 10 suscripciones max/usuario | `push-subscriptions.ts` |
+| M5 | CSP unsafe-eval solo en development (removido de produccion) | `next.config.ts` |
+
+**Phase 2 - Auth Migration + Middleware (commits `38eceba`, `ee5e038`, `e72b3e2`):**
+
+| ID | Cambio | Archivo |
+|----|--------|---------|
+| H4 | Migrar `getCurrentUser()` a `verifyAuth()` en 5 server actions (leads, messages, knowledge, secrets, media) | `leads.ts`, `messages.ts`, `knowledge.ts`, `secrets.ts`, `media.ts` |
+| M1 | Unificar `verifyProjectAccess` en agents.ts (eliminar duplicado local) | `agents.ts` |
+| M6 | Middleware redirige usuarios no autenticados de rutas protegidas a login | `middleware.ts` |
+| M7 | Validacion de redirect hardened con decodeURIComponent | `middleware.ts` |
+| -- | Login redirect usa `window.location.href` en vez de `router.push` (mas rapido) | `login/page.tsx` |
+| -- | Fix double-locale bug en post-login redirect | `login/page.tsx` |
+
+**Phase 3 - Frontend Caching (commit `f568484`):**
+
+| ID | Cambio | Archivo |
+|----|--------|---------|
+| M2 | React Query staleTime 30s en leads + stats queries (reduce refetches) | `useLeadsQuery.ts` |
+| H3 | Settings page parallel fetch con Promise.all (elimina waterfall) | `SettingsPageClient.tsx` |
+
+**Phase 4 - Admin Security (commit `14a3651`):**
+
+| ID | Cambio | Archivo |
+|----|--------|---------|
+| M8 | verify-admin endpoint sanitizado: no expone userId, systemRole ni reason en response | `verify-admin/route.ts` |
+| -- | Admin stats usa `select: { systemRole: true }` en vez de fetch completo de usuario | `admin.ts` |
 
 ---
 
@@ -422,113 +468,6 @@ Removido `max-w-4xl mx-auto` de las paginas Settings y Global Rules que los deja
 | `src/app/[locale]/(admin)/admin/global-rules/page.tsx` | Layout full-width desde creacion |
 
 Consistente con la Regla 5 del proyecto: "Full-width layout".
-
----
-
-## [0.9.0] - 2026-03-07
-
-### Settings / Configuration Page + Structured Knowledge Base
-
-Nueva pagina de configuracion de agentes con dos tabs: **Instructions** (prompt structure) y **Knowledge Base** (conocimiento estructurado + RAG free-text).
-
-**Dual-Name System:**
-
-| Nombre | Ubicacion | Proposito |
-|--------|-----------|-----------|
-| `ai_agents.name` | ProjectSettingsModal (admin) | Etiqueta administrativa (ej: "Agente 1") |
-| `promptStructure.agentName` | Settings > Instructions | Nombre con el que el bot se presenta (default: "Kaira") |
-
-El webhook ahora lee `promptStructure.agentName` en lugar de `agent.name` para el pipeline AI. Fallback a "Kaira" en todos los niveles.
-
-**E2E Testing (Playwright MCP via WhatsApp):**
-
-| Test | Resultado | Verificado |
-|------|-----------|------------|
-| Nombre del agente | PASS | Bot se identifica con el nombre configurado |
-| Rol del agente | PASS | Responde como asistente de ventas |
-| Reglas | PASS | Cumple las 5 reglas configuradas |
-| Personalidad | PASS | Tono amigable con humor ligero |
-| Instrucciones adicionales | PASS | Ofrece llamada 15 min, pregunta alcance |
-| Horarios (KB) | PASS | Devuelve horarios exactos por dia |
-| FAQs (KB) | PASS | Responde con servicios del KB |
-| Precios (KB) | PASS | Montos exactos S/1,500, S/2,500, S/2,000 |
-| Ubicacion/Contacto (KB) | PASS | Telefono, email, direccion reales del KB |
-| Politicas (KB) | PASS | Reembolso 15 dias, proporcional despues |
-| RAG texto libre (KB) | PASS | Promo marzo 30%, auditoria S/500 |
-
-**Tab Instructions:**
-
-| Campo | Descripcion |
-|-------|-------------|
-| Agent Name | Nombre del agente (max 50 chars) |
-| Role | Rol/descripcion larga del agente |
-| Rules | Lista dinamica de reglas (add/remove/reorder) |
-| Personality | Personalidad del agente |
-| Additional Instructions | Instrucciones adicionales libres |
-
-Datos guardados en `ai_agents.promptStructure` (JSONB). El system prompt se compone dinamicamente via `composeSystemPrompt()` en `prompt-builder.ts`.
-
-**Tab Knowledge Base - 5 secciones estructuradas:**
-
-| Seccion | Datos | Composicion |
-|---------|-------|-------------|
-| Business Hours | Dias, horarios, feriados, timezone | Texto bilingue ES/EN |
-| FAQs | Pares pregunta/respuesta dinamicos | Lista numerada |
-| Pricing | Servicios con precio/moneda/notas | Tabla de precios + notas |
-| Location & Contact | Direccion, telefono, email, web, redes sociales, sedes adicionales | Info de contacto completa |
-| Policies | Politicas con titulo/contenido + presets predefinidos | Politicas enumeradas |
-
-Cada seccion: Zod validation -> compose bilingual text -> OpenAI embedding (text-embedding-3-small) -> pgvector storage via RPC.
-
-**Archivos nuevos:**
-
-| Archivo | Proposito |
-|---------|-----------|
-| `src/app/[locale]/(dashboard)/settings/page.tsx` | Server component de la pagina |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Client component principal (~700 lineas) |
-| `src/lib/knowledge/prompt-builder.ts` | `PromptStructure` interface + `composeSystemPrompt()` |
-| `src/lib/knowledge/business-hours.ts` | Tipos + `composeBusinessHoursText()` |
-| `src/lib/knowledge/faqs.ts` | Tipos + `composeFAQsText()` |
-| `src/lib/knowledge/pricing.ts` | Tipos + `composePricingText()` |
-| `src/lib/knowledge/location-contact.ts` | Tipos + `composeLocationContactText()` |
-| `src/lib/knowledge/policies.ts` | Tipos + `composePoliciesText()` + presets |
-| `src/components/knowledge/BusinessHoursForm.tsx` | Formulario horarios + feriados |
-| `src/components/knowledge/FAQsForm.tsx` | Formulario preguntas/respuestas |
-| `src/components/knowledge/PricingForm.tsx` | Formulario servicios + precios |
-| `src/components/knowledge/LocationContactForm.tsx` | Formulario ubicacion + contacto |
-| `src/components/knowledge/PoliciesForm.tsx` | Formulario politicas + presets |
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/knowledge.ts` | `upsertStructuredKnowledge()`, `getAllStructuredKnowledge()`, `getStructuredKnowledge()`, `deleteStructuredKnowledge()` - todas usan RPCs SECURITY DEFINER |
-| `src/lib/actions/agents.ts` | `updateAgentPromptStructure()` server action |
-| `src/components/layout/Sidebar.tsx` | Link a /settings en sidebar |
-| `prisma/schema.prisma` | Campo `promptStructure Json?` en modelo AIAgent |
-| `src/messages/es.json` + `en.json` | Keys i18n para settings, knowledge sections, formularios |
-| `src/app/api/webhooks/whatsapp/route.ts` | Lee `promptStructure.agentName` (con fallback Kaira) en lugar de `agent.name` |
-| `src/components/admin/ProjectSettingsModal.tsx` | Removida seccion de instrucciones (movida a /settings) |
-| `src/contexts/LoadingContext.tsx` | Safety timeout para loading overlay (previene estados infinitos) |
-
-**Migraciones SQL (3 nuevas):**
-
-| Migracion | Cambio |
-|-----------|--------|
-| `20260306_add_prompt_structure` | `promptStructure JSONB` en `ai_agents`, `category VARCHAR(50)` + `structured_data JSONB` en `agent_knowledge`, indice unico `idx_agent_knowledge_unique_category` |
-| `20260306_update_insert_knowledge_rpc` | RPC `insert_agent_knowledge` actualizado: 12 params (+ `p_category`, `p_structured_data`), upsert atomico (DELETE + INSERT dentro de SECURITY DEFINER) |
-| `20260306_update_list_knowledge_rpc` | RPC `list_agent_knowledge` actualizado: retorna `category` y `structured_data`, casts `::TEXT` para VARCHAR |
-| `20260306_delete_structured_knowledge_rpc` | Nuevo RPC `delete_structured_knowledge(agent_id, project_id, category)` - bypass RLS |
-
-**Bugs corregidos (RLS):**
-
-| Bug | Causa raiz | Fix |
-|-----|-----------|-----|
-| `structured_data`/`category` no persistian | `.update()` via anon client sin RLS UPDATE policy | Movido a params del RPC `insert_agent_knowledge` (SECURITY DEFINER) |
-| Knowledge no cargaba tras reload | `.select()` via anon client con RLS SELECT policy rota (`project_id` vs `"projectId"`) | Cambiado a RPC `list_agent_knowledge` |
-| Duplicate key constraint en upsert | `.delete()` via anon client con RLS DELETE policy rota | DELETE movido dentro del RPC (atomico) |
-
-**Leccion clave:** Todas las operaciones sobre `agent_knowledge` (CRUD + SEARCH) DEBEN usar RPCs SECURITY DEFINER. Las RLS policies referencian `pm.project_id` pero la columna real es `pm."projectId"` (Prisma camelCase), causando fallos silenciosos. Ver v0.9.1 para el fix de search.
 
 ---
 

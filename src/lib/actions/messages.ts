@@ -99,8 +99,6 @@ const leadSelectForSendMessage = {
   project: {
     select: {
       id: true,
-      n8nWebhookUrl: true,
-      // whatsappPhoneNumber not needed - credentials fetched from secrets
     },
   },
   conversation: {
@@ -110,15 +108,12 @@ const leadSelectForSendMessage = {
 
 /**
  * Select for Lead when toggling handoff mode.
- * Only needs projectId for access check and n8nWebhookUrl for notification.
+ * Only needs projectId for access check.
  */
 const leadSelectForHandoffToggle = {
   id: true,
   projectId: true,
   whatsappId: true,
-  project: {
-    select: { n8nWebhookUrl: true },
-  },
 } as const;
 
 /**
@@ -338,72 +333,106 @@ export async function sendMessage(
       },
     });
 
-    // Send via n8n workflow (unified routing for both AI and Human modes)
-    // n8n will handle the routing based on mode and send to WhatsApp
-    if (lead.whatsappId && lead.project.n8nWebhookUrl) {
+    // Send directly via WhatsApp Cloud API (no n8n dependency)
+    if (lead.whatsappId) {
       try {
-        // Get WhatsApp credentials for n8n to call WhatsApp API directly
         const [accessToken, phoneNumberId] = await Promise.all([
           getProjectSecret(lead.projectId, 'whatsapp_access_token'),
           getProjectSecret(lead.projectId, 'whatsapp_phone_number_id'),
         ]);
 
-        const n8nPayload = {
-          projectId: lead.projectId,
-          conversationId,
-          leadId: lead.id,
-          leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
-          leadPhone: lead.phone,
-          to: lead.whatsappId, // WhatsApp recipient number
-          mode: 'human', // Human agent sending message
-          message: content.trim(),
-          messageType: mediaUrl ? mediaType || 'image' : 'text',
-          mediaUrl: mediaUrl || null,
-          filename: filename || null, // For documents: original filename
-          caption: caption || null, // For media: user's text message as caption
-          timestamp: new Date().toISOString(),
-          // WhatsApp API credentials for n8n to send directly
-          accessToken: accessToken || '',
-          phoneNumberId: phoneNumberId || '',
-          metadata: {
-            agentId: user.id,
-            agentName: `${user.firstName} ${user.lastName}`,
-            messageDbId: message.id,
-          },
-        };
+        if (accessToken && phoneNumberId) {
+          const cleanPhone = lead.whatsappId.replace(/[^0-9]/g, '');
+          const whatsappApiUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
 
-        console.log(`[SEND] Sending human message via n8n: ${lead.project.n8nWebhookUrl}`);
+          // Build payload based on media type
+          let whatsappPayload: Record<string, unknown>;
+          const msgType = mediaUrl ? (mediaType || 'image') : 'text';
 
-        const n8nResponse = await fetch(lead.project.n8nWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(n8nPayload),
-        });
+          if (msgType === 'text' || !mediaUrl) {
+            whatsappPayload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: cleanPhone,
+              type: 'text',
+              text: { body: content.trim() },
+            };
+          } else if (msgType === 'image') {
+            whatsappPayload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: cleanPhone,
+              type: 'image',
+              image: { link: mediaUrl, ...(caption ? { caption } : content.trim() ? { caption: content.trim() } : {}) },
+            };
+          } else if (msgType === 'video') {
+            whatsappPayload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: cleanPhone,
+              type: 'video',
+              video: { link: mediaUrl, ...(caption ? { caption } : content.trim() ? { caption: content.trim() } : {}) },
+            };
+          } else if (msgType === 'document') {
+            whatsappPayload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: cleanPhone,
+              type: 'document',
+              document: { link: mediaUrl, ...(filename ? { filename } : {}), ...(caption ? { caption } : content.trim() ? { caption: content.trim() } : {}) },
+            };
+          } else {
+            // Fallback: send as text
+            whatsappPayload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: cleanPhone,
+              type: 'text',
+              text: { body: content.trim() },
+            };
+          }
 
-        if (!n8nResponse.ok) {
-          console.error(`[FAIL] n8n webhook failed: ${n8nResponse.status}`);
-          await prisma.message.update({
-            where: { id: message.id },
-            data: {
-              metadata: {
-                sendError: `n8n webhook failed: ${n8nResponse.status}`,
-                sentVia: 'human_chat_n8n',
-              },
+          console.log(`[SEND] Human message via WhatsApp API to ${cleanPhone.substring(0, 6)}...`);
+
+          const waResponse = await fetch(whatsappApiUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
             },
+            body: JSON.stringify(whatsappPayload),
           });
+
+          const waData = await waResponse.json();
+
+          if (!waResponse.ok) {
+            console.error(`[FAIL] WhatsApp API error:`, waData.error?.message || waData);
+            await prisma.message.update({
+              where: { id: message.id },
+              data: {
+                metadata: {
+                  whatsappError: waData.error?.message || 'Unknown error',
+                  whatsappErrorCode: waData.error?.code,
+                  sentVia: 'human_chat_direct',
+                },
+              },
+            });
+          } else {
+            const whatsappMsgId = waData.messages?.[0]?.id;
+            console.log(`[OK] Human message sent via WhatsApp API${whatsappMsgId ? ` (wamid: ${whatsappMsgId.substring(0, 12)}...)` : ''}`);
+            await prisma.message.update({
+              where: { id: message.id },
+              data: {
+                ...(whatsappMsgId ? { whatsappMsgId, isDelivered: true, deliveredAt: new Date() } : {}),
+                metadata: { sentVia: 'human_chat_direct' },
+              },
+            });
+          }
         } else {
-          console.log(`[OK] Human message sent via n8n successfully`);
-          await prisma.message.update({
-            where: { id: message.id },
-            data: {
-              metadata: {
-                sentVia: 'human_chat_n8n',
-              },
-            },
-          });
+          console.error('[FAIL] WhatsApp credentials not configured for project');
         }
-      } catch (n8nError) {
-        console.error('[FAIL] Error sending to n8n:', n8nError);
+      } catch (waError) {
+        console.error('[FAIL] Error sending to WhatsApp:', waError);
         // Don't fail the whole operation - message is saved in DB
       }
     }
@@ -469,26 +498,6 @@ export async function toggleHandoffMode(
         handoffUserId: mode === 'human' ? user.id : null,
       },
     });
-
-    // Notify n8n about the handoff change
-    if (lead.project.n8nWebhookUrl && lead.whatsappId) {
-      try {
-        await fetch(lead.project.n8nWebhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'handoff_change',
-            leadId: lead.id,
-            whatsappId: lead.whatsappId,
-            mode,
-            userId: user.id,
-            userName: `${user.firstName} ${user.lastName}`,
-          }),
-        });
-      } catch (webhookError) {
-        console.error('Error notifying n8n about handoff:', webhookError);
-      }
-    }
 
     // Log activity
     await prisma.activity.create({

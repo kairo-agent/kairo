@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.9.4 (Web Push Notifications) |
+| **Version** | v0.9.5 (Audit v3 - Perf + Security) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -61,7 +61,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 | [docs/RAG-AGENTS.md](docs/RAG-AGENTS.md) | Sistema RAG pgvector |
 | [docs/N8N-SETUP.md](docs/N8N-SETUP.md) | Configuracion n8n + Railway |
 | [docs/MEDIA-UPLOAD.md](docs/MEDIA-UPLOAD.md) | Upload multimedia WhatsApp |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Optimizaciones (Phases 1-3) |
+| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Optimizaciones (Phases 1-6) |
 | [docs/COMPONENTS.md](docs/COMPONENTS.md) | Catalogo de componentes UI |
 | [docs/DATA-MODELS.md](docs/DATA-MODELS.md) | Modelos de datos |
 | [docs/I18N.md](docs/I18N.md) | Internacionalizacion |
@@ -152,7 +152,7 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Mar 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, **AI pipeline interno (n8n removido del core)**, RAG (4 fases), **OWASP audit v2 (19 hallazgos resueltos)**, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s + sonido), follow-up scheduling con badges, **sanitizacion de contactos WhatsApp**, **anti-prompt-injection**, **waitUntil Vercel serverless**, **per-project App Secret (HMAC multi-tenant)**, **pagina Settings con Instructions + Knowledge Base estructurada (5 secciones)**, **dual-name system (admin vs AI persona, default Kaira)**, **RAG search fix (SECURITY DEFINER + threshold 0.35)**, **temperature marker cleanup**, **Global Rules system (super admin, all agents)**, **Temperature Criteria UI (HOT/WARM/COLD por agente)**, **audio fix fbsbx.com CDN**, **AI-initiated handoff ([HANDOFF] marker)**, **notification sound (Web Audio API)**, **per-project notification filtering**, **KB free-text edit**, **ExpandableTextarea en long-form fields**, **pricing thousand separators**, **coming-soon features ocultas para no-super_admin**, **AI summary mejorado (1000 chars, sin corte)**, **email notifications on handoff (Resend)**, **deep-link post-login redirect (AuthRedirect + sessionStorage)**, **boton llamar oculto para no-super_admin**, **Web Push Notifications (3er canal: campana + email + push, pre-permission modal, per-device subscriptions)**.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, **AI pipeline interno (n8n removido del core)**, RAG (4 fases), **OWASP audit v2 (19 hallazgos resueltos)**, lead temperature scoring, audio transcription (Whisper) + display en chat con badge, performance (todas las fases completas), media upload/cleanup, archivar/desarchivar leads, resumen IA en panel detalle, sistema de notificaciones (polling 15s + sonido), follow-up scheduling con badges, **sanitizacion de contactos WhatsApp**, **anti-prompt-injection**, **waitUntil Vercel serverless**, **per-project App Secret (HMAC multi-tenant)**, **pagina Settings con Instructions + Knowledge Base estructurada (5 secciones)**, **dual-name system (admin vs AI persona, default Kaira)**, **RAG search fix (SECURITY DEFINER + threshold 0.35)**, **temperature marker cleanup**, **Global Rules system (super admin, all agents)**, **Temperature Criteria UI (HOT/WARM/COLD por agente)**, **audio fix fbsbx.com CDN**, **AI-initiated handoff ([HANDOFF] marker)**, **notification sound (Web Audio API)**, **per-project notification filtering**, **KB free-text edit**, **ExpandableTextarea en long-form fields**, **pricing thousand separators**, **coming-soon features ocultas para no-super_admin**, **AI summary mejorado (1000 chars, sin corte)**, **email notifications on handoff (Resend)**, **deep-link post-login redirect (AuthRedirect + sessionStorage)**, **boton llamar oculto para no-super_admin**, **Web Push Notifications (3er canal: campana + email + push, pre-permission modal, per-device subscriptions)**, **Audit v3 (4 phases: Prisma consolidation, auth optimization, frontend caching, security hardening)**.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 

@@ -1,6 +1,28 @@
-# KAIRO - Changelog Archive (v0.8.2 y anteriores)
+# KAIRO - Changelog Archive (v0.9.0 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.0+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.1+).
+
+---
+
+## [0.9.0] - 2026-03-07
+
+### Settings / Configuration Page + Structured Knowledge Base
+
+Nueva pagina de configuracion de agentes con dos tabs: **Instructions** (prompt structure) y **Knowledge Base** (conocimiento estructurado + RAG free-text).
+
+**Dual-Name System:** `ai_agents.name` = admin label, `promptStructure.agentName` = AI persona (default "Kaira"). Webhook lee `promptStructure.agentName` con fallback Kaira.
+
+**Tab Instructions:** Agent Name, Role, Rules (dynamic list), Personality, Additional Instructions. Guardado en `ai_agents.promptStructure` (JSONB).
+
+**Tab Knowledge Base - 5 secciones estructuradas:** Business Hours, FAQs, Pricing, Location & Contact, Policies. Cada seccion: Zod validation -> compose bilingual text -> OpenAI embedding -> pgvector via RPC.
+
+**Archivos nuevos:** `settings/page.tsx`, `settings/SettingsPageClient.tsx`, `src/lib/knowledge/` (6 files), `src/components/knowledge/` (5 forms).
+
+**Migraciones SQL (4):** `promptStructure JSONB`, `insert_agent_knowledge` (12 params), `list_agent_knowledge` (+ category/structured_data), `delete_structured_knowledge`.
+
+**Bugs RLS corregidos (3):** `.update()` sin UPDATE policy, `.select()` con RLS rota, duplicate key en upsert. Todas las operaciones sobre `agent_knowledge` DEBEN usar RPCs SECURITY DEFINER.
+
+**E2E Testing:** 11 tests WhatsApp pasaron (nombre, rol, reglas, personalidad, instrucciones, 5 KB secciones, RAG free-text).
 
 ---
 

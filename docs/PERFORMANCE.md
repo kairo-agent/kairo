@@ -1000,9 +1000,8 @@ Las optimizaciones implementadas en Fase 1 y Fase 2 han logrado:
 
 ### Proximos Pasos
 
-1. QA visual post-optimizaciones v0.7.12
-2. Implementar items pendientes: P2-4 (batch receipts), P1-5 (audio parallel), P1-1 (phone hash)
-3. Configurar monitoreo de metricas en produccion
+1. Configurar monitoreo de metricas en produccion
+2. Evaluar Edge Caching con Vercel (Fase 5 futura)
 
 ---
 
@@ -1117,14 +1116,80 @@ if (statuses) {
 // WhatsApp envia eventos repetidamente (sent -> delivered -> read)
 ```
 
-### Items Pendientes
+### Items Pendientes (v0.7.12)
 
-| ID | Optimizacion | Razon de pendiente |
-|----|-------------|-------------------|
-| P2-4 | Batch read receipts | Baja prioridad, impacto variable |
-| P1-5 | Fetch paralelo audio | Requiere refactor de audio/transcribe |
-| P1-1 | Phone number hashing | Depende de P1-7 (ya completado), baja prioridad |
+| ID | Optimizacion | Estado |
+|----|-------------|--------|
+| P2-4 | Batch read receipts | DONE (v0.7.15) |
+| P1-5 | Fetch paralelo audio | DONE (v0.7.15) |
+| P1-1 | Phone number masking | DONE (v0.7.15) |
 | P1-3 | Fire-and-forget audit logs | RECHAZADO por seguridad |
+
+---
+
+## Fase 6 - Audit v3: Performance + Security (v0.9.5)
+
+**Fecha de implementacion:** 2026-03-11
+**Commits:** `7e894f5` (Phase 1), `38eceba` (Phase 2), `ee5e038`+`e72b3e2` (Phase 2b), `f568484` (Phase 3), `14a3651` (Phase 4)
+
+### Impacto Estimado
+
+| Area | Optimizacion | Beneficio |
+|------|-------------|-----------|
+| Prisma singleton | Eliminado duplicado en supabase/server.ts | 1 instancia en vez de 2, menor uso de conexiones |
+| Bundle size | serverExternalPackages (prisma, openai, web-push, resend) | Packages excluidos del bundle cliente |
+| Auth en server actions | getCurrentUser -> verifyAuth en 5 actions | ~100-200ms menos por action (sin cargar memberships) |
+| Settings page | Promise.all para fetch paralelo | Elimina waterfall de 3-4 queries secuenciales |
+| React Query | staleTime 30s en leads + stats | Reduce refetches innecesarios al navegar entre tabs |
+| ThemeProvider | Renderiza children inmediatamente (sin null) | Elimina flash/blocking en primer render |
+| Middleware | Auth check antes de Server Components | Evita carga de pagina completa para usuarios no autenticados |
+
+### 1. Prisma Singleton Consolidation (C2)
+
+El archivo `supabase/server.ts` tenia su propio singleton de Prisma que competia con `prisma.ts`. Eliminado el duplicado, todas las importaciones ahora usan `@/lib/supabase/prisma`.
+
+### 2. serverExternalPackages (M3)
+
+Agregado a `next.config.ts`:
+
+```typescript
+serverExternalPackages: ['@prisma/client', 'prisma', 'openai', 'web-push', 'resend']
+```
+
+Estos packages solo se usan en server-side. Excluirlos del bundle reduce el tamano y evita problemas de compatibilidad con edge runtime.
+
+### 3. Auth Migration: getCurrentUser -> verifyAuth (H4)
+
+5 server actions adicionales migradas (sobre las 10 de v0.7.12):
+- `leads.ts` (funciones restantes)
+- `messages.ts` (funciones restantes)
+- `knowledge.ts`
+- `secrets.ts`
+- `media.ts`
+
+### 4. React Query staleTime (M2)
+
+Queries de leads y stats ahora usan `staleTime: 30_000` (30 segundos). Dentro de esta ventana, React Query sirve datos del cache sin hacer refetch al servidor.
+
+### 5. Settings Page Parallel Fetch (H3)
+
+```typescript
+// ANTES: waterfall secuencial
+const agent = await getAgent(projectId);
+const knowledge = await getKnowledge(agentId);
+const globalRules = await getGlobalRules();
+
+// DESPUES: paralelo
+const [agent, knowledge, globalRules] = await Promise.all([
+  getAgent(projectId),
+  getKnowledge(agentId),
+  getGlobalRules(),
+]);
+```
+
+### 6. Admin Endpoint Sanitization (M8)
+
+El endpoint `verify-admin` retornaba `{ isAdmin, userId, systemRole, reason }`. Ahora solo retorna `{ isAdmin: boolean }`. Admin stats usa `select: { systemRole: true }` para no cargar datos innecesarios del usuario.
 
 ---
 

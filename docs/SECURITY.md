@@ -4,7 +4,7 @@
 
 KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) siguiendo las mejores prácticas de OWASP. Este documento describe todas las protecciones implementadas, configuraciones requeridas y checklist para futuras features.
 
-**Estado:** [OK] Security Audit v2 Completado (Febrero 2026)
+**Estado:** [OK] Security Audit v3 Completado (Marzo 2026)
 
 ---
 
@@ -12,6 +12,7 @@ KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) sigui
 
 | Version | Fecha | Mejoras Clave |
 |---------|-------|---------------|
+| **v0.9.5** | 2026-03-11 | Audit v3: Prisma consolidation, n8n webhook hardening, middleware auth enforcement, push subscription validation, CSP unsafe-eval dev-only, verify-admin sanitization, scheduleFollowUp access check |
 | **v0.9.1** | 2026-03-09 | RAG search SECURITY DEFINER fix, fbsbx.com a CDN whitelist, Global Rules anti-injection delimiters |
 | **v0.8.2** | 2026-02-20 | Per-project App Secret: HMAC multi-tenant, smart fallback, HMAC failure rate limiting |
 | **v0.8.1** | 2026-02-15 | Security Audit v2: 19 hallazgos (dedup, body limit, prompt injection, contact sanitization, cache limits, audio validation, per-project AI rate limit, log masking, timing-safe verify) |
@@ -234,6 +235,45 @@ Fire-and-forget calls en Vercel serverless no completan porque el container se m
 
 **Archivo:** `src/app/api/webhooks/whatsapp/route.ts`
 
+### 11. n8n Webhook Hardening (v0.9.5)
+
+El endpoint `/api/webhooks/n8n` ahora incluye rate limiting (60 req/min por IP), verificacion de secret con `timingSafeEqual`, y correccion del bypass cuando el secret de header era null/vacio.
+
+**Archivo:** `src/app/api/webhooks/n8n/route.ts`
+
+### 12. Middleware Auth Enforcement (v0.9.5)
+
+El middleware de Next.js ahora redirige usuarios no autenticados desde rutas protegidas (dashboard, settings, admin) directamente al login, antes de que lleguen a los Server Components. Validacion de redirect URL hardened con `decodeURIComponent` para prevenir open redirect.
+
+**Archivo:** `src/middleware.ts`
+
+### 13. Push Subscription Validation (v0.9.5)
+
+Validaciones al suscribir dispositivos para push notifications:
+- Endpoint debe ser HTTPS (rechaza HTTP)
+- `p256dh` y `auth` keys deben tener longitud minima valida
+- Limite de 10 suscripciones por usuario (previene abuse)
+
+**Archivo:** `src/lib/actions/push-subscriptions.ts`
+
+### 14. CSP unsafe-eval Development Only (v0.9.5)
+
+`unsafe-eval` en Content-Security-Policy ahora solo se incluye en `NODE_ENV === 'development'`. En produccion, CSP es estricto sin eval.
+
+**Archivo:** `next.config.ts`
+
+### 15. verify-admin Endpoint Sanitization (v0.9.5)
+
+El endpoint `/api/verify-admin` ya no expone `userId`, `systemRole` ni `reason` en la respuesta. Retorna solo `{ isAdmin: boolean }`. Admin stats usa `select: { systemRole: true }` en vez de cargar el usuario completo.
+
+**Archivos:** `src/app/api/verify-admin/route.ts`, `src/lib/actions/admin.ts`
+
+### 16. scheduleFollowUp Access Check (v0.9.5)
+
+La server action `scheduleFollowUp` ahora verifica que el usuario tenga acceso al proyecto del lead antes de permitir la operacion.
+
+**Archivo:** `src/lib/actions/leads.ts`
+
 ---
 
 ## Variables de Entorno Requeridas para Seguridad
@@ -392,6 +432,22 @@ Si Redis no está configurado o falla, KAIRO usa automáticamente rate limiting 
 
 ## Historial de Auditorías
 
+### Security Audit v3 (Marzo 2026)
+
+**Ejecutado por:** Claude Opus 4.6 (Adan)
+
+**Alcance:** 4 fases - infrastructure hardening, auth optimization, frontend caching, admin security.
+
+**Hallazgos resueltos (15 items):**
+- 2 Criticos (C2, C4): Prisma singleton duplicado, n8n webhook sin rate limit/timingSafeEqual
+- 4 Altos (H3-H7): Auth migration, settings waterfall, ThemeProvider blocking, scheduleFollowUp access, push validation
+- 5 Medios (M1-M8): verifyProjectAccess duplicado, React Query staleTime, serverExternalPackages, CSP unsafe-eval, middleware auth, redirect validation, verify-admin exposure
+- 1 Bajo (L1): db:push script guard
+
+**Estado:** [OK] COMPLETADO - Todas las recomendaciones implementadas
+
+---
+
 ### Security Audit v1 (Enero 2026)
 
 **Ejecutado por:** Claude Opus 4.5 (Security Auditor subagent)
@@ -428,4 +484,4 @@ Para reportar vulnerabilidades de seguridad de forma privada, contactar a:
 
 ---
 
-*Última actualización: 2026-01-31 - Security Audit v1 Completado*
+*Ultima actualizacion: 2026-03-11 - Security Audit v3 Completado*
