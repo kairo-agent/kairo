@@ -8,8 +8,13 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
-import dynamic from 'next/dynamic';
 import imageCompression from 'browser-image-compression';
+import emojiData from '@emoji-mart/data';
+import Picker from '@emoji-mart/react';
+import { init as emojiInit } from 'emoji-mart';
+
+// Pre-initialize emoji data to prevent CDN fetch
+emojiInit({ data: emojiData });
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -28,11 +33,6 @@ import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useRealtimeMessages, type RealtimeMessage, type MessageStatusUpdate } from '@/hooks/useRealtimeMessages';
 import ChatInput, { type ChatAttachment, type ChatInputRef } from './ChatInput';
 
-// Dynamic import for emoji picker (client-side only)
-const EmojiPicker = dynamic(
-  () => import('@emoji-mart/react').then((mod) => mod.default),
-  { ssr: false, loading: () => null }
-);
 
 // ============================================
 // Types
@@ -140,8 +140,6 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
   const [isSending, setIsSending] = useState(false);
   const [isTogglingHandoff, setIsTogglingHandoff] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [emojiData, setEmojiData] = useState<any>(null);
   const [handoffStatus, setHandoffStatus] = useState<{
     mode: 'ai' | 'human';
     handoffAt: Date | null;
@@ -152,13 +150,6 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
 
   // IDs de mensajes ya procesados para evitar duplicados
   const processedMessageIds = useRef<Set<string>>(new Set());
-
-  // Load emoji data on demand
-  useEffect(() => {
-    if (showEmojiPicker && !emojiData) {
-      import('@emoji-mart/data').then((mod) => setEmojiData(mod.default));
-    }
-  }, [showEmojiPicker, emojiData]);
 
   // Close emoji picker on click outside
   useEffect(() => {
@@ -764,7 +755,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
           {/* Rich Chat Input */}
           <div className="p-3 bg-[var(--bg-secondary)] relative">
             {/* Emoji Picker - positioned above the emoji button */}
-            {showEmojiPicker && emojiData && (
+            {showEmojiPicker && (
               <div
                 ref={emojiPickerRef}
                 className="absolute left-3 z-50 shadow-lg rounded-lg overflow-hidden"
@@ -773,9 +764,10 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                   maxHeight: '320px',
                 }}
               >
-                <EmojiPicker
+                <Picker
                   data={emojiData}
                   onEmojiSelect={handleEmojiSelect}
+                  set="native"
                   theme="auto"
                   locale="es"
                   previewPosition="none"
