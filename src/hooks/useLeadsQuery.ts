@@ -178,6 +178,7 @@ export function useLeadsQuery({
       };
     },
     enabled,
+    staleTime: 30_000, // 30s - prevent refetch on remount/focus
   });
 }
 
@@ -204,6 +205,7 @@ export function useLeadsStatsQuery({
       } as LeadsStats;
     },
     enabled,
+    staleTime: 30_000, // 30s - prevent refetch on remount/focus
   });
 }
 

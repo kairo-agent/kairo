@@ -215,12 +215,14 @@ export default function SettingsPageClient() {
         // Auto-select active agent, or first one
         const active = result.agents.find((a) => a.isActive) || result.agents[0] || null;
         setSelectedAgent(active);
+        return active;
       }
     } catch {
       toast.error(tCommon('messages.error'));
     } finally {
       setLoadingAgents(false);
     }
+    return null;
   }, [selectedProject, tCommon]);
 
   const loadInstructions = useCallback(async () => {
@@ -283,23 +285,96 @@ export default function SettingsPageClient() {
     }
   }, [selectedAgent, selectedProject, tCommon]);
 
-  // Load global rules on mount (read-only, admin-managed)
-  useEffect(() => {
-    getActiveGlobalRules().then(setGlobalRules).catch(() => setGlobalRules([]));
-  }, []);
+  // Tracks the agent ID whose data was prefetched during initial load,
+  // so the agent-change useEffect skips the redundant fetch.
+  const prefetchedAgentId = useRef<string | null>(null);
 
-  // Load agents when project changes
+  // Unified initial load: agents + global rules in parallel,
+  // then immediately load instructions + knowledge for the active agent
+  // without waiting for a React re-render cycle (eliminates waterfall).
   useEffect(() => {
-    if (selectedProject) {
-      loadAgents();
-    } else {
+    if (!selectedProject) {
       setAgents([]);
       setSelectedAgent(null);
+      prefetchedAgentId.current = null;
+      return;
     }
-  }, [selectedProject, loadAgents]);
+    const loadAll = async () => {
+      // Phase 1: agents + global rules in parallel
+      const [agent] = await Promise.all([
+        loadAgents(),
+        getActiveGlobalRules().then(setGlobalRules).catch(() => setGlobalRules([])),
+      ]);
+      // Phase 2: instructions + knowledge in parallel (no re-render needed)
+      if (agent) {
+        prefetchedAgentId.current = agent.id;
+        setLoadingInstructions(true);
+        setLoadingKnowledge(true);
+        const loadInstructionsForAgent = async () => {
+          try {
+            const result = await getAgentInstructions(agent.id);
+            if (result.success && result.data) {
+              const ps = result.data.promptStructure;
+              if (ps) {
+                setInstructions(ps);
+                setOriginalInstructions(ps);
+                if (ps.additionalInstructions) {
+                  setAdditionalOpen(true);
+                }
+              } else {
+                const fresh = { ...EMPTY_PROMPT_STRUCTURE };
+                setInstructions(fresh);
+                setOriginalInstructions(fresh);
+              }
+            }
+          } catch {
+            toast.error(tCommon('messages.error'));
+          } finally {
+            setLoadingInstructions(false);
+          }
+        };
+        const loadKnowledgeForAgent = async () => {
+          try {
+            const [structuredResult, entriesResult] = await Promise.all([
+              getAllStructuredKnowledge(agent.id, selectedProject.id),
+              listAgentKnowledge(agent.id, selectedProject.id),
+            ]);
+            if (structuredResult.success && structuredResult.data) {
+              const map: StructuredKnowledgeMap = {};
+              for (const entry of structuredResult.data) {
+                if (entry.category && entry.structuredData) {
+                  map[entry.category as keyof StructuredKnowledgeMap] = entry.structuredData;
+                }
+              }
+              setStructuredKnowledge(map);
+            }
+            if (entriesResult.success && entriesResult.data) {
+              const freeText = entriesResult.data.filter(
+                (e) => e.source === 'manual' || e.source === 'file' || e.source === 'url' || e.source === 'api'
+              );
+              setKnowledgeEntries(freeText);
+            }
+          } catch {
+            toast.error(tCommon('messages.error'));
+          } finally {
+            setLoadingKnowledge(false);
+          }
+        };
+        await Promise.all([loadInstructionsForAgent(), loadKnowledgeForAgent()]);
+      }
+    };
+    loadAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject]);
 
-  // Load data when agent changes
+  // Load data when agent changes (user manually switches agent after initial load).
+  // Skips if this agent's data was already prefetched in the unified initial load.
   useEffect(() => {
+    if (selectedAgent && prefetchedAgentId.current === selectedAgent.id) {
+      // Data already loaded by the initial load - clear the flag and skip
+      prefetchedAgentId.current = null;
+      return;
+    }
     if (selectedAgent) {
       loadInstructions();
       loadKnowledge();
