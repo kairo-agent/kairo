@@ -7,7 +7,7 @@
  * They cannot be overridden by per-agent instructions.
  */
 
-import { prisma } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { verifySuperAdmin } from '@/lib/auth-helpers';
 
 // ============================================

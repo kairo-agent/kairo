@@ -14,8 +14,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server';
-import prisma from '@/lib/prisma';
-import { getCurrentUser } from '@/lib/auth-helpers';
+import { verifyAuth, verifyProjectAccess as verifyProjectAccessAuth } from '@/lib/actions/auth';
 import { randomUUID } from 'crypto';
 
 // Configuration constants
@@ -121,33 +120,6 @@ function validateFile(file: File): { valid: boolean; error?: string } {
   return { valid: true };
 }
 
-/**
- * Verifies if user has access to a project
- */
-async function verifyProjectAccess(
-  userId: string,
-  projectId: string
-): Promise<boolean> {
-  // Check if user is super admin
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { systemRole: true },
-  });
-
-  if (user?.systemRole === 'super_admin') {
-    return true;
-  }
-
-  // Check project membership
-  const membership = await prisma.projectMember.findFirst({
-    where: {
-      userId,
-      projectId,
-    },
-  });
-
-  return !!membership;
-}
 
 /**
  * Generates the storage path for a file
@@ -176,13 +148,9 @@ export async function uploadMedia(
 ): Promise<UploadMediaResult> {
   try {
     // Verify authentication
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
-    }
-
-    if (!user.isActive) {
-      return { success: false, error: 'Usuario desactivado' };
     }
 
     // Validate project ID
@@ -191,7 +159,7 @@ export async function uploadMedia(
     }
 
     // Verify user has access to the project
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -257,13 +225,9 @@ export async function uploadMedia(
 export async function deleteMedia(path: string): Promise<DeleteMediaResult> {
   try {
     // Verify authentication
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
-    }
-
-    if (!user.isActive) {
-      return { success: false, error: 'Usuario desactivado' };
     }
 
     // Validate path
@@ -280,7 +244,7 @@ export async function deleteMedia(path: string): Promise<DeleteMediaResult> {
     const projectId = pathSegments[0];
 
     // Verify user has access to the project
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para eliminar este archivo' };
     }
@@ -323,13 +287,9 @@ export async function deleteMediaBatch(
 ): Promise<DeleteMediaResult> {
   try {
     // Verify authentication
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
-    }
-
-    if (!user.isActive) {
-      return { success: false, error: 'Usuario desactivado' };
     }
 
     // Validate paths
@@ -347,7 +307,7 @@ export async function deleteMediaBatch(
     }
 
     for (const projectId of projectIds) {
-      const hasAccess = await verifyProjectAccess(user.id, projectId);
+      const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
       if (!hasAccess) {
         return {
           success: false,

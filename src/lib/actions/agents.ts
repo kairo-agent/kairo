@@ -6,7 +6,7 @@
  * CRUD completo para agentes de IA por proyecto
  */
 
-import { prisma } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import {

@@ -1,6 +1,30 @@
-# KAIRO - Changelog Archive (v0.7.16 y anteriores)
+# KAIRO - Changelog Archive (v0.8.2 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.8.0+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.0+).
+
+---
+
+## [0.8.2] - 2026-02-20
+
+### Per-Project WhatsApp App Secret (Multi-Tenant HMAC)
+
+Soporte para App Secret por proyecto. Smart fallback (no global bypass si existe per-project), HMAC failure rate limiting, cache de App Secret (5min TTL, 500 LRU).
+
+---
+
+## [0.8.1] - 2026-02-15
+
+### Security Audit v2 + Vercel Serverless Fix
+
+19 hallazgos resueltos (2 criticos, 3 altos, 5 medios, 4 bajos, 10 aprobados). `waitUntil()` para fire-and-forget en Vercel. Anti-prompt-injection. Contact sanitization. Rate limiting por proyecto.
+
+---
+
+## [0.8.0] - 2026-02-15
+
+### Internal AI Pipeline - n8n removal
+
+Pipeline IA migrado de n8n (Railway) a funciones internas Next.js. -400 a -1200ms latencia. -$5-10/mes costo.
 
 ---
 

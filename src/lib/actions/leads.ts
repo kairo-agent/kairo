@@ -756,6 +756,20 @@ export async function scheduleFollowUp(
     const user = await verifyAuth();
     if (!user) return { success: false, error: 'No autorizado' };
 
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { projectId: true },
+    });
+
+    if (!lead) {
+      return { success: false, error: 'Lead no encontrado' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
+    }
+
     await prisma.$transaction([
       prisma.lead.update({
         where: { id: leadId },

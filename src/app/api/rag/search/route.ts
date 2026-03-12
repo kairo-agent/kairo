@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import {
   generateEmbedding,
   formatEmbeddingForPg,

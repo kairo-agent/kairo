@@ -1,7 +1,7 @@
 # Sistema de Notificaciones - KAIRO
 
-> **Estado**: v0.9.2 - Actualizado Mar 2026
-> **Mecanismo**: Polling cada 15s + sonido Web Audio API (escalable a Supabase Realtime)
+> **Estado**: v0.9.4 - Actualizado Mar 2026
+> **Canales**: Bell (in-app polling 15s) + Email (Resend) + Web Push (VAPID)
 
 ## Arquitectura
 
@@ -156,9 +156,81 @@ Solo agregar al enum `NotificationType`:
 2. `lead_status_changed` - Cambio de status automatico
 3. `system_alert` - Errores de integracion
 
-### Push notifications (browser)
+## Web Push Notifications (v0.9.4)
 
-Agregar Web Push API con service worker para notificaciones cuando KAIRO no esta abierto.
+3er canal de notificacion. Push del browser para cuando KAIRO no esta abierto.
+
+### Flujo
+
+```
+notifyProjectMembers()
+  -> Fetch active PushSubscriptions para recipientIds
+  -> sendPush() per subscription (web-push library + VAPID)
+  -> 410/404 response -> auto-delete subscription from DB
+  -> Fire-and-forget (nunca bloquea)
+```
+
+### Tabla: push_subscriptions
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| id | String (cuid) | PK |
+| userId | String | FK users |
+| endpoint | Text | Push service endpoint URL |
+| p256dh | String | ECDH public key |
+| auth | String | Auth secret |
+| userAgent | VARCHAR(512) | Browser user-agent |
+| active | Boolean | true=activa, false=desactivada por usuario |
+| createdAt | DateTime | Timestamp |
+| updatedAt | DateTime | Auto-update |
+
+Constraint: `@@unique([userId, endpoint])` - 1 row per device/browser.
+
+### Pre-permission modal
+
+- Modal KAIRO aparece 3s post-login si `Notification.permission === 'default'`
+- "Activar" -> `Notification.requestPermission()` -> subscribe -> save to DB
+- "Ahora no" -> `sessionStorage` dismiss (re-aparece en proximo login)
+- Si `permission === 'denied'`: no hay forma de revertir desde la app (limitacion del browser)
+
+### Profile toggle
+
+- ON = usuario tiene 1+ suscripciones activas
+- OFF = `toggleAllPushSubscriptions(false)` desactiva TODAS las suscripciones
+- ON de nuevo = reactiva las suscripciones existentes del usuario
+- Si `permission === 'denied'`: toggle deshabilitado con mensaje explicativo
+- Si `permission === 'unsupported'`: seccion oculta
+
+### Service Worker (`public/sw.js`)
+
+- Recibe push event -> muestra notificacion nativa del OS
+- Click en notificacion -> deep-link a la URL del payload (ej: `/leads?leadId=xxx`)
+- Busca tab KAIRO existente antes de abrir nueva ventana
+
+### Archivos clave
+
+| Archivo | Contenido |
+|---------|-----------|
+| `src/lib/push/send-push.ts` | VAPID config, `sendPush()` con TTL 24h |
+| `src/lib/actions/push-subscriptions.ts` | Server actions: subscribePush, unsubscribePush, toggleAllPushSubscriptions, getPushStatus |
+| `src/hooks/usePushNotifications.ts` | Hook: SW register, permission check, subscribe/unsubscribe |
+| `src/components/features/PushPermissionModal.tsx` | Modal UI con bell icon |
+| `public/sw.js` | Service Worker |
+| `public/manifest.json` | PWA manifest |
+
+### Env vars
+
+| Variable | Server/Client | Proposito |
+|----------|--------------|-----------|
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Client (baked at build) | Clave publica VAPID |
+| `VAPID_PRIVATE_KEY` | Server only | Clave privada VAPID |
+| `VAPID_SUBJECT` | Server only | `mailto:ia@kairoagent.com` |
+
+### Limitaciones
+
+- **iOS Safari**: Requiere PWA (Home Screen) para Web Push. Sin PWA, no funciona.
+- **Styling**: Notificaciones usan estilo nativo del OS (no personalizable con colores KAIRO).
+- **`denied` state**: Si el usuario bloquea en el browser, solo puede revertir desde settings del browser.
 
 ### Limpieza automatica
 

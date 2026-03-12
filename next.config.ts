@@ -39,7 +39,7 @@ const securityHeaders = [
     key: 'Content-Security-Policy',
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Next.js requires unsafe-eval in dev
+      `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === 'development' ? " 'unsafe-eval'" : ''}`, // unsafe-eval only in dev (Next.js HMR)
       "style-src 'self' 'unsafe-inline'", // Tailwind uses inline styles
       "img-src 'self' data: blob: https://*.supabase.co https://*.supabase.in",
       "font-src 'self' data:",
@@ -74,6 +74,7 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ['@prisma/client', 'prisma', 'openai', 'web-push', 'resend'],
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version || '0.0.0',
   },

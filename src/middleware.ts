@@ -80,31 +80,22 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
   }
 
-  // For admin routes: verify super_admin role via internal API
+  // For admin routes: verify super_admin role directly (no self-fetch)
   if (user && isAdminRoute(pathname)) {
     try {
-      // Call internal API to verify admin status
-      const verifyUrl = new URL('/api/auth/verify-admin', request.url);
-      const verifyResponse = await fetch(verifyUrl, {
-        headers: {
-          cookie: request.headers.get('cookie') || '',
-        },
-      });
+      // Query DB directly instead of calling /api/auth/verify-admin (saves cold start + round-trip)
+      const { data: dbUser } = await supabase
+        .from('users')
+        .select('systemRole, isActive')
+        .eq('id', user.id)
+        .single();
 
-      if (verifyResponse.ok) {
-        const { isAdmin } = await verifyResponse.json();
-
-        if (!isAdmin) {
-          // Not a super_admin, redirect to leads
-          return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
-        }
-      } else {
-        // API error, redirect to login
-        return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
+      if (!dbUser || !dbUser.isActive || dbUser.systemRole !== 'super_admin') {
+        return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
       }
     } catch (error) {
       console.error('Error verifying admin in middleware:', error);
-      return NextResponse.redirect(new URL(`/${locale}/login`, request.url));
+      return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
     }
 
     return response;

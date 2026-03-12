@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, Suspense, type FormEvent } from 'react';
 import Image from 'next/image';
 import { useTranslations, useLocale } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
@@ -54,6 +54,14 @@ const generateRandomPulse = (id: number, key: number): Pulse => {
 };
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const { theme, toggleTheme } = useTheme();
   const { showError } = useModal();
   const { showLoading } = useLoading();

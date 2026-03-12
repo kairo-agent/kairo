@@ -4,9 +4,11 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { LeadChannel, LeadType, LeadStatus, LeadTemperature, HandoffMode, MessageSender } from '@prisma/client';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // ============================================
 // Types for incoming webhook payloads
@@ -68,12 +70,18 @@ async function validateApiKey(projectId: string, apiKey: string): Promise<boolea
     return false;
   }
 
-  // If no API key is set, allow requests (for development)
+  // If no API key is set, only allow in development
   if (!project.n8nApiKey) {
-    return true;
+    return process.env.NODE_ENV === 'development';
   }
 
-  return project.n8nApiKey === apiKey;
+  // Timing-safe comparison to prevent timing attacks
+  const expected = Buffer.from(project.n8nApiKey, 'utf8');
+  const provided = Buffer.from(apiKey, 'utf8');
+  if (expected.length !== provided.length) {
+    return false;
+  }
+  return timingSafeEqual(expected, provided);
 }
 
 // ============================================
@@ -82,6 +90,28 @@ async function validateApiKey(projectId: string, apiKey: string): Promise<boolea
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting by IP (60 req/min)
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rateLimit = await checkRateLimit(`n8n:webhook:${ip}`, {
+      maxRequests: 60,
+      windowMs: 60_000,
+    });
+
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        {
+          error: 'Rate limit exceeded. Please try again later.',
+          retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000),
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimit.resetAt - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
     const payload: WebhookPayload = await request.json();
 
     // Validate required fields

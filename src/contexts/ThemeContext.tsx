@@ -20,28 +20,20 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children, defaultTheme = 'light' }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<Theme>(defaultTheme);
-  const [isInitialized, setIsInitialized] = useState(false);
 
   // Initialize theme from localStorage on mount
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-      if (storedTheme && (storedTheme === 'light' || storedTheme === 'dark')) {
-        setThemeState(storedTheme);
-      }
-      setIsInitialized(true);
-    }, 0);
-
-    return () => clearTimeout(timeoutId);
+    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+    if (storedTheme && (storedTheme === 'light' || storedTheme === 'dark')) {
+      setThemeState(storedTheme);
+    }
   }, []);
 
   // Apply theme to document
   useEffect(() => {
-    if (!isInitialized) return;
-
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem(THEME_STORAGE_KEY, theme);
-  }, [theme, isInitialized]);
+  }, [theme]);
 
   const toggleTheme = () => {
     setThemeState(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -50,11 +42,6 @@ export function ThemeProvider({ children, defaultTheme = 'light' }: ThemeProvide
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);
   };
-
-  // Prevent flash of incorrect theme
-  if (!isInitialized) {
-    return null;
-  }
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>

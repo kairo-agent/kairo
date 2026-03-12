@@ -9,9 +9,9 @@
  * @see src/lib/crypto/secrets.ts for encryption implementation
  */
 
-import { prisma } from '@/lib/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { encryptSecret, decryptSecret } from '@/lib/crypto/secrets';
-import { getCurrentUser } from '@/lib/auth-helpers';
+import { verifyAuth } from '@/lib/actions/auth';
 import { headers } from 'next/headers';
 
 // Valid secret keys - extend as needed
@@ -54,13 +54,13 @@ export async function setProjectSecret(
   value: string
 ): Promise<SetSecretResult> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
     // Verify user has admin access to this project
-    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -160,12 +160,12 @@ export async function getProjectSecretForUser(
   key: SecretKey
 ): Promise<GetSecretResult> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -198,12 +198,12 @@ export async function deleteProjectSecret(
   key: SecretKey
 ): Promise<SetSecretResult> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -234,12 +234,12 @@ export async function getProjectSecretsStatus(
   projectId: string
 ): Promise<HasSecretsResult> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, configured: {} as Record<SecretKey, boolean>, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, configured: {} as Record<SecretKey, boolean>, error: 'Sin permisos' };
     }
@@ -284,12 +284,12 @@ export async function setProjectSecrets(
   secrets: Partial<Record<SecretKey, string>>
 ): Promise<SetSecretResult> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAdminAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAdminAccess(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -336,15 +336,11 @@ export async function setProjectSecrets(
  */
 async function verifyProjectAdminAccess(
   userId: string,
+  systemRole: string,
   projectId: string
 ): Promise<boolean> {
   // Check if user is super admin
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { systemRole: true },
-  });
-
-  if (user?.systemRole === 'super_admin') {
+  if (systemRole === 'super_admin') {
     return true;
   }
 

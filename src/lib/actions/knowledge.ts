@@ -9,8 +9,8 @@
  * @see docs/RAG-AGENTS.md for architecture details
  */
 
-import { prisma } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth-helpers';
+import { prisma } from '@/lib/prisma';
+import { verifyAuth, verifyProjectAccess as verifyProjectAccessAuth } from '@/lib/actions/auth';
 import {
   generateEmbedding,
   generateEmbeddings,
@@ -104,7 +104,7 @@ export async function addAgentKnowledge(
   input: AddKnowledgeInput
 ): Promise<ActionResult<{ ids: string[]; chunksCreated: number }>> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
@@ -112,7 +112,7 @@ export async function addAgentKnowledge(
     const { agentId, projectId, title, content, source = 'manual', sourceUrl, metadata = {} } = input;
 
     // Verify user has access to this project
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -226,12 +226,12 @@ export async function deleteAgentKnowledge(
   projectId: string
 ): Promise<ActionResult> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -273,12 +273,12 @@ export async function listAgentKnowledge(
   projectId: string
 ): Promise<ActionResult<KnowledgeEntry[]>> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -383,12 +383,12 @@ export async function getAgentKnowledgeStats(
   projectId: string
 ): Promise<ActionResult<{ totalEntries: number; totalChunks: number; sources: Record<string, number> }>> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos' };
     }
@@ -446,7 +446,7 @@ export async function upsertStructuredKnowledge(input: {
   knowledgeId?: string;
 }): Promise<ActionResult<{ id: string }>> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
@@ -457,7 +457,7 @@ export async function upsertStructuredKnowledge(input: {
       return { success: false, error: 'Use addAgentKnowledge for free text entries' };
     }
 
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -570,12 +570,12 @@ export async function getStructuredKnowledge(
   category: KnowledgeCategory
 ): Promise<ActionResult<{ id: string; structuredData: Record<string, unknown>; content: string } | null>> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -623,12 +623,12 @@ export async function getAllStructuredKnowledge(
   projectId: string
 ): Promise<ActionResult<Array<{ id: string; category: string; structuredData: Record<string, unknown>; content: string }>>> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -673,12 +673,12 @@ export async function deleteStructuredKnowledge(
   category: KnowledgeCategory
 ): Promise<ActionResult> {
   try {
-    const user = await getCurrentUser();
+    const user = await verifyAuth();
     if (!user) {
       return { success: false, error: 'No autorizado' };
     }
 
-    const hasAccess = await verifyProjectAccess(user.id, projectId);
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin permisos para este proyecto' };
     }
@@ -708,28 +708,3 @@ export async function deleteStructuredKnowledge(
   }
 }
 
-// ============================================
-// Helper Functions
-// ============================================
-
-/**
- * Verifies if user has access to a project (any role)
- */
-async function verifyProjectAccess(userId: string, projectId: string): Promise<boolean> {
-  // Check if super admin
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { systemRole: true },
-  });
-
-  if (user?.systemRole === 'super_admin') {
-    return true;
-  }
-
-  // Check project membership
-  const membership = await prisma.projectMember.findFirst({
-    where: { userId, projectId },
-  });
-
-  return !!membership;
-}

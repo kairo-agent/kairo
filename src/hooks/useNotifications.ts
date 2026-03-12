@@ -8,7 +8,7 @@ import {
   markAllNotificationsRead,
 } from '@/lib/actions/notifications';
 
-const POLL_INTERVAL = 15_000; // 15 seconds
+const POLL_INTERVAL = 30_000; // 30 seconds
 
 interface NotificationLead {
   id: string;
@@ -162,10 +162,40 @@ export function useNotifications(projectId?: string) {
     fetchNotifications();
   }, [fetchNotifications]);
 
-  // Polling
+  // Polling with visibility-aware pause (saves requests when tab is hidden)
   useEffect(() => {
-    const interval = setInterval(pollUnreadCount, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (!interval) {
+        interval = setInterval(pollUnreadCount, POLL_INTERVAL);
+      }
+    };
+
+    const stopPolling = () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        // Fetch immediately when tab becomes visible, then resume polling
+        pollUnreadCount();
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [pollUnreadCount]);
 
   return {

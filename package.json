@@ -11,7 +11,7 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:seed-fake": "npx tsx prisma/seed-fake-data.ts",
     "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
+    "db:push": "echo 'ERROR: prisma db push is FORBIDDEN in KAIRO. Use prisma migrate dev. See docs/DATABASE-MIGRATIONS.md' && exit 1",
     "db:studio": "prisma studio"
   },
   "dependencies": {

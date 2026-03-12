@@ -16,7 +16,33 @@ export async function subscribePush(data: {
   const user = await verifyAuth();
   if (!user) return { success: false, error: 'No autorizado' };
 
+  // Validate endpoint is a valid HTTPS URL
   try {
+    const url = new URL(data.endpoint);
+    if (url.protocol !== 'https:') {
+      return { success: false, error: 'Endpoint debe ser HTTPS' };
+    }
+  } catch {
+    return { success: false, error: 'Endpoint URL invalida' };
+  }
+
+  // Validate p256dh and auth keys
+  if (!data.p256dh || typeof data.p256dh !== 'string' || data.p256dh.length > 200) {
+    return { success: false, error: 'Clave p256dh invalida' };
+  }
+  if (!data.auth || typeof data.auth !== 'string' || data.auth.length > 50) {
+    return { success: false, error: 'Clave auth invalida' };
+  }
+
+  try {
+    // Cap subscriptions per user (max 10)
+    const subscriptionCount = await prisma.pushSubscription.count({
+      where: { userId: user.id, active: true },
+    });
+    if (subscriptionCount >= 10) {
+      return { success: false, error: 'Limite de suscripciones alcanzado (max 10)' };
+    }
+
     // Upsert: if same endpoint exists for user, update keys
     await prisma.pushSubscription.upsert({
       where: {

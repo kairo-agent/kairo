@@ -1,6 +1,74 @@
 # KAIRO - Changelog
 
-> Solo se mantienen las ultimas 5 versiones. Versiones anteriores en [docs/changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Solo se mantienen las ultimas 5 versiones (v0.9.0+). Versiones anteriores en [docs/changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+
+---
+
+## [0.9.4] - 2026-03-11
+
+### Web Push Notifications (3er canal de notificacion)
+
+Notificaciones push del navegador como 3er canal junto a campana (in-app) y email. Patron pre-permission para evitar estado `denied` del browser.
+
+**Canales de notificacion (3):**
+
+| Canal | Tipo | Default | Control |
+|-------|------|---------|---------|
+| Bell (in-app) | Siempre activo | ON | No desactivable |
+| Email (Resend) | Opt-out | ON | Toggle en Profile |
+| Web Push | Opt-in | OFF | Pre-permission modal + toggle en Profile |
+
+**Pre-permission modal:**
+
+| Paso | Descripcion |
+|------|-------------|
+| 1 | Usuario se loguea, 3s despues aparece modal KAIRO |
+| 2 | "Activar" -> dispara `Notification.requestPermission()` del browser |
+| 3 | "Ahora no" -> dismiss (sessionStorage), browser queda en `default` |
+| 4 | Proximo login: modal vuelve a aparecer si permission sigue en `default` |
+
+**Per-device subscriptions:**
+
+| Aspecto | Detalle |
+|---------|---------|
+| Modelo | `PushSubscription` (1 row por browser/device, N por usuario) |
+| Constraint | `@@unique([userId, endpoint])` - evita duplicados por device |
+| Toggle Profile | ON = tiene 1+ suscripciones activas. OFF = desactiva TODAS las suscripciones |
+| Auto-cleanup | Subscriptions expiradas (410/404 del push service) se eliminan automaticamente |
+
+**Archivos nuevos:**
+
+| Archivo | Proposito |
+|---------|-----------|
+| `src/lib/push/send-push.ts` | VAPID config + `sendPush()` con web-push library |
+| `src/lib/actions/push-subscriptions.ts` | Server actions: subscribe, unsubscribe, toggleAll, getStatus |
+| `src/hooks/usePushNotifications.ts` | Hook cliente: SW registration, permission state, subscription lifecycle |
+| `src/components/features/PushPermissionModal.tsx` | Modal pre-permission con bell icon |
+| `public/sw.js` | Service Worker: push events + notification clicks + deep-link |
+| `public/manifest.json` | PWA manifest (KAIRO branding) |
+| `prisma/schema.prisma` | Modelo `PushSubscription` + relacion User |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/notifications.ts` | `sendPushToUsers()` integrado en `notifyProjectMembers()` como 3er canal (fire-and-forget) |
+| `src/app/[locale]/(dashboard)/DashboardLayoutClient.tsx` | Push modal con 3s delay post-login |
+| `src/app/[locale]/(dashboard)/profile/page.tsx` | Toggle push en seccion notificaciones |
+| `src/app/[locale]/layout.tsx` | `<link rel="manifest">` + `<meta name="theme-color">` |
+| `next.config.ts` | CSP connect-src: FCM, Mozilla, Windows, Apple push domains |
+| `src/messages/es.json` + `en.json` | Keys `pushNotifications.modal.*` y `pushNotifications.profile.*` |
+| `package.json` | Dependencias `web-push` + `https-proxy-agent` |
+
+**Env vars nuevas:**
+
+| Variable | Proposito |
+|----------|-----------|
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Clave publica VAPID (baked at build time) |
+| `VAPID_PRIVATE_KEY` | Clave privada VAPID (server-side only) |
+| `VAPID_SUBJECT` | Email de contacto VAPID (`mailto:ia@kairoagent.com`) |
+
+**Migracion:** Prisma migration para tabla `push_subscriptions` + RLS policies en Supabase SQL Editor.
 
 ---
 
@@ -461,117 +529,6 @@ Cada seccion: Zod validation -> compose bilingual text -> OpenAI embedding (text
 | Duplicate key constraint en upsert | `.delete()` via anon client con RLS DELETE policy rota | DELETE movido dentro del RPC (atomico) |
 
 **Leccion clave:** Todas las operaciones sobre `agent_knowledge` (CRUD + SEARCH) DEBEN usar RPCs SECURITY DEFINER. Las RLS policies referencian `pm.project_id` pero la columna real es `pm."projectId"` (Prisma camelCase), causando fallos silenciosos. Ver v0.9.1 para el fix de search.
-
----
-
-## [0.8.2] - 2026-02-20
-
-### Per-Project WhatsApp App Secret (Multi-Tenant HMAC)
-
-Soporte para App Secret por proyecto. Cada cliente puede tener su propia Meta Developer App con su propio App Secret para verificacion HMAC de webhooks.
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/secrets.ts` | Agregado `whatsapp_app_secret` a `SecretKey` type y `allKeys` array |
-| `src/components/admin/ProjectSettingsModal.tsx` | Nuevo campo App Secret en tab WhatsApp (password input, reveal/copy/timer) |
-| `src/messages/es.json` + `en.json` | 2 keys i18n: `enterAppSecret`, `appSecretHelp` |
-| `src/app/api/webhooks/whatsapp/route.ts` | Reestructuracion HMAC: parse JSON primero, extraer `phone_number_id`, buscar App Secret per-project, verificar HMAC. Fallback a global solo si no hay per-project. HMAC failure rate limiting (10/5min/IP) |
-
-**Backward compatibility:**
-
-| Escenario | Comportamiento |
-|-----------|---------------|
-| Proyecto sin App Secret configurado | Usa global `WHATSAPP_APP_SECRET` |
-| Proyecto con App Secret configurado | Usa per-project, NO fallback a global |
-| Ni proyecto ni global | Rechaza silenciosamente |
-
-**Seguridad:** Smart fallback (no global bypass si existe per-project), HMAC failure rate limiting, cache de App Secret (5min TTL, 500 LRU).
-
----
-
-## [0.8.1] - 2026-02-15
-
-### Security Audit v2 + Vercel Serverless Fix
-
-Auditoria de seguridad completa del webhook WhatsApp y pipeline AI interno. 19 hallazgos identificados y resueltos (2 criticos, 3 altos, 5 medios, 4 bajos, 10 aprobados).
-
-**Fix critico: Vercel serverless lifecycle**
-
-| Archivo | Cambio |
-|---------|--------|
-| `package.json` | Agregado `@vercel/functions` |
-| `src/app/api/webhooks/whatsapp/route.ts` | 4 fire-and-forget calls envueltos con `waitUntil()`: processAIResponse, handleStatusUpdate, notifyProjectMembers, sendReadReceipt |
-
-**Hallazgos criticos resueltos:**
-
-| ID | Fix | Archivo |
-|----|-----|---------|
-| C-1 | Deduplicacion de mensajes via `whatsappMsgId` check | `route.ts` |
-| C-2 | Limite de 1MB en body del webhook + `maxDuration=25s` | `route.ts` |
-
-**Hallazgos altos resueltos:**
-
-| ID | Fix | Archivo |
-|----|-----|---------|
-| A-1 | Anti-prompt-injection: preamble con 5 reglas inmutables + delimitadores `=== ===` | `build-system-prompt.ts` |
-| A-2 | Rate limit IP: requests sin IP rechazadas en produccion | `route.ts` |
-| A-3 | Truncamiento: texto 4096 chars, captions 2048, filenames 255 | `route.ts`, `process-ai-response.ts` |
-
-**Hallazgos medios resueltos:**
-
-| ID | Fix | Archivo |
-|----|-----|---------|
-| M-1 | Cache `phoneNumberIdCache` con limite de 500 entradas + eviccion LRU | `route.ts` |
-| M-2 | Audio: validacion 10MB max, MIME whitelist (6 tipos), hostname Facebook CDN check | `process-ai-response.ts` |
-| M-3 | Rate limit por proyecto: 60 respuestas AI/min/proyecto | `route.ts` |
-| M-4 | `getProjectSecret()` reforzado con documentacion de responsabilidad del caller | `secrets.ts` |
-| M-5 | `logSecretAccess()` graceful fuera de request context | `secrets.ts` |
-
-**Hallazgos bajos resueltos:**
-
-| ID | Fix |
-|----|-----|
-| L-1 | IDs truncados a 8 chars en logs, nombres removidos |
-| L-2 | Verify token usa `timingSafeEqual` |
-| L-3 | Token fallido ya no se loguea en texto claro |
-| L-4 | Fallback dev requiere `ALLOW_WEBHOOK_FALLBACK=true` explicito |
-
-**Sanitizacion de nombres de contacto:**
-
-`sanitizeContactName()` en `route.ts`: strip emojis (above-BMP + BMP decorativos + ZWJ), escape HTML (anti-XSS), NFC normalize, limite 100 chars, fallback a telefono si vacio.
-
-**10 controles aprobados (sin cambios necesarios):** Verificacion HMAC-SHA256, fail-closed en produccion, cifrado AES-256-GCM, rate limiting atomico Lua/Redis, Prisma ORM, AbortController timeout 30s, degradacion graceful, respuestas genericas, audit trail de secretos, 13 security headers.
-
----
-
-## [0.8.0] - 2026-02-15
-
-### Internal AI Pipeline - n8n removal
-
-Migra el pipeline de IA de n8n (Railway) a funciones internas en Next.js. Elimina dependencia externa, reduce latencia (~400-1200ms), mejora seguridad (3 endpoints publicos menos), simplifica arquitectura.
-
-**Archivos creados:**
-
-| Archivo | Proposito |
-|---------|-----------|
-| `src/lib/ai/process-ai-response.ts` | Pipeline core: audio transcription, RAG search, OpenAI chat, temperature extraction, summary generation, DB save, WhatsApp send |
-| `src/lib/ai/build-system-prompt.ts` | Replica el system prompt que antes armaba n8n (agent identity, instructions, RAG, history, summary, date/time) |
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/app/api/webhooks/whatsapp/route.ts` | `triggerN8nWorkflow()` reemplazada por `processAIResponse()` (fire-and-forget) |
-
-**Beneficios medidos:**
-- Latencia: -400 a -1200ms (elimina 4 round-trips HTTP KAIRO<->Railway)
-- Seguridad: 3 endpoints publicos que solo n8n usaba pueden ser deprecados
-- Costo: -$5-10/mes (Railway eliminado)
-- Infraestructura: 1 proveedor (Vercel) en vez de 2 (Vercel + Railway)
-
-**Nota:** Los endpoints de n8n (`/api/ai/respond`, `/api/rag/search`, `/api/audio/transcribe`) se mantienen temporalmente como fallback. Se eliminaran en una version futura.
 
 ---
 

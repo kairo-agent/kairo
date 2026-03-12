@@ -5,16 +5,9 @@
 
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { PrismaClient } from '@prisma/client';
 
-// Prisma Client Singleton for Server Actions
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma = globalForPrisma.prisma ?? new PrismaClient();
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// Re-export prisma from the canonical singleton to maintain backward compatibility
+export { prisma } from '@/lib/prisma';
 
 export async function createClient() {
   const cookieStore = await cookies();
