@@ -43,7 +43,6 @@ export function useRealtimeLeads({
 }: UseRealtimeLeadsOptions): void {
   const queryClient = useQueryClient();
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const supabaseRef = useRef(createClient());
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
@@ -64,83 +63,99 @@ export function useRealtimeLeads({
     }, INVALIDATION_DEBOUNCE_MS);
   }, [queryClient]);
 
-  // Clean up channel helper
-  const cleanup = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    if (channelRef.current) {
-      supabaseRef.current.removeChannel(channelRef.current);
-      channelRef.current = null;
-    }
-  }, []);
-
   useEffect(() => {
     // Don't subscribe if disabled or no workspace context
     if (!enabled || (!projectId && !organizationId)) {
-      cleanup();
       return;
     }
 
-    // Clean up previous subscription before creating a new one
-    cleanup();
+    let cancelled = false;
+    let channel: RealtimeChannel | null = null;
 
-    const supabase = supabaseRef.current;
+    const setup = async () => {
+      try {
+        const supabase = createClient();
 
-    // Build a unique channel name based on the active filter scope
-    const scope = projectId
-      ? `project:${projectId}`
-      : `org:${organizationId}`;
-    const channelName = `leads:${scope}`;
+        // Await auth session before subscribing — this ensures the Realtime
+        // connection is established as an authenticated user so that RLS
+        // policies on the leads table allow event delivery.
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled || !user) return;
 
-    // Build the filter - Supabase Realtime supports filtering by a single column.
-    // When a specific project is selected, filter server-side for efficiency.
-    // When viewing all projects in an org, we subscribe to all leads changes
-    // and let TanStack Query handle the correct data via refetch.
-    const filter = projectId
-      ? `projectId=eq.${projectId}`
-      : undefined;
+        // Build a unique channel name based on the active filter scope
+        const scope = projectId
+          ? `project:${projectId}`
+          : `org:${organizationId}`;
+        const channelName = `leads:${scope}`;
 
-    // Common subscription config
-    const insertConfig = {
-      event: 'INSERT' as const,
-      schema: 'public',
-      table: 'leads',
-      ...(filter ? { filter } : {}),
+        // Build the filter — Supabase Realtime supports filtering by a single
+        // column. When a specific project is selected, filter server-side.
+        // When viewing all projects in an org, subscribe without a filter and
+        // let TanStack Query handle scoping via refetch.
+        const filter = projectId
+          ? `projectId=eq.${projectId}`
+          : undefined;
+
+        // Common subscription config
+        const insertConfig = {
+          event: 'INSERT' as const,
+          schema: 'public',
+          table: 'leads',
+          ...(filter ? { filter } : {}),
+        };
+
+        const updateConfig = {
+          event: 'UPDATE' as const,
+          schema: 'public',
+          table: 'leads',
+          ...(filter ? { filter } : {}),
+        };
+
+        channel = supabase
+          .channel(channelName)
+          .on('postgres_changes', insertConfig, () => {
+            if (cancelled) return;
+            console.log('[RT] New lead detected');
+            debouncedInvalidate();
+          })
+          .on('postgres_changes', updateConfig, () => {
+            if (cancelled) return;
+            console.log('[RT] Lead updated');
+            debouncedInvalidate();
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              console.log(`[RT] Subscribed to leads channel: ${channelName}`);
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.warn(`[RT] Leads channel error: ${status}`);
+            }
+          });
+
+        channelRef.current = channel;
+      } catch (err) {
+        console.warn('[RT] Failed to set up leads realtime:', err);
+      }
     };
 
-    const updateConfig = {
-      event: 'UPDATE' as const,
-      schema: 'public',
-      table: 'leads',
-      ...(filter ? { filter } : {}),
-    };
-
-    const channel = supabase
-      .channel(channelName)
-      .on('postgres_changes', insertConfig, () => {
-        console.log('[RT] New lead detected');
-        debouncedInvalidate();
-      })
-      .on('postgres_changes', updateConfig, () => {
-        console.log('[RT] Lead updated');
-        debouncedInvalidate();
-      })
-      .subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`[RT] Subscribed to leads channel: ${channelName}`);
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn(`[RT] Leads channel error: ${status}`);
-        }
-      });
-
-    channelRef.current = channel;
+    setup();
 
     return () => {
-      cleanup();
+      cancelled = true;
+
+      // Clear any pending debounce timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+
+      // Remove the channel if it was created
+      if (channelRef.current) {
+        const supabase = createClient();
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [projectId, organizationId, enabled, cleanup, debouncedInvalidate]);
+  }, [projectId, organizationId, enabled, debouncedInvalidate]);
 }
 
 export default useRealtimeLeads;
