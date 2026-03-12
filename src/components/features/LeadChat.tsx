@@ -440,14 +440,54 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
       const result = await sendMessage(leadId, content, mediaUrl, mediaType, filename, caption);
 
       if (result.success && result.message) {
-        // Marcar como procesado para tracking interno
+        // Marcar como procesado ANTES de agregar al cache para que cuando
+        // Realtime dispare el INSERT, el dedup lo ignore correctamente.
         processedMessageIds.current.add(result.message.id);
 
-        // NO agregamos al estado local - Supabase Realtime lo traerá
-        // Esto evita duplicación por race condition entre:
-        // 1. Agregado local optimista
-        // 2. Evento INSERT de Realtime
-        console.log(`[SEND] Mensaje enviado, esperando Realtime: ${result.message.id}`);
+        // Agregar inmediatamente al cache de React Query (optimistic-style).
+        // Realtime tardará algunos ms en disparar el INSERT; si no lo hacemos
+        // aquí el mensaje nunca aparece en pantalla porque el dedup de arriba
+        // ya bloqueará el evento Realtime.
+        const msg = result.message;
+        queryClient.setQueryData(
+          ['conversation', leadId],
+          (oldData: { pages: PaginatedConversation[]; pageParams: (string | undefined)[] } | undefined) => {
+            if (!oldData?.pages?.[0]?.conversation) return oldData;
+
+            const firstPageMessages = oldData.pages[0].conversation.messages;
+            // Guard extra: no duplicar si ya está (p.ej. respuesta ultra-rápida de Realtime)
+            if (firstPageMessages.some((m) => m.id === msg.id)) return oldData;
+
+            const newMessage: MessageForChat = {
+              id: msg.id,
+              conversationId: msg.conversationId,
+              sender: msg.sender,
+              content: msg.content,
+              createdAt: new Date(msg.createdAt),
+              sentByUserId: msg.sentByUserId ?? null,
+              whatsappMsgId: msg.whatsappMsgId ?? null,
+              isDelivered: msg.isDelivered ?? false,
+              isRead: msg.isRead ?? false,
+              metadata: msg.metadata ?? null,
+              sentByUser: msg.sentByUser ?? null,
+            };
+
+            const updatedFirstPage: PaginatedConversation = {
+              ...oldData.pages[0],
+              conversation: {
+                ...oldData.pages[0].conversation,
+                messages: [...firstPageMessages, newMessage],
+              },
+            };
+
+            return {
+              ...oldData,
+              pages: [updatedFirstPage, ...oldData.pages.slice(1)],
+            };
+          }
+        );
+
+        console.log(`[SEND] Mensaje enviado y agregado al cache: ${result.message.id}`);
       } else {
         setError(result.error || 'Error al enviar mensaje');
       }
