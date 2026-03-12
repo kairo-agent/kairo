@@ -161,14 +161,13 @@ function LoginPageContent() {
         const deepLink = redirectParam || savedRedirect;
         if (deepLink && deepLink.startsWith('/') && !deepLink.startsWith('//')) {
           sessionStorage.removeItem('kairo-redirect-after-login');
-          showLoading(t('success.message'), true);
-          window.location.href = deepLink;
-          return;
+          finalRedirect = deepLink;
         }
 
-        // Show loading overlay and redirect immediately
+        // Show loading overlay and use full navigation (faster than router.push
+        // which triggers RSC prefetch + fetch, adding ~500ms+ on Supabase Free)
         showLoading(t('success.message'), true);
-        router.push(finalRedirect as string as '/select-workspace' | '/leads');
+        window.location.href = `/${locale}${finalRedirect}`;
       } else if (result.error) {
         // Use the error code to get translated message
         const errorMessage = t(`errors.${result.error}`);
