@@ -9,6 +9,28 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { prisma } from '@/lib/prisma';
 
+// ============================================
+// SHARED CACHED AUTH PRIMITIVES
+// These ensure Supabase auth.getUser() is called at most ONCE per request,
+// regardless of how many times getCurrentUser/verifyAuth are called.
+// ============================================
+
+/**
+ * Cached Supabase auth check - the single source of truth for "who is this user?"
+ * Both getCurrentUser() and verifyAuth() delegate to this, so the Supabase
+ * round-trip happens at most once per server request.
+ */
+const getSupabaseUser = cache(async () => {
+  try {
+    const supabase = await createServerClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    return user;
+  } catch (error) {
+    console.error('Supabase auth check error:', error);
+    return null;
+  }
+});
+
 // Error codes for i18n on client side
 export type AuthErrorCode =
   | 'invalid_credentials'
@@ -109,8 +131,7 @@ export async function signOut(): Promise<void> {
  */
 export const getCurrentUser = cache(async () => {
   try {
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getSupabaseUser();
 
     if (!user) {
       return null;
@@ -140,9 +161,7 @@ export const getCurrentUser = cache(async () => {
 });
 
 export async function getSession() {
-  const supabase = await createServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
+  return getSupabaseUser();
 }
 
 /**
@@ -153,13 +172,16 @@ export async function getSession() {
  */
 export const verifyAuth = cache(async () => {
   try {
-    const supabase = await createServerClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getSupabaseUser();
 
     if (!user) {
       return null;
     }
 
+    // OPTIMIZATION: If getCurrentUser() already ran in this request,
+    // its Prisma result is cached. But verifyAuth uses a lighter select,
+    // so we keep the separate Prisma call. The key saving is that
+    // getSupabaseUser() (the Supabase round-trip) is shared.
     const dbUser = await prisma.user.findUnique({
       where: { id: user.id },
       select: { id: true, systemRole: true, firstName: true, lastName: true },

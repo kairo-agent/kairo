@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
 
 // Types for organization and project selection
 export interface WorkspaceOrganization {
@@ -47,82 +47,60 @@ interface WorkspaceProviderProps {
   initialProjects?: WorkspaceProject[];
 }
 
+function readStoredWorkspace(): {
+  org: WorkspaceOrganization | null;
+  project: WorkspaceProject | null;
+} {
+  try {
+    const savedOrg = localStorage.getItem(STORAGE_KEY_ORG);
+    const savedProject = localStorage.getItem(STORAGE_KEY_PROJECT);
+    return {
+      org: savedOrg ? JSON.parse(savedOrg) : null,
+      project: savedProject ? JSON.parse(savedProject) : null,
+    };
+  } catch {
+    return { org: null, project: null };
+  }
+}
+
 export function WorkspaceProvider({
   children,
   initialOrganizations = [],
   initialProjects = [],
 }: WorkspaceProviderProps) {
-  const [selectedOrganization, setSelectedOrganizationState] = useState<WorkspaceOrganization | null>(null);
-  const [selectedProject, setSelectedProjectState] = useState<WorkspaceProject | null>(null);
+  const storedRef = useRef<{ org: WorkspaceOrganization | null; project: WorkspaceProject | null } | null>(null);
+  if (storedRef.current === null) {
+    storedRef.current = typeof window === 'undefined' ? { org: null, project: null } : readStoredWorkspace();
+  }
+  const [selectedOrganization, setSelectedOrganizationState] = useState<WorkspaceOrganization | null>(storedRef.current.org);
+  const [selectedProject, setSelectedProjectState] = useState<WorkspaceProject | null>(storedRef.current.project);
   const [organizations, setOrganizations] = useState<WorkspaceOrganization[]>(initialOrganizations);
   const [projects, setProjects] = useState<WorkspaceProject[]>(initialProjects);
-  // If we have initial data, we're not loading
   const [isLoading, setIsLoading] = useState(initialOrganizations.length === 0);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedOrg = localStorage.getItem(STORAGE_KEY_ORG);
-        const savedProject = localStorage.getItem(STORAGE_KEY_PROJECT);
-
-        if (savedOrg) {
-          setSelectedOrganizationState(JSON.parse(savedOrg));
-        }
-        if (savedProject) {
-          setSelectedProjectState(JSON.parse(savedProject));
-        }
-      } catch (error) {
-        console.error('Error loading workspace from localStorage:', error);
-      }
-      setIsInitialized(true);
-    }
-  }, []);
-
-  // Save to localStorage when selections change
-  useEffect(() => {
-    if (!isInitialized) return;
-
-    if (typeof window !== 'undefined') {
-      try {
-        if (selectedOrganization) {
-          localStorage.setItem(STORAGE_KEY_ORG, JSON.stringify(selectedOrganization));
-        } else {
-          localStorage.removeItem(STORAGE_KEY_ORG);
-        }
-      } catch (error) {
-        console.error('Error saving org to localStorage:', error);
-      }
-    }
-  }, [selectedOrganization, isInitialized]);
-
-  useEffect(() => {
-    if (!isInitialized) return;
-
-    if (typeof window !== 'undefined') {
-      try {
-        if (selectedProject) {
-          localStorage.setItem(STORAGE_KEY_PROJECT, JSON.stringify(selectedProject));
-        } else {
-          localStorage.removeItem(STORAGE_KEY_PROJECT);
-        }
-      } catch (error) {
-        console.error('Error saving project to localStorage:', error);
-      }
-    }
-  }, [selectedProject, isInitialized]);
-
-  // When organization changes, reset project selection
   const setSelectedOrganization = useCallback((org: WorkspaceOrganization | null) => {
     setSelectedOrganizationState(org);
-    // Reset project when org changes
     setSelectedProjectState(null);
     setProjects([]);
+    try {
+      if (org) {
+        localStorage.setItem(STORAGE_KEY_ORG, JSON.stringify(org));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_ORG);
+      }
+      localStorage.removeItem(STORAGE_KEY_PROJECT);
+    } catch { /* ignore */ }
   }, []);
 
   const setSelectedProject = useCallback((project: WorkspaceProject | null) => {
     setSelectedProjectState(project);
+    try {
+      if (project) {
+        localStorage.setItem(STORAGE_KEY_PROJECT, JSON.stringify(project));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_PROJECT);
+      }
+    } catch { /* ignore */ }
   }, []);
 
   const value: WorkspaceContextType = {

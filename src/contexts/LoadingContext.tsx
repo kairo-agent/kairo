@@ -1,20 +1,10 @@
 'use client';
 
-// ============================================
-// KAIRO - Loading Context
-// Global loading state for overlay animations
-// Supports persistence across page reloads
-// ============================================
-
-import { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
 
 const LOADING_STORAGE_KEY = 'kairo-loading-state';
-
-interface LoadingState {
-  isLoading: boolean;
-  message: string;
-  timestamp: number;
-}
+const MAX_LOADING_AGE = 10000;
+const SAFETY_TIMEOUT = 8000;
 
 interface LoadingContextType {
   isLoading: boolean;
@@ -29,21 +19,30 @@ interface LoadingProviderProps {
   children: ReactNode;
 }
 
-// Helper to check if loading state is still valid (max 10 seconds)
-function isValidLoadingState(state: LoadingState | null): boolean {
-  if (!state) return false;
-  const now = Date.now();
-  const maxAge = 10000; // 10 seconds max
-  return state.isLoading && (now - state.timestamp) < maxAge;
+function readPersistedLoading(): { isLoading: boolean; message: string } {
+  try {
+    const stored = localStorage.getItem(LOADING_STORAGE_KEY);
+    if (stored) {
+      const state = JSON.parse(stored);
+      if (state.isLoading && (Date.now() - state.timestamp) < MAX_LOADING_AGE) {
+        localStorage.removeItem(LOADING_STORAGE_KEY);
+        return { isLoading: true, message: state.message || '' };
+      }
+      localStorage.removeItem(LOADING_STORAGE_KEY);
+    }
+  } catch {
+    // Ignore
+  }
+  return { isLoading: false, message: '' };
 }
 
 export function LoadingProvider({ children }: LoadingProviderProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingMessage, setLoadingMessage] = useState('');
+  const [{ isLoading, message: loadingMessage }, setLoadingState] = useState(() => {
+    if (typeof window === 'undefined') return { isLoading: false, message: '' };
+    return readPersistedLoading();
+  });
   const safetyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Safety timeout: auto-hide loading after 8 seconds max
-  // Prevents overlay getting stuck when hideLoading() is never called
   const clearSafetyTimeout = useCallback(() => {
     if (safetyTimeoutRef.current) {
       clearTimeout(safetyTimeoutRef.current);
@@ -51,96 +50,29 @@ export function LoadingProvider({ children }: LoadingProviderProps) {
     }
   }, []);
 
-  const startSafetyTimeout = useCallback(() => {
+  const showLoading = useCallback((message: string = '', persist: boolean = false) => {
+    setLoadingState({ isLoading: true, message });
     clearSafetyTimeout();
     safetyTimeoutRef.current = setTimeout(() => {
-      setIsLoading(false);
-      setLoadingMessage('');
-      try {
-        localStorage.removeItem(LOADING_STORAGE_KEY);
-      } catch {
-        // Ignore
-      }
-    }, 8000);
-  }, [clearSafetyTimeout]);
+      setLoadingState({ isLoading: false, message: '' });
+      try { localStorage.removeItem(LOADING_STORAGE_KEY); } catch { /* ignore */ }
+    }, SAFETY_TIMEOUT);
 
-  // Check for persisted loading state on mount
-  useEffect(() => {
-    let wasPersistedLoading = false;
-
-    try {
-      const stored = localStorage.getItem(LOADING_STORAGE_KEY);
-      if (stored) {
-        const state: LoadingState = JSON.parse(stored);
-        if (isValidLoadingState(state)) {
-          setIsLoading(true);
-          setLoadingMessage(state.message);
-          wasPersistedLoading = true;
-        } else {
-          // Clear expired state
-          localStorage.removeItem(LOADING_STORAGE_KEY);
-        }
-      }
-    } catch {
-      // Ignore errors
-    }
-
-    // If we restored a persisted loading state, hide it after page loads
-    // Use requestAnimationFrame + setTimeout to ensure DOM is ready
-    if (wasPersistedLoading) {
-      const hideAfterLoad = () => {
-        // Small delay to allow page content to render
-        setTimeout(() => {
-          setIsLoading(false);
-          setLoadingMessage('');
-          try {
-            localStorage.removeItem(LOADING_STORAGE_KEY);
-          } catch {
-            // Ignore
-          }
-        }, 300);
-      };
-
-      // Wait for next frame to ensure content is painted
-      requestAnimationFrame(() => {
-        requestAnimationFrame(hideAfterLoad);
-      });
-    }
-
-    return () => clearSafetyTimeout();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const showLoading = useCallback((message: string = '', persist: boolean = false) => {
-    setLoadingMessage(message);
-    setIsLoading(true);
-    startSafetyTimeout();
-
-    // Persist to localStorage if needed (for page reloads)
     if (persist) {
       try {
-        const state: LoadingState = {
+        localStorage.setItem(LOADING_STORAGE_KEY, JSON.stringify({
           isLoading: true,
           message,
           timestamp: Date.now(),
-        };
-        localStorage.setItem(LOADING_STORAGE_KEY, JSON.stringify(state));
-      } catch {
-        // Ignore errors
-      }
+        }));
+      } catch { /* ignore */ }
     }
-  }, [startSafetyTimeout]);
+  }, [clearSafetyTimeout]);
 
   const hideLoading = useCallback(() => {
     clearSafetyTimeout();
-    setIsLoading(false);
-    setLoadingMessage('');
-
-    // Clear persisted state
-    try {
-      localStorage.removeItem(LOADING_STORAGE_KEY);
-    } catch {
-      // Ignore errors
-    }
+    setLoadingState({ isLoading: false, message: '' });
+    try { localStorage.removeItem(LOADING_STORAGE_KEY); } catch { /* ignore */ }
   }, [clearSafetyTimeout]);
 
   return (

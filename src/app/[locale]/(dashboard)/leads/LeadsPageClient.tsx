@@ -16,6 +16,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { useCurrentUser } from '@/app/[locale]/(dashboard)/DashboardLayoutClient';
 import { useLeads, type TransformedLead } from '@/hooks/useLeadsQuery';
+import { useRealtimeLeads } from '@/hooks/useRealtimeLeads';
 import {
   LeadStatus,
   LeadTemperature,
@@ -610,6 +611,13 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     filters: debouncedFilters,
     page: currentPage,
     limit: pageSize,
+  });
+
+  // Realtime subscription for instant lead updates (new leads, status/temp changes)
+  useRealtimeLeads({
+    projectId,
+    organizationId,
+    enabled: Boolean(projectId || organizationId),
   });
 
   // Track workspace changes to reset page

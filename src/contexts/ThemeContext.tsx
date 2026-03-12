@@ -19,20 +19,18 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, defaultTheme = 'light' }: ThemeProviderProps) {
-  const [theme, setThemeState] = useState<Theme>(defaultTheme);
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return defaultTheme;
+    try {
+      const stored = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+      if (stored === 'light' || stored === 'dark') return stored;
+    } catch { /* ignore */ }
+    return defaultTheme;
+  });
 
-  // Initialize theme from localStorage on mount
-  useEffect(() => {
-    const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
-    if (storedTheme && (storedTheme === 'light' || storedTheme === 'dark')) {
-      setThemeState(storedTheme);
-    }
-  }, []);
-
-  // Apply theme to document
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch { /* ignore */ }
   }, [theme]);
 
   const toggleTheme = () => {

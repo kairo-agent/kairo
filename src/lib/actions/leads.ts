@@ -234,6 +234,176 @@ function buildLeadWhereClause(
 }
 
 // ============================================
+// SSR-OPTIMIZED: Pre-authenticated lead fetching
+// These skip verifyAuth() for SSR calls where auth is already verified
+// by the layout. Client-side calls MUST use the original functions.
+// ============================================
+
+export type PreVerifiedAuth = {
+  id: string;
+  systemRole: string;
+};
+
+/**
+ * SSR-optimized version of getLeadsPaginated.
+ * Accepts pre-verified auth context from the layout, skipping redundant
+ * Supabase + Prisma auth checks. Only use from server components where
+ * auth has already been verified (e.g., page.tsx under authenticated layout).
+ */
+export async function getLeadsPaginatedSSR(
+  auth: PreVerifiedAuth,
+  projectId?: string,
+  organizationId?: string,
+  filters?: Partial<LeadFilters>,
+  pagination?: PaginationParams
+): Promise<PaginatedResponse<LeadGridItem>> {
+  try {
+    const accessibleProjects = await getAccessibleProjectIds(auth.id, auth.systemRole, projectId, organizationId);
+
+    if (!accessibleProjects) {
+      return {
+        data: [],
+        pagination: {
+          page: 1,
+          limit: 25,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        },
+      };
+    }
+
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters);
+    const page = pagination?.page || 1;
+    const limit = pagination?.limit || 25;
+    const skip = (page - 1) * limit;
+
+    const [total, leads] = await Promise.all([
+      prisma.lead.count({ where }),
+      prisma.lead.findMany({
+        where,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          businessName: true,
+          position: true,
+          status: true,
+          temperature: true,
+          source: true,
+          channel: true,
+          type: true,
+          pipelineStage: true,
+          estimatedValue: true,
+          currency: true,
+          tags: true,
+          archivedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          lastContactAt: true,
+          nextFollowUpAt: true,
+          summary: true,
+          summaryUpdatedAt: true,
+          projectId: true,
+          assignedAgentId: true,
+          assignedUserId: true,
+          assignedAgent: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: leads,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching paginated leads (SSR):', error);
+    return {
+      data: [],
+      pagination: {
+        page: 1,
+        limit: 25,
+        total: 0,
+        totalPages: 0,
+        hasNext: false,
+        hasPrev: false,
+      },
+    };
+  }
+}
+
+/**
+ * SSR-optimized version of getLeadsStatsFromDB.
+ * Accepts pre-verified auth context from the layout.
+ */
+export async function getLeadsStatsFromDBSSR(
+  auth: PreVerifiedAuth,
+  projectId?: string,
+  organizationId?: string,
+  filters?: Partial<LeadFilters>
+): Promise<LeadsStats> {
+  try {
+    const accessibleProjects = await getAccessibleProjectIds(auth.id, auth.systemRole, projectId, organizationId);
+
+    if (!accessibleProjects) {
+      return { total: 0, byStatus: {}, byTemperature: {} };
+    }
+
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters);
+
+    const [total, statusCounts, temperatureCounts] = await Promise.all([
+      prisma.lead.count({ where }),
+      prisma.lead.groupBy({
+        by: ['status'],
+        where,
+        _count: true,
+      }),
+      prisma.lead.groupBy({
+        by: ['temperature'],
+        where,
+        _count: true,
+      }),
+    ]);
+
+    const byStatus: Record<string, number> = {};
+    for (const sc of statusCounts) {
+      byStatus[sc.status] = sc._count;
+    }
+
+    const byTemperature: Record<string, number> = {};
+    for (const tc of temperatureCounts) {
+      byTemperature[tc.temperature] = tc._count;
+    }
+
+    return { total, byStatus, byTemperature };
+  } catch (error) {
+    console.error('Error fetching leads stats (SSR):', error);
+    return { total: 0, byStatus: {}, byTemperature: {} };
+  }
+}
+
+// ============================================
 // PAGINATED LEADS WITH SERVER-SIDE FILTERS
 // ============================================
 

@@ -1,14 +1,19 @@
 // ============================================
 // KAIRO - Leads Page (Server Component)
 // Fetches paginated data from database
+// PERFORMANCE: Uses SSR-optimized functions that skip redundant auth checks.
+// The layout already verifies auth via getCurrentUser() (cached).
+// verifyAuth() shares the same cached Supabase call via getSupabaseUser().
 // ============================================
 
-import { getLeadsPaginated, getLeadsStatsFromDB } from '@/lib/actions/leads';
+import { verifyAuth } from '@/lib/actions/auth';
+import { getLeadsPaginatedSSR, getLeadsStatsFromDBSSR } from '@/lib/actions/leads';
+import type { LeadGridItem } from '@/lib/actions/leads';
 import { DEFAULT_PAGE_SIZE } from '@/types';
 import LeadsPageClient from './LeadsPageClient';
 
 // Helper to transform Prisma lead to frontend format
-function transformLead(lead: Awaited<ReturnType<typeof getLeadsPaginated>>['data'][number]) {
+function transformLead(lead: LeadGridItem) {
   return {
     id: lead.id,
     projectId: lead.projectId,
@@ -44,10 +49,36 @@ function transformLead(lead: Awaited<ReturnType<typeof getLeadsPaginated>>['data
 }
 
 export default async function LeadsPage() {
-  // Fetch first page of leads and stats from database
+  // PERFORMANCE: verifyAuth() shares the cached getSupabaseUser() call
+  // with getCurrentUser() from the layout, eliminating the redundant
+  // Supabase auth round-trip. The lightweight Prisma select is still
+  // cached independently via React.cache().
+  const user = await verifyAuth();
+
+  if (!user) {
+    // Layout should have already redirected, but guard defensively
+    return (
+      <LeadsPageClient
+        initialLeads={[]}
+        initialPagination={{
+          page: 1,
+          limit: DEFAULT_PAGE_SIZE,
+          total: 0,
+          totalPages: 0,
+          hasNext: false,
+          hasPrev: false,
+        }}
+        initialStats={{ total: 0, new: 0, hot: 0, warm: 0, cold: 0 }}
+      />
+    );
+  }
+
+  // SSR-optimized: pass pre-verified auth, skip internal verifyAuth() calls
+  const authContext = { id: user.id, systemRole: user.systemRole };
+
   const [leadsResponse, stats] = await Promise.all([
-    getLeadsPaginated(undefined, undefined, undefined, { page: 1, limit: DEFAULT_PAGE_SIZE }),
-    getLeadsStatsFromDB(),
+    getLeadsPaginatedSSR(authContext, undefined, undefined, undefined, { page: 1, limit: DEFAULT_PAGE_SIZE }),
+    getLeadsStatsFromDBSSR(authContext),
   ]);
 
   // Transform Prisma leads to frontend format

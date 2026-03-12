@@ -10,7 +10,6 @@ import { useTranslations } from 'next-intl';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import PushPermissionModal from '@/components/features/PushPermissionModal';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { ModalProvider } from '@/contexts/ModalContext';
 import { WorkspaceProvider, type WorkspaceOrganization } from '@/contexts/WorkspaceContext';
 import { LoadingProvider } from '@/contexts/LoadingContext';
 import { QueryProvider } from '@/providers/QueryProvider';
@@ -150,15 +149,13 @@ export default function DashboardLayoutClient({
   return (
     <ThemeProvider defaultTheme="light">
       <QueryProvider>
-        <ModalProvider>
-          <WorkspaceProvider initialOrganizations={initialOrganizations}>
-            <LoadingProvider>
-              <DashboardLayoutContent user={user}>{children}</DashboardLayoutContent>
-              <LoadingOverlay />
-              <Toaster position="bottom-right" richColors closeButton duration={4000} />
-            </LoadingProvider>
-          </WorkspaceProvider>
-        </ModalProvider>
+        <WorkspaceProvider initialOrganizations={initialOrganizations}>
+          <LoadingProvider>
+            <DashboardLayoutContent user={user}>{children}</DashboardLayoutContent>
+            <LoadingOverlay />
+            <Toaster position="bottom-right" richColors closeButton duration={4000} />
+          </LoadingProvider>
+        </WorkspaceProvider>
       </QueryProvider>
     </ThemeProvider>
   );

@@ -294,7 +294,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
 
   useRealtimeMessages({
     conversationId: conversation?.id || null,
-    enabled: isHumanMode && isOpen && !!conversation?.id,
+    enabled: isOpen && !!conversation?.id,
     onNewMessage: handleRealtimeMessage,
     onMessageUpdate: handleMessageStatusUpdate,
     onConnected: () => {
@@ -563,8 +563,8 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
               {handoffStatus.handoffUser}
             </span>
           )}
-          {/* Indicador de conexión Realtime en modo Human */}
-          {isHumanMode && (
+          {/* Indicador de conexión Realtime */}
+          {(
             <div
               className={cn(
                 'flex items-center gap-1 text-xs',
