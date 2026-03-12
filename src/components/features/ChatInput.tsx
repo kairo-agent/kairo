@@ -490,6 +490,7 @@ const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatInput(
           <button
             type="button"
             onClick={onEmojiClick}
+            onMouseDown={(e) => e.stopPropagation()}
             disabled={disabled}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-colors hover:opacity-80 disabled:opacity-50"
             style={{
