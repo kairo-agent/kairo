@@ -365,6 +365,39 @@ function getCachedProject(phoneNumberId: string) {
 
 **Beneficio:** Reducción de ~95% en queries de lookup después del primer mensaje.
 
+### Supabase Realtime (v0.10.0)
+
+KAIRO usa Supabase Realtime (WebSocket push) para 3 flujos:
+
+```
++-----------------------------------------------------+
+|           SUPABASE REALTIME CHANNELS                  |
+|                                                       |
+|  1. Notifications (useNotifications.ts)               |
+|     - Channel: notifications table                    |
+|     - Events: INSERT                                  |
+|     - Fallback: HTTP polling 120s                     |
+|                                                       |
+|  2. Leads List (useRealtimeLeads.ts)                  |
+|     - Channel: leads table                            |
+|     - Events: INSERT, UPDATE                          |
+|     - Debounce: 500ms                                 |
+|     - Invalidates: TanStack Query (leads + stats)     |
+|                                                       |
+|  3. Chat Messages (useRealtimeMessages.ts)            |
+|     - Channel: messages table                         |
+|     - Events: INSERT, UPDATE                          |
+|     - Both AI and human modes                         |
+|     - Dedup via processedMessageIds Set               |
++-----------------------------------------------------+
+```
+
+**Requisitos para Realtime:**
+- RLS SELECT policies en todas las tablas suscritas
+- `await auth.getUser()` antes de subscribirse (sesion autenticada)
+- REPLICA IDENTITY FULL en tablas donde se necesiten filtros en UPDATE events
+- Debounce para eventos rapidos (webhook cascade genera multiples events)
+
 ### 3. React Query (Client-Side)
 
 **Archivo:** `src/providers/QueryProvider.tsx`

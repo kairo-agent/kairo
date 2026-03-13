@@ -1,6 +1,12 @@
-# KAIRO - Changelog Archive (v0.9.0 y anteriores)
+# KAIRO - Changelog Archive (v0.9.1 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.1+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.2+).
+
+---
+
+## [0.9.1] - 2026-03-09
+
+Archivado desde CHANGELOG.md. Contenido: RAG Search Fix (SECURITY DEFINER + threshold 0.35), Global Rules System, Temperature Criteria UI, Audio Transcription Fix (fbsbx.com CDN), Full-Width Layout Fix.
 
 ---
 

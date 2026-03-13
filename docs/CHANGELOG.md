@@ -1,6 +1,79 @@
 # KAIRO - Changelog
 
-> Solo se mantienen las ultimas 5 versiones (v0.9.1+). Versiones anteriores en [docs/changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Solo se mantienen las ultimas 5 versiones (v0.9.2+). Versiones anteriores en [docs/changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+
+---
+
+## [0.10.0] - 2026-03-12
+
+### Supabase Realtime + Region Co-location + Auth Optimization
+
+Migracion de polling HTTP a Supabase Realtime (WebSocket push) para notificaciones, leads list y chat AI. Co-locacion de regiones Vercel/Supabase en Sao Paulo. Optimizacion de auth chain y reduccion de providers.
+
+**Region Co-location (infraestructura):**
+
+| Componente | Antes | Despues | Beneficio |
+|-----------|-------|---------|-----------|
+| Vercel Function Region | Washington DC (iad1) | Sao Paulo (gru1) | ~150ms menos por query DB |
+| Supabase | Sao Paulo (sa-east-1) | Sin cambio | 10-12 queries/page = 1.5-2s ahorrados |
+
+**Auth Chain Optimization (commit `4369412`):**
+
+| Cambio | Detalle |
+|--------|---------|
+| `getSupabaseUser()` con `React.cache()` | Single Supabase auth call por request (auth.ts) |
+| `getLeadsPaginatedSSR()` | Acepta auth pre-verificado, evita round-trips redundantes |
+| `getLeadsStatsFromDBSSR()` | Idem, para stats |
+| Ahorro total | ~2 Supabase auth round-trips + ~1 Prisma query por page load |
+
+**Provider Reduction (commit `4369412`):**
+
+| Cambio | Detalle |
+|--------|---------|
+| ModalProvider removido de dashboard | Solo se usaba en login |
+| WorkspaceContext | 3 useEffects -> 0 (lazy state initializers) |
+| ThemeContext | 1 mount useEffect removido (lazy initializer) |
+| LoadingContext | Simplificado, rAF chain removido |
+| Total | 7 -> 6 providers, 6 -> 1 mount useEffects |
+
+**Supabase Realtime - Notifications (commit `4369412`):**
+
+| Aspecto | Antes | Despues |
+|---------|-------|---------|
+| Mecanismo | HTTP polling 30s | WebSocket push (Realtime) |
+| Polling fallback | N/A | 120s (solo respaldo) |
+| Sonido, badge, deep-link | Intactos | Intactos |
+
+**Supabase Realtime - Leads List (commits `4369412`, `807fbfc`, `4dd1a57`):**
+
+| Cambio | Detalle |
+|--------|---------|
+| Hook `useRealtimeLeads.ts` | Suscripcion a INSERT/UPDATE en tabla leads |
+| Debounce 500ms | Para eventos rapidos (webhook cascade) |
+| Cache invalidation | Invalida leads + stats en TanStack Query |
+| Fix: auth antes de subscribe | `await auth.getUser()` antes de suscribirse (RLS requiere sesion) |
+| Fix: UPDATE sin projectId filter | REPLICA IDENTITY DEFAULT solo tiene PK en WAL |
+
+**Supabase Realtime - AI Chat (commit `4369412`):**
+
+Removida condicion `isHumanMode` de `useRealtimeMessages`. Conversaciones AI ahora visibles en tiempo real. Indicador "Live" en ambos modos.
+
+**RLS Policies completas (commit `8f9ad52`):**
+
+| Aspecto | Detalle |
+|---------|---------|
+| Tablas cubiertas | 16 tablas con RLS habilitado |
+| Script | `scripts/rls-all-tables-policies.sql` |
+| Helper functions | `user_has_project_access()`, `is_super_admin()`, `user_has_org_access()` |
+| Critico para Realtime | SELECT policies necesarias para que Realtime filtre eventos |
+
+**Fix: Human messages not showing (commit `b246aa0`):**
+
+Race condition de deduplicacion: `sendMessage` agregaba ID a `processedMessageIds` antes de que Realtime INSERT llegara. Fix: agregar mensaje directamente al cache TanStack Query despues de enviar. Realtime INSERT correctamente deduplicado despues.
+
+**REPLICA IDENTITY FULL en leads:**
+
+`ALTER TABLE leads REPLICA IDENTITY FULL` - permite que Supabase Realtime evalue filtros en eventos UPDATE (por defecto solo tiene PK en WAL).
 
 ---
 
@@ -315,184 +388,6 @@ Notificaciones `new_message` solo se envian cuando el lead esta en modo `human`.
 | KB free-text edit | `SettingsPageClient.tsx` | Boton editar (lapiz) en cada entry, modal dinamico add/edit |
 
 **Regla 11 agregada:** Usar `ExpandableTextarea` para textareas de contenido largo.
-
----
-
-## [0.9.1] - 2026-03-09
-
-### RAG Search Fix - SECURITY DEFINER + Threshold Optimization
-
-**Bug critico**: RAG search retornaba 0 resultados en produccion. El bot inventaba datos (ubicacion, redes sociales, telefonos) en lugar de usar el Knowledge Base.
-
-**Causa raiz (cadena de 3 problemas):**
-
-| # | Problema | Efecto |
-|---|---------|--------|
-| 1 | `search_agent_knowledge` usaba `SECURITY INVOKER` (unica RPC sin migrar) | RLS se aplica al caller |
-| 2 | Webhook WhatsApp no tiene sesion de usuario (anon key, sin cookies) | RLS evalua como usuario anonimo |
-| 3 | RLS policies referencian `pm.project_id` pero columna real es `pm."projectId"` | RLS filtra silenciosamente TODOS los rows |
-
-**Resultado**: GPT nunca recibia datos del KB -> inventaba respuestas -> datos falsos se guardaban en lead summary -> se auto-reforzaban via historial.
-
-**Fix aplicado:**
-
-| Cambio | Archivo | Detalle |
-|--------|---------|---------|
-| RPC a SECURITY DEFINER | `search_agent_knowledge` (SQL) | Bypasea RLS rota, consistente con insert/list/delete |
-| GRANT a anon | RPC search | Webhook context sin sesion puede ejecutar la funcion |
-| Threshold 0.5 -> 0.35 | `process-ai-response.ts` | Alineado con ChatFlow360 (probado en produccion) |
-| Threshold default 0.7 -> 0.35 | RPC SQL + setup script | Default mas permisivo para mejor recall |
-
-**Fixes adicionales (misma sesion):**
-
-| Fix | Archivo | Detalle |
-|-----|---------|---------|
-| Temperatura visible al usuario | `build-system-prompt.ts` | GPT usaba formato libre `*Temperatura*: texto` en vez de `[TEMPERATURA: HOT]`. Fix: instruccion explicita del formato + regex fallback en `process-ai-response.ts` |
-| Emoji en setup SQL | `scripts/setup-rag-complete.sql` | Pre-commit hook bloqueaba por emojis above-BMP |
-
-**Migracion SQL:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `prisma/migrations/20260309_fix_search_knowledge_rpc/migration.sql` | DROP + CREATE con SECURITY DEFINER, threshold 0.35, GRANT authenticated + anon |
-
-**Patron obligatorio (actualizado):**
-
-> TODAS las operaciones sobre `agent_knowledge` (INSERT, SELECT, UPDATE, DELETE, **SEARCH**) DEBEN usar RPCs SECURITY DEFINER.
-> Nunca usar SECURITY INVOKER ni queries directas con anon key.
-> Threshold RAG: **0.35** (no 0.5 ni 0.7).
-
-**Verificacion E2E**: Bot respondio con datos exactos del KB (direccion, telefono, email, redes sociales con URLs correctas, politicas, precios).
-
----
-
-### Global Rules System
-
-Sistema de reglas globales que el super admin puede crear y que aplican automaticamente a TODOS los agentes de TODOS los proyectos.
-
-**Modelo de datos:**
-
-| Campo | Tipo | Descripcion |
-|-------|------|-------------|
-| `GlobalRule.id` | String (cuid) | Identificador unico |
-| `GlobalRule.content` | Text | Contenido de la regla |
-| `GlobalRule.order` | Int | Orden de aplicacion |
-| `GlobalRule.isActive` | Boolean | Activa/inactiva |
-| `GlobalRule.createdAt` | DateTime | Fecha de creacion |
-
-No hay limite maximo de reglas. RLS habilitado.
-
-**Inyeccion en system prompt:**
-
-Las reglas globales activas se inyectan en `build-system-prompt.ts` como una seccion antes de las reglas especificas del agente:
-
-```
-=== REGLAS GLOBALES (OBLIGATORIAS) ===
-1. [contenido de regla global 1]
-2. [contenido de regla global 2]
-...
-```
-
-El delimitador `=== ===` mantiene coherencia con el patron anti-prompt-injection existente.
-
-**UI:**
-
-| Ubicacion | Descripcion |
-|-----------|-------------|
-| `/admin/global-rules` | Panel de administracion solo para super_admin. CRUD completo (crear, editar, reordenar, activar/desactivar, eliminar). Layout full-width. |
-| `Settings > Instructions` | Vista de solo lectura de las reglas globales activas, antes de las reglas especificas del agente. |
-
-**Archivos:**
-
-| Archivo | Proposito |
-|---------|-----------|
-| `prisma/schema.prisma` | Modelo `GlobalRule` |
-| `prisma/migrations/20260309_add_global_rules/` | Migracion con tabla + RLS |
-| `src/lib/actions/global-rules.ts` | Server Actions CRUD (solo super_admin) |
-| `src/app/[locale]/(admin)/admin/global-rules/` | Pagina de admin |
-| `src/lib/ai/build-system-prompt.ts` | Inyeccion de reglas globales |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Vista read-only de reglas globales |
-| `src/messages/es.json` + `en.json` | Keys i18n para global rules |
-
----
-
-### Temperature Criteria UI
-
-Criterios de calificacion HOT/WARM/COLD ahora son editables por agente desde Settings > Instructions.
-
-**Implementacion:**
-
-| Campo | Ubicacion | Descripcion |
-|-------|-----------|-------------|
-| `promptStructure.temperatureCriteria` | `ai_agents.promptStructure` (JSONB) | Objeto con campos `hot`, `warm`, `cold` (strings) |
-
-No requiere migracion de BD. El campo JSONB existente `promptStructure` ya soporta campos arbitrarios.
-
-**UI en Settings > Instructions:**
-
-Seccion "Lead Qualification Criteria" con 3 textareas, una por temperatura:
-- HOT: icono FlameIcon (red-500), criterios para leads calientes
-- WARM: icono SunIcon (amber-500), criterios para leads tibios
-- COLD: icono SnowflakeIcon (blue-400), criterios para leads frios
-
-Los iconos son los mismos SVG components usados en la pagina de leads (`src/components/features/LeadIcons.tsx`).
-
-**Composicion en system prompt:**
-
-Si `temperatureCriteria` tiene contenido, reemplaza el bloque generico de calificacion:
-
-```
-LEAD QUALIFICATION CRITERIA:
-- HOT: [criterio configurado por el admin]
-- WARM: [criterio configurado por el admin]
-- COLD: [criterio configurado por el admin]
-```
-
-Si no hay criterios configurados, se usa el fallback generico existente.
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/knowledge/prompt-builder.ts` | `TemperatureCriteria` interface + `temperatureCriteria` en `PromptStructure` |
-| `src/lib/ai/build-system-prompt.ts` | Composicion de criterios custom vs fallback generico |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Seccion UI con 3 textareas + iconos |
-| `src/messages/es.json` + `en.json` | Keys i18n para temperatura criteria |
-
----
-
-### Audio Transcription Fix - Facebook CDN Hostname
-
-**Bug:** Transcripcion de audio fallaba silenciosamente en produccion. El audio no se descargaba de WhatsApp porque el hostname `lookaside.fbsbx.com` era rechazado por la validacion de CDN.
-
-**Causa raiz:** La funcion `transcribeAudio()` en `process-ai-response.ts` validaba que la URL del audio viniera de dominios de Facebook CDN, pero solo incluia `fbcdn.net` y `facebook.com`. El dominio primario que usa WhatsApp Cloud API para media es `lookaside.fbsbx.com`.
-
-**Fix:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/ai/process-ai-response.ts` | Agregado `fbsbx.com` a la whitelist de hostnames permitidos para Facebook CDN |
-
-**Dominios CDN permitidos (ahora 3):**
-
-```typescript
-const FACEBOOK_CDN_HOSTNAMES = ['fbcdn.net', 'facebook.com', 'fbsbx.com'];
-```
-
-**Impacto:** Transcripciones de audio de WhatsApp Cloud API ahora funcionan correctamente en produccion.
-
----
-
-### Full-Width Layout Fix
-
-Removido `max-w-4xl mx-auto` de las paginas Settings y Global Rules que los dejaba con contenido centrado angosto en lugar de aprovechar todo el ancho disponible.
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/app/[locale]/(dashboard)/settings/page.tsx` | Removido `max-w-4xl mx-auto` del wrapper |
-| `src/app/[locale]/(admin)/admin/global-rules/page.tsx` | Layout full-width desde creacion |
-
-Consistente con la Regla 5 del proyecto: "Full-width layout".
 
 ---
 

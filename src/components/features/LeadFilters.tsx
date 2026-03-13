@@ -480,11 +480,11 @@ export function LeadFilters({
       {/* Expandable Filters Grid */}
       <div
         className={cn(
-          'grid gap-4 transition-all duration-300 ease-out overflow-hidden',
+          'grid gap-4 transition-all duration-300 ease-out',
           'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
           isExpanded
-            ? 'opacity-100 max-h-[500px] pb-4'
-            : 'opacity-0 max-h-0 pointer-events-none'
+            ? 'opacity-100 max-h-[500px] pb-4 overflow-visible'
+            : 'opacity-0 max-h-0 pointer-events-none overflow-hidden'
         )}
       >
         {/* Date Range Filter */}

@@ -76,7 +76,7 @@ export type LeadsStats = {
 // HELPER: Get accessible project IDs for user
 // ============================================
 
-async function getAccessibleProjectIds(
+export async function getAccessibleProjectIds(
   userId: string,
   systemRole: string,
   projectId?: string,

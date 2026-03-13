@@ -1193,6 +1193,79 @@ El endpoint `verify-admin` retornaba `{ isAdmin, userId, systemRole, reason }`. 
 
 ---
 
+## Fase 7 - Region Co-location + Supabase Realtime + Auth Optimization (v0.10.0)
+
+**Fecha de implementacion:** 2026-03-12
+**Commits:** `4369412` (auth + realtime + providers), `807fbfc` + `4dd1a57` (realtime leads fixes), `8f9ad52` (RLS policies), `b246aa0` (dedup fix)
+
+### Impacto Estimado
+
+| Area | Optimizacion | Beneficio |
+|------|-------------|-----------|
+| Region co-location | Vercel iad1 -> gru1 (same region as Supabase sa-east-1) | ~150ms menos por query DB (10-12 queries/page = 1.5-2s) |
+| Auth chain | `getSupabaseUser()` + React.cache + SSR functions | ~2 auth round-trips + ~1 Prisma query menos por page load |
+| Providers | 7 -> 6 providers, 6 -> 1 mount useEffects | Menor tiempo de hidratacion |
+| Notifications | Polling 30s -> Realtime WebSocket push | Notificaciones instantaneas, polling 120s solo como fallback |
+| Leads list | Polling manual -> Realtime INSERT/UPDATE | Lista actualizada en tiempo real sin refetch |
+| AI chat | Solo human mode -> Ambos modos | Mensajes AI visibles en tiempo real |
+
+### 1. Region Co-location
+
+Vercel Function Region movida de Washington DC (iad1/us-east-1) a Sao Paulo (gru1/sa-east-1) para co-localizar con Supabase que ya estaba en sa-east-1.
+
+Eliminacion de ~150ms de latencia de red por cada query a DB. Con 10-12 queries por page load, el ahorro total es de 1.5-2 segundos.
+
+### 2. Auth Chain Optimization
+
+```typescript
+// Nueva funcion con React.cache() - single auth call por request
+export const getSupabaseUser = cache(async () => {
+  const supabase = await createServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  return user;
+});
+
+// SSR functions que aceptan auth pre-verificado
+export async function getLeadsPaginatedSSR(userId, systemRole, projectId, options) { ... }
+export async function getLeadsStatsFromDBSSR(userId, systemRole, projectId) { ... }
+```
+
+Ahorro: la pagina de leads ahora hace 1 auth call en vez de 3 (page + leads + stats).
+
+### 3. Provider Reduction
+
+| Provider/Context | Cambio |
+|-----------------|--------|
+| ModalProvider | Removido de dashboard layout (solo usado en login) |
+| WorkspaceContext | 3 useEffects reemplazados por lazy state initializers |
+| ThemeContext | 1 mount useEffect removido (lazy initializer) |
+| LoadingContext | Simplificado, rAF chain removido |
+
+**Resultado:** 7 -> 6 providers, 6 -> 1 mount useEffects en dashboard.
+
+### 4. Supabase Realtime
+
+**Notificaciones:** WebSocket push reemplaza HTTP polling. Polling reducido a 120s (fallback). Sound, badge, mark-as-read y deep-link intactos.
+
+**Leads List:** Hook `useRealtimeLeads.ts` suscrito a INSERT/UPDATE. Debounce 500ms para eventos rapidos. Invalida caches de TanStack Query.
+
+**AI Chat:** Removida condicion `isHumanMode` de `useRealtimeMessages`. Ambos modos reciben actualizaciones en tiempo real.
+
+**Gotchas resueltos:**
+
+| Gotcha | Solucion |
+|--------|----------|
+| RLS requiere sesion autenticada | `await auth.getUser()` antes de subscribirse |
+| UPDATE events sin columnas extra | REPLICA IDENTITY DEFAULT solo incluye PK en WAL -> no filtrar por projectId en UPDATE |
+| REPLICA IDENTITY FULL | `ALTER TABLE leads REPLICA IDENTITY FULL` para evaluar filtros en UPDATE |
+| Deduplicacion race condition | Agregar mensaje directamente al cache TQ despues de enviar, Realtime deduplicado |
+
+### 5. RLS Policies Completas
+
+16 tablas con RLS habilitado. Script: `scripts/rls-all-tables-policies.sql`. Helper functions: `user_has_project_access()`, `is_super_admin()`, `user_has_org_access()`. Critico para que Supabase Realtime funcione (necesita SELECT policy).
+
+---
+
 ## Referencias
 
 ### Documentación Técnica

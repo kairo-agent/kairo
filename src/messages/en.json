@@ -323,7 +323,23 @@
     "scheduledFor": "Scheduled:"
   },
   "dashboard": {
-    "systemStatus": "System operational"
+    "systemStatus": "System operational",
+    "welcome": "Welcome to KAIRO",
+    "subtitle": "Overview of your activity and key metrics",
+    "stats": {
+      "totalLeads": "Total leads",
+      "leadsWon": "Leads won",
+      "inHumanMode": "In human mode",
+      "activeAgents": "Active agents"
+    },
+    "dateRange": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7days": "7 days",
+      "last30days": "30 days",
+      "thisMonth": "This month",
+      "custom": "Custom"
+    }
   },
   "workspace": {
     "organization": "Organization",

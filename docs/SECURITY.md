@@ -4,7 +4,7 @@
 
 KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) siguiendo las mejores prácticas de OWASP. Este documento describe todas las protecciones implementadas, configuraciones requeridas y checklist para futuras features.
 
-**Estado:** [OK] Security Audit v3 Completado (Marzo 2026)
+**Estado:** [OK] Security Audit v3 Completado + RLS Completo (Marzo 2026)
 
 ---
 
@@ -12,6 +12,7 @@ KAIRO ha completado su primera auditoría de seguridad (Security Audit v1) sigui
 
 | Version | Fecha | Mejoras Clave |
 |---------|-------|---------------|
+| **v0.10.0** | 2026-03-12 | Comprehensive RLS policies for all 16 tables, REPLICA IDENTITY FULL on leads, helper functions (user_has_project_access, is_super_admin, user_has_org_access) |
 | **v0.9.5** | 2026-03-11 | Audit v3: Prisma consolidation, n8n webhook hardening, middleware auth enforcement, push subscription validation, CSP unsafe-eval dev-only, verify-admin sanitization, scheduleFollowUp access check |
 | **v0.9.1** | 2026-03-09 | RAG search SECURITY DEFINER fix, fbsbx.com a CDN whitelist, Global Rules anti-injection delimiters |
 | **v0.8.2** | 2026-02-20 | Per-project App Secret: HMAC multi-tenant, smart fallback, HMAC failure rate limiting |
@@ -282,6 +283,23 @@ Los mensajes enviados por humanos desde el chat de KAIRO ahora van directamente 
 
 **Archivo:** `src/lib/actions/messages.ts`
 
+### 18. Comprehensive RLS Policies (v0.10.0)
+
+RLS habilitado y policies creadas para las 16 tablas del proyecto. Critico para que Supabase Realtime funcione correctamente (requiere SELECT policies para filtrar eventos).
+
+**Script:** `scripts/rls-all-tables-policies.sql`
+
+**Helper functions (SECURITY DEFINER):**
+- `user_has_project_access(user_id, project_id)` - Verifica membresia en proyecto
+- `is_super_admin(user_id)` - Verifica systemRole = SUPER_ADMIN
+- `user_has_org_access(user_id, org_id)` - Verifica membresia en organizacion
+
+**Patron de policies:**
+- SELECT: miembros del proyecto pueden leer datos de su proyecto
+- INSERT/UPDATE/DELETE: roles especificos (admin, manager) segun tabla
+- `service_role` bypasea RLS automaticamente (webhooks, cron jobs)
+- `_prisma_migrations`: RLS habilitado sin policies (solo service_role accede)
+
 ---
 
 ## Variables de Entorno Requeridas para Seguridad
@@ -492,4 +510,4 @@ Para reportar vulnerabilidades de seguridad de forma privada, contactar a:
 
 ---
 
-*Ultima actualizacion: 2026-03-11 - Security Audit v3 Completado*
+*Ultima actualizacion: 2026-03-12 - RLS Completo (16 tablas) + Supabase Realtime*
