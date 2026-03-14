@@ -268,55 +268,65 @@ export async function notifyProjectMembers(params: {
     if (emailTypes.includes(params.type) && params.leadName) {
       const recipientIds = recipients.map((r) => r.userId);
 
-      // Fetch user emails and preferences in a single query
-      prisma.user
-        .findMany({
+      // Fetch user emails and preferences - awaited to prevent serverless early termination
+      try {
+        const users = await prisma.user.findMany({
           where: { id: { in: recipientIds } },
           select: { id: true, email: true, preferences: true, locale: true },
-        })
-        .then((users) => {
-          for (const user of users) {
-            const prefs = (user.preferences as Record<string, unknown>) || {};
+        });
 
-            // Default: email notifications enabled unless explicitly disabled
-            if (prefs.notifyEmail === false) continue;
+        const emailPromises: Promise<void>[] = [];
 
-            const ccEmails = Array.isArray(prefs.notifyCcEmails)
-              ? (prefs.notifyCcEmails as string[])
-              : [];
-            const locale =
-              (user.locale as 'es' | 'en') ||
-              (prefs.language as 'es' | 'en') ||
-              'es';
-            const validLocale: 'es' | 'en' = locale === 'en' ? 'en' : 'es';
+        for (const user of users) {
+          const prefs = (user.preferences as Record<string, unknown>) || {};
 
-            const emailParams = {
-              recipientEmail: user.email,
-              ccEmails,
-              leadName: params.leadName!,
-              projectName: params.projectName || '',
-              leadId: (params.metadata?.leadId as string) || '',
-              locale: validLocale,
-            };
+          // Default: email notifications enabled unless explicitly disabled
+          if (prefs.notifyEmail === false) continue;
 
-            if (params.type === 'hot_lead') {
+          const ccEmails = Array.isArray(prefs.notifyCcEmails)
+            ? (prefs.notifyCcEmails as string[])
+            : [];
+          const locale =
+            (user.locale as 'es' | 'en') ||
+            (prefs.language as 'es' | 'en') ||
+            'es';
+          const validLocale: 'es' | 'en' = locale === 'en' ? 'en' : 'es';
+
+          const emailParams = {
+            recipientEmail: user.email,
+            ccEmails,
+            leadName: params.leadName!,
+            projectName: params.projectName || '',
+            leadId: (params.metadata?.leadId as string) || '',
+            locale: validLocale,
+          };
+
+          if (params.type === 'hot_lead') {
+            emailPromises.push(
               sendHotLeadEmail({
                 ...emailParams,
                 agentName: params.agentName,
               }).catch((err) =>
                 console.error(`[Email] Hot lead error for ${user.id.slice(0, 8)}...:`, err)
-              );
-            } else {
+              )
+            );
+          } else {
+            emailPromises.push(
               sendHandoffEmail({
                 ...emailParams,
                 agentName: params.agentName || 'Kaira',
               }).catch((err) =>
                 console.error(`[Email] Error for ${user.id.slice(0, 8)}...:`, err)
-              );
-            }
+              )
+            );
           }
-        })
-        .catch((err) => console.error('[Email] Failed to fetch recipients:', err));
+        }
+
+        // Wait for all emails to be sent before function terminates
+        await Promise.all(emailPromises);
+      } catch (err) {
+        console.error('[Email] Failed to fetch recipients:', err);
+      }
     }
 
     // --- Web Push notifications (all notification types) ---
