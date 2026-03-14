@@ -555,13 +555,22 @@
       "empty": "No hay usuarios",
       "password": {
         "label": "Contraseña",
-        "generate": "Generar automáticamente",
+        "generate": "Generar",
         "manual": "Ingresar manualmente",
         "generated": "Contraseña generada",
         "copy": "Copiar",
         "copied": "Copiada!",
         "reset": "Resetear contraseña",
-        "newPassword": "Nueva contraseña"
+        "newPassword": "Nueva contraseña",
+        "showPassword": "Mostrar contraseña",
+        "hidePassword": "Ocultar contraseña",
+        "minLength": "Mínimo 8 caracteres",
+        "hasUppercase": "Una letra mayúscula",
+        "hasLowercase": "Una letra minúscula",
+        "hasNumber": "Un número",
+        "hasSpecial": "Un carácter especial (!@#$...)",
+        "selectOrg": "Seleccionar organización",
+        "selectProject": "Seleccionar proyecto"
       },
       "confirmDelete": "¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer."
     },

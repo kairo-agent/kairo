@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +38,108 @@ interface UserModalProps {
   projects: Project[];
 }
 
+// Password validation
+interface PasswordValidation {
+  minLength: boolean;
+  hasUppercase: boolean;
+  hasLowercase: boolean;
+  hasNumber: boolean;
+  hasSpecial: boolean;
+}
+
+function validatePassword(password: string): PasswordValidation {
+  return {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasLowercase: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
+  };
+}
+
+function generateStrongPassword(): string {
+  const uppercase = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lowercase = 'abcdefghjkmnpqrstuvwxyz';
+  const numbers = '23456789';
+  const special = '!@#$%&*_+-=';
+  const all = uppercase + lowercase + numbers + special;
+
+  const getSecureRandom = (max: number) => {
+    const array = new Uint32Array(1);
+    crypto.getRandomValues(array);
+    return array[0] % max;
+  };
+
+  // Ensure at least one of each type
+  let chars: string[] = [];
+  chars.push(uppercase[getSecureRandom(uppercase.length)]);
+  chars.push(lowercase[getSecureRandom(lowercase.length)]);
+  chars.push(numbers[getSecureRandom(numbers.length)]);
+  chars.push(special[getSecureRandom(special.length)]);
+
+  // Fill remaining 12 characters (total 16)
+  for (let i = 0; i < 12; i++) {
+    chars.push(all[getSecureRandom(all.length)]);
+  }
+
+  // Fisher-Yates shuffle
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = getSecureRandom(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  return chars.join('');
+}
+
+// SVG icons as inline components to avoid extra dependencies
+function EyeIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49" />
+      <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242" />
+      <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143" />
+      <path d="m2 2 20 20" />
+    </svg>
+  );
+}
+
+function CopyIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+    </svg>
+  );
+}
+
+function CheckIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+
+function RefreshIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+      <path d="M16 16h5v5" />
+    </svg>
+  );
+}
+
 export default function UserModal({
   isOpen,
   onClose,
@@ -61,7 +163,6 @@ export default function UserModal({
     isActive: true,
     avatarUrl: '',
     // Create-only fields
-    generatePassword: true,
     password: '',
     organizationId: '',
     isOrgOwner: false,
@@ -72,11 +173,31 @@ export default function UserModal({
   const [error, setError] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordCopied, setPasswordCopied] = useState(false);
 
   // Filter projects by selected organization
   const filteredProjects = formData.organizationId
     ? projects.filter(p => p.organizationId === formData.organizationId)
     : [];
+
+  // Password validation
+  const passwordValidation = useMemo(
+    () => validatePassword(formData.password),
+    [formData.password]
+  );
+  const allPasswordChecksPass = useMemo(
+    () => Object.values(passwordValidation).every(Boolean),
+    [passwordValidation]
+  );
+
+  const passwordChecks = [
+    { key: 'minLength' as const, pass: passwordValidation.minLength },
+    { key: 'hasUppercase' as const, pass: passwordValidation.hasUppercase },
+    { key: 'hasLowercase' as const, pass: passwordValidation.hasLowercase },
+    { key: 'hasNumber' as const, pass: passwordValidation.hasNumber },
+    { key: 'hasSpecial' as const, pass: passwordValidation.hasSpecial },
+  ];
 
   useEffect(() => {
     if (user) {
@@ -87,7 +208,6 @@ export default function UserModal({
         systemRole: user.systemRole,
         isActive: user.isActive,
         avatarUrl: user.avatarUrl || '',
-        generatePassword: true,
         password: '',
         organizationId: '',
         isOrgOwner: false,
@@ -102,7 +222,6 @@ export default function UserModal({
         systemRole: 'user' as SystemRole,
         isActive: true,
         avatarUrl: '',
-        generatePassword: true,
         password: '',
         organizationId: '',
         isOrgOwner: false,
@@ -113,7 +232,21 @@ export default function UserModal({
     setError('');
     setGeneratedPassword('');
     setCopied(false);
+    setShowPassword(false);
+    setPasswordCopied(false);
   }, [user, isOpen]);
+
+  const handleGeneratePassword = () => {
+    const pwd = generateStrongPassword();
+    setFormData(prev => ({ ...prev, password: pwd }));
+    setShowPassword(true); // Show so user can see it
+  };
+
+  const handleCopyPassword = async () => {
+    await navigator.clipboard.writeText(formData.password);
+    setPasswordCopied(true);
+    setTimeout(() => setPasswordCopied(false), 2000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,7 +270,19 @@ export default function UserModal({
           onClose();
         }
       } else {
-        // Validar membresía para usuarios normales
+        // Validate password
+        if (!formData.password) {
+          setError('Se requiere una contraseña');
+          setLoading(false);
+          return;
+        }
+        if (!allPasswordChecksPass) {
+          setError('La contraseña no cumple los requisitos mínimos');
+          setLoading(false);
+          return;
+        }
+
+        // Validate membership for regular users
         if (formData.systemRole !== 'super_admin') {
           if (!formData.organizationId) {
             setError('Los usuarios deben pertenecer a una organización');
@@ -156,8 +301,8 @@ export default function UserModal({
           firstName: formData.firstName,
           lastName: formData.lastName,
           systemRole: formData.systemRole,
-          generatePassword: formData.generatePassword,
-          password: formData.generatePassword ? undefined : formData.password,
+          generatePassword: false,
+          password: formData.password,
           organizationId: formData.organizationId || undefined,
           isOrgOwner: formData.isOrgOwner,
           projectId: formData.projectId || undefined,
@@ -166,11 +311,9 @@ export default function UserModal({
 
         if (result.error) {
           setError(result.error);
-        } else if (result.generatedPassword) {
-          setGeneratedPassword(result.generatedPassword);
         } else {
-          onSuccess();
-          onClose();
+          // Show the password confirmation screen
+          setGeneratedPassword(formData.password);
         }
       }
     } catch {
@@ -180,7 +323,7 @@ export default function UserModal({
     }
   };
 
-  const copyPassword = async () => {
+  const copyGeneratedPassword = async () => {
     await navigator.clipboard.writeText(generatedPassword);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -191,7 +334,7 @@ export default function UserModal({
     onClose();
   };
 
-  // Show generated password screen
+  // Show generated password screen after successful creation
   if (generatedPassword) {
     return (
       <Modal
@@ -213,7 +356,7 @@ export default function UserModal({
               type="button"
               variant="secondary"
               size="sm"
-              onClick={copyPassword}
+              onClick={copyGeneratedPassword}
             >
               {copied ? t('password.copied') : t('password.copy')}
             </Button>
@@ -243,6 +386,17 @@ export default function UserModal({
           </div>
         )}
 
+        {/* Email first */}
+        <Input
+          label={t('email')}
+          type="email"
+          value={formData.email}
+          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+          required
+          disabled={isEdit}
+          placeholder="user@company.com"
+        />
+
         <div className="grid grid-cols-2 gap-4">
           <Input
             label={t('firstName')}
@@ -260,15 +414,86 @@ export default function UserModal({
           />
         </div>
 
-        <Input
-          label={t('email')}
-          type="email"
-          value={formData.email}
-          onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-          required
-          disabled={isEdit}
-          placeholder="juan@example.com"
-        />
+        {/* Password (only for create) */}
+        {!isEdit && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-[var(--text-primary)]">
+                {t('password.label')}
+              </label>
+              <button
+                type="button"
+                onClick={handleGeneratePassword}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-[var(--kairo-cyan)]/30 text-[var(--kairo-cyan)] hover:bg-[var(--kairo-cyan)]/10 transition-colors cursor-pointer"
+              >
+                <RefreshIcon className="h-3.5 w-3.5" />
+                {t('password.generate')}
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                placeholder="••••••••"
+                maxLength={128}
+                required
+                className="w-full px-3 py-2.5 pr-20 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)] focus:border-transparent"
+              />
+              <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+                {formData.password && (
+                  <button
+                    type="button"
+                    onClick={handleCopyPassword}
+                    className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+                    title={passwordCopied ? t('password.copied') : t('password.copy')}
+                  >
+                    {passwordCopied ? (
+                      <CheckIcon className="h-4 w-4 text-emerald-500" />
+                    ) : (
+                      <CopyIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors cursor-pointer"
+                  title={showPassword ? t('password.hidePassword') : t('password.showPassword')}
+                >
+                  {showPassword ? (
+                    <EyeOffIcon className="h-4 w-4" />
+                  ) : (
+                    <EyeIcon className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Password checklist */}
+            {formData.password.length > 0 && (
+              <ul className="space-y-0.5 pt-1">
+                {passwordChecks.map((check) => (
+                  <li
+                    key={check.key}
+                    className={`flex items-center gap-2 text-xs transition-colors ${
+                      check.pass
+                        ? 'text-emerald-500 dark:text-emerald-400'
+                        : 'text-[var(--text-tertiary)]'
+                    }`}
+                  >
+                    <CheckIcon
+                      className={`h-3 w-3 shrink-0 ${
+                        check.pass ? 'opacity-100' : 'opacity-30'
+                      }`}
+                    />
+                    {t(`password.${check.key}`)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {/* System Role */}
         <div>
@@ -277,51 +502,21 @@ export default function UserModal({
           </label>
           <select
             value={formData.systemRole}
-            onChange={(e) => setFormData(prev => ({ ...prev, systemRole: e.target.value as SystemRole }))}
+            onChange={(e) => setFormData(prev => ({
+              ...prev,
+              systemRole: e.target.value as SystemRole,
+              // Reset membership fields when role changes
+              organizationId: '',
+              isOrgOwner: false,
+              projectId: '',
+              projectRole: ProjectRole.VIEWER,
+            }))}
             className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)] focus:border-transparent"
           >
             <option value="user">{tRoles('user')}</option>
             <option value="super_admin">{tRoles('super_admin')}</option>
           </select>
         </div>
-
-        {/* Password (only for create) */}
-        {!isEdit && (
-          <div className="space-y-3">
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={formData.generatePassword}
-                  onChange={() => setFormData(prev => ({ ...prev, generatePassword: true, password: '' }))}
-                  className="text-[var(--kairo-cyan)]"
-                />
-                <span className="text-sm text-[var(--text-primary)]">{t('password.generate')}</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  checked={!formData.generatePassword}
-                  onChange={() => setFormData(prev => ({ ...prev, generatePassword: false }))}
-                  className="text-[var(--kairo-cyan)]"
-                />
-                <span className="text-sm text-[var(--text-primary)]">{t('password.manual')}</span>
-              </label>
-            </div>
-
-            {!formData.generatePassword && (
-              <Input
-                label={t('password.label')}
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                required
-                placeholder="••••••••"
-                minLength={6}
-              />
-            )}
-          </div>
-        )}
 
         {/* Organization membership (only for create) */}
         {!isEdit && (
@@ -345,9 +540,7 @@ export default function UserModal({
                 }))}
                 className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)] focus:border-transparent"
               >
-                {formData.systemRole === 'super_admin' && (
-                  <option value="">Sin organización</option>
-                )}
+                <option value="">{t('password.selectOrg')}</option>
                 {organizations.map(org => (
                   <option key={org.id} value={org.id}>{org.name}</option>
                 ))}
@@ -378,9 +571,7 @@ export default function UserModal({
                     onChange={(e) => setFormData(prev => ({ ...prev, projectId: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)] focus:border-transparent"
                   >
-                    {formData.systemRole === 'super_admin' && (
-                      <option value="">Sin proyecto</option>
-                    )}
+                    <option value="">{t('password.selectProject')}</option>
                     {filteredProjects.map(project => (
                       <option key={project.id} value={project.id}>{project.name}</option>
                     ))}
@@ -430,7 +621,12 @@ export default function UserModal({
           <Button type="button" variant="ghost" onClick={onClose}>
             {tCommon('cancel')}
           </Button>
-          <Button type="submit" variant="primary" isLoading={loading}>
+          <Button
+            type="submit"
+            variant="primary"
+            isLoading={loading}
+            disabled={!isEdit && formData.password.length > 0 && !allPasswordChecksPass}
+          >
             {tCommon('save')}
           </Button>
         </div>
