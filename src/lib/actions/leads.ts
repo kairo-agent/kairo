@@ -8,6 +8,7 @@
 import { prisma } from '@/lib/prisma';
 import { verifyAuth, verifyProjectAccess } from './auth';
 import { validatePhone, normalizePhone } from '@/lib/utils';
+import { notifyProjectMembers } from './notifications';
 import type { Lead as PrismaLead, AIAgent, Prisma, Note, Activity, User, LeadStatus as PrismaLeadStatus } from '@prisma/client';
 import type {
   LeadFilters,
@@ -867,7 +868,13 @@ export async function updateLead(
 
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { projectId: true },
+      select: {
+        projectId: true,
+        temperature: true,
+        firstName: true,
+        lastName: true,
+        project: { select: { organizationId: true, name: true } },
+      },
     });
 
     if (!lead) {
@@ -888,6 +895,9 @@ export async function updateLead(
       normalizedPhone = normalizePhone(data.phone) || data.phone;
     }
 
+    // Detect transition to HOT temperature
+    const isNewHot = data.temperature === 'hot' && lead.temperature !== 'hot';
+
     // Update the lead and create activity in a transaction
     await prisma.$transaction([
       prisma.lead.update({
@@ -907,6 +917,25 @@ export async function updateLead(
         },
       }),
     ]);
+
+    // Notify project team about HOT lead (fire-and-forget)
+    if (isNewHot) {
+      const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(' ') || 'Lead';
+      notifyProjectMembers({
+        projectId: lead.projectId,
+        organizationId: lead.project.organizationId,
+        type: 'hot_lead',
+        title: `Lead caliente: ${leadName}`,
+        message: `${leadName} fue marcado como lead de alto potencial`,
+        metadata: { leadId, previousTemperature: lead.temperature },
+        source: 'server_action',
+        excludeUserId: user.id,
+        leadName,
+        projectName: lead.project.name,
+      }).catch((err) =>
+        console.error('[Leads] Failed to send hot lead notification:', err)
+      );
+    }
 
     return { success: true };
   } catch (error) {

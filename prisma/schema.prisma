@@ -355,6 +355,7 @@ enum NotificationType {
   follow_up_due
   lead_assigned
   handoff_request
+  hot_lead
 }
 
 model Notification {

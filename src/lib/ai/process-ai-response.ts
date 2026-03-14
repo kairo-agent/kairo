@@ -223,7 +223,19 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     // Update lead: temperature + summary (parallel)
     const leadUpdates: Promise<unknown>[] = [];
 
+    // Track previous temperature for HOT lead notification
+    let previousTemperature: string | null = null;
+
     if (suggestedTemperature) {
+      // Fetch current temperature to detect HOT transition
+      if (suggestedTemperature === 'hot') {
+        const currentLead = await prisma.lead.findUnique({
+          where: { id: leadId },
+          select: { temperature: true },
+        });
+        previousTemperature = currentLead?.temperature ?? null;
+      }
+
       leadUpdates.push(
         prisma.lead.update({
           where: { id: leadId },
@@ -290,6 +302,25 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       }).catch((err) =>
         console.error('[AI Pipeline] Failed to send handoff notification:', err)
       );
+    }
+
+    // Notify project team about HOT lead (only on transition to HOT)
+    if (suggestedTemperature === 'hot' && previousTemperature !== 'hot') {
+      notifyProjectMembers({
+        projectId,
+        organizationId: params.organizationId,
+        type: 'hot_lead',
+        title: `Lead caliente: ${params.leadName}`,
+        message: `${agentName || 'Kaira'} califico a ${params.leadName} como lead de alto potencial`,
+        metadata: { leadId, agentName: agentName || 'Kaira', previousTemperature },
+        source: 'ai_pipeline',
+        leadName: params.leadName,
+        agentName: agentName || 'Kaira',
+        projectName: params.companyName,
+      }).catch((err) =>
+        console.error('[AI Pipeline] Failed to send hot lead notification:', err)
+      );
+      console.log(`[AI Pipeline] HOT LEAD leadId=${leadId.slice(0, 8)}... name=${params.leadName} prev=${previousTemperature}`);
     }
 
     steps.push({ name: 'db_save', duration: Date.now() - stepDB });

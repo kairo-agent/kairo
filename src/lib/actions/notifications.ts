@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from '@/lib/actions/auth';
 import { NotificationType, type Prisma } from '@prisma/client';
-import { sendHandoffEmail } from '@/lib/email';
+import { sendHandoffEmail, sendHotLeadEmail } from '@/lib/email';
 import { sendPush, type PushPayload } from '@/lib/push/send-push';
 
 // ============================================
@@ -263,8 +263,8 @@ export async function notifyProjectMembers(params: {
       })),
     });
 
-    // --- Email notifications (handoff_request and new_message only) ---
-    const emailTypes: NotificationType[] = ['handoff_request', 'new_message'];
+    // --- Email notifications (handoff, new_message, hot_lead) ---
+    const emailTypes: NotificationType[] = ['handoff_request', 'new_message', 'hot_lead'];
     if (emailTypes.includes(params.type) && params.leadName) {
       const recipientIds = recipients.map((r) => r.userId);
 
@@ -288,19 +288,32 @@ export async function notifyProjectMembers(params: {
               (user.locale as 'es' | 'en') ||
               (prefs.language as 'es' | 'en') ||
               'es';
-            const validLocale = locale === 'en' ? 'en' : 'es';
+            const validLocale: 'es' | 'en' = locale === 'en' ? 'en' : 'es';
 
-            sendHandoffEmail({
+            const emailParams = {
               recipientEmail: user.email,
               ccEmails,
               leadName: params.leadName!,
-              agentName: params.agentName || 'Kaira',
               projectName: params.projectName || '',
               leadId: (params.metadata?.leadId as string) || '',
               locale: validLocale,
-            }).catch((err) =>
-              console.error(`[Email] Error for ${user.id.slice(0, 8)}...:`, err)
-            );
+            };
+
+            if (params.type === 'hot_lead') {
+              sendHotLeadEmail({
+                ...emailParams,
+                agentName: params.agentName,
+              }).catch((err) =>
+                console.error(`[Email] Hot lead error for ${user.id.slice(0, 8)}...:`, err)
+              );
+            } else {
+              sendHandoffEmail({
+                ...emailParams,
+                agentName: params.agentName || 'Kaira',
+              }).catch((err) =>
+                console.error(`[Email] Error for ${user.id.slice(0, 8)}...:`, err)
+              );
+            }
           }
         })
         .catch((err) => console.error('[Email] Failed to fetch recipients:', err));
