@@ -4,6 +4,26 @@
 
 ---
 
+## [0.10.1] - 2026-03-14
+
+### Admin UserModal Redesign + Push Prompt Persistence
+
+**UserModal (crear usuario):**
+- Password: reemplazados radio buttons por boton "Generar" + campo con show/hide + copy + checklist de validacion (8 chars, mayuscula, minuscula, numero, especial)
+- Selects: opcion vacia "Seleccionar..." por defecto en organizacion y proyecto (fix bug que pre-seleccionaba el primero sin setear el value)
+- Reset al cambiar rol: al cambiar entre Super Admin y Usuario se limpian org/proyecto/isOrgOwner
+- Rol de proyecto oculto para super_admin (irrelevante, tiene acceso total)
+- Default project role: Admin (antes Viewer)
+- autoComplete="off" en form + todos los inputs (previene autofill del browser)
+- Generacion segura con `crypto.getRandomValues()` + Fisher-Yates shuffle
+
+**Push notification prompt:**
+- Migrado de `sessionStorage` a `localStorage` con cooldown persistente
+- 3 dias entre re-prompts, maximo 3 intentos, despues no vuelve a preguntar
+- Key: `kairo_push_dismiss_${userId}` (JSON: `{count, dismissedAt}`)
+
+---
+
 ## [0.10.0] - 2026-03-12
 
 ### Supabase Realtime + Region Co-location + Auth Optimization

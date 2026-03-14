@@ -190,7 +190,11 @@ Constraint: `@@unique([userId, endpoint])` - 1 row per device/browser.
 
 - Modal KAIRO aparece 3s post-login si `Notification.permission === 'default'`
 - "Activar" -> `Notification.requestPermission()` -> subscribe -> save to DB
-- "Ahora no" -> `sessionStorage` dismiss (re-aparece en proximo login)
+- "Ahora no" -> `localStorage` dismiss con cooldown de **3 dias** y maximo **3 intentos**
+  - 1er descarte: re-pregunta en 3 dias
+  - 2do descarte: re-pregunta en 3 dias
+  - 3er descarte: **nunca mas** (respeta decision del usuario)
+  - Datos persistidos en `localStorage` key `kairo_push_dismiss_${userId}` (JSON: `{count, dismissedAt}`)
 - Si `permission === 'denied'`: no hay forma de revertir desde la app (limitacion del browser)
 
 ### Profile toggle
