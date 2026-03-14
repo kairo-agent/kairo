@@ -65,18 +65,23 @@ function getAudioContext(): AudioContext | null {
  * Different sounds per notification type.
  */
 
-// Default sound: simple beep (for new_message, follow_up_due, etc.)
+// Default sound: double ding (for new_message, follow_up_due, etc.)
 function playDefaultBeep() {
   try {
     const ctx = getAudioContext();
     if (!ctx || ctx.state === 'suspended') return;
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = 800;
-    g.gain.value = 0.3;
-    o.start();
-    o.stop(ctx.currentTime + 0.15);
+    [1000, 1300].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      o.type = 'sine';
+      const start = ctx.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.3, start);
+      g.gain.exponentialRampToValueAtTime(0.01, start + 0.25);
+      o.start(start);
+      o.stop(start + 0.25);
+    });
   } catch { /* ignore */ }
 }
 
