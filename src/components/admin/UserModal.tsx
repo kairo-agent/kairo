@@ -167,7 +167,7 @@ export default function UserModal({
     organizationId: '',
     isOrgOwner: false,
     projectId: '',
-    projectRole: ProjectRole.VIEWER,
+    projectRole: ProjectRole.ADMIN,
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -212,7 +212,7 @@ export default function UserModal({
         organizationId: '',
         isOrgOwner: false,
         projectId: '',
-        projectRole: ProjectRole.VIEWER,
+        projectRole: ProjectRole.ADMIN,
       });
     } else {
       setFormData({
@@ -226,7 +226,7 @@ export default function UserModal({
         organizationId: '',
         isOrgOwner: false,
         projectId: '',
-        projectRole: ProjectRole.VIEWER,
+        projectRole: ProjectRole.ADMIN,
       });
     }
     setError('');
@@ -379,7 +379,7 @@ export default function UserModal({
       title={isEdit ? t('edit') : t('new')}
       size="lg"
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
         {error && (
           <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm">
             {error}
@@ -395,6 +395,7 @@ export default function UserModal({
           required
           disabled={isEdit}
           placeholder="user@company.com"
+          autoComplete="off"
         />
 
         <div className="grid grid-cols-2 gap-4">
@@ -404,6 +405,7 @@ export default function UserModal({
             onChange={(e) => setFormData(prev => ({ ...prev, firstName: e.target.value }))}
             required
             placeholder="Juan"
+            autoComplete="off"
           />
           <Input
             label={t('lastName')}
@@ -411,6 +413,7 @@ export default function UserModal({
             onChange={(e) => setFormData(prev => ({ ...prev, lastName: e.target.value }))}
             required
             placeholder="Pérez"
+            autoComplete="off"
           />
         </div>
 
@@ -438,6 +441,7 @@ export default function UserModal({
                 placeholder="••••••••"
                 maxLength={128}
                 required
+                autoComplete="new-password"
                 className="w-full px-3 py-2.5 pr-20 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)] focus:border-transparent"
               />
               <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
@@ -509,7 +513,7 @@ export default function UserModal({
               organizationId: '',
               isOrgOwner: false,
               projectId: '',
-              projectRole: ProjectRole.VIEWER,
+              projectRole: ProjectRole.ADMIN,
             }))}
             className="w-full px-3 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)] focus:border-transparent"
           >
@@ -578,7 +582,7 @@ export default function UserModal({
                   </select>
                 </div>
 
-                {formData.projectId && (
+                {formData.projectId && formData.systemRole !== 'super_admin' && (
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
                       Rol en proyecto
