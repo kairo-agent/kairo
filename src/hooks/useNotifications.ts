@@ -61,23 +61,77 @@ function getAudioContext(): AudioContext | null {
 }
 
 /**
- * Play a short beep using Web Audio API.
- * Catches all errors silently (autoplay restrictions, missing API, etc.)
+ * Play notification sounds using Web Audio API.
+ * Different sounds per notification type.
  */
-function playNotificationBeep() {
+
+// Default sound: simple beep (for new_message, follow_up_due, etc.)
+function playDefaultBeep() {
   try {
     const ctx = getAudioContext();
     if (!ctx || ctx.state === 'suspended') return;
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    oscillator.frequency.value = 800;
-    gainNode.gain.value = 0.3;
-    oscillator.start();
-    oscillator.stop(ctx.currentTime + 0.15);
-  } catch {
-    // Silently ignore - browser may not support Web Audio API
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 800;
+    g.gain.value = 0.3;
+    o.start();
+    o.stop(ctx.currentTime + 0.15);
+  } catch { /* ignore */ }
+}
+
+// Handoff sound: fanfare (Do-Mi-Sol ascending chord)
+function playHandoffSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state === 'suspended') return;
+    [523.25, 659.25, 783.99].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      o.type = 'sine';
+      const start = ctx.currentTime + i * 0.15;
+      g.gain.setValueAtTime(0.25, start);
+      g.gain.exponentialRampToValueAtTime(0.01, start + 0.2);
+      o.start(start);
+      o.stop(start + 0.2);
+    });
+  } catch { /* ignore */ }
+}
+
+// Hot lead sound: soft chime (two harmonic tones with reverb)
+function playHotLeadSound() {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx || ctx.state === 'suspended') return;
+    [880, 1318.5].forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = freq;
+      o.type = 'sine';
+      const start = ctx.currentTime + i * 0.22;
+      g.gain.setValueAtTime(0.2, start);
+      g.gain.exponentialRampToValueAtTime(0.01, start + 0.5);
+      o.start(start);
+      o.stop(start + 0.5);
+    });
+  } catch { /* ignore */ }
+}
+
+// Play sound based on notification type
+function playNotificationSound(type?: string) {
+  switch (type) {
+    case 'handoff_request':
+      playHandoffSound();
+      break;
+    case 'hot_lead':
+      playHotLeadSound();
+      break;
+    default:
+      playDefaultBeep();
+      break;
   }
 }
 
@@ -111,7 +165,7 @@ export function useNotifications(projectId?: string) {
       previousUnreadCountRef.current !== null &&
       count > previousUnreadCountRef.current
     ) {
-      playNotificationBeep();
+      playNotificationSound();
     }
 
     previousUnreadCountRef.current = count;
@@ -222,11 +276,11 @@ export function useNotifications(projectId?: string) {
               // If filtering by projectId, check the inserted row matches
               if (projectId && payload.new?.projectId !== projectId) return;
 
-              console.log('[RT] New notification received:', payload.new?.id);
+              console.log('[RT] New notification received:', payload.new?.id, 'type:', payload.new?.type);
 
-              // Play notification sound
+              // Play notification sound (different per type)
               if (previousUnreadCountRef.current !== null) {
-                playNotificationBeep();
+                playNotificationSound(payload.new?.type as string);
               }
 
               // Refetch full list to get enriched data (lead info, etc.)
