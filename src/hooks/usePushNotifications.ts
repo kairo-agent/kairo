@@ -36,6 +36,48 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+// Dismiss persistence: localStorage with 3-day cooldown, max 3 attempts
+const DISMISS_COOLDOWN_DAYS = 3;
+const MAX_DISMISS_COUNT = 3;
+
+interface DismissData {
+  count: number;
+  dismissedAt: number; // timestamp
+}
+
+function getDismissData(userId: string): DismissData | null {
+  try {
+    const raw = localStorage.getItem(`kairo_push_dismiss_${userId}`);
+    if (!raw) return null;
+    return JSON.parse(raw) as DismissData;
+  } catch {
+    return null;
+  }
+}
+
+function isDismissed(userId: string): boolean {
+  const data = getDismissData(userId);
+  if (!data) return false;
+
+  // Max attempts reached → never show again
+  if (data.count >= MAX_DISMISS_COUNT) return true;
+
+  // Still within cooldown period
+  const cooldownMs = DISMISS_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+  if (Date.now() - data.dismissedAt < cooldownMs) return true;
+
+  return false;
+}
+
+function saveDismiss(userId: string): void {
+  const data = getDismissData(userId);
+  const newData: DismissData = {
+    count: (data?.count || 0) + 1,
+    dismissedAt: Date.now(),
+  };
+  localStorage.setItem(`kairo_push_dismiss_${userId}`, JSON.stringify(newData));
+}
+
 export function usePushNotifications(userId?: string): UsePushNotificationsReturn {
   const [permission, setPermission] = useState<PushPermission>('default');
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -52,10 +94,9 @@ export function usePushNotifications(userId?: string): UsePushNotificationsRetur
 
     setPermission(Notification.permission as PushPermission);
 
-    // Check if already dismissed for this login session
-    if (userId) {
-      const dismissedFlag = sessionStorage.getItem(`kairo_push_dismissed_${userId}`);
-      if (dismissedFlag) setDismissed(true);
+    // Check if dismissed (localStorage: 3-day cooldown, max 3 attempts)
+    if (userId && isDismissed(userId)) {
+      setDismissed(true);
     }
 
     // Check existing subscription
@@ -135,7 +176,7 @@ export function usePushNotifications(userId?: string): UsePushNotificationsRetur
   const dismissModal = useCallback(() => {
     setDismissed(true);
     if (userId) {
-      sessionStorage.setItem(`kairo_push_dismissed_${userId}`, 'true');
+      saveDismiss(userId);
     }
   }, [userId]);
 
