@@ -107,11 +107,12 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       steps.push({ name: 'audio_transcribe', duration: Date.now() - stepStart });
     }
 
-    // --- Step 2: RAG search ---
+    // --- Step 2: RAG search (with context-enriched query) ---
     let ragResults: Array<{ content: string; title: string | null; similarity: number }> = [];
     if (params.agentId) {
       const stepStart = Date.now();
-      ragResults = await searchRAG(params.agentId, projectId, userMessage);
+      const ragQuery = buildRAGQuery(userMessage, params.conversationHistory);
+      ragResults = await searchRAG(params.agentId, projectId, ragQuery);
       steps.push({ name: 'rag_search', duration: Date.now() - stepStart });
     }
 
@@ -497,6 +498,48 @@ async function persistTranscription(
       },
     });
   }
+}
+
+// ============================================
+// Internal Helper: Build context-enriched RAG query
+// Short/ambiguous messages (e.g. "Si", "Ok") produce poor embeddings.
+// We prepend recent conversation context so RAG can match relevant KB chunks.
+// Escalating strategy: last agent message first, then more if still too short.
+// ============================================
+
+const SHORT_MESSAGE_THRESHOLD = 15; // chars — below this, enrich with context
+const MIN_ENRICHED_LENGTH = 30; // chars — if still short after 1 message, add more
+
+function buildRAGQuery(
+  userMessage: string,
+  conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>
+): string {
+  // If the message is long enough, it has sufficient semantic signal on its own
+  if (userMessage.length >= SHORT_MESSAGE_THRESHOLD) {
+    return userMessage;
+  }
+
+  // Escalating context: start with last agent message, add more if needed
+  const recentAssistantMessages = conversationHistory
+    .filter(m => m.role === 'assistant')
+    .slice(-2); // Keep last 2 agent messages available
+
+  if (recentAssistantMessages.length === 0) {
+    return userMessage;
+  }
+
+  // Level 1: last agent message + current user message
+  const lastAgent = recentAssistantMessages[recentAssistantMessages.length - 1];
+  let enriched = `${lastAgent.content} ${userMessage}`;
+
+  // Level 2: if still too short, add one more agent message
+  if (enriched.length < MIN_ENRICHED_LENGTH && recentAssistantMessages.length > 1) {
+    const prevAgent = recentAssistantMessages[recentAssistantMessages.length - 2];
+    enriched = `${prevAgent.content} ${lastAgent.content} ${userMessage}`;
+  }
+
+  // Cap at 500 chars to keep embedding focused (avoid dilution)
+  return enriched.slice(0, 500);
 }
 
 // ============================================
