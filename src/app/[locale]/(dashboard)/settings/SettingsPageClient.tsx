@@ -1,9 +1,26 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { cn } from '@/lib/utils';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -103,6 +120,14 @@ const CheckIcon = ({ className }: { className?: string }) => (
 const XIcon = ({ className }: { className?: string }) => (
   <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+const GripVerticalIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="currentColor" viewBox="0 0 24 24">
+    <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
+    <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
+    <circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
   </svg>
 );
 
@@ -431,6 +456,13 @@ export default function SettingsPageClient() {
     }));
   };
 
+  const handleReorderRules = (oldIndex: number, newIndex: number) => {
+    setInstructions((prev) => ({
+      ...prev,
+      rules: arrayMove(prev.rules, oldIndex, newIndex),
+    }));
+  };
+
   const handleEditRuleSave = () => {
     if (editingRuleIndex === null) return;
     const trimmed = editingRuleText.trim();
@@ -708,6 +740,7 @@ export default function SettingsPageClient() {
             onAddRule={handleAddRule}
             onDeleteRule={handleDeleteRule}
             onDuplicateRule={handleDuplicateRule}
+            onReorderRules={handleReorderRules}
             editingRuleIndex={editingRuleIndex}
             editingRuleText={editingRuleText}
             onStartEditRule={(i) => {
@@ -1043,6 +1076,7 @@ interface InstructionsTabProps {
   onAddRule: () => void;
   onDeleteRule: (i: number) => void;
   onDuplicateRule: (i: number) => void;
+  onReorderRules: (oldIndex: number, newIndex: number) => void;
   editingRuleIndex: number | null;
   editingRuleText: string;
   onStartEditRule: (i: number) => void;
@@ -1054,6 +1088,137 @@ interface InstructionsTabProps {
   additionalOpen: boolean;
   setAdditionalOpen: (v: boolean) => void;
 }
+
+// ============================================
+// Sortable Rule Item (for drag & drop)
+// ============================================
+
+function SortableRuleItem({
+  id,
+  index,
+  rule,
+  editingRuleIndex,
+  editingRuleText,
+  setEditingRuleText,
+  onStartEditRule,
+  onEditRuleSave,
+  onCancelEditRule,
+  onDuplicateRule,
+  onDeleteRule,
+  t,
+}: {
+  id: string;
+  index: number;
+  rule: string;
+  editingRuleIndex: number | null;
+  editingRuleText: string;
+  setEditingRuleText: (v: string) => void;
+  onStartEditRule: (i: number) => void;
+  onEditRuleSave: () => void;
+  onCancelEditRule: () => void;
+  onDuplicateRule: (i: number) => void;
+  onDeleteRule: (i: number) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-start gap-2 p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] group',
+        isDragging && 'opacity-50 shadow-lg z-10'
+      )}
+    >
+      {editingRuleIndex === index ? (
+        <div className="flex-1 flex gap-2">
+          <input
+            type="text"
+            value={editingRuleText}
+            onChange={(e) => setEditingRuleText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onEditRuleSave();
+              if (e.key === 'Escape') onCancelEditRule();
+            }}
+            maxLength={500}
+            className="flex-1 px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
+            autoFocus
+          />
+          <button
+            onClick={onEditRuleSave}
+            className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors"
+            title="Save"
+          >
+            <CheckIcon />
+          </button>
+          <button
+            onClick={onCancelEditRule}
+            className="p-1 text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+            title="Cancel"
+          >
+            <XIcon />
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Drag handle */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="flex-shrink-0 mt-0.5 p-0.5 cursor-grab active:cursor-grabbing text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] touch-none"
+            tabIndex={-1}
+          >
+            <GripVerticalIcon className="w-3.5 h-3.5" />
+          </button>
+          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-xs flex items-center justify-center font-medium mt-0.5">
+            {index + 1}
+          </span>
+          <p className="flex-1 text-sm text-[var(--text-primary)] leading-relaxed">{rule}</p>
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <button
+              onClick={() => onStartEditRule(index)}
+              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+              title={t('instructions.editRule')}
+            >
+              <PencilIcon />
+            </button>
+            <button
+              onClick={() => onDuplicateRule(index)}
+              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+              title={t('instructions.duplicateRule')}
+            >
+              <CopyIcon />
+            </button>
+            <button
+              onClick={() => onDeleteRule(index)}
+              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 rounded transition-colors"
+              title={t('instructions.deleteRule')}
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// Instructions Tab
+// ============================================
 
 function InstructionsTab({
   t,
@@ -1070,6 +1235,7 @@ function InstructionsTab({
   onAddRule,
   onDeleteRule,
   onDuplicateRule,
+  onReorderRules,
   editingRuleIndex,
   editingRuleText,
   onStartEditRule,
@@ -1082,6 +1248,31 @@ function InstructionsTab({
   setAdditionalOpen,
 }: InstructionsTabProps) {
   const [globalRulesOpen, setGlobalRulesOpen] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(true);
+  const [temperatureOpen, setTemperatureOpen] = useState(false);
+  const [personalityOpen, setPersonalityOpen] = useState(false);
+
+  // dnd-kit sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  // Stable IDs for sortable items
+  const ruleIds = useMemo(
+    () => instructions.rules.map((_, i) => `rule-${i}`),
+    [instructions.rules]
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = ruleIds.indexOf(active.id as string);
+      const newIndex = ruleIds.indexOf(over.id as string);
+      onReorderRules(oldIndex, newIndex);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -1174,171 +1365,180 @@ function InstructionsTab({
         </div>
       )}
 
-      {/* Rules */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <label className="block text-sm font-medium text-[var(--text-primary)]">
-              {t('instructions.rules')}
-            </label>
-            <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.rulesHelp')}</p>
+      {/* Rules (collapsible) */}
+      <div className="border border-[var(--border-primary)] rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setRulesOpen(!rulesOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span>{t('instructions.rules')}</span>
+            {instructions.rules.length > 0 && (
+              <span className="text-xs text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-full">
+                {instructions.rules.length}
+              </span>
+            )}
           </div>
-          {instructions.rules.length > 0 && (
-            <button
-              onClick={onClearAllRules}
-              className="hidden sm:inline-flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--status-lost)] transition-colors"
-            >
-              <TrashIcon className="w-3 h-3" />
-              {t('instructions.clearAllRules')}
-            </button>
-          )}
-        </div>
+          <ChevronDownIcon
+            className={cn(
+              'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
+              rulesOpen && 'rotate-180'
+            )}
+          />
+        </button>
+        {rulesOpen && (
+          <div className="px-4 pb-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.rulesHelp')}</p>
+              {instructions.rules.length > 0 && (
+                <button
+                  onClick={onClearAllRules}
+                  className="hidden sm:inline-flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--status-lost)] transition-colors"
+                >
+                  <TrashIcon className="w-3 h-3" />
+                  {t('instructions.clearAllRules')}
+                </button>
+              )}
+            </div>
 
-        {/* Add rule input */}
-        <div className="flex gap-2 mb-3">
-          <div className="flex-1">
-            <input
-              ref={newRuleInputRef}
-              type="text"
-              value={newRule}
-              onChange={(e) => setNewRule(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  onAddRule();
-                }
-              }}
-              placeholder={t('instructions.rulePlaceholder')}
-              maxLength={500}
-              className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
-            />
-          </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onAddRule}
-            disabled={!newRule.trim() || instructions.rules.length >= 50}
-            className="shrink-0"
-          >
-            <PlusIcon className="w-4 h-4" />
-            <span className="hidden sm:inline">{t('instructions.addRule')}</span>
-          </Button>
-        </div>
-
-        {/* Rules list */}
-        {instructions.rules.length === 0 ? (
-          <p className="text-sm text-[var(--text-tertiary)] py-4 text-center border border-dashed border-[var(--border-primary)] rounded-lg">
-            {t('instructions.noRules')}
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {instructions.rules.map((rule, index) => (
-              <div
-                key={index}
-                className="flex items-start gap-2 p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] group"
-              >
-                {editingRuleIndex === index ? (
-                  // Edit mode
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      type="text"
-                      value={editingRuleText}
-                      onChange={(e) => setEditingRuleText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') onEditRuleSave();
-                        if (e.key === 'Escape') onCancelEditRule();
-                      }}
-                      maxLength={500}
-                      className="flex-1 px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
-                      autoFocus
-                    />
-                    <button
-                      onClick={onEditRuleSave}
-                      className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors"
-                      title="Save"
-                    >
-                      <CheckIcon />
-                    </button>
-                    <button
-                      onClick={onCancelEditRule}
-                      className="p-1 text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
-                      title="Cancel"
-                    >
-                      <XIcon />
-                    </button>
-                  </div>
-                ) : (
-                  // View mode
-                  <>
-                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-xs flex items-center justify-center font-medium mt-0.5">
-                      {index + 1}
-                    </span>
-                    <p className="flex-1 text-sm text-[var(--text-primary)] leading-relaxed">{rule}</p>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button
-                        onClick={() => onStartEditRule(index)}
-                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
-                        title={t('instructions.editRule')}
-                      >
-                        <PencilIcon />
-                      </button>
-                      <button
-                        onClick={() => onDuplicateRule(index)}
-                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
-                        title={t('instructions.duplicateRule')}
-                      >
-                        <CopyIcon />
-                      </button>
-                      <button
-                        onClick={() => onDeleteRule(index)}
-                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 rounded transition-colors"
-                        title={t('instructions.deleteRule')}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </>
-                )}
+            {/* Add rule input */}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <input
+                  ref={newRuleInputRef}
+                  type="text"
+                  value={newRule}
+                  onChange={(e) => setNewRule(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      onAddRule();
+                    }
+                  }}
+                  placeholder={t('instructions.rulePlaceholder')}
+                  maxLength={500}
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+                />
               </div>
-            ))}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={onAddRule}
+                disabled={!newRule.trim() || instructions.rules.length >= 50}
+                className="shrink-0"
+              >
+                <PlusIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">{t('instructions.addRule')}</span>
+              </Button>
+            </div>
+
+            {/* Rules list (sortable) */}
+            {instructions.rules.length === 0 ? (
+              <p className="text-sm text-[var(--text-tertiary)] py-4 text-center border border-dashed border-[var(--border-primary)] rounded-lg">
+                {t('instructions.noRules')}
+              </p>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={ruleIds} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {instructions.rules.map((rule, index) => (
+                      <SortableRuleItem
+                        key={ruleIds[index]}
+                        id={ruleIds[index]}
+                        index={index}
+                        rule={rule}
+                        editingRuleIndex={editingRuleIndex}
+                        editingRuleText={editingRuleText}
+                        setEditingRuleText={setEditingRuleText}
+                        onStartEditRule={onStartEditRule}
+                        onEditRuleSave={onEditRuleSave}
+                        onCancelEditRule={onCancelEditRule}
+                        onDuplicateRule={onDuplicateRule}
+                        onDeleteRule={onDeleteRule}
+                        t={t}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+            {instructions.rules.length > 0 && (
+              <p className="text-xs text-[var(--text-tertiary)]">
+                {instructions.rules.length}/50 {t('instructions.maxRules').toLowerCase()}
+              </p>
+            )}
           </div>
-        )}
-        {instructions.rules.length > 0 && (
-          <p className="text-xs text-[var(--text-tertiary)] mt-1">
-            {instructions.rules.length}/50 {t('instructions.maxRules').toLowerCase()}
-          </p>
         )}
       </div>
 
-      {/* Temperature Criteria */}
-      <TemperatureCriteriaSection
-        t={t}
-        criteria={instructions.temperatureCriteria || { hot: [], warm: [], cold: [] }}
-        onChange={(criteria) => setInstructions((prev) => ({ ...prev, temperatureCriteria: criteria }))}
-      />
+      {/* Temperature Criteria (collapsible) */}
+      <div className="border border-[var(--border-primary)] rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setTemperatureOpen(!temperatureOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+        >
+          <span>{t('instructions.temperature')}</span>
+          <ChevronDownIcon
+            className={cn(
+              'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
+              temperatureOpen && 'rotate-180'
+            )}
+          />
+        </button>
+        {temperatureOpen && (
+          <div className="px-4 pb-4">
+            <TemperatureCriteriaSection
+              t={t}
+              criteria={instructions.temperatureCriteria || { hot: [], warm: [], cold: [] }}
+              onChange={(criteria) => setInstructions((prev) => ({ ...prev, temperatureCriteria: criteria }))}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* Personality */}
-      <div>
-        <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-          {t('instructions.personality')}
-        </label>
-        <ExpandableTextarea
-          value={instructions.personality}
-          onChange={(val) => setInstructions((prev) => ({ ...prev, personality: val }))}
-          placeholder={t('instructions.personalityPlaceholder')}
-          maxLength={1000}
-          rows={3}
-          modalTitle={t('instructions.personality')}
-        />
-        <div className="flex justify-between mt-1">
-          <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.personalityHelp')}</p>
-          <p className="text-xs text-[var(--text-tertiary)]">{instructions.personality.length}/1000</p>
-        </div>
+      {/* Personality (collapsible) */}
+      <div className="border border-[var(--border-primary)] rounded-lg overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setPersonalityOpen(!personalityOpen)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
+        >
+          <span>{t('instructions.personality')}</span>
+          <ChevronDownIcon
+            className={cn(
+              'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
+              personalityOpen && 'rotate-180'
+            )}
+          />
+        </button>
+        {personalityOpen && (
+          <div className="px-4 pb-4">
+            <ExpandableTextarea
+              value={instructions.personality}
+              onChange={(val) => setInstructions((prev) => ({ ...prev, personality: val }))}
+              placeholder={t('instructions.personalityPlaceholder')}
+              maxLength={1000}
+              rows={3}
+              modalTitle={t('instructions.personality')}
+            />
+            <div className="flex justify-between mt-1">
+              <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.personalityHelp')}</p>
+              <p className="text-xs text-[var(--text-tertiary)]">{instructions.personality.length}/1000</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Additional Instructions (collapsible) */}
       <div className="border border-[var(--border-primary)] rounded-lg overflow-hidden">
         <button
+          type="button"
           onClick={() => setAdditionalOpen(!additionalOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
