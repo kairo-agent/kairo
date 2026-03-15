@@ -19,55 +19,66 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 /**
- * Format date to localized string
+ * Format time portion as "3:45 PM" (12h format, es-PE)
+ */
+function formatTime12h(date: Date): string {
+  return date.toLocaleTimeString('es-PE', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).toUpperCase(); // "3:45 PM"
+}
+
+/**
+ * Format date to localized string (includes time by default)
+ * Example: "14 mar. 2026 3:45 PM"
  */
 export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleDateString('es-PE', {
+  const datePart = dateObj.toLocaleDateString('es-PE', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     ...options,
   });
+  // If custom options are passed, don't append time (caller controls format)
+  if (options) return datePart;
+  return `${datePart} ${formatTime12h(dateObj)}`;
 }
 
 /**
- * Format date with smart threshold:
- * - ≤7 days: relative format ("hoy", "ayer", "hace 2 d", "hace 5 d")
- * - >7 days: absolute date ("7 ene. 2026", "19 dic. 2025")
+ * Format date with smart threshold — always includes time:
+ * - Today: "Hoy 3:45 PM"
+ * - Yesterday: "Ayer 3:45 PM"
+ * - ≤7 days: "hace 2 d 3:45 PM"
+ * - >7 days: "14 mar. 2026 3:45 PM"
  */
 export function formatRelativeTime(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
   const diffInMs = now.getTime() - dateObj.getTime();
-  const diffInSeconds = Math.floor(diffInMs / 1000);
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  const time = formatTime12h(dateObj);
 
   // Check if same calendar day (today)
   const isToday = dateObj.toDateString() === now.toDateString();
   if (isToday) {
-    // If less than 1 hour ago, show minutes
-    if (diffInSeconds < 3600) {
-      if (diffInSeconds < 60) return 'hace un momento';
-      return `hace ${Math.floor(diffInSeconds / 60)} min`;
-    }
-    // Otherwise show "hoy"
-    return 'hoy';
+    return `Hoy ${time}`;
   }
 
   // Check if yesterday
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (dateObj.toDateString() === yesterday.toDateString()) {
-    return 'ayer';
+    return `Ayer ${time}`;
   }
 
-  // ≤7 days: relative format
+  // ≤7 days: relative format with time
   if (diffInDays <= 7) {
-    return `hace ${diffInDays} d`;
+    return `hace ${diffInDays} d ${time}`;
   }
 
-  // >7 days: absolute date format
+  // >7 days: absolute date format (already includes time)
   return formatDate(dateObj);
 }
 

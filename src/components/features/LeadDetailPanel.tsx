@@ -769,11 +769,7 @@ export function LeadDetailPanel({
             )}
             <p>
               {t('detail.createdAt')}:{' '}
-              {new Date(lead.createdAt).toLocaleDateString('es-PE', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-              })}
+              {formatRelativeTime(lead.createdAt)}
             </p>
           </div>
         </div>

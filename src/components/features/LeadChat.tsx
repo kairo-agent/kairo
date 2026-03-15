@@ -726,14 +726,14 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                         </svg>
                         Audio
                       </span>
-                      <p className="text-sm whitespace-pre-wrap">
+                      <p className="text-sm whitespace-pre-wrap break-words">
                         {(message.metadata as Record<string, unknown>)?.transcription
                           ? String((message.metadata as Record<string, unknown>).transcription)
                           : message.content}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   )}
                   <p
                     className={cn(

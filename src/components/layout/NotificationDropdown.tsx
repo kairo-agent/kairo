@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
-import { cn } from '@/lib/utils';
+import { cn, formatRelativeTime } from '@/lib/utils';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useRouter } from '@/i18n/routing';
 import { useWorkspaceOptional } from '@/contexts/WorkspaceContext';
@@ -101,19 +101,7 @@ function getTemperatureBadge(temperature: string): { label: string; className: s
   }
 }
 
-function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - new Date(date).getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days = Math.floor(diff / 86400000);
-
-  if (minutes < 1) return 'ahora';
-  if (minutes < 60) return `${minutes}m`;
-  if (hours < 24) return `${hours}h`;
-  if (days < 7) return `${days}d`;
-  return new Date(date).toLocaleDateString('es-PE', { day: 'numeric', month: 'short' });
-}
+// formatTimeAgo removed — now uses formatRelativeTime from @/lib/utils
 
 function formatFollowUpDate(date: Date): string {
   const d = new Date(date);
@@ -282,7 +270,7 @@ export function NotificationDropdown() {
 
                       {/* Time ago */}
                       <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                        {formatTimeAgo(notification.createdAt)}
+                        {formatRelativeTime(notification.createdAt)}
                       </p>
                     </div>
 
