@@ -131,6 +131,30 @@ const GripVerticalIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const ListIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+
+const ThermometerIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9V3m0 0L9.5 5.5M12 3l2.5 2.5M12 15a3 3 0 100 6 3 3 0 000-6zm0 0V9" />
+  </svg>
+);
+
+const UserIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
+
+const DocumentTextIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 const DatabaseIcon = ({ className }: { className?: string }) => (
   <svg className={cn('w-5 h-5', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <ellipse cx="12" cy="5" rx="9" ry="3" />
@@ -1248,7 +1272,7 @@ function InstructionsTab({
   setAdditionalOpen,
 }: InstructionsTabProps) {
   const [globalRulesOpen, setGlobalRulesOpen] = useState(false);
-  const [rulesOpen, setRulesOpen] = useState(true);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const [temperatureOpen, setTemperatureOpen] = useState(false);
   const [personalityOpen, setPersonalityOpen] = useState(false);
 
@@ -1316,35 +1340,28 @@ function InstructionsTab({
 
       {/* Global Rules (read-only, collapsible) */}
       {globalRules.length > 0 && (
-        <div>
+        <div className="border border-[var(--border-primary)] rounded-lg overflow-hidden">
           <button
             type="button"
             onClick={() => setGlobalRulesOpen(!globalRulesOpen)}
-            className="w-full flex items-center justify-between py-2 group"
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
           >
             <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-[var(--kairo-cyan)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              <span className="text-sm font-medium text-[var(--text-primary)]">
-                {t('instructions.globalRules')}
-              </span>
+              <ShieldIcon className="w-4 h-4 text-[var(--kairo-cyan)]" />
+              <span>{t('instructions.globalRules')}</span>
               <span className="text-xs text-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 px-2 py-0.5 rounded-full">
                 {t('instructions.globalRulesCount', { count: globalRules.length.toString() })}
               </span>
             </div>
-            <svg
+            <ChevronDownIcon
               className={cn(
                 'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
                 globalRulesOpen && 'rotate-180'
               )}
-              fill="none" viewBox="0 0 24 24" stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            />
           </button>
           {globalRulesOpen && (
-            <div className="mt-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-tertiary)]/50 overflow-hidden">
+            <div className="border-t border-[var(--border-primary)]">
               <div className="divide-y divide-[var(--border-primary)]">
                 {globalRules.map((rule, index) => (
                   <div key={index} className="flex items-start gap-3 px-4 py-2.5">
@@ -1373,6 +1390,7 @@ function InstructionsTab({
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
           <div className="flex items-center gap-2">
+            <ListIcon className="w-4 h-4 text-[var(--accent-primary)]" />
             <span>{t('instructions.rules')}</span>
             {instructions.rules.length > 0 && (
               <span className="text-xs text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-full">
@@ -1483,7 +1501,10 @@ function InstructionsTab({
           onClick={() => setTemperatureOpen(!temperatureOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
-          <span>{t('instructions.temperature')}</span>
+          <div className="flex items-center gap-2">
+            <ThermometerIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+            <span>{t('instructions.temperature')}</span>
+          </div>
           <ChevronDownIcon
             className={cn(
               'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
@@ -1509,7 +1530,10 @@ function InstructionsTab({
           onClick={() => setPersonalityOpen(!personalityOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
-          <span>{t('instructions.personality')}</span>
+          <div className="flex items-center gap-2">
+            <UserIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+            <span>{t('instructions.personality')}</span>
+          </div>
           <ChevronDownIcon
             className={cn(
               'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
@@ -1542,7 +1566,10 @@ function InstructionsTab({
           onClick={() => setAdditionalOpen(!additionalOpen)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
-          <span>{t('instructions.additional')}</span>
+          <div className="flex items-center gap-2">
+            <DocumentTextIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+            <span>{t('instructions.additional')}</span>
+          </div>
           <ChevronDownIcon
             className={cn(
               'w-4 h-4 text-[var(--text-tertiary)] transition-transform duration-200',
