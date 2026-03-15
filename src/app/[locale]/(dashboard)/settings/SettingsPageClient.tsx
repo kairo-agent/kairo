@@ -284,9 +284,6 @@ export default function SettingsPageClient() {
         if (ps) {
           setInstructions(ps);
           setOriginalInstructions(ps);
-          if (ps.additionalInstructions) {
-            setAdditionalOpen(true);
-          }
         } else {
           // No structured data yet, start fresh with default name 'Kaira'
           const fresh = { ...EMPTY_PROMPT_STRUCTURE };
@@ -367,9 +364,6 @@ export default function SettingsPageClient() {
               if (ps) {
                 setInstructions(ps);
                 setOriginalInstructions(ps);
-                if (ps.additionalInstructions) {
-                  setAdditionalOpen(true);
-                }
               } else {
                 const fresh = { ...EMPTY_PROMPT_STRUCTURE };
                 setInstructions(fresh);
