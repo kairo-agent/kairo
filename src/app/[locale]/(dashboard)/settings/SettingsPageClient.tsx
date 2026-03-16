@@ -1766,7 +1766,7 @@ function ReEngagementTab({
       </div>
 
       {/* Toggle */}
-      <div className="flex items-center justify-between p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
         <div>
           <p className="text-sm font-medium text-[var(--text-primary)]">
             {t('reengagement.enabled')}
