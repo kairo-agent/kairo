@@ -727,7 +727,24 @@
     "selectAgent": "Select agent",
     "tabs": {
       "instructions": "Instructions",
-      "knowledge": "Knowledge Base"
+      "knowledge": "Knowledge Base",
+      "reengagement": "ReEngagement"
+    },
+    "reengagement": {
+      "title": "Automatic ReEngagement",
+      "description": "When a lead stops responding, the agent will automatically send a personalized follow-up message.",
+      "enabled": "Enable ReEngagement",
+      "enabledHelp": "Only 1 message is sent per silence period, within WhatsApp's 24h window (no additional cost).",
+      "delay": "Wait time",
+      "delayHelp": "Hours after the lead's last message before sending the follow-up.",
+      "delayUnit": "hours",
+      "promptTemplate": "Message instructions",
+      "promptTemplatePlaceholder": "E.g.: Resume the conversation in a friendly way. If the lead asked about prices, remind them of the available options.",
+      "promptTemplateHelp": "The AI agent will generate a natural message based on these instructions and the conversation context.",
+      "businessHoursNote": "Messages are only sent during business hours (9 AM - 8 PM).",
+      "save": "Save",
+      "savedSuccessfully": "ReEngagement configuration saved",
+      "saveFailed": "Failed to save configuration"
     },
     "instructions": {
       "agentName": "Agent name",

@@ -17,6 +17,7 @@ import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings
 import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
+import { sendToWhatsApp } from '@/lib/whatsapp/send';
 
 // ============================================
 // Types
@@ -581,78 +582,7 @@ async function searchRAG(
   }
 }
 
-// ============================================
-// Internal Helper: Send to WhatsApp
-// Extracted from /api/ai/respond logic
-// ============================================
-
-async function sendToWhatsApp(
-  projectId: string,
-  phoneNumber: string,
-  message: string,
-  messageId: string
-): Promise<void> {
-  try {
-    const [accessToken, phoneNumberId] = await Promise.all([
-      getProjectSecret(projectId, 'whatsapp_access_token'),
-      getProjectSecret(projectId, 'whatsapp_phone_number_id'),
-    ]);
-
-    if (!accessToken || !phoneNumberId) {
-      console.error('[AI Pipeline] WhatsApp credentials not configured');
-      return;
-    }
-
-    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-    const whatsappApiUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
-
-    const response = await fetch(whatsappApiUrl, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: cleanPhone,
-        type: 'text',
-        text: { body: message },
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('[AI Pipeline] WhatsApp send error:', data);
-      await prisma.message.update({
-        where: { id: messageId },
-        data: {
-          metadata: {
-            whatsappError: data.error?.message || 'Unknown error',
-            whatsappErrorCode: data.error?.code,
-          },
-        },
-      });
-      return;
-    }
-
-    // Update message with WhatsApp ID
-    const whatsappMsgId = data.messages?.[0]?.id;
-    if (whatsappMsgId) {
-      await prisma.message.update({
-        where: { id: messageId },
-        data: {
-          whatsappMsgId,
-          isDelivered: true,
-          deliveredAt: new Date(),
-        },
-      });
-    }
-  } catch (error) {
-    console.error('[AI Pipeline] WhatsApp send failed:', error);
-  }
-}
+// sendToWhatsApp extracted to @/lib/whatsapp/send
 
 // ============================================
 // Internal Helper: Generate Lead Summary

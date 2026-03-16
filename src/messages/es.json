@@ -727,7 +727,24 @@
     "selectAgent": "Seleccionar agente",
     "tabs": {
       "instructions": "Instrucciones",
-      "knowledge": "Base de Conocimiento"
+      "knowledge": "Base de Conocimiento",
+      "reengagement": "ReEngagement"
+    },
+    "reengagement": {
+      "title": "ReEngagement Automatico",
+      "description": "Cuando un lead deja de responder, el agente enviara automaticamente un mensaje de seguimiento personalizado.",
+      "enabled": "Activar ReEngagement",
+      "enabledHelp": "Solo se envia 1 mensaje por periodo de silencio, dentro de la ventana de 24h de WhatsApp (sin costo adicional).",
+      "delay": "Tiempo de espera",
+      "delayHelp": "Horas despues del ultimo mensaje del lead antes de enviar el seguimiento.",
+      "delayUnit": "horas",
+      "promptTemplate": "Instrucciones para el mensaje",
+      "promptTemplatePlaceholder": "Ej: Retoma la conversacion de forma amigable. Si el lead pregunto por precios, recuerdale las opciones disponibles.",
+      "promptTemplateHelp": "El agente IA generara un mensaje natural basado en estas instrucciones y el contexto de la conversacion.",
+      "businessHoursNote": "Los mensajes solo se envian en horario laboral (9 AM - 8 PM).",
+      "save": "Guardar",
+      "savedSuccessfully": "Configuracion de ReEngagement guardada",
+      "saveFailed": "Error al guardar configuracion"
     },
     "instructions": {
       "agentName": "Nombre del agente",

@@ -4,6 +4,69 @@
 
 ---
 
+## [0.10.2] - 2026-03-15
+
+### RAG Query Enrichment + UI/UX Improvements
+
+**RAG Search Enhancement (`process-ai-response.ts`):**
+
+Nueva funcion `buildRAGQuery()` que enriquece mensajes cortos antes de la busqueda semantica.
+
+| Aspecto | Detalle |
+|---------|---------|
+| Problema | Mensajes de 1 palabra como "Si" o "Ok" generaban similarity scores muy bajos (< 0.35) contra el Knowledge Base |
+| Solucion | Si `message.length < 15` chars, concatenar con las ultimas 2 respuestas del asistente (context window) |
+| Cap | Query enriquecida cappada en 500 chars para no degradar performance de pgvector |
+| Fallback | Si no hay contexto previo (primer mensaje), se usa el mensaje original sin cambios |
+| Impacto | Mensajes ambiguos obtienen contexto semantico del hilo -> mejores matches en KB |
+
+**URL Word Wrap (`LeadChat.tsx`):**
+
+Clase CSS `break-words` agregada a los bubbles de mensajes de chat. Previene que URLs largas (ej: links de WhatsApp, links de propiedades) causen scroll horizontal en el panel de chat.
+
+**Timestamp Standardization (`utils.ts` + componentes):**
+
+Timestamps en toda la app ahora incluyen hora ademas de la fecha relativa.
+
+| Formato | Antes | Ahora |
+|---------|-------|-------|
+| Hoy | "Hoy" | "Hoy 3:45 PM" |
+| Ayer | "Ayer" | "Ayer 3:45 PM" |
+| Esta semana | "hace 2 d" | "hace 2 d 3:45 PM" |
+| Mas de una semana | "14 mar. 2026" | "14 mar. 2026 3:45 PM" |
+
+Funciones modificadas: `formatRelativeTime()`, `formatDate()`. Nueva helper: `formatTime12h()`.
+Aplicado en: `NotificationDropdown.tsx`, `LeadDetailPanel.tsx`.
+
+**Drag & Drop Rule Reordering (`SettingsPageClient.tsx`):**
+
+Reordenamiento de reglas por drag & drop en la seccion de reglas especificas del agente (Settings).
+
+| Aspecto | Detalle |
+|---------|---------|
+| Libreria | `@dnd-kit/core` + `@dnd-kit/sortable` |
+| Componente | `SortableRuleItem` con grip handle (icono de 6 puntos) |
+| Persistencia | Solo se guarda al hacer click en "Guardar" (no auto-save) |
+| Scope | Solo reglas del agente (no Global Rules, que son read-only para no-super_admin) |
+
+**Collapsible Instruction Sections (`SettingsPageClient.tsx`):**
+
+Secciones de configuracion del agente ahora son colapsables para reducir el scroll y mejorar la legibilidad de la pagina de Settings.
+
+| Seccion | Estado por defecto |
+|---------|-------------------|
+| Rules | Colapsada |
+| Temperature Criteria | Colapsada |
+| Personality | Colapsada |
+| Additional Instructions | Colapsada |
+| Global Rules | Colapsada (con border styling unificado) |
+
+**Global Rule: WhatsApp Text-Only Format:**
+
+Nueva regla global agregada al sistema de Global Rules instruyendo a los agentes a formatear respuestas para WhatsApp: saltos de linea entre ideas, *negrita* para destacar, emojis como bullets, maximo 2-3 lineas por bloque.
+
+---
+
 ## [0.10.1] - 2026-03-14
 
 ### Admin UserModal Redesign + Push Prompt Persistence

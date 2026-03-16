@@ -1,6 +1,6 @@
 # Sistema de Notificaciones - KAIRO
 
-> **Estado**: v0.9.4 - Actualizado Mar 2026
+> **Estado**: v0.10.2 - Actualizado Mar 2026
 > **Canales**: Bell (in-app polling 15s) + Email (Resend) + Web Push (VAPID)
 
 ## Arquitectura
@@ -236,7 +236,23 @@ Constraint: `@@unique([userId, endpoint])` - 1 row per device/browser.
 - **Styling**: Notificaciones usan estilo nativo del OS (no personalizable con colores KAIRO).
 - **`denied` state**: Si el usuario bloquea en el browser, solo puede revertir desde settings del browser.
 
-### Limpieza automatica
+### Formato de timestamps (v0.10.2)
+
+Timestamps en la UI incluyen hora en formato 12h ademas de la fecha relativa.
+
+| Contexto | Formato |
+|----------|---------|
+| Hoy | "Hoy 3:45 PM" |
+| Ayer | "Ayer 3:45 PM" |
+| Ultimos dias | "hace 2 d 3:45 PM" |
+| Mas antiguo | "14 mar. 2026 3:45 PM" |
+
+Afecta: `NotificationDropdown.tsx` (fecha de notificacion) y `LeadDetailPanel.tsx` (timestamps de actividad).
+Funciones en `src/lib/utils.ts`: `formatRelativeTime()`, `formatDate()`, nueva `formatTime12h()`.
+
+---
+
+## Limpieza automatica
 
 Cron para eliminar notificaciones con `expiresAt < NOW()`:
 ```sql
