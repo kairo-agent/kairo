@@ -694,7 +694,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                     'max-w-[85%] p-3 rounded-2xl',
                     senderInfo.isRight
                       ? isReEngagement
-                        ? 'reengagement-bubble bg-amber-100 dark:bg-amber-900/30 rounded-br-sm border border-amber-300/50 dark:border-amber-700/50'
+                        ? 'bg-amber-200 text-black rounded-br-sm border border-amber-400'
                         : 'bg-[#BFF7FF] text-[var(--kairo-midnight)] rounded-br-sm'
                       : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-sm'
                   )}
@@ -712,12 +712,12 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       </span>
                       <span className={cn(
                         'text-xs font-medium',
-                        !isReEngagement && 'text-[var(--kairo-midnight)]/80'
+                        isReEngagement ? 'text-black/70' : 'text-[var(--kairo-midnight)]/80'
                       )}>
                         {senderInfo.name}
                       </span>
                       {isReEngagement && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/30">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-black/10 text-black/70 border border-black/20">
                           <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                           </svg>
@@ -753,7 +753,9 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                     className={cn(
                       'text-xs mt-1 flex items-center gap-1',
                       senderInfo.isRight
-                        ? 'text-[var(--kairo-midnight)]/70'
+                        ? isReEngagement
+                          ? 'text-black/50'
+                          : 'text-[var(--kairo-midnight)]/70'
                         : 'text-[var(--text-tertiary)]'
                     )}
                   >
