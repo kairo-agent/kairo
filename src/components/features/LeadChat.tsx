@@ -694,7 +694,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                     'max-w-[85%] p-3 rounded-2xl',
                     senderInfo.isRight
                       ? isReEngagement
-                        ? 'bg-amber-100 dark:bg-amber-900/30 text-[var(--kairo-midnight)] dark:text-amber-50 rounded-br-sm border border-amber-300/50 dark:border-amber-700/50'
+                        ? 'bg-amber-100 dark:bg-amber-900/30 text-black dark:text-amber-50 rounded-br-sm border border-amber-300/50 dark:border-amber-700/50'
                         : 'bg-[#BFF7FF] text-[var(--kairo-midnight)] rounded-br-sm'
                       : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-sm'
                   )}
