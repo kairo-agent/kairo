@@ -680,6 +680,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         ) : (
           allMessages.map((message) => {
             const senderInfo = getSenderInfo(message);
+            const isReEngagement = !!(message.metadata as Record<string, unknown>)?.isReEngagement;
             return (
               <div
                 key={message.id}
@@ -692,7 +693,9 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                   className={cn(
                     'max-w-[85%] p-3 rounded-2xl',
                     senderInfo.isRight
-                      ? 'bg-[#BFF7FF] text-[var(--kairo-midnight)] rounded-br-sm'
+                      ? isReEngagement
+                        ? 'bg-amber-100 dark:bg-amber-900/30 text-[var(--kairo-midnight)] dark:text-amber-50 rounded-br-sm border border-amber-300/50 dark:border-amber-700/50'
+                        : 'bg-[#BFF7FF] text-[var(--kairo-midnight)] rounded-br-sm'
                       : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-sm'
                   )}
                 >
@@ -707,9 +710,22 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       >
                         {senderInfo.avatar}
                       </span>
-                      <span className="text-xs font-medium text-[var(--kairo-midnight)]/80">
+                      <span className={cn(
+                        'text-xs font-medium',
+                        isReEngagement
+                          ? 'text-amber-800 dark:text-amber-200'
+                          : 'text-[var(--kairo-midnight)]/80'
+                      )}>
                         {senderInfo.name}
                       </span>
+                      {isReEngagement && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-400/30">
+                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          </svg>
+                          ReEngagement
+                        </span>
+                      )}
                     </div>
                   )}
                   {/* Audio message: show badge + transcription */}
