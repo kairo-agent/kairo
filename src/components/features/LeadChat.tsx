@@ -755,7 +755,9 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                     className={cn(
                       'text-xs mt-1 flex items-center gap-1',
                       senderInfo.isRight
-                        ? 'text-[var(--kairo-midnight)]/70'
+                        ? isReEngagement
+                          ? 'text-black/60 dark:text-amber-200/70'
+                          : 'text-[var(--kairo-midnight)]/70'
                         : 'text-[var(--text-tertiary)]'
                     )}
                   >
