@@ -20,7 +20,7 @@ import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateReEngagementMessage } from '@/lib/ai/generate-reengagement';
 import { sendToWhatsApp } from '@/lib/whatsapp/send';
-import type { ReEngagementConfig } from '@/lib/actions/reengagement';
+import type { ReEngagementConfig } from '@/lib/types/reengagement';
 
 const MAX_LEADS_PER_RUN = 50;
 

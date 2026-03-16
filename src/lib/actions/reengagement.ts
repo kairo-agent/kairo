@@ -11,22 +11,8 @@
 import { prisma } from '@/lib/prisma';
 import { verifyAuth, verifyProjectAccess } from '@/lib/actions/auth';
 import { z } from 'zod';
-
-// ============================================
-// Types
-// ============================================
-
-export interface ReEngagementConfig {
-  enabled: boolean;
-  delayHours: number;      // 1-20
-  promptTemplate: string;  // Instrucciones para el AI al generar el mensaje
-}
-
-export const DEFAULT_REENGAGEMENT_CONFIG: ReEngagementConfig = {
-  enabled: false,
-  delayHours: 6,
-  promptTemplate: '',
-};
+import { DEFAULT_REENGAGEMENT_CONFIG } from '@/lib/types/reengagement';
+import type { ReEngagementConfig } from '@/lib/types/reengagement';
 
 // ============================================
 // Validation
