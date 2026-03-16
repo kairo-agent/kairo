@@ -51,23 +51,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 ## Documentacion (consultar bajo demanda)
 
-| Documento | Que contiene |
-|-----------|-------------|
-| [docs/INDEX.md](docs/INDEX.md) | Indice maestro |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Estructura, multi-tenant, roles, decisiones |
-| [docs/SECURITY.md](docs/SECURITY.md) | APIs, OWASP, endpoints, env vars, rate limiting |
-| [docs/DATABASE-MIGRATIONS.md](docs/DATABASE-MIGRATIONS.md) | Guia critica de migraciones |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historial de cambios y estado MVP |
-| [docs/RAG-AGENTS.md](docs/RAG-AGENTS.md) | Sistema RAG pgvector |
-| [docs/N8N-SETUP.md](docs/N8N-SETUP.md) | Configuracion n8n + Railway |
-| [docs/MEDIA-UPLOAD.md](docs/MEDIA-UPLOAD.md) | Upload multimedia WhatsApp |
-| [docs/PERFORMANCE.md](docs/PERFORMANCE.md) | Optimizaciones (Phases 1-6) |
-| [docs/COMPONENTS.md](docs/COMPONENTS.md) | Catalogo de componentes UI |
-| [docs/DATA-MODELS.md](docs/DATA-MODELS.md) | Modelos de datos |
-| [docs/I18N.md](docs/I18N.md) | Internacionalizacion |
-| [docs/RULES.md](docs/RULES.md) | Reglas obligatorias |
-| [docs/NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Notificaciones + follow-up scheduling |
-| [brand/BRANDBOOK.md](brand/BRANDBOOK.md) | Identidad visual |
+Indice maestro: [docs/INDEX.md](docs/INDEX.md). Docs clave: [ARCHITECTURE](docs/ARCHITECTURE.md), [SECURITY](docs/SECURITY.md), [DATABASE-MIGRATIONS](docs/DATABASE-MIGRATIONS.md), [CHANGELOG](docs/CHANGELOG.md), [RULES](docs/RULES.md), [NOTIFICATIONS](docs/NOTIFICATIONS.md), [RAG-AGENTS](docs/RAG-AGENTS.md), [BRANDBOOK](brand/BRANDBOOK.md).
 
 ---
 
@@ -99,10 +83,12 @@ src/
     features/                      # LeadCard, LeadTable, LeadChat, etc.
   contexts/                        # Theme, Modal, Workspace, Loading
   lib/
-    ai/                            # AI Pipeline (process-ai-response, build-system-prompt)
+    ai/                            # AI Pipeline (process-ai-response, build-system-prompt, generate-reengagement)
     knowledge/                     # Structured knowledge (prompt-builder, business-hours, faqs, pricing, location-contact, policies)
+    whatsapp/                      # WhatsApp send helper (send.ts - shared by AI pipeline + cron)
     push/                          # Web Push (send-push.ts - VAPID + web-push delivery)
-    actions/                       # Server Actions (admin, agents, auth, knowledge, leads, media, messages, notifications, profile, secrets, workspace)
+    types/                         # Shared types (reengagement.ts - extracted from 'use server')
+    actions/                       # Server Actions (admin, agents, auth, knowledge, leads, media, messages, notifications, profile, reengagement, secrets, workspace)
     supabase/                      # Client/Server Supabase + Prisma
     auth-helpers.ts                # verifySuperAdmin, getCurrentUser
     rate-limit.ts                  # Rate limiting
@@ -126,6 +112,8 @@ src/
 9. **NO eliminar leads**: Usar campo `archivedAt` (no status) en lugar de delete
 10. **1 agente activo por proyecto**: Radio button, no toggle multiple
 11. **ExpandableTextarea**: Usar `@/components/ui/ExpandableTextarea` para textareas de contenido largo
+12. **'use server'**: Archivos con `'use server'` solo pueden exportar funciones async. Tipos y constantes van en `lib/types/`
+13. **Cron jobs**: Todos en Supabase `pg_cron` + `pg_net`, NO en `vercel.json` (Hobby = solo diarios). Free tier siempre
 
 ---
 
@@ -143,7 +131,7 @@ src/
 ## Comandos
 
 ```bash
-npm run dev      # localhost:3000
+npm run dev      # localhost:3005
 npm run build    # Build produccion
 npm run lint     # Verificar codigo
 ```
@@ -169,6 +157,9 @@ WhatsApp -> /api/webhooks/whatsapp -> Store msg + Create/Find lead
   -> Si handoffMode='ai': processAIResponse() [interno]
   -> RAG search (pgvector) + OpenAI (GPT-4o-mini) -> Store + Send WhatsApp
   -> Si handoffMode='human': solo guarda msg, usuario responde manual
+
+Supabase pg_cron -> /api/cron/reengagement (*/15 min) -> AI follow-up leads silenciosos
+Supabase pg_cron -> /api/cron/cleanup-media (diario 3AM) -> Limpieza archivos >24h
 
 Organization > Project > Lead > Conversation > Message
 Users: SUPER_ADMIN | USER
