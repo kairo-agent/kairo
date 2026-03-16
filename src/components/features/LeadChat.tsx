@@ -694,7 +694,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                     'max-w-[85%] p-3 rounded-2xl',
                     senderInfo.isRight
                       ? isReEngagement
-                        ? 'bg-amber-100 dark:bg-amber-900/30 rounded-br-sm border border-amber-300/50 dark:border-amber-700/50'
+                        ? 'reengagement-bubble bg-amber-100 dark:bg-amber-900/30 rounded-br-sm border border-amber-300/50 dark:border-amber-700/50'
                         : 'bg-[#BFF7FF] text-[var(--kairo-midnight)] rounded-br-sm'
                       : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded-bl-sm'
                   )}
@@ -712,9 +712,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       </span>
                       <span className={cn(
                         'text-xs font-medium',
-                        isReEngagement
-                          ? 'text-amber-800 dark:text-amber-200'
-                          : 'text-[var(--kairo-midnight)]/80'
+                        !isReEngagement && 'text-[var(--kairo-midnight)]/80'
                       )}>
                         {senderInfo.name}
                       </span>
@@ -749,18 +747,13 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       </p>
                     </div>
                   ) : (
-                    <p className={cn(
-                      'text-sm whitespace-pre-wrap break-words',
-                      isReEngagement && 'text-gray-900 dark:text-amber-50'
-                    )}>{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                   )}
                   <p
                     className={cn(
                       'text-xs mt-1 flex items-center gap-1',
                       senderInfo.isRight
-                        ? isReEngagement
-                          ? 'text-gray-700 dark:text-amber-200/70'
-                          : 'text-[var(--kairo-midnight)]/70'
+                        ? 'text-[var(--kairo-midnight)]/70'
                         : 'text-[var(--text-tertiary)]'
                     )}
                   >

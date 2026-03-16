@@ -121,6 +121,18 @@ body {
   transition: background-color var(--transition-base), color var(--transition-base);
 }
 
+/* ReEngagement message bubble text colors */
+.reengagement-bubble,
+.reengagement-bubble p,
+.reengagement-bubble span {
+  color: #111827;
+}
+.dark .reengagement-bubble,
+.dark .reengagement-bubble p,
+.dark .reengagement-bubble span {
+  color: #fef3c7;
+}
+
 /* Focus Styles - Accessibility */
 :focus-visible {
   outline: 2px solid var(--accent-primary);
