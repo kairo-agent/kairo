@@ -1,12 +1,2 @@
 {
-  "crons": [
-    {
-      "path": "/api/cron/cleanup-media",
-      "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/cron/reengagement",
-      "schedule": "*/15 * * * *"
-    }
-  ]
 }
