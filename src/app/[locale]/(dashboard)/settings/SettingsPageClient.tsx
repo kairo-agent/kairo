@@ -52,6 +52,25 @@ import { DEFAULT_POLICIES, type PoliciesData } from '@/lib/knowledge/policies';
 // SVG Icons
 // ============================================
 
+// Tab Icons
+const SlidersIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+  </svg>
+);
+
+const BookIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+  </svg>
+);
+
+const RefreshIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-4 h-4', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+);
+
 const ClockIcon = ({ className }: { className?: string }) => (
   <svg className={cn('w-5 h-5', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -776,20 +795,30 @@ export default function SettingsPageClient() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-6 border-b border-[var(--border-primary)]">
-          {(['instructions', 'knowledge', 'reengagement'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-[1px]',
-                activeTab === tab
-                  ? 'text-[var(--accent-primary)] border-[var(--accent-primary)]'
-                  : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-primary)]'
-              )}
-            >
-              {t(`tabs.${tab}`)}
-            </button>
-          ))}
+          {([
+            { key: 'instructions' as const, icon: SlidersIcon },
+            { key: 'knowledge' as const, icon: BookIcon },
+            { key: 'reengagement' as const, icon: RefreshIcon },
+          ]).map(({ key, icon: Icon }) => {
+            const isActive = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-[1px]',
+                  isActive
+                    ? 'text-[var(--accent-primary)] border-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-primary)]'
+                )}
+              >
+                <Icon className={isActive ? 'text-[var(--accent-primary)]' : ''} />
+                <span className={cn(isActive ? '' : 'hidden sm:inline')}>
+                  {t(`tabs.${key}`)}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab Content */}

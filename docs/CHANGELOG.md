@@ -4,6 +4,55 @@
 
 ---
 
+## [0.11.0] - 2026-03-16
+
+### ReEngagement - Auto Follow-up for Silent Leads
+
+Cuando un lead deja de responder, el sistema envia automaticamente UN mensaje de seguimiento generado por IA, dentro de la ventana de 24h de WhatsApp (sin costo adicional).
+
+**Nuevos archivos:**
+
+| Archivo | Funcion |
+|---------|---------|
+| `src/lib/types/reengagement.ts` | Interface `ReEngagementConfig` + default config |
+| `src/lib/actions/reengagement.ts` | Server actions: get/save config por agente |
+| `src/lib/ai/generate-reengagement.ts` | Generador de mensaje IA (GPT-4o-mini, max 250 chars) |
+| `src/lib/whatsapp/send.ts` | Helper compartido de envio WhatsApp (extraido de process-ai-response) |
+| `src/app/api/cron/reengagement/route.ts` | Endpoint cron con logica de elegibilidad |
+
+**Settings UI (`SettingsPageClient.tsx`):**
+
+Tercer tab "ReEngagement" con toggle, dropdown de horas (1-20, default 6), textarea para prompt template, notas informativas.
+
+**Cron Jobs migrados a Supabase:**
+
+Vercel Hobby solo permite crons diarios. Ambos crons migrados a Supabase `pg_cron` + `pg_net`:
+
+| Job | Schedule | Endpoint |
+|-----|----------|----------|
+| `kairo-reengagement` | `*/15 * * * *` | `/api/cron/reengagement` |
+| `kairo-cleanup-media` | `0 3 * * *` | `/api/cron/cleanup-media` |
+
+`vercel.json` vaciado de crons. Supabase llama los endpoints via `net.http_get()` con Bearer token.
+
+**DB Migration:**
+
+- `leads`: `lastReEngagementAt` (DateTime?), `reEngagementCount` (Int, default 0)
+- `ai_agents`: `reEngagementConfig` (Json?)
+
+**Condiciones de elegibilidad:**
+
+1. Agente con `reEngagementConfig.enabled = true`
+2. Lead en modo AI, no archivado, con whatsappId
+3. Ultimo mensaje es del AI (lead no respondio)
+4. Ultimo mensaje del lead fue > delayHours pero < 24h
+5. No se ha enviado re-engagement para este periodo de silencio
+6. Horario comercial (9 AM - 8 PM timezone del proyecto)
+
+**Fix critico:** Tipos y constantes extraidos de archivo `'use server'` a `src/lib/types/reengagement.ts`. Next.js no permite exportar objetos/tipos desde archivos `'use server'` (solo funciones async).
+
+---
+
 ## [0.10.2] - 2026-03-15
 
 ### RAG Query Enrichment + UI/UX Improvements
