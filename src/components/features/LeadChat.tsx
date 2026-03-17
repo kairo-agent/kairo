@@ -6,7 +6,7 @@
 // Con Supabase Realtime para mensajes en modo Human
 // ============================================
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import imageCompression from 'browser-image-compression';
 import emojiData from '@emoji-mart/data';
@@ -33,6 +33,22 @@ import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useRealtimeMessages, type RealtimeMessage, type MessageStatusUpdate } from '@/hooks/useRealtimeMessages';
 import ChatInput, { type ChatAttachment, type ChatInputRef } from './ChatInput';
 
+
+// ============================================
+// Helpers
+// ============================================
+
+/** Convert URLs in text to clickable links */
+function linkifyText(text: string): ReactNode {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    urlRegex.test(part) ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline break-all hover:opacity-80">{part}</a>
+    ) : part
+  );
+}
 
 // ============================================
 // Types
@@ -742,12 +758,12 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       </span>
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {(message.metadata as Record<string, unknown>)?.transcription
-                          ? String((message.metadata as Record<string, unknown>).transcription)
-                          : message.content}
+                          ? linkifyText(String((message.metadata as Record<string, unknown>).transcription))
+                          : linkifyText(message.content)}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(message.content)}</p>
                   )}
                   <p
                     className={cn(
