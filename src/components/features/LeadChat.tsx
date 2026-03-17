@@ -38,16 +38,32 @@ import ChatInput, { type ChatAttachment, type ChatInputRef } from './ChatInput';
 // Helpers
 // ============================================
 
-/** Convert URLs in text to clickable links */
-function linkifyText(text: string): ReactNode {
+/** Format message text: clickable links + WhatsApp-style bold (*text* and **text**) */
+function formatMessageText(text: string): ReactNode {
+  // Split by URLs first, then process bold within non-URL segments
   const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const parts = text.split(urlRegex);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) =>
-    urlRegex.test(part) ? (
-      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline break-all hover:opacity-80">{part}</a>
-    ) : part
-  );
+  const urlParts = text.split(urlRegex);
+
+  if (urlParts.length === 1 && !/\*/.test(text)) return text;
+
+  let key = 0;
+  return urlParts.map((part) => {
+    if (urlRegex.test(part)) {
+      return <a key={key++} href={part} target="_blank" rel="noopener noreferrer" className="underline break-all hover:opacity-80">{part}</a>;
+    }
+    // Process bold: **text** first, then *text*
+    const boldRegex = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+    const segments: ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+    while ((match = boldRegex.exec(part)) !== null) {
+      if (match.index > lastIndex) segments.push(part.slice(lastIndex, match.index));
+      segments.push(<strong key={key++}>{match[2] || match[3]}</strong>);
+      lastIndex = match.index + match[0].length;
+    }
+    if (lastIndex < part.length) segments.push(part.slice(lastIndex));
+    return segments.length > 0 ? segments : part;
+  });
 }
 
 // ============================================
@@ -758,12 +774,12 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       </span>
                       <p className="text-sm whitespace-pre-wrap break-words">
                         {(message.metadata as Record<string, unknown>)?.transcription
-                          ? linkifyText(String((message.metadata as Record<string, unknown>).transcription))
-                          : linkifyText(message.content)}
+                          ? formatMessageText(String((message.metadata as Record<string, unknown>).transcription))
+                          : formatMessageText(message.content)}
                       </p>
                     </div>
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap break-words">{linkifyText(message.content)}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{formatMessageText(message.content)}</p>
                   )}
                   <p
                     className={cn(
