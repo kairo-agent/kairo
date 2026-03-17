@@ -21,10 +21,10 @@ import type { ReEngagementConfig } from '@/lib/types/reengagement';
 const reEngagementConfigSchema = z.object({
   enabled: z.boolean(),
   delayHours: z.number().int().min(1).max(20),
-  maxAttempts: z.number().int().min(0).max(2),
+  maxAttempts: z.number().int().min(0).max(2).default(2),
   promptTemplate: z.string().max(1000),
-  attempt1Instructions: z.string().max(500),
-  attempt2Instructions: z.string().max(500),
+  attempt1Instructions: z.string().max(500).default(''),
+  attempt2Instructions: z.string().max(500).default(''),
 });
 
 // ============================================
@@ -56,10 +56,12 @@ export async function getReEngagementConfig(agentId: string): Promise<{
       return { success: false, error: 'Unauthorized' };
     }
 
-    const config = agent.reEngagementConfig as ReEngagementConfig | null;
+    const raw = agent.reEngagementConfig as Partial<ReEngagementConfig> | null;
+    // Merge with defaults to backfill new fields on old configs
+    const config: ReEngagementConfig = { ...DEFAULT_REENGAGEMENT_CONFIG, ...raw };
     return {
       success: true,
-      data: config || DEFAULT_REENGAGEMENT_CONFIG,
+      data: config,
     };
   } catch (error) {
     console.error('Error getting reengagement config:', error);
