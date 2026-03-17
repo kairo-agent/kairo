@@ -21,6 +21,7 @@ import type { ReEngagementConfig } from '@/lib/types/reengagement';
 const reEngagementConfigSchema = z.object({
   enabled: z.boolean(),
   delayHours: z.number().int().min(1).max(20),
+  maxAttempts: z.number().int().min(1).max(3),
   promptTemplate: z.string().max(1000),
 });
 

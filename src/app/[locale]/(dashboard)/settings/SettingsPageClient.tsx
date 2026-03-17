@@ -1817,6 +1817,27 @@ function ReEngagementTab({
             </select>
           </div>
 
+          {/* Max Attempts */}
+          <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+              {t('reengagement.maxAttempts')}
+            </label>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              {t('reengagement.maxAttemptsHelp')}
+            </p>
+            <select
+              value={config.maxAttempts || 2}
+              onChange={(e) => setConfig(prev => ({ ...prev, maxAttempts: Number(e.target.value) }))}
+              className="w-full sm:w-48 px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+            >
+              {[1, 2, 3].map((n) => (
+                <option key={n} value={n}>
+                  {n} {n === 1 ? t('reengagement.attempt') : t('reengagement.attempts')}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Prompt Template */}
           <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">

@@ -80,6 +80,8 @@ export async function GET(request: Request) {
 
       // Find eligible leads for this agent's project
       // Using raw query for complex conditions with subqueries
+      const maxAttempts = config.maxAttempts || 2;
+
       const eligibleLeads = await prisma.$queryRaw<Array<{
         id: string;
         firstName: string;
@@ -88,6 +90,8 @@ export async function GET(request: Request) {
         conversationId: string;
         lastLeadMessageAt: Date;
         lastReEngagementAt: Date | null;
+        reEngagementCount: number;
+        summary: string | null;
       }>>`
         SELECT
           l.id,
@@ -96,7 +100,9 @@ export async function GET(request: Request) {
           l."whatsappId",
           c.id as "conversationId",
           lead_msg."createdAt" as "lastLeadMessageAt",
-          l."lastReEngagementAt"
+          l."lastReEngagementAt",
+          l."reEngagementCount",
+          l.summary
         FROM leads l
         INNER JOIN conversations c ON c."leadId" = l.id
         -- Get the last message from the lead
@@ -115,6 +121,15 @@ export async function GET(request: Request) {
           ORDER BY m."createdAt" DESC
           LIMIT 1
         ) last_msg ON last_msg.sender = 'ai'
+        -- Count reengagements sent since lead's last message
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int as cnt
+          FROM messages m
+          WHERE m."conversationId" = c.id
+            AND m.sender = 'ai'
+            AND (m.metadata->>'isReEngagement')::boolean = true
+            AND m."createdAt" > lead_msg."createdAt"
+        ) re_count ON true
         WHERE l."projectId" = ${agent.projectId}
           AND l."handoffMode" = 'ai'
           AND l."archivedAt" IS NULL
@@ -123,10 +138,12 @@ export async function GET(request: Request) {
           AND lead_msg."createdAt" < ${new Date(now.getTime() - delayMs)}
           -- Lead's last message was < 24h ago (within WhatsApp window)
           AND lead_msg."createdAt" > ${new Date(now.getTime() - windowMs)}
-          -- No re-engagement sent for this silence period
+          -- Haven't hit max attempts for this silence period
+          AND COALESCE(re_count.cnt, 0) < ${maxAttempts}
+          -- Enough time since last reengagement (delayHours gap between attempts)
           AND (
             l."lastReEngagementAt" IS NULL
-            OR l."lastReEngagementAt" < lead_msg."createdAt"
+            OR l."lastReEngagementAt" < ${new Date(now.getTime() - delayMs)}
           )
         LIMIT ${MAX_LEADS_PER_RUN}
       `;
@@ -160,7 +177,7 @@ export async function GET(request: Request) {
             where: { conversationId: lead.conversationId },
             orderBy: { createdAt: 'desc' },
             take: 6,
-            select: { sender: true, content: true },
+            select: { sender: true, content: true, metadata: true },
           });
 
           const conversationHistory = messages.reverse().map(m => ({
@@ -170,13 +187,21 @@ export async function GET(request: Request) {
 
           const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
 
-          // Generate AI message
+          // Determine which attempt this is (count reengagements since last lead message)
+          const previousReEngagements = messages.filter(m =>
+            m.sender === 'ai' && (m.metadata as Record<string, unknown>)?.isReEngagement === true
+          ).length;
+          const attemptNumber = previousReEngagements + 1;
+
+          // Generate AI message with context
           const reEngagementMessage = await generateReEngagementMessage(openaiKey, {
             agentName: agent.name,
             leadName,
             conversationHistory,
             promptTemplate: config.promptTemplate,
             systemInstructions: agent.systemInstructions,
+            attemptNumber,
+            leadSummary: lead.summary,
           });
 
           if (!reEngagementMessage) {
