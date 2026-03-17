@@ -1817,28 +1817,7 @@ function ReEngagementTab({
             </select>
           </div>
 
-          {/* Max Attempts */}
-          <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
-            <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
-              {t('reengagement.maxAttempts')}
-            </label>
-            <p className="text-xs text-[var(--text-tertiary)] mb-3">
-              {t('reengagement.maxAttemptsHelp')}
-            </p>
-            <select
-              value={config.maxAttempts || 2}
-              onChange={(e) => setConfig(prev => ({ ...prev, maxAttempts: Number(e.target.value) }))}
-              className="w-full sm:w-48 px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
-            >
-              {[1, 2, 3].map((n) => (
-                <option key={n} value={n}>
-                  {n} {n === 1 ? t('reengagement.attempt') : t('reengagement.attempts')}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Prompt Template */}
+          {/* Prompt Template (Initial ReEngagement) */}
           <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
               {t('reengagement.promptTemplate')}
@@ -1859,6 +1838,71 @@ function ReEngagementTab({
             </p>
           </div>
 
+          {/* Follow-up Attempts Section */}
+          <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+              {t('reengagement.followUpAttempts')}
+            </label>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              {t('reengagement.followUpAttemptsHelp')}
+            </p>
+            <select
+              value={config.maxAttempts ?? 2}
+              onChange={(e) => setConfig(prev => ({ ...prev, maxAttempts: Number(e.target.value) }))}
+              className="w-full sm:w-48 px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+            >
+              <option value={0}>{t('reengagement.noFollowUps')}</option>
+              <option value={1}>1 {t('reengagement.followUp')}</option>
+              <option value={2}>2 {t('reengagement.followUps')}</option>
+            </select>
+          </div>
+
+          {/* Attempt 1 Instructions */}
+          {(config.maxAttempts ?? 2) >= 1 && (
+            <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5">
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                {t('reengagement.attempt1Title')}
+              </label>
+              <p className="text-xs text-[var(--text-tertiary)] mb-3">
+                {t('reengagement.attempt1Help')}
+              </p>
+              <ExpandableTextarea
+                value={config.attempt1Instructions || ''}
+                onChange={(val) => setConfig(prev => ({ ...prev, attempt1Instructions: val }))}
+                placeholder={t('reengagement.attempt1Placeholder')}
+                rows={3}
+                maxLength={500}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none"
+              />
+              <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
+                {(config.attempt1Instructions || '').length}/500
+              </p>
+            </div>
+          )}
+
+          {/* Attempt 2 Instructions */}
+          {(config.maxAttempts ?? 2) >= 2 && (
+            <div className="p-4 rounded-xl border border-orange-500/30 bg-orange-500/5">
+              <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+                {t('reengagement.attempt2Title')}
+              </label>
+              <p className="text-xs text-[var(--text-tertiary)] mb-3">
+                {t('reengagement.attempt2Help')}
+              </p>
+              <ExpandableTextarea
+                value={config.attempt2Instructions || ''}
+                onChange={(val) => setConfig(prev => ({ ...prev, attempt2Instructions: val }))}
+                placeholder={t('reengagement.attempt2Placeholder')}
+                rows={3}
+                maxLength={500}
+                className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none"
+              />
+              <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
+                {(config.attempt2Instructions || '').length}/500
+              </p>
+            </div>
+          )}
+
           {/* Info Notes */}
           <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
             <div className="flex items-start gap-2">
@@ -1868,7 +1912,7 @@ function ReEngagementTab({
                   {t('reengagement.businessHoursNote')}
                 </p>
                 <p className="text-xs text-[var(--text-tertiary)]">
-                  {t('reengagement.enabledHelp')}
+                  {t('reengagement.antiSpamNote')}
                 </p>
               </div>
             </div>

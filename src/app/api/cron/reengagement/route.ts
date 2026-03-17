@@ -1,17 +1,16 @@
 /**
  * KAIRO - ReEngagement Cron Job
  *
- * Runs every 15 minutes via Vercel Cron.
- * Finds leads who stopped responding and sends ONE AI-generated
- * follow-up message within the WhatsApp 24h customer service window.
+ * Runs every 15 minutes via Supabase pg_cron.
+ * Sends AI-generated follow-up messages within WhatsApp 24h window.
  *
- * Conditions for re-engagement:
- * 1. Agent has reEngagementConfig.enabled = true
- * 2. Lead is in AI mode (handoffMode = 'ai'), not archived
- * 3. Last message in conversation is from AI (lead didn't respond)
- * 4. Lead's last message was > delayHours ago but < 24h ago (within window)
- * 5. No re-engagement already sent for this silence period
- * 6. Current time is within business hours (9 AM - 8 PM project timezone)
+ * Anti-spam flow:
+ * - Initial ReEngagement: fires on lead silence (no prior reengagement unanswered)
+ * - Follow-up 1: ONLY if lead responded to initial reengagement + went silent
+ * - Follow-up 2: ONLY if lead responded to follow-up 1 + went silent
+ *
+ * A "completed cycle" = reengagement sent AND lead responded to it.
+ * completedCycles determines the attempt number (0=initial, 1=follow-up 1, 2=follow-up 2).
  */
 
 import { NextResponse } from 'next/server';
@@ -77,11 +76,10 @@ export async function GET(request: Request) {
       const now = new Date();
       const delayMs = config.delayHours * 60 * 60 * 1000;
       const windowMs = 24 * 60 * 60 * 1000; // 24h WhatsApp window
+      const maxAttempts = config.maxAttempts ?? 2;
 
       // Find eligible leads for this agent's project
-      // Using raw query for complex conditions with subqueries
-      const maxAttempts = config.maxAttempts || 2;
-
+      // Anti-spam: only sends follow-ups if lead responded to previous reengagement
       const eligibleLeads = await prisma.$queryRaw<Array<{
         id: string;
         firstName: string;
@@ -92,6 +90,7 @@ export async function GET(request: Request) {
         lastReEngagementAt: Date | null;
         reEngagementCount: number;
         summary: string | null;
+        completedCycles: number;
       }>>`
         SELECT
           l.id,
@@ -102,7 +101,8 @@ export async function GET(request: Request) {
           lead_msg."createdAt" as "lastLeadMessageAt",
           l."lastReEngagementAt",
           l."reEngagementCount",
-          l.summary
+          l.summary,
+          COALESCE(cycles.cnt, 0)::int as "completedCycles"
         FROM leads l
         INNER JOIN conversations c ON c."leadId" = l.id
         -- Get the last message from the lead
@@ -121,15 +121,30 @@ export async function GET(request: Request) {
           ORDER BY m."createdAt" DESC
           LIMIT 1
         ) last_msg ON last_msg.sender = 'ai'
-        -- Count reengagements sent since lead's last message
+        -- Get last reengagement message time
         LEFT JOIN LATERAL (
-          SELECT COUNT(*)::int as cnt
+          SELECT m."createdAt" as last_re_at
           FROM messages m
           WHERE m."conversationId" = c.id
             AND m.sender = 'ai'
             AND (m.metadata->>'isReEngagement')::boolean = true
-            AND m."createdAt" > lead_msg."createdAt"
-        ) re_count ON true
+          ORDER BY m."createdAt" DESC
+          LIMIT 1
+        ) last_re ON true
+        -- Count completed reengagement cycles (reengagement that got a lead response)
+        LEFT JOIN LATERAL (
+          SELECT COUNT(*)::int as cnt
+          FROM messages m_re
+          WHERE m_re."conversationId" = c.id
+            AND m_re.sender = 'ai'
+            AND (m_re.metadata->>'isReEngagement')::boolean = true
+            AND EXISTS (
+              SELECT 1 FROM messages m_resp
+              WHERE m_resp."conversationId" = c.id
+                AND m_resp.sender = 'lead'
+                AND m_resp."createdAt" > m_re."createdAt"
+            )
+        ) cycles ON true
         WHERE l."projectId" = ${agent.projectId}
           AND l."handoffMode" = 'ai'
           AND l."archivedAt" IS NULL
@@ -138,8 +153,14 @@ export async function GET(request: Request) {
           AND lead_msg."createdAt" < ${new Date(now.getTime() - delayMs)}
           -- Lead's last message was < 24h ago (within WhatsApp window)
           AND lead_msg."createdAt" > ${new Date(now.getTime() - windowMs)}
-          -- Haven't hit max attempts for this silence period
-          AND COALESCE(re_count.cnt, 0) < ${maxAttempts}
+          -- Anti-spam: lead must have responded to the last reengagement
+          -- (or no reengagement sent yet = initial)
+          AND (
+            last_re.last_re_at IS NULL
+            OR lead_msg."createdAt" > last_re.last_re_at
+          )
+          -- Within max attempts: 0 cycles = initial, N cycles = follow-up N
+          AND COALESCE(cycles.cnt, 0) <= ${maxAttempts}
           -- Enough time since last reengagement (delayHours gap between attempts)
           AND (
             l."lastReEngagementAt" IS NULL
@@ -187,11 +208,16 @@ export async function GET(request: Request) {
 
           const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
 
-          // Determine which attempt this is (count reengagements since last lead message)
-          const previousReEngagements = messages.filter(m =>
-            m.sender === 'ai' && (m.metadata as Record<string, unknown>)?.isReEngagement === true
-          ).length;
-          const attemptNumber = previousReEngagements + 1;
+          // Determine attempt number from completed cycles
+          const attemptNumber = lead.completedCycles; // 0=initial, 1=follow-up 1, 2=follow-up 2
+
+          // Select the right instructions based on attempt
+          let attemptInstructions: string | null = null;
+          if (attemptNumber === 1) {
+            attemptInstructions = config.attempt1Instructions || null;
+          } else if (attemptNumber >= 2) {
+            attemptInstructions = config.attempt2Instructions || null;
+          }
 
           // Generate AI message with context
           const reEngagementMessage = await generateReEngagementMessage(openaiKey, {
@@ -199,6 +225,7 @@ export async function GET(request: Request) {
             leadName,
             conversationHistory,
             promptTemplate: config.promptTemplate,
+            attemptInstructions,
             systemInstructions: agent.systemInstructions,
             attemptNumber,
             leadSummary: lead.summary,
@@ -217,6 +244,7 @@ export async function GET(request: Request) {
               content: reEngagementMessage,
               metadata: {
                 isReEngagement: true,
+                attemptNumber,
                 agentId: agent.id,
                 agentName: agent.name,
                 source: 'kairo_reengagement',
@@ -243,6 +271,7 @@ export async function GET(request: Request) {
               },
             });
             sent++;
+            console.log(`[ReEngagement] Sent attempt #${attemptNumber} to lead ${lead.id} (${leadName})`);
           } else {
             skipped++;
           }

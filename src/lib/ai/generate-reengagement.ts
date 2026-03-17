@@ -3,12 +3,14 @@
  *
  * Generates a natural, context-aware follow-up message using OpenAI
  * when a lead goes silent. Uses conversation history + admin-provided
- * prompt template to create a personalized re-engagement message.
+ * instructions to create a personalized re-engagement message.
  *
- * v2: Context-aware with attempt-based strategy differentiation.
- * - 1st attempt: Gentle reminder, reference pending topic
- * - 2nd attempt: Change angle, offer something different
- * - 3rd attempt: Last try, direct and concise
+ * v2: Context-aware with configurable multi-attempt strategy.
+ * - Initial: uses promptTemplate
+ * - Attempt 1: uses attempt1Instructions (angle change)
+ * - Attempt 2: uses attempt2Instructions (final follow-up)
+ *
+ * Anti-spam: follow-up attempts only fire if lead responded to previous message.
  */
 
 import OpenAI from 'openai';
@@ -17,38 +19,11 @@ interface GenerateReEngagementParams {
   agentName: string;
   leadName: string;
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
-  promptTemplate: string;
+  promptTemplate: string;              // For initial reengagement
+  attemptInstructions: string | null;  // For follow-up attempts (configurable)
   systemInstructions: string | null;
-  attemptNumber: number;        // 1-based: which reengagement attempt this is
-  leadSummary: string | null;   // AI summary if available
-}
-
-/**
- * Build attempt-specific strategy instructions
- */
-function getAttemptStrategy(attempt: number, agentName: string, leadName: string): string {
-  switch (attempt) {
-    case 1:
-      return `ESTRATEGIA (1er seguimiento):
-- Recordatorio suave y natural.
-- Si habia un tema pendiente o pregunta sin responder, retomalo.
-- Muestra continuidad con la conversacion anterior.`;
-
-    case 2:
-      return `ESTRATEGIA (2do seguimiento - CAMBIO DE ANGULO OBLIGATORIO):
-- Ya se envio un seguimiento previo y ${leadName} no respondio. NO repitas el mismo enfoque.
-- Cambia completamente de angulo: ofrece algo nuevo o diferente que no se haya mencionado.
-- Ejemplos: si antes hablaste de precios, ahora menciona financiamiento. Si hablaste de ubicacion, ahora menciona fotos o visitas.
-- Se mas directo y ofrece valor concreto.
-- PROHIBIDO: repetir frases o ideas de mensajes anteriores de ${agentName}.`;
-
-    default: // 3rd+
-      return `ESTRATEGIA (ultimo seguimiento - MENSAJE FINAL):
-- Este es el ULTIMO intento de contacto. Se breve, directo y respetuoso.
-- Reconoce implicitamente que no ha respondido sin ser pasivo-agresivo.
-- Ofrece una ultima propuesta de valor concreta o pregunta directa de si/no.
-- Maximo 150 caracteres. Ejemplo de tono: "Si te interesa [tema], aqui estoy. Sin compromiso."`;
-  }
+  attemptNumber: number;               // 0 = initial, 1 = follow-up 1, 2 = follow-up 2
+  leadSummary: string | null;
 }
 
 /**
@@ -62,8 +37,8 @@ export async function generateReEngagementMessage(
   try {
     const {
       agentName, leadName, conversationHistory,
-      promptTemplate, systemInstructions,
-      attemptNumber, leadSummary,
+      promptTemplate, attemptInstructions,
+      systemInstructions, attemptNumber, leadSummary,
     } = params;
 
     // Build conversation context (last 6 messages)
@@ -72,23 +47,31 @@ export async function generateReEngagementMessage(
       .map(m => `${m.role === 'user' ? leadName : agentName}: ${m.content}`)
       .join('\n');
 
-    // Context section: use summary if available, otherwise rely on history
+    // Context section: use summary if available
     const contextSection = leadSummary
       ? `RESUMEN DE LA CONVERSACION:\n${leadSummary}\n`
       : '';
 
-    const attemptStrategy = getAttemptStrategy(attemptNumber, agentName, leadName);
-    const maxChars = attemptNumber >= 3 ? 150 : 250;
+    // Determine which instructions to use
+    const isFollowUp = attemptNumber > 0;
+    const instructions = isFollowUp && attemptInstructions
+      ? attemptInstructions
+      : promptTemplate;
+
+    const followUpContext = isFollowUp
+      ? `\nCONTEXTO IMPORTANTE: Este es el seguimiento #${attemptNumber} despues de que ${leadName} respondio a un mensaje anterior y volvio a guardar silencio. Ya se enviaron mensajes de seguimiento previos que estan en el historial. DEBES usar un enfoque DIFERENTE al de los mensajes anteriores.\n`
+      : '';
+
+    const maxChars = attemptNumber >= 2 ? 150 : 250;
 
     const systemPrompt = `Eres ${agentName}. Debes enviar un mensaje de seguimiento breve y natural para retomar la conversacion con ${leadName}.
 
 ${systemInstructions ? `CONTEXTO DE TU ROL:\n${systemInstructions.substring(0, 500)}\n` : ''}
-${contextSection}${promptTemplate ? `INSTRUCCIONES DEL ADMINISTRADOR PARA EL SEGUIMIENTO:\n${promptTemplate}\n` : ''}
+${contextSection}INSTRUCCIONES PARA ESTE MENSAJE:
+${instructions}
+${followUpContext}
 HISTORIAL RECIENTE:
 ${historyText}
-
-INTENTO DE REENGAGEMENT: #${attemptNumber}
-${attemptStrategy}
 
 REGLAS ESTRICTAS:
 - Maximo ${maxChars} caracteres.
@@ -102,11 +85,11 @@ REGLAS ESTRICTAS:
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
-      temperature: attemptNumber === 1 ? 0.5 : 0.7, // More creative on retries
+      temperature: isFollowUp ? 0.7 : 0.5, // More creative on follow-ups
       max_tokens: 150,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Genera el mensaje de seguimiento #${attemptNumber} para ${leadName}.` },
+        { role: 'user', content: `Genera el mensaje de seguimiento para ${leadName}.` },
       ],
     });
 
