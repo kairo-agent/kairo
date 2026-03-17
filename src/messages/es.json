@@ -752,7 +752,7 @@
       "attempt2Title": "Instrucciones - Seguimiento 2 (final)",
       "attempt2Help": "Se activa solo si el lead respondio al seguimiento 1 y volvio a hacer silencio. Ultimo intento, debe ser breve y directo.",
       "attempt2Placeholder": "Ej: Ultimo intento. Se breve y directo. Ofrece una propuesta concreta o pregunta de si/no.",
-      "businessHoursNote": "Los mensajes solo se envian en horario laboral (9 AM - 8 PM).",
+      "businessHoursNote": "Los mensajes solo se envian en horario laboral (9 AM - 10 PM).",
       "antiSpamNote": "Los seguimientos solo se envian si el lead respondio al mensaje anterior. Sin respuesta = sin mas mensajes.",
       "save": "Guardar",
       "savedSuccessfully": "Configuracion de ReEngagement guardada",

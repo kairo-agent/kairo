@@ -312,7 +312,7 @@ function isWithinBusinessHours(timezone: string): boolean {
       hour12: false,
     });
     const hour = parseInt(formatter.format(now), 10);
-    return hour >= 9 && hour < 20; // 9 AM - 8 PM
+    return hour >= 9 && hour < 22; // 9 AM - 10 PM
   } catch {
     // If timezone is invalid, default to allowing (UTC check)
     const hour = new Date().getUTCHours();
