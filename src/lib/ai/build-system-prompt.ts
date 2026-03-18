@@ -110,8 +110,12 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
     }
 
     parts.push(
-      `Responde de manera natural y breve al usuario "${params.leadName}". ` +
-      `Si no tienes informacion especifica, responde de forma amigable usando tu nombre.\n\n` +
+      `Responde al lead "${params.leadName}" de forma natural y breve.\n` +
+      `IMPORTANTE: Revisa el HISTORIAL antes de responder.\n` +
+      `- NUNCA repitas informacion que ya diste.\n` +
+      `- NUNCA te vuelvas a presentar si ya lo hiciste.\n` +
+      `- Si el lead respondio a una pregunta tuya, avanza al siguiente paso logico de la conversacion.\n` +
+      `- Si no tienes informacion especifica para responder, ofrece conectar con un asesor.\n\n` +
       `=== MARCADORES INTERNOS (OBLIGATORIO en cada respuesta) ===\n` +
       `Estos marcadores son removidos automaticamente antes de enviar el mensaje. El usuario NUNCA los ve.\n\n` +
       `${temperatureInstruction}\n\n` +
