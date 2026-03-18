@@ -1,6 +1,32 @@
-# KAIRO - Changelog Archive (v0.9.1 y anteriores)
+# KAIRO - Changelog Archive (v0.9.4 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.2+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.5+).
+
+---
+
+## [0.9.5] - 2026-03-11
+
+Archivado desde CHANGELOG.md. Contenido: Performance + Security Audit v3 (4 fases: Prisma consolidation, auth optimization, frontend caching, security hardening). Bug fixes: human chat messages reaching WhatsApp (n8n bypass removido), emoji picker rendering (static import + emojiInit).
+
+---
+
+## [0.9.4] - 2026-03-11
+
+### Web Push Notifications (3er canal de notificacion)
+
+Archivado desde CHANGELOG.md. Contenido: 3er canal push (campana + email + push), pre-permission modal, per-device subscriptions (`PushSubscription` model), VAPID config, Service Worker, PWA manifest.
+
+---
+
+## [0.9.3] - 2026-03-10
+
+Archivado desde CHANGELOG.md. Contenido: Coming-soon features ocultas para no-super_admin, AI Summary mejorado (1000 chars), Email Notifications on Handoff (Resend), Deep-link post-login redirect (AuthRedirect + sessionStorage), boton llamar oculto, mobile tabs icon-only pattern.
+
+---
+
+## [0.9.2] - 2026-03-09
+
+Archivado desde CHANGELOG.md. Contenido: AI-initiated handoff system ([HANDOFF] marker), notification sound (Web Audio API), per-project notification filtering, smart notification routing (human mode only), KB & UI improvements (pricing separators, ExpandableTextarea, KB free-text edit).
 
 ---
 
