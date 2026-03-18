@@ -161,9 +161,11 @@ function LoginPageContent() {
         const deepLink = redirectParam || savedRedirect;
         if (deepLink && deepLink.startsWith('/') && !deepLink.startsWith('//')) {
           sessionStorage.removeItem('kairo-redirect-after-login');
-          // Deep-links from middleware already include locale (e.g., /es/leads)
+          // Ensure deep-link has locale prefix (e.g., /leads -> /es/leads)
+          const hasLocale = /^\/(es|en)(\/|$)/.test(deepLink);
+          const safeDeepLink = hasLocale ? deepLink : `/${locale}${deepLink}`;
           showLoading(t('success.message'), true);
-          window.location.href = deepLink;
+          window.location.href = safeDeepLink;
           return;
         }
 

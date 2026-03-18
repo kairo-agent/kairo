@@ -32,19 +32,8 @@ export async function middleware(request: NextRequest) {
   // First, handle i18n
   const intlResponse = intlMiddleware(request);
 
-  // Create response with request headers
-  const response = NextResponse.next({
-    request: {
-      headers: request.headers,
-    },
-  });
-
-  // Copy headers from intl response
-  intlResponse.headers.forEach((value, key) => {
-    response.headers.set(key, value);
-  });
-
-  // Create Supabase client
+  // Create Supabase client - set cookies directly on intlResponse
+  // so session tokens are preserved in the response that gets returned
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -56,7 +45,7 @@ export async function middleware(request: NextRequest) {
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
+            intlResponse.cookies.set(name, value, options);
           });
         },
       },
@@ -69,12 +58,21 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
 
+  // Helper: copy Supabase session cookies to a redirect response
+  const redirectWithCookies = (url: URL) => {
+    const redirectResponse = NextResponse.redirect(url);
+    intlResponse.cookies.getAll().forEach(cookie => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectResponse;
+  };
+
   // Redirect unauthenticated users from protected routes to login
   if (!user && !isPublicRoute(pathname)) {
     const loginUrl = new URL(`/${locale}/login`, request.url);
     // Preserve the original URL so user can return after login
     loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    return redirectWithCookies(loginUrl);
   }
 
   // If user is authenticated and trying to access login page
@@ -85,9 +83,12 @@ export async function middleware(request: NextRequest) {
     // Also decode to catch encoded bypasses like %2F%2F -> //
     const decodedRedirect = redirectTo ? decodeURIComponent(redirectTo) : null;
     if (redirectTo && decodedRedirect && decodedRedirect.startsWith('/') && !decodedRedirect.startsWith('//') && !isAdminRoute(decodedRedirect)) {
-      return NextResponse.redirect(new URL(redirectTo, request.url));
+      // Ensure redirect target has locale prefix
+      const hasLocale = /^\/(es|en)(\/|$)/.test(redirectTo);
+      const safeRedirect = hasLocale ? redirectTo : `/${locale}${redirectTo}`;
+      return redirectWithCookies(new URL(safeRedirect, request.url));
     }
-    return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
+    return redirectWithCookies(new URL(`/${locale}/leads`, request.url));
   }
 
   // For admin routes: verify super_admin role directly (no self-fetch)
@@ -101,14 +102,14 @@ export async function middleware(request: NextRequest) {
         .single();
 
       if (!dbUser || !dbUser.isActive || dbUser.systemRole !== 'super_admin') {
-        return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
+        return redirectWithCookies(new URL(`/${locale}/leads`, request.url));
       }
     } catch (error) {
       console.error('Error verifying admin in middleware:', error);
-      return NextResponse.redirect(new URL(`/${locale}/leads`, request.url));
+      return redirectWithCookies(new URL(`/${locale}/leads`, request.url));
     }
 
-    return response;
+    return intlResponse;
   }
 
   return intlResponse;
