@@ -64,7 +64,7 @@ export default function LoginPage() {
 function LoginPageContent() {
   const { theme, toggleTheme } = useTheme();
   const { showError } = useModal();
-  const { showLoading } = useLoading();
+  const { showLoading, hideLoading } = useLoading();
   const t = useTranslations('login');
   const tCommon = useTranslations('common');
   const locale = useLocale();
@@ -85,6 +85,11 @@ function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+
+  // Clear any persisted loading overlay (e.g., from logout navigation)
+  useEffect(() => {
+    hideLoading();
+  }, [hideLoading]);
 
   // Estado para los pulsos con posiciones aleatorias
   const [pulses, setPulses] = useState<Pulse[]>([]);
