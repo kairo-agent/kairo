@@ -18,7 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
-import { projectHasMedia, searchRelevantMedia } from './search-media';
+import { projectHasMedia, searchRelevantMedia, getAllAgentMedia, getCachedMediaCount, INJECT_ALL_THRESHOLD } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
 
 // ============================================
@@ -121,12 +121,19 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       steps.push({ name: 'rag_search', duration: Date.now() - stepStart });
     }
 
-    // --- Step 2b: Media search (only if project has media configured) ---
-    if (params.agentId && ragQuery) {
+    // --- Step 2b: Media (inject all if <=10 items, semantic search if >10) ---
+    if (params.agentId) {
       const stepStart = Date.now();
       const hasMedia = await projectHasMedia(params.agentId, projectId);
       if (hasMedia) {
-        mediaResults = await searchRelevantMedia(params.agentId, projectId, ragQuery);
+        const cachedCount = getCachedMediaCount(params.agentId, projectId);
+        if (cachedCount !== null && cachedCount <= INJECT_ALL_THRESHOLD) {
+          // Small catalog: inject all, let GPT decide based on rules/context
+          mediaResults = await getAllAgentMedia(params.agentId, projectId);
+        } else if (ragQuery) {
+          // Large catalog: semantic search for top 3 relevant
+          mediaResults = await searchRelevantMedia(params.agentId, projectId, ragQuery);
+        }
         if (mediaResults.length > 0) {
           steps.push({ name: 'media_search', duration: Date.now() - stepStart });
         }

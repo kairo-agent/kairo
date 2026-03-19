@@ -76,18 +76,76 @@ export function invalidateMediaCache(agentId: string, projectId: string): void {
   mediaCountCache.delete(`${agentId}:${projectId}`);
 }
 
+/**
+ * Returns the cached media count, or null if not cached.
+ * Used by pipeline to decide between inject-all vs semantic search.
+ */
+export function getCachedMediaCount(agentId: string, projectId: string): number | null {
+  const cached = mediaCountCache.get(`${agentId}:${projectId}`);
+  if (cached && (Date.now() - cached.timestamp) < MEDIA_CACHE_TTL) {
+    return cached.count;
+  }
+  return null;
+}
+
 // ============================================
-// Semantic Search
+// Constants
+// ============================================
+
+// When an agent has <= this many images, inject ALL into the prompt
+// so GPT always sees them (no semantic search needed).
+// Above this threshold, use semantic search to filter relevant ones.
+const INJECT_ALL_THRESHOLD = 10;
+
+// ============================================
+// Get All Media (for small catalogs)
+// ============================================
+
+/**
+ * Returns all media items for an agent (no semantic filtering).
+ * Used when agent has <= INJECT_ALL_THRESHOLD images.
+ */
+export async function getAllAgentMedia(
+  agentId: string,
+  projectId: string
+): Promise<MediaSearchResult[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc('list_agent_media', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+    });
+
+    if (error) {
+      console.error('[MediaSearch] list_agent_media RPC error:', error);
+      return [];
+    }
+
+    return (data || []).map((row: {
+      id: string;
+      title: string;
+      description: string;
+      media_url: string;
+    }) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      mediaUrl: row.media_url,
+      similarity: 1, // All injected, no filtering
+    }));
+  } catch (error) {
+    console.error('[MediaSearch] getAllAgentMedia error:', error);
+    return [];
+  }
+}
+
+// ============================================
+// Semantic Search (for large catalogs)
 // ============================================
 
 /**
  * Searches for relevant media based on a text query.
  * Returns up to 3 media items sorted by relevance (cosine similarity).
- *
- * @param agentId - The agent to search media for
- * @param projectId - The project (for multi-tenant isolation + API key)
- * @param query - The search query (enriched user message)
- * @returns Array of matching media with similarity scores, or empty array on error
  */
 export async function searchRelevantMedia(
   agentId: string,
@@ -95,11 +153,9 @@ export async function searchRelevantMedia(
   query: string
 ): Promise<MediaSearchResult[]> {
   try {
-    // Generate embedding from query
     const queryEmbedding = await generateEmbedding(query, projectId);
     const embeddingStr = formatEmbeddingForPg(queryEmbedding);
 
-    // Search via RPC
     const supabase = await createClient();
     const { data, error } = await supabase.rpc('search_agent_media', {
       p_agent_id: agentId,
@@ -129,6 +185,8 @@ export async function searchRelevantMedia(
     }));
   } catch (error) {
     console.error('[MediaSearch] searchRelevantMedia error:', error);
-    return []; // Graceful degradation: no media, text still works
+    return [];
   }
 }
+
+export { INJECT_ALL_THRESHOLD };
