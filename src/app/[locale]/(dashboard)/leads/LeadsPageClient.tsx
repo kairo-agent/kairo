@@ -576,8 +576,6 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const { hideLoading } = useLoading();
   const user = useCurrentUser();
   const isSuperAdmin = user.systemRole === 'super_admin';
-  const projectRole = user.projectMemberships?.find(m => m.projectId === selectedProject?.id)?.role;
-  const canExport = isSuperAdmin || projectRole === 'ADMIN';
   const searchParams = useSearchParams();
 
   // Local UI state
@@ -1065,16 +1063,14 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
               <RefreshIcon className={cn('w-5 h-5', isFetching && 'animate-spin')} />
             </button>
 
-            {/* Export Excel Button - visible for super_admin and project ADMIN */}
-            {canExport && (
-              <button
-                onClick={() => setShowExportModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-[#217346] hover:bg-[#1a5c38] transition-colors"
-              >
-                <ExcelIcon />
-                <span className="hidden sm:inline">{t('export.button')}</span>
-              </button>
-            )}
+            {/* Export Excel Button - visible for all users */}
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-[#217346] hover:bg-[#1a5c38] transition-colors"
+            >
+              <ExcelIcon />
+              <span className="hidden sm:inline">{t('export.button')}</span>
+            </button>
 
             {/* New Lead Button - Only visible for super_admin until feature is built */}
             {isSuperAdmin && (
