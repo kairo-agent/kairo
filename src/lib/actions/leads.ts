@@ -1473,9 +1473,11 @@ export async function exportLeadsToExcel(
 
     const ws = XLSX.utils.json_to_sheet(rows);
 
-    // Auto-size columns
+    // Auto-size columns + hide Currency column
+    const currencyKey = isEs ? 'Moneda' : 'Currency';
     const colWidths = Object.keys(rows[0]).map(key => ({
       wch: Math.max(key.length, ...rows.map(r => String((r as Record<string, unknown>)[key] || '').length).slice(0, 50)) + 2,
+      hidden: key === currencyKey,
     }));
     ws['!cols'] = colWidths;
 
