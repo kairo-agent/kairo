@@ -781,6 +781,26 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                   ) : (
                     <p className="text-sm whitespace-pre-wrap break-words">{formatMessageText(message.content)}</p>
                   )}
+                  {/* Agent media images attached to this message */}
+                  {(() => {
+                    const meta = message.metadata as Record<string, unknown> | null;
+                    const attachments = meta?.mediaAttachments as Array<{ url: string; title: string }> | undefined;
+                    if (!attachments?.length) return null;
+                    return (
+                      <div className="mt-2 flex flex-col gap-2">
+                        {attachments.map((img, i) => (
+                          <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="block">
+                            <img
+                              src={img.url}
+                              alt={img.title || 'Media'}
+                              className="rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              loading="lazy"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   <p
                     className={cn(
                       'text-xs mt-1 flex items-center gap-1',

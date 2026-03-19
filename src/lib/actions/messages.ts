@@ -325,6 +325,12 @@ export async function sendMessage(
         sender: MessageSender.human,
         content: content.trim(),
         sentByUserId: user.id,
+        ...(mediaUrl && {
+          metadata: {
+            mediaAttachments: [{ url: mediaUrl, title: filename || (mediaType === 'image' ? 'Imagen' : mediaType === 'video' ? 'Video' : 'Archivo') }],
+            mediaType: mediaType || 'image',
+          },
+        }),
       },
       include: {
         sentByUser: {

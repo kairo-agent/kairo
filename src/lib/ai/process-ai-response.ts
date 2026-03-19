@@ -232,6 +232,12 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     // --- Step 7: Save to DB ---
     const stepDB = Date.now();
 
+    // Build media attachments for metadata (so chat UI can render them)
+    const mediaAttachments = requestedMediaIds.map(idx => {
+      const media = mediaResults[idx - 1];
+      return media ? { url: media.mediaUrl, title: media.title } : null;
+    }).filter(Boolean);
+
     // Save AI message
     const savedMessage = await prisma.message.create({
       data: {
@@ -243,6 +249,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           agentName: agentName || null,
           source: 'kairo_ai',
           createdAt: new Date().toISOString(),
+          ...(mediaAttachments.length > 0 && { mediaAttachments }),
         },
       },
     });
