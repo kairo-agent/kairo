@@ -4,6 +4,59 @@
 
 ---
 
+## [0.12.0] - 2026-03-18
+
+### Agent Media - Imagenes via WhatsApp con RAG Semantico
+
+Los agentes IA ahora pueden enviar imagenes relevantes durante conversaciones de WhatsApp. Las imagenes se buscan semanticamente por descripcion (pgvector) y se envian como mensajes separados despues del texto.
+
+**Nuevos archivos:**
+
+| Archivo | Funcion |
+|---------|---------|
+| `scripts/setup-agent-media.sql` | Tabla `agent_media` + 6 RPCs + RLS + indices |
+| `src/lib/types/agent-media.ts` | Tipos `AgentMediaEntry`, `MediaSearchResult`, constantes |
+| `src/lib/actions/agent-media.ts` | Server actions: add, list, update, delete media |
+| `src/lib/utils/image-compression.ts` | Compresion client-side Canvas API (max 1080px, JPEG 85%) |
+| `src/components/knowledge/MultimediaModal.tsx` | Modal UI: upload, preview, edit inline, delete |
+| `src/lib/ai/search-media.ts` | Busqueda semantica + feature flag cache (5 min TTL) |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/whatsapp/send.ts` | Nueva `sendImageToWhatsApp()` (WhatsApp Cloud API `type: image`) |
+| `src/lib/ai/build-system-prompt.ts` | Seccion `IMAGENES DISPONIBLES` con markers `[MEDIA-X]` |
+| `src/lib/ai/process-ai-response.ts` | Media search (step 2b), parseo markers (step 5), envio imagenes (step 8) |
+| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Card Multimedia en Knowledge tab + modal |
+| `src/messages/es.json` + `en.json` | Claves i18n multimedia |
+
+**Arquitectura:**
+
+- Feature flag: `projectHasMedia()` - cero overhead para proyectos sin media
+- Fallback: texto siempre se envia primero, fallo de imagen no afecta al lead
+- Comportamiento de imagenes (proactividad, limites, repeticiones) controlado via Global Rules / Specific Rules, no hardcodeado
+- Solo sintaxis tecnica de markers `[MEDIA-X]` hardcodeada en prompt (no instrucciones de comportamiento)
+- Seccion `IMAGENES DISPONIBLES` posicionada ANTES del KB texto en el prompt (evita que GPT use URLs del KB como imagenes)
+- Threshold semantico: 0.30 (ajustado tras analisis de scores reales: imagenes relevantes ~0.33-0.34)
+- Imagenes se envian sin caption (titulo) en WhatsApp - el texto de GPT ya provee contexto
+- Compresion client-side: max 1080px lado mas largo, JPEG 85%, rechaza < 200x200
+- Descripciones deben ser semanticas (para QUE sirve la imagen, CUANDO es relevante), no instrucciones para GPT
+
+**Lecciones de prompt engineering:**
+
+- Descripciones de media: optimizar para RAG semantico, no instrucciones de comportamiento
+- Titulos: visibles en UI + system prompt, usados por GPT para identificar la imagen
+- Reglas de comportamiento (cuando enviar, limites, proactividad): van en Global/Specific Rules
+- Meta Ads: mensaje pre-llenado con contexto especifico mejora el match semantico del RAG
+
+### Login Fixes
+
+- **ERR_TOO_MANY_REDIRECTS (`middleware.ts`):** Cookies de sesion Supabase se seteaban en un response separado pero el middleware retornaba `intlResponse`, perdiendo los tokens y causando redirect loop infinito. Fix: cookies se propagan a `intlResponse` y a todos los redirects.
+- **Loading overlay post-logout (`login/page.tsx`):** `showLoading(persist=true)` guardaba estado en localStorage, pero al remontar LoginPage el overlay no se limpiaba. Fix: `hideLoading()` explicito en mount de login page.
+
+---
+
 ## [0.11.1] - 2026-03-18
 
 ### Corregido
