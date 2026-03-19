@@ -59,20 +59,7 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
     parts.push(`=== REGLAS GLOBALES (OBLIGATORIAS) ===\n${rules}\n=== FIN REGLAS GLOBALES ===`);
   }
 
-  // --- System instructions (configurable per agent in KAIRO UI) ---
-  if (params.systemInstructions) {
-    parts.push(`=== INSTRUCCIONES DEL AGENTE ===\n${params.systemInstructions}\n=== FIN INSTRUCCIONES ===`);
-  }
-
-  // --- RAG knowledge (if any results found) ---
-  if (params.ragResults.length > 0) {
-    const knowledge = params.ragResults
-      .map(r => r.content)
-      .join('\n\n');
-    parts.push(`=== TU CONOCIMIENTO (BASE DE DATOS) ===\n${knowledge}\n=== FIN CONOCIMIENTO ===`);
-  }
-
-  // --- Available media / images (if any relevant media found via RAG) ---
+  // --- Available media / images (BEFORE KB so GPT knows [MEDIA-X] syntax before seeing URLs) ---
   if (params.mediaResults && params.mediaResults.length > 0) {
     const mediaList = params.mediaResults
       .map((m, i) => `[MEDIA-${i + 1}] ${m.title} - ${m.description}`)
@@ -84,6 +71,19 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       `Ejemplo: "Aqui te muestro el departamento [MEDIA-1]"\n` +
       `=== FIN IMAGENES DISPONIBLES ===`
     );
+  }
+
+  // --- System instructions (configurable per agent in KAIRO UI) ---
+  if (params.systemInstructions) {
+    parts.push(`=== INSTRUCCIONES DEL AGENTE ===\n${params.systemInstructions}\n=== FIN INSTRUCCIONES ===`);
+  }
+
+  // --- RAG knowledge (if any results found) ---
+  if (params.ragResults.length > 0) {
+    const knowledge = params.ragResults
+      .map(r => r.content)
+      .join('\n\n');
+    parts.push(`=== TU CONOCIMIENTO (BASE DE DATOS) ===\n${knowledge}\n=== FIN CONOCIMIENTO ===`);
   }
 
   // --- Lead summary (accumulated context from previous conversations) ---
