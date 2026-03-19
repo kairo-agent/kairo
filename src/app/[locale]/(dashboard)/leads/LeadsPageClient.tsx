@@ -1064,10 +1064,13 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
             </button>
 
             {/* Export Excel Button */}
-            <Button variant="ghost" onClick={() => setShowExportModal(true)}>
+            <button
+              onClick={() => setShowExportModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-[#217346] hover:bg-[#1a5c38] transition-colors"
+            >
               <ExcelIcon />
               <span className="hidden sm:inline">{t('export.button')}</span>
-            </Button>
+            </button>
 
             {/* New Lead Button - Only visible for super_admin until feature is built */}
             {isSuperAdmin && (

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { DateRangePicker } from '@/components/ui/DateRangePicker';
 import { exportLeadsToExcel } from '@/lib/actions/leads';
 import { toast } from 'sonner';
 
@@ -23,15 +22,21 @@ export function ExportLeadsModal({
 }: ExportLeadsModalProps) {
   const t = useTranslations('leads');
   const locale = useLocale() as 'es' | 'en';
-  const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({
-    start: null,
-    end: null,
-  });
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [isExporting, setIsExporting] = useState(false);
 
+  // Today in YYYY-MM-DD for max attribute
+  const today = new Date().toISOString().slice(0, 10);
+
   const handleExport = async () => {
-    if (!dateRange.start || !dateRange.end) {
-      toast.error(locale === 'es' ? 'Selecciona un rango de fechas' : 'Select a date range');
+    if (!startDate || !endDate) {
+      toast.error(locale === 'es' ? 'Selecciona ambas fechas' : 'Select both dates');
+      return;
+    }
+
+    if (startDate > endDate) {
+      toast.error(locale === 'es' ? 'La fecha inicial no puede ser mayor a la final' : 'Start date cannot be after end date');
       return;
     }
 
@@ -40,8 +45,8 @@ export function ExportLeadsModal({
       const result = await exportLeadsToExcel(
         projectId,
         organizationId,
-        dateRange.start.toISOString(),
-        dateRange.end.toISOString(),
+        new Date(startDate).toISOString(),
+        new Date(endDate).toISOString(),
         locale
       );
 
@@ -85,37 +90,61 @@ export function ExportLeadsModal({
 
   const handleClose = () => {
     if (!isExporting) {
-      setDateRange({ start: null, end: null });
+      setStartDate('');
+      setEndDate('');
       onClose();
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title={t('export.title')} size="lg">
-      <div className="flex flex-col gap-4">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('export.title')} size="sm">
+      <div className="flex flex-col gap-5">
         <p className="text-sm text-[var(--text-secondary)]">
           {t('export.description')}
         </p>
 
-        <DateRangePicker
-          value={dateRange}
-          onChange={setDateRange}
-          locale={locale}
-        />
+        {/* Date inputs */}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              {locale === 'es' ? 'Desde' : 'From'}
+            </label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              max={endDate || today}
+              className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent transition-all [color-scheme:dark]"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+              {locale === 'es' ? 'Hasta' : 'To'}
+            </label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              min={startDate}
+              max={today}
+              className="w-full px-3 py-2 rounded-lg text-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent transition-all [color-scheme:dark]"
+            />
+          </div>
+        </div>
 
-        <div className="flex justify-end gap-3 pt-2 border-t border-[var(--border-primary)]">
+        {/* Actions */}
+        <div className="flex justify-end gap-3 pt-3 border-t border-[var(--border-primary)]">
           <Button variant="ghost" onClick={handleClose} disabled={isExporting}>
             {t('export.cancel')}
           </Button>
-          <Button
-            variant="primary"
+          <button
             onClick={handleExport}
-            disabled={!dateRange.start || !dateRange.end || isExporting}
-            isLoading={isExporting}
+            disabled={!startDate || !endDate || isExporting}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white bg-[#217346] hover:bg-[#1a5c38] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <ExcelIcon className="w-4 h-4" />
             {isExporting ? t('export.exporting') : t('export.download')}
-          </Button>
+          </button>
         </div>
       </div>
     </Modal>
@@ -124,12 +153,9 @@ export function ExportLeadsModal({
 
 function ExcelIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="8" y1="13" x2="16" y2="13" />
-      <line x1="8" y1="17" x2="16" y2="17" />
-      <line x1="10" y1="9" x2="10" y2="9" />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M21.17 3H7.83A1.83 1.83 0 0 0 6 4.83v2.34L14.58 9 6 13.83v2.34A1.83 1.83 0 0 0 7.83 18h13.34A1.83 1.83 0 0 0 23 16.17V4.83A1.83 1.83 0 0 0 21.17 3zM15 15h-2.5l-2-3.5L8.5 15H6l3.25-5L6 5h2.5l2 3.5L12.5 5H15l-3.25 5L15 15z" />
+      <path d="M1 5v14h5v-2H3V7h3V5H1z" />
     </svg>
   );
 }
