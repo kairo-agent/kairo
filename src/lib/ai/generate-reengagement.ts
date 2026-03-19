@@ -24,6 +24,7 @@ interface GenerateReEngagementParams {
   systemInstructions: string | null;
   attemptNumber: number;               // 0 = initial, 1 = follow-up 1, 2 = follow-up 2
   leadSummary: string | null;
+  mediaItems?: Array<{ title: string; description: string }>;  // Available images
 }
 
 /**
@@ -39,6 +40,7 @@ export async function generateReEngagementMessage(
       agentName, leadName, conversationHistory,
       promptTemplate, attemptInstructions,
       systemInstructions, attemptNumber, leadSummary,
+      mediaItems,
     } = params;
 
     // Build conversation context (last 6 messages)
@@ -64,22 +66,30 @@ export async function generateReEngagementMessage(
 
     const maxChars = attemptNumber >= 2 ? 150 : 250;
 
+    // Build media section if images are available
+    let mediaSection = '';
+    if (mediaItems && mediaItems.length > 0) {
+      const mediaList = mediaItems.map((m, i) => `[MEDIA-${i + 1}] ${m.title} - ${m.description}`).join('\n');
+      mediaSection = `\n=== IMAGENES DISPONIBLES ===\n${mediaList}\nPara enviar imagenes SOLO usa marcadores [MEDIA-X]. NO uses enlaces, URLs ni formato markdown. NO inventes nombres de imagenes.\n=== FIN IMAGENES DISPONIBLES ===\n`;
+    }
+
     const systemPrompt = `Eres ${agentName}. Debes enviar un mensaje de seguimiento breve y natural para retomar la conversacion con ${leadName}.
 
 ${systemInstructions ? `CONTEXTO DE TU ROL:\n${systemInstructions.substring(0, 500)}\n` : ''}
 ${contextSection}INSTRUCCIONES PARA ESTE MENSAJE:
 ${instructions}
-${followUpContext}
+${followUpContext}${mediaSection}
 HISTORIAL RECIENTE:
 ${historyText}
 
 REGLAS ESTRICTAS:
-- Maximo ${maxChars} caracteres.
+- Maximo ${maxChars} caracteres (sin contar marcadores [MEDIA-X]).
 - Se natural y amigable, como si retomaras la conversacion de forma genuina.
 - No repitas lo que ya dijiste en mensajes anteriores (revisa el historial cuidadosamente).
 - No menciones que es un mensaje automatico ni de seguimiento programado.
 - No uses saludos genericos como "Hola, como estas?".
-- Si la conversacion tenia un tema pendiente, retomalo naturalmente.`;
+- Si la conversacion tenia un tema pendiente, retomalo naturalmente.
+- Si incluyes una imagen, integra el marcador [MEDIA-X] de forma natural en el mensaje.`;
 
     const openai = new OpenAI({ apiKey: openaiApiKey });
 

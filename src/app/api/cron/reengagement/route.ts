@@ -18,7 +18,9 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateReEngagementMessage } from '@/lib/ai/generate-reengagement';
-import { sendToWhatsApp } from '@/lib/whatsapp/send';
+import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
+import { projectHasMedia, searchRelevantMedia, getAllAgentMedia, getCachedMediaCount } from '@/lib/ai/search-media';
+import type { MediaSearchResult } from '@/lib/types/agent-media';
 import type { ReEngagementConfig } from '@/lib/types/reengagement';
 
 const MAX_LEADS_PER_RUN = 50;
@@ -219,8 +221,29 @@ export async function GET(request: Request) {
             attemptInstructions = config.attempt2Instructions || null;
           }
 
-          // Generate AI message with context
-          const reEngagementMessage = await generateReEngagementMessage(openaiKey, {
+          // Search for available media for this agent
+          let mediaResults: MediaSearchResult[] = [];
+          if (agent.id) {
+            try {
+              const hasMedia = await projectHasMedia(agent.id, agent.projectId);
+              if (hasMedia) {
+                const cachedCount = getCachedMediaCount(agent.id, agent.projectId);
+                if (cachedCount !== null && cachedCount <= 10) {
+                  mediaResults = await getAllAgentMedia(agent.id, agent.projectId);
+                } else {
+                  // Use lead summary or last message as search query
+                  const searchQuery = lead.summary || conversationHistory[conversationHistory.length - 1]?.content || leadName;
+                  mediaResults = await searchRelevantMedia(agent.id, agent.projectId, searchQuery);
+                }
+              }
+            } catch (mediaErr) {
+              console.error(`[ReEngagement] Media search error for lead ${lead.id}:`, mediaErr);
+              // Continue without media - text message is still valuable
+            }
+          }
+
+          // Generate AI message with context + available media
+          const rawMessage = await generateReEngagementMessage(openaiKey, {
             agentName: agent.name,
             leadName,
             conversationHistory,
@@ -229,36 +252,77 @@ export async function GET(request: Request) {
             systemInstructions: agent.systemInstructions,
             attemptNumber,
             leadSummary: lead.summary,
+            mediaItems: mediaResults.length > 0
+              ? mediaResults.map(m => ({ title: m.title, description: m.description }))
+              : undefined,
           });
 
-          if (!reEngagementMessage) {
+          if (!rawMessage) {
             skipped++;
             continue;
           }
+
+          // Extract [MEDIA-X] markers before cleanup
+          const mediaMarkers = rawMessage.match(/\[MEDIA-(\d+)\]/gi) || [];
+          const requestedMediaIds: number[] = mediaMarkers
+            .map(m => parseInt(m.match(/\d+/)?.[0] || '0'))
+            .filter(n => n >= 1 && n <= mediaResults.length)
+            .slice(0, 3);
+
+          // Clean message (remove markers)
+          const cleanMessage = rawMessage
+            .replace(/\[MEDIA-\d+\]/gi, '')
+            .trim();
+
+          if (!cleanMessage) {
+            skipped++;
+            continue;
+          }
+
+          // Build media attachments for metadata
+          const mediaAttachments = requestedMediaIds.map(idx => {
+            const media = mediaResults[idx - 1];
+            return media ? { url: media.mediaUrl, title: media.title } : null;
+          }).filter(Boolean);
 
           // Save message to conversation
           const savedMessage = await prisma.message.create({
             data: {
               conversationId: lead.conversationId,
               sender: 'ai',
-              content: reEngagementMessage,
+              content: cleanMessage,
               metadata: {
                 isReEngagement: true,
                 attemptNumber,
                 agentId: agent.id,
                 agentName: agent.name,
                 source: 'kairo_reengagement',
+                ...(mediaAttachments.length > 0 && { mediaAttachments }),
               },
             },
           });
 
-          // Send via WhatsApp
+          // Send text via WhatsApp
           const sendResult = await sendToWhatsApp(
             agent.projectId,
             lead.whatsappId,
-            reEngagementMessage,
+            cleanMessage,
             savedMessage.id
           );
+
+          // Send media images if GPT included [MEDIA-X] markers
+          if (sendResult.success && requestedMediaIds.length > 0) {
+            for (const idx of requestedMediaIds) {
+              const media = mediaResults[idx - 1];
+              if (media) {
+                try {
+                  await sendImageToWhatsApp(agent.projectId, lead.whatsappId, media.mediaUrl);
+                } catch (imgErr) {
+                  console.error(`[ReEngagement] Media send failed idx=${idx}:`, imgErr);
+                }
+              }
+            }
+          }
 
           if (sendResult.success) {
             // Update lead tracking
