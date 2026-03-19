@@ -18,7 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
-import { projectHasMedia, searchRelevantMedia, getAllAgentMedia, getCachedMediaCount, INJECT_ALL_THRESHOLD } from './search-media';
+import { projectHasMedia, searchRelevantMedia } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
 
 // ============================================
@@ -121,19 +121,12 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       steps.push({ name: 'rag_search', duration: Date.now() - stepStart });
     }
 
-    // --- Step 2b: Media (inject all if <=10 items, semantic search if >10) ---
-    if (params.agentId) {
+    // --- Step 2b: Media search (only if project has media configured) ---
+    if (params.agentId && ragQuery) {
       const stepStart = Date.now();
       const hasMedia = await projectHasMedia(params.agentId, projectId);
       if (hasMedia) {
-        const cachedCount = getCachedMediaCount(params.agentId, projectId);
-        if (cachedCount !== null && cachedCount <= INJECT_ALL_THRESHOLD) {
-          // Small catalog: inject all, let GPT decide based on rules/context
-          mediaResults = await getAllAgentMedia(params.agentId, projectId);
-        } else if (ragQuery) {
-          // Large catalog: semantic search for top 3 relevant
-          mediaResults = await searchRelevantMedia(params.agentId, projectId, ragQuery);
-        }
+        mediaResults = await searchRelevantMedia(params.agentId, projectId, ragQuery);
         if (mediaResults.length > 0) {
           steps.push({ name: 'media_search', duration: Date.now() - stepStart });
         }
@@ -372,7 +365,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           const media = mediaResults[idx - 1]; // 1-indexed
           if (media) {
             try {
-              await sendImageToWhatsApp(projectId, phoneNumber, media.mediaUrl, media.title);
+              await sendImageToWhatsApp(projectId, phoneNumber, media.mediaUrl);
             } catch (err) {
               console.error(`[AI Pipeline] Media send failed idx=${idx}:`, err);
               // Fallback: text was already sent, lead is not left without response
