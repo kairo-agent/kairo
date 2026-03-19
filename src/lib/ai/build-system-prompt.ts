@@ -79,13 +79,9 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       .join('\n');
     parts.push(
       `=== IMAGENES DISPONIBLES ===\n` +
-      `Puedes enviar imagenes al lead usando marcadores [MEDIA-X].\n` +
-      `Cuando una imagen sea relevante para la conversacion, incluye el marcador correspondiente en tu respuesta.\n` +
-      `Envia imagenes proactivamente cuando el contexto lo amerite (no esperes a que te pidan).\n` +
-      `MAXIMO 3 imagenes por respuesta. NO repitas imagenes ya enviadas (revisa el HISTORIAL).\n\n` +
+      `Puedes enviar imagenes usando marcadores [MEDIA-X].\n\n` +
       `${mediaList}\n\n` +
       `Ejemplo: "Aqui te muestro el departamento [MEDIA-1]"\n` +
-      `El marcador sera reemplazado y la imagen se enviara automaticamente.\n` +
       `=== FIN IMAGENES DISPONIBLES ===`
     );
   }
