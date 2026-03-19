@@ -79,7 +79,7 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       .join('\n');
     parts.push(
       `=== IMAGENES DISPONIBLES ===\n` +
-      `Puedes enviar imagenes usando marcadores [MEDIA-X].\n\n` +
+      `Para enviar imagenes SOLO usa marcadores [MEDIA-X]. NO uses enlaces, URLs ni formato markdown para imagenes.\n\n` +
       `${mediaList}\n\n` +
       `Ejemplo: "Aqui te muestro el departamento [MEDIA-1]"\n` +
       `=== FIN IMAGENES DISPONIBLES ===`
