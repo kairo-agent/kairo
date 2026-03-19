@@ -1343,3 +1343,154 @@ export async function getLeadById(leadId: string): Promise<LeadGridItem | null> 
     return null;
   }
 }
+
+// ============================================
+// Export Leads to Excel
+// ============================================
+
+export async function exportLeadsToExcel(
+  projectId?: string,
+  organizationId?: string,
+  startDate?: string,
+  endDate?: string,
+  locale: string = 'es'
+): Promise<{ success: boolean; data?: string; filename?: string; count?: number; error?: string }> {
+  try {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const accessibleProjects = await getAccessibleProjectIds(user.id, user.systemRole, projectId, organizationId);
+    if (!accessibleProjects) {
+      return { success: false, error: 'Sin acceso' };
+    }
+
+    // Build where clause with date filter on createdAt
+    const where: Prisma.LeadWhereInput = {};
+
+    if (accessibleProjects === 'all_in_org' && organizationId) {
+      where.project = { organizationId };
+    } else if (Array.isArray(accessibleProjects)) {
+      if (accessibleProjects.length === 1) {
+        where.projectId = accessibleProjects[0];
+      } else {
+        where.projectId = { in: accessibleProjects };
+      }
+    }
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      // Set end to end of day
+      end.setHours(23, 59, 59, 999);
+      where.createdAt = { gte: start, lte: end };
+    }
+
+    const leads = await prisma.lead.findMany({
+      where,
+      select: {
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        businessName: true,
+        position: true,
+        status: true,
+        temperature: true,
+        source: true,
+        channel: true,
+        type: true,
+        estimatedValue: true,
+        currency: true,
+        tags: true,
+        summary: true,
+        lastContactAt: true,
+        createdAt: true,
+        archivedAt: true,
+        assignedAgent: { select: { name: true } },
+        project: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (leads.length === 0) {
+      return { success: false, error: locale === 'es' ? 'No hay leads en ese rango de fechas' : 'No leads found in that date range' };
+    }
+
+    // Dynamic import to avoid bundling xlsx on every page load
+    const XLSX = await import('xlsx');
+
+    const isEs = locale === 'es';
+
+    // Status translations
+    const statusLabels: Record<string, string> = isEs
+      ? { new: 'Nuevo', contacted: 'Contactado', qualified: 'Calificado', proposal: 'Propuesta', negotiation: 'Negociación', won: 'Ganado', lost: 'Perdido' }
+      : { new: 'New', contacted: 'Contacted', qualified: 'Qualified', proposal: 'Proposal', negotiation: 'Negotiation', won: 'Won', lost: 'Lost' };
+
+    const tempLabels: Record<string, string> = isEs
+      ? { cold: 'Bajo', warm: 'Medio', hot: 'Alto' }
+      : { cold: 'Cold', warm: 'Warm', hot: 'Hot' };
+
+    const sourceLabels: Record<string, string> = isEs
+      ? { website: 'Sitio Web', referral: 'Referido', social_media: 'Redes Sociales', advertising: 'Publicidad', event: 'Evento', other: 'Otro' }
+      : { website: 'Website', referral: 'Referral', social_media: 'Social Media', advertising: 'Advertising', event: 'Event', other: 'Other' };
+
+    const typeLabels: Record<string, string> = isEs
+      ? { ai_agent: 'Agente IA', manual: 'Manual' }
+      : { ai_agent: 'AI Agent', manual: 'Manual' };
+
+    const formatDate = (date: Date | null) => {
+      if (!date) return '';
+      return new Date(date).toLocaleDateString(isEs ? 'es-PE' : 'en-US', {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit',
+      });
+    };
+
+    const rows = leads.map(lead => ({
+      [isEs ? 'Nombre' : 'First Name']: lead.firstName,
+      [isEs ? 'Apellido' : 'Last Name']: lead.lastName,
+      [isEs ? 'Email' : 'Email']: lead.email || '',
+      [isEs ? 'Teléfono' : 'Phone']: lead.phone || '',
+      [isEs ? 'Empresa' : 'Company']: lead.businessName || '',
+      [isEs ? 'Cargo' : 'Position']: lead.position || '',
+      [isEs ? 'Estado' : 'Status']: statusLabels[lead.status] || lead.status,
+      [isEs ? 'Potencial' : 'Potential']: tempLabels[lead.temperature] || lead.temperature,
+      [isEs ? 'Fuente' : 'Source']: sourceLabels[lead.source] || lead.source,
+      [isEs ? 'Canal' : 'Channel']: lead.channel || '',
+      [isEs ? 'Tipo' : 'Type']: typeLabels[lead.type] || lead.type,
+      [isEs ? 'Valor Estimado' : 'Estimated Value']: lead.estimatedValue ? Number(lead.estimatedValue) : '',
+      [isEs ? 'Moneda' : 'Currency']: lead.currency || '',
+      [isEs ? 'Etiquetas' : 'Tags']: lead.tags?.join(', ') || '',
+      [isEs ? 'Agente' : 'Agent']: lead.assignedAgent?.name || '',
+      [isEs ? 'Proyecto' : 'Project']: lead.project?.name || '',
+      [isEs ? 'Resumen IA' : 'AI Summary']: lead.summary || '',
+      [isEs ? 'Último Contacto' : 'Last Contact']: formatDate(lead.lastContactAt),
+      [isEs ? 'Fecha Creación' : 'Created']: formatDate(lead.createdAt),
+      [isEs ? 'Archivado' : 'Archived']: lead.archivedAt ? (isEs ? 'Sí' : 'Yes') : '',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Auto-size columns
+    const colWidths = Object.keys(rows[0]).map(key => ({
+      wch: Math.max(key.length, ...rows.map(r => String((r as Record<string, unknown>)[key] || '').length).slice(0, 50)) + 2,
+    }));
+    ws['!cols'] = colWidths;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
+
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const base64 = Buffer.from(buffer).toString('base64');
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `leads_${dateStr}.xlsx`;
+
+    return { success: true, data: base64, filename, count: leads.length };
+  } catch (error) {
+    console.error('Error exporting leads:', error);
+    return { success: false, error: 'Error interno' };
+  }
+}

@@ -31,6 +31,7 @@ import {
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { updateLeadStatus, archiveLead, unarchiveLead, scheduleFollowUp, getLeadById } from '@/lib/actions/leads';
 import { FollowUpModal } from '@/components/features/FollowUpModal';
+import { ExportLeadsModal } from '@/components/features/ExportLeadsModal';
 import { toast } from 'sonner';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 import { TemperatureIcon } from '@/components/icons/LeadIcons';
@@ -119,6 +120,15 @@ const ChevronDownIcon = () => (
 const EmptyIcon = () => (
   <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+);
+
+const ExcelIcon = () => (
+  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="8" y1="13" x2="16" y2="13" />
+    <line x1="8" y1="17" x2="16" y2="17" />
   </svg>
 );
 
@@ -582,6 +592,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<TransformedLead | null>(null);
   const [followUpTarget, setFollowUpTarget] = useState<TransformedLead | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // Refs for debouncing
   const filtersRef = useRef(filters);
@@ -1052,6 +1063,12 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
               <RefreshIcon className={cn('w-5 h-5', isFetching && 'animate-spin')} />
             </button>
 
+            {/* Export Excel Button */}
+            <Button variant="ghost" onClick={() => setShowExportModal(true)}>
+              <ExcelIcon />
+              <span className="hidden sm:inline">{t('export.button')}</span>
+            </Button>
+
             {/* New Lead Button - Only visible for super_admin until feature is built */}
             {isSuperAdmin && (
               <Button variant="primary">
@@ -1301,6 +1318,14 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
         onClear={handleClearFollowUp}
         currentDate={followUpTarget?.nextFollowUpAt}
         leadName={followUpTarget ? `${followUpTarget.firstName} ${followUpTarget.lastName}` : ''}
+      />
+
+      {/* Export Leads Modal */}
+      <ExportLeadsModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        projectId={projectId}
+        organizationId={organizationId}
       />
     </div>
   );

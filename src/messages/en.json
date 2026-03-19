@@ -121,6 +121,14 @@
     "title": "Leads",
     "newLead": "New Lead",
     "refreshLeads": "Refresh incoming leads",
+    "export": {
+      "title": "Export Leads",
+      "description": "Select a date range to export leads in Excel format.",
+      "button": "Excel",
+      "download": "Export",
+      "exporting": "Exporting...",
+      "cancel": "Cancel"
+    },
     "addFirstLead": "Add first lead",
     "viewGrid": "Grid view",
     "viewTable": "Table view",

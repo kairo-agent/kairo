@@ -121,6 +121,14 @@
     "title": "Leads",
     "newLead": "Nuevo Lead",
     "refreshLeads": "Actualizar ingreso de leads",
+    "export": {
+      "title": "Exportar Leads",
+      "description": "Selecciona el rango de fechas para exportar los leads en formato Excel.",
+      "button": "Excel",
+      "download": "Exportar",
+      "exporting": "Exportando...",
+      "cancel": "Cancelar"
+    },
     "addFirstLead": "Agregar primer lead",
     "viewGrid": "Vista de cuadrícula",
     "viewTable": "Vista de tabla",
