@@ -42,6 +42,7 @@ import { DEFAULT_REENGAGEMENT_CONFIG, type ReEngagementConfig } from '@/lib/type
 import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia } from '@/lib/actions/agent-media';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { MultimediaModal } from '@/components/knowledge/MultimediaModal';
+import { FixedImageSlot } from '@/components/knowledge/FixedImageSlot';
 import { FlameIcon, SunIcon, SnowflakeIcon } from '@/components/icons/LeadIcons';
 import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 import { toast } from 'sonner';
@@ -924,6 +925,8 @@ export default function SettingsPageClient() {
             saving={savingReEngagement}
             hasUnsavedChanges={hasUnsavedReEngagement}
             onSave={handleSaveReEngagement}
+            agentId={selectedAgent?.id}
+            projectId={selectedProject?.id}
           />
         )}
       </div>
@@ -997,6 +1000,18 @@ export default function SettingsPageClient() {
       {/* Multimedia Modal */}
       {activeModal === 'multimedia' && (
         <Modal isOpen onClose={() => setActiveModal(null)} title={t('knowledge.multimediaTitle')} size="2xl">
+          {/* Fixed first-contact image (separate from RAG gallery) */}
+          {selectedAgent && selectedProject && (
+            <div className="mb-4 p-3 rounded-xl border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5">
+              <FixedImageSlot
+                eventType="first_contact"
+                agentId={selectedAgent.id}
+                projectId={selectedProject.id}
+                label={t('fixedImage.firstContact')}
+                helpText={t('fixedImage.firstContactHelp')}
+              />
+            </div>
+          )}
           <MultimediaModal
             items={mediaEntries}
             isLoading={loadingMedia}
@@ -1851,6 +1866,8 @@ function ReEngagementTab({
   saving,
   hasUnsavedChanges,
   onSave,
+  agentId,
+  projectId,
 }: {
   t: ReturnType<typeof useTranslations<'settings'>>;
   config: ReEngagementConfig;
@@ -1859,6 +1876,8 @@ function ReEngagementTab({
   saving: boolean;
   hasUnsavedChanges: boolean;
   onSave: () => void;
+  agentId?: string;
+  projectId?: string;
 }) {
   if (loading) {
     return (
@@ -1953,6 +1972,17 @@ function ReEngagementTab({
             <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
               {config.promptTemplate.length}/1000
             </p>
+            {agentId && projectId && (
+              <div className="mt-3">
+                <FixedImageSlot
+                  eventType="reengagement_0"
+                  agentId={agentId}
+                  projectId={projectId}
+                  label={t('fixedImage.label')}
+                  helpText={t('fixedImage.reengagementHelp')}
+                />
+              </div>
+            )}
           </div>
 
           {/* Follow-up Attempts Section */}
@@ -1994,6 +2024,17 @@ function ReEngagementTab({
               <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
                 {(config.attempt1Instructions || '').length}/500
               </p>
+              {agentId && projectId && (
+                <div className="mt-3">
+                  <FixedImageSlot
+                    eventType="reengagement_1"
+                    agentId={agentId}
+                    projectId={projectId}
+                    label={t('fixedImage.label')}
+                    helpText={t('fixedImage.reengagementHelp')}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -2017,6 +2058,17 @@ function ReEngagementTab({
               <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
                 {(config.attempt2Instructions || '').length}/500
               </p>
+              {agentId && projectId && (
+                <div className="mt-3">
+                  <FixedImageSlot
+                    eventType="reengagement_2"
+                    agentId={agentId}
+                    projectId={projectId}
+                    label={t('fixedImage.label')}
+                    helpText={t('fixedImage.reengagementHelp')}
+                  />
+                </div>
+              )}
             </div>
           )}
 

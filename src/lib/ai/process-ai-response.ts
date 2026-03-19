@@ -18,7 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
-import { projectHasMedia, searchRelevantMedia } from './search-media';
+import { projectHasMedia, searchRelevantMedia, getFixedMediaForEvent } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
 
 // ============================================
@@ -378,6 +378,31 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
               // Fallback: text was already sent, lead is not left without response
             }
           }
+        }
+      }
+
+      // Send fixed first-contact image (if configured and this is the first interaction)
+      if (params.messageCount <= 2 && params.agentId) {
+        try {
+          const firstContactMedia = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact');
+          if (firstContactMedia) {
+            await sendImageToWhatsApp(projectId, phoneNumber, firstContactMedia.mediaUrl);
+            // Update saved message metadata with the fixed image
+            await prisma.message.update({
+              where: { id: savedMessage.id },
+              data: {
+                metadata: {
+                  ...(savedMessage.metadata as Record<string, unknown> || {}),
+                  mediaAttachments: [
+                    ...mediaAttachments,
+                    { url: firstContactMedia.mediaUrl, title: firstContactMedia.title },
+                  ],
+                },
+              },
+            });
+          }
+        } catch (err) {
+          console.error('[AI Pipeline] First contact image failed:', err);
         }
       }
     }

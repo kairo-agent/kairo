@@ -766,6 +766,20 @@
       "savedSuccessfully": "Configuracion de ReEngagement guardada",
       "saveFailed": "Error al guardar configuracion"
     },
+    "fixedImage": {
+      "label": "Imagen adjunta",
+      "firstContact": "Imagen de primer contacto",
+      "firstContactHelp": "Se envía automáticamente con el primer mensaje del agente a cada lead nuevo",
+      "reengagementHelp": "Se envía automáticamente junto con este mensaje de seguimiento",
+      "upload": "Subir imagen",
+      "uploading": "Subiendo...",
+      "remove": "Quitar",
+      "dragOrClick": "Arrastra o haz clic para subir imagen",
+      "title": "Título de la imagen",
+      "uploaded": "Imagen subida correctamente",
+      "deleted": "Imagen eliminada",
+      "error": "Error al procesar imagen"
+    },
     "instructions": {
       "agentName": "Nombre del agente",
       "agentNamePlaceholder": "Ej: Kaira, Luna, Atlas, Nova...",

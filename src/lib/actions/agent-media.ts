@@ -16,6 +16,8 @@ import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings
 import { createClient } from '@/lib/supabase/server';
 import { uploadMedia, deleteMedia } from '@/lib/actions/media';
 import { MAX_MEDIA_ITEMS, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/types/agent-media';
+import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
+import { invalidateMediaCache } from '@/lib/ai/search-media';
 
 // ============================================
 // CRUD Operations
@@ -255,5 +257,213 @@ export async function deleteAgentMedia(
   } catch (error) {
     console.error('[AgentMedia] deleteAgentMedia error:', error);
     return { success: false, error: 'Error interno al eliminar media' };
+  }
+}
+
+// ============================================
+// Fixed Event Media (images tied to specific events)
+// ============================================
+
+/**
+ * Gets the fixed image configured for a specific event type.
+ */
+export async function getFixedEventMedia(
+  agentId: string,
+  projectId: string,
+  eventType: FixedEventType
+): Promise<{ success: boolean; data?: FixedEventMedia | null; error?: string }> {
+  try {
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc('get_fixed_event_media', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+      p_event_type: eventType,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] get_fixed_event_media RPC error:', error);
+      return { success: false, error: 'Error al obtener imagen fija' };
+    }
+
+    const row = data?.[0];
+    if (!row) return { success: true, data: null };
+
+    return {
+      success: true,
+      data: { id: row.id, title: row.title, mediaUrl: row.media_url },
+    };
+  } catch (error) {
+    console.error('[AgentMedia] getFixedEventMedia error:', error);
+    return { success: false, error: 'Error interno' };
+  }
+}
+
+/**
+ * Uploads a new fixed image for a specific event type.
+ * If an image already exists for this event, it's replaced.
+ */
+export async function uploadFixedEventMedia(input: {
+  agentId: string;
+  projectId: string;
+  eventType: FixedEventType;
+  title: string;
+  description: string;
+  file: File;
+}): Promise<{ success: boolean; data?: FixedEventMedia; error?: string }> {
+  try {
+    const { agentId, projectId, eventType, title, description, file } = input;
+
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
+    if (!hasAccess) return { success: false, error: 'Sin permisos para este proyecto' };
+
+    if (!title || title.length > MAX_TITLE_LENGTH) {
+      return { success: false, error: `El titulo debe tener entre 1 y ${MAX_TITLE_LENGTH} caracteres` };
+    }
+
+    const supabase = await createClient();
+
+    // Delete existing fixed image for this event (if any)
+    const { data: existing } = await supabase.rpc('get_fixed_event_media', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+      p_event_type: eventType,
+    });
+    if (existing?.[0]?.id) {
+      // Clear the event_type so we can replace
+      await supabase.rpc('clear_event_media', {
+        p_agent_id: agentId,
+        p_project_id: projectId,
+        p_event_type: eventType,
+      });
+    }
+
+    // Upload file
+    const uploadResult = await uploadMedia(projectId, file);
+    if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
+      return { success: false, error: uploadResult.error || 'Error al subir archivo' };
+    }
+
+    // Generate embedding
+    const descForEmbedding = description || title;
+    const embedding = await generateEmbedding(`${title}. ${descForEmbedding}`, projectId);
+    const embeddingStr = formatEmbeddingForPg(embedding);
+
+    // Insert with event_type
+    const { data, error } = await supabase.rpc('insert_agent_media', {
+      p_project_id: projectId,
+      p_agent_id: agentId,
+      p_title: title,
+      p_description: descForEmbedding,
+      p_media_url: uploadResult.url,
+      p_storage_path: uploadResult.path,
+      p_media_type: 'image',
+      p_embedding: embeddingStr,
+      p_created_by: user.id,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] Insert fixed media RPC error:', error);
+      await deleteMedia(uploadResult.path).catch(() => {});
+      return { success: false, error: 'Error al guardar en base de datos' };
+    }
+
+    const newId = data?.[0]?.id;
+
+    // Set event_type on the new record
+    if (newId) {
+      await supabase.rpc('clear_event_media', {
+        p_agent_id: agentId,
+        p_project_id: projectId,
+        p_event_type: eventType,
+      });
+      // Set event_type directly via SQL since insert_agent_media doesn't support it
+      const { error: updateError } = await supabase
+        .from('agent_media')
+        .update({ event_type: eventType })
+        .eq('id', newId);
+
+      if (updateError) {
+        console.error('[AgentMedia] Set event_type error:', updateError);
+      }
+    }
+
+    invalidateMediaCache(agentId, projectId);
+
+    return {
+      success: true,
+      data: { id: newId, title, mediaUrl: uploadResult.url },
+    };
+  } catch (error) {
+    console.error('[AgentMedia] uploadFixedEventMedia error:', error);
+    return { success: false, error: 'Error interno al subir imagen fija' };
+  }
+}
+
+/**
+ * Removes the fixed image for a specific event type.
+ * Deletes the media record and storage file.
+ */
+export async function deleteFixedEventMedia(
+  agentId: string,
+  projectId: string,
+  eventType: FixedEventType
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
+    if (!hasAccess) return { success: false, error: 'Sin permisos para este proyecto' };
+
+    const supabase = await createClient();
+
+    // Get the existing fixed image to find storage path
+    const { data: existing } = await supabase.rpc('get_fixed_event_media', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+      p_event_type: eventType,
+    });
+
+    if (!existing?.[0]?.id) {
+      return { success: true }; // Nothing to delete
+    }
+
+    const mediaId = existing[0].id;
+
+    // Get storage path before deleting
+    const { data: mediaData } = await supabase
+      .from('agent_media')
+      .select('storage_path')
+      .eq('id', mediaId)
+      .single();
+
+    // Delete from database
+    const { error } = await supabase.rpc('delete_agent_media', {
+      p_id: mediaId,
+      p_project_id: projectId,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] Delete fixed media RPC error:', error);
+      return { success: false, error: 'Error al eliminar' };
+    }
+
+    // Clean up storage
+    if (mediaData?.storage_path) {
+      await deleteMedia(mediaData.storage_path).catch(() => {});
+    }
+
+    invalidateMediaCache(agentId, projectId);
+
+    return { success: true };
+  } catch (error) {
+    console.error('[AgentMedia] deleteFixedEventMedia error:', error);
+    return { success: false, error: 'Error interno al eliminar imagen fija' };
   }
 }

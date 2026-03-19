@@ -27,3 +27,12 @@ export interface MediaSearchResult {
 export const MAX_MEDIA_ITEMS = 20;
 export const MAX_TITLE_LENGTH = 200;
 export const MAX_DESCRIPTION_LENGTH = 500;
+
+// Fixed event media types (always sent, no RAG)
+export type FixedEventType = 'first_contact' | 'reengagement_0' | 'reengagement_1' | 'reengagement_2';
+
+export interface FixedEventMedia {
+  id: string;
+  title: string;
+  mediaUrl: string;
+}

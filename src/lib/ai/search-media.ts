@@ -10,7 +10,7 @@
 
 import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings';
 import { createClient } from '@/lib/supabase/server';
-import type { MediaSearchResult } from '@/lib/types/agent-media';
+import type { MediaSearchResult, FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
 
 // ============================================
 // Feature Flag Cache (5 min TTL)
@@ -76,71 +76,8 @@ export function invalidateMediaCache(agentId: string, projectId: string): void {
   mediaCountCache.delete(`${agentId}:${projectId}`);
 }
 
-/**
- * Returns the cached media count, or null if not cached.
- * Used by pipeline to decide between inject-all vs semantic search.
- */
-export function getCachedMediaCount(agentId: string, projectId: string): number | null {
-  const cached = mediaCountCache.get(`${agentId}:${projectId}`);
-  if (cached && (Date.now() - cached.timestamp) < MEDIA_CACHE_TTL) {
-    return cached.count;
-  }
-  return null;
-}
-
 // ============================================
-// Constants
-// ============================================
-
-// When an agent has <= this many images, inject ALL into the prompt
-// so GPT always sees them (no semantic search needed).
-// Above this threshold, use semantic search to filter relevant ones.
-const INJECT_ALL_THRESHOLD = 10;
-
-// ============================================
-// Get All Media (for small catalogs)
-// ============================================
-
-/**
- * Returns all media items for an agent (no semantic filtering).
- * Used when agent has <= INJECT_ALL_THRESHOLD images.
- */
-export async function getAllAgentMedia(
-  agentId: string,
-  projectId: string
-): Promise<MediaSearchResult[]> {
-  try {
-    const supabase = await createClient();
-    const { data, error } = await supabase.rpc('list_agent_media', {
-      p_agent_id: agentId,
-      p_project_id: projectId,
-    });
-
-    if (error) {
-      console.error('[MediaSearch] list_agent_media RPC error:', error);
-      return [];
-    }
-
-    return (data || []).map((row: {
-      id: string;
-      title: string;
-      description: string;
-      media_url: string;
-    }) => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      mediaUrl: row.media_url,
-      similarity: 1, // All injected, no filtering
-    }));
-  } catch (error) {
-    console.error('[MediaSearch] getAllAgentMedia error:', error);
-    return [];
-  }
-}
-
-// ============================================
-// Semantic Search (for large catalogs)
+// Semantic Search
 // ============================================
 
 /**
@@ -189,4 +126,43 @@ export async function searchRelevantMedia(
   }
 }
 
-export { INJECT_ALL_THRESHOLD };
+// ============================================
+// Fixed Event Media (always sent, no RAG)
+// ============================================
+
+/**
+ * Gets the fixed image configured for a specific event type.
+ * Returns null if no image is configured for that event.
+ */
+export async function getFixedMediaForEvent(
+  agentId: string,
+  projectId: string,
+  eventType: FixedEventType
+): Promise<FixedEventMedia | null> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc('get_fixed_event_media', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+      p_event_type: eventType,
+    });
+
+    if (error) {
+      console.error('[MediaSearch] get_fixed_event_media RPC error:', error);
+      return null;
+    }
+
+    const row = data?.[0];
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      title: row.title,
+      mediaUrl: row.media_url,
+    };
+  } catch (error) {
+    console.error('[MediaSearch] getFixedMediaForEvent error:', error);
+    return null;
+  }
+}
+

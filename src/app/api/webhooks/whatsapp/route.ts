@@ -23,6 +23,7 @@ import {
 import { decryptSecret } from '@/lib/crypto/secrets';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { getRedis } from '@/lib/redis';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { processAIResponse } from '@/lib/ai/process-ai-response';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
@@ -905,34 +906,113 @@ async function handleIncomingMessage(
       getActiveGlobalRules(),
     ]);
 
-    // Fire-and-forget: process AI response in background
-    // waitUntil keeps the serverless function alive after response is sent
-    waitUntil(
-      processAIResponse({
-        projectId,
-        organizationId: project?.organizationId || '',
-        conversationId: lead.conversation?.id || '',
-        leadId: lead.id,
-        leadName: `${lead.firstName} ${lead.lastName || ''}`.trim(),
-        leadPhone: lead.phone,
-        whatsappId: lead.whatsappId || null,
-        message: content,
-        messageType: message.type,
-        mediaId,
-        agentId: lead.assignedAgent?.id || null,
-        agentName: (lead.assignedAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() || DEFAULT_AGENT_NAME,
-        globalRules,
-        systemInstructions: lead.assignedAgent?.systemInstructions || null,
-        companyName: project?.name || 'KAIRO',
-        conversationHistory,
-        historyCount: conversationHistory.length,
-        messageCount: totalMessageCount,
-        summaryThreshold: 5,
-        leadSummary: lead.summary || null,
-      }).catch((err) =>
-        console.error('[WhatsApp Webhook] AI pipeline error:', err)
-      )
-    );
+    // Debounce: wait 3s to accumulate rapid messages before AI responds
+    // Prevents multiple AI responses when lead sends several messages quickly
+    const redis = await getRedis();
+    const debounceKey = `debounce:ai:${lead.id}`;
+    let shouldProcess = true;
+
+    if (redis) {
+      try {
+        // SET NX EX = set only if not exists, expires in 3 seconds
+        // First message in window wins; subsequent messages skip AI (already queued)
+        const result = await redis.set(debounceKey, '1', { nx: true, ex: 3 });
+        shouldProcess = result === 'OK';
+      } catch (err) {
+        console.error('[Debounce] Redis error, processing immediately:', err);
+      }
+    }
+
+    if (shouldProcess) {
+      const leadName = `${lead.firstName} ${lead.lastName || ''}`.trim();
+      const agentId = lead.assignedAgent?.id || null;
+      const agentName = (lead.assignedAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() || DEFAULT_AGENT_NAME;
+      const systemInstructions = lead.assignedAgent?.systemInstructions || null;
+      const conversationId = lead.conversation?.id || '';
+      const organizationId = project?.organizationId || '';
+      const companyName = project?.name || 'KAIRO';
+      const leadSummary = lead.summary || null;
+
+      waitUntil(
+        (async () => {
+          try {
+            // Wait for debounce window (typing indicator already showing)
+            if (redis) {
+              await new Promise(resolve => setTimeout(resolve, 3000));
+            }
+
+            // Re-fetch conversation to include ALL messages that arrived during debounce
+            let freshHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+            let freshMessageCount = totalMessageCount;
+            let concatenatedMessage = content;
+
+            if (conversationId) {
+              const [msgCount, recentMsgs] = await Promise.all([
+                prisma.message.count({ where: { conversationId } }),
+                prisma.message.findMany({
+                  where: { conversationId },
+                  orderBy: { createdAt: 'desc' },
+                  take: 12,
+                  select: { content: true, sender: true },
+                }),
+              ]);
+
+              freshMessageCount = msgCount;
+
+              // Find consecutive lead messages at the end (the debounced batch)
+              const chronological = [...recentMsgs].reverse();
+              const pendingLeadMsgs: string[] = [];
+              for (let i = chronological.length - 1; i >= 0; i--) {
+                if (chronological[i].sender === 'lead') {
+                  pendingLeadMsgs.unshift(chronological[i].content);
+                } else {
+                  break;
+                }
+              }
+
+              // Concatenate all pending lead messages as one input
+              if (pendingLeadMsgs.length > 1) {
+                concatenatedMessage = pendingLeadMsgs.join('\n');
+              } else if (pendingLeadMsgs.length === 1) {
+                concatenatedMessage = pendingLeadMsgs[0];
+              }
+
+              // History = everything except the pending lead messages
+              const historyMsgs = chronological.slice(0, chronological.length - pendingLeadMsgs.length);
+              freshHistory = historyMsgs.map(msg => ({
+                role: msg.sender === 'lead' ? 'user' as const : 'assistant' as const,
+                content: msg.content,
+              }));
+            }
+
+            await processAIResponse({
+              projectId,
+              organizationId,
+              conversationId,
+              leadId: lead.id,
+              leadName,
+              leadPhone: lead.phone,
+              whatsappId: lead.whatsappId || null,
+              message: concatenatedMessage,
+              messageType: message.type,
+              mediaId,
+              agentId,
+              agentName,
+              globalRules,
+              systemInstructions,
+              companyName,
+              conversationHistory: freshHistory,
+              historyCount: freshHistory.length,
+              messageCount: freshMessageCount,
+              summaryThreshold: 5,
+              leadSummary,
+            });
+          } catch (err) {
+            console.error('[WhatsApp Webhook] AI pipeline error:', err);
+          }
+        })()
+      );
+    }
   }
 }
 

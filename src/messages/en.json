@@ -766,6 +766,20 @@
       "savedSuccessfully": "ReEngagement configuration saved",
       "saveFailed": "Failed to save configuration"
     },
+    "fixedImage": {
+      "label": "Attached image",
+      "firstContact": "First contact image",
+      "firstContactHelp": "Automatically sent with the agent's first message to each new lead",
+      "reengagementHelp": "Automatically sent with this follow-up message",
+      "upload": "Upload image",
+      "uploading": "Uploading...",
+      "remove": "Remove",
+      "dragOrClick": "Drag or click to upload image",
+      "title": "Image title",
+      "uploaded": "Image uploaded successfully",
+      "deleted": "Image deleted",
+      "error": "Error processing image"
+    },
     "instructions": {
       "agentName": "Agent name",
       "agentNamePlaceholder": "E.g: Kaira, Luna, Atlas, Nova...",

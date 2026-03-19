@@ -19,8 +19,9 @@ import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateReEngagementMessage } from '@/lib/ai/generate-reengagement';
 import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
-import { projectHasMedia, searchRelevantMedia, getAllAgentMedia, getCachedMediaCount } from '@/lib/ai/search-media';
+import { projectHasMedia, searchRelevantMedia, getFixedMediaForEvent } from '@/lib/ai/search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
+import type { FixedEventType } from '@/lib/types/agent-media';
 import type { ReEngagementConfig } from '@/lib/types/reengagement';
 
 const MAX_LEADS_PER_RUN = 50;
@@ -227,14 +228,8 @@ export async function GET(request: Request) {
             try {
               const hasMedia = await projectHasMedia(agent.id, agent.projectId);
               if (hasMedia) {
-                const cachedCount = getCachedMediaCount(agent.id, agent.projectId);
-                if (cachedCount !== null && cachedCount <= 10) {
-                  mediaResults = await getAllAgentMedia(agent.id, agent.projectId);
-                } else {
-                  // Use lead summary or last message as search query
-                  const searchQuery = lead.summary || conversationHistory[conversationHistory.length - 1]?.content || leadName;
-                  mediaResults = await searchRelevantMedia(agent.id, agent.projectId, searchQuery);
-                }
+                const searchQuery = lead.summary || conversationHistory[conversationHistory.length - 1]?.content || leadName;
+                mediaResults = await searchRelevantMedia(agent.id, agent.projectId, searchQuery);
               }
             } catch (mediaErr) {
               console.error(`[ReEngagement] Media search error for lead ${lead.id}:`, mediaErr);
@@ -283,7 +278,7 @@ export async function GET(request: Request) {
           const mediaAttachments = requestedMediaIds.map(idx => {
             const media = mediaResults[idx - 1];
             return media ? { url: media.mediaUrl, title: media.title } : null;
-          }).filter(Boolean);
+          }).filter((a): a is { url: string; title: string } => a !== null);
 
           // Save message to conversation
           const savedMessage = await prisma.message.create({
@@ -321,6 +316,34 @@ export async function GET(request: Request) {
                   console.error(`[ReEngagement] Media send failed idx=${idx}:`, imgErr);
                 }
               }
+            }
+          }
+
+          // Send fixed event image for this attempt (if configured)
+          if (sendResult.success) {
+            const fixedEventType = `reengagement_${attemptNumber}` as FixedEventType;
+            try {
+              const fixedMedia = await getFixedMediaForEvent(agent.id, agent.projectId, fixedEventType);
+              if (fixedMedia) {
+                await sendImageToWhatsApp(agent.projectId, lead.whatsappId!, fixedMedia.mediaUrl);
+                // Update metadata with fixed image
+                if (!mediaAttachments.some((a: { url: string }) => a.url === fixedMedia.mediaUrl)) {
+                  await prisma.message.update({
+                    where: { id: savedMessage.id },
+                    data: {
+                      metadata: {
+                        ...savedMessage.metadata as Record<string, unknown>,
+                        mediaAttachments: [
+                          ...mediaAttachments as Array<{ url: string; title: string }>,
+                          { url: fixedMedia.mediaUrl, title: fixedMedia.title },
+                        ],
+                      },
+                    },
+                  });
+                }
+              }
+            } catch (fixedErr) {
+              console.error(`[ReEngagement] Fixed image send failed:`, fixedErr);
             }
           }
 
