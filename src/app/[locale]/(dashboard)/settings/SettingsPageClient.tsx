@@ -39,6 +39,9 @@ import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { getReEngagementConfig, saveReEngagementConfig } from '@/lib/actions/reengagement';
 import { DEFAULT_REENGAGEMENT_CONFIG, type ReEngagementConfig } from '@/lib/types/reengagement';
+import { listAgentMedia, addAgentMedia, deleteAgentMedia } from '@/lib/actions/agent-media';
+import type { AgentMediaEntry } from '@/lib/types/agent-media';
+import { MultimediaModal } from '@/components/knowledge/MultimediaModal';
 import { FlameIcon, SunIcon, SnowflakeIcon } from '@/components/icons/LeadIcons';
 import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 import { toast } from 'sonner';
@@ -196,12 +199,18 @@ const FolderIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const ImageIcon = ({ className }: { className?: string }) => (
+  <svg className={cn('w-5 h-5', className)} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+  </svg>
+);
+
 // ============================================
 // Types
 // ============================================
 
 type SettingsTab = 'instructions' | 'knowledge' | 'reengagement';
-type KnowledgeModal = 'business_hours' | 'faqs' | 'pricing' | 'location_contact' | 'policies' | 'add_knowledge' | null;
+type KnowledgeModal = 'business_hours' | 'faqs' | 'pricing' | 'location_contact' | 'policies' | 'multimedia' | 'add_knowledge' | null;
 
 interface StructuredKnowledgeMap {
   business_hours?: Record<string, unknown>;
@@ -255,6 +264,11 @@ export default function SettingsPageClient() {
   // Add knowledge modal state
   const [newKnowledgeTitle, setNewKnowledgeTitle] = useState('');
   const [newKnowledgeContent, setNewKnowledgeContent] = useState('');
+
+  // Media state
+  const [mediaEntries, setMediaEntries] = useState<AgentMediaEntry[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [savingMedia, setSavingMedia] = useState(false);
 
   // ReEngagement state
   const [reEngagementConfig, setReEngagementConfig] = useState<ReEngagementConfig>({ ...DEFAULT_REENGAGEMENT_CONFIG });
@@ -358,6 +372,21 @@ export default function SettingsPageClient() {
     }
   }, [selectedAgent, selectedProject, tCommon]);
 
+  const loadMedia = useCallback(async () => {
+    if (!selectedAgent || !selectedProject) return;
+    setLoadingMedia(true);
+    try {
+      const result = await listAgentMedia(selectedAgent.id, selectedProject.id);
+      if (result.success && result.data) {
+        setMediaEntries(result.data);
+      }
+    } catch {
+      // Silent fail - media is optional
+    } finally {
+      setLoadingMedia(false);
+    }
+  }, [selectedAgent, selectedProject]);
+
   const loadReEngagement = useCallback(async () => {
     if (!selectedAgent) return;
     setLoadingReEngagement(true);
@@ -446,7 +475,17 @@ export default function SettingsPageClient() {
             setLoadingKnowledge(false);
           }
         };
-        await Promise.all([loadInstructionsForAgent(), loadKnowledgeForAgent()]);
+        const loadMediaForAgent = async () => {
+          try {
+            const result = await listAgentMedia(agent.id, selectedProject.id);
+            if (result.success && result.data) {
+              setMediaEntries(result.data);
+            }
+          } catch {
+            // Silent fail - media is optional
+          }
+        };
+        await Promise.all([loadInstructionsForAgent(), loadKnowledgeForAgent(), loadMediaForAgent()]);
       }
     };
     loadAll();
@@ -464,16 +503,18 @@ export default function SettingsPageClient() {
     if (selectedAgent) {
       loadInstructions();
       loadKnowledge();
+      loadMedia();
       loadReEngagement();
     } else {
       setInstructions({ ...EMPTY_PROMPT_STRUCTURE });
       setOriginalInstructions({ ...EMPTY_PROMPT_STRUCTURE });
       setStructuredKnowledge({});
       setKnowledgeEntries([]);
+      setMediaEntries([]);
       setReEngagementConfig({ ...DEFAULT_REENGAGEMENT_CONFIG });
       setOriginalReEngagementConfig({ ...DEFAULT_REENGAGEMENT_CONFIG });
     }
-  }, [selectedAgent, loadInstructions, loadKnowledge, loadReEngagement]);
+  }, [selectedAgent, loadInstructions, loadKnowledge, loadMedia, loadReEngagement]);
 
   // ============================================
   // Instructions Handlers
@@ -731,6 +772,7 @@ export default function SettingsPageClient() {
     { key: 'pricing', icon: <DollarSignIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.pricing', descKey: 'knowledge.pricingDesc', modal: 'pricing' },
     { key: 'location_contact', icon: <MapPinIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.location', descKey: 'knowledge.locationDesc', modal: 'location_contact' },
     { key: 'policies', icon: <ShieldIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.policies', descKey: 'knowledge.policiesDesc', modal: 'policies' },
+    { key: 'multimedia', icon: <ImageIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.multimedia', descKey: 'knowledge.multimediaDesc', modal: 'multimedia' },
   ];
 
   // ============================================
@@ -865,6 +907,7 @@ export default function SettingsPageClient() {
             sections={knowledgeSections}
             structuredKnowledge={structuredKnowledge}
             knowledgeEntries={knowledgeEntries}
+            mediaCount={mediaEntries.length}
             loading={loadingKnowledge}
             onOpenModal={setActiveModal}
             onDeleteEntry={setDeletingEntryId}
@@ -947,6 +990,57 @@ export default function SettingsPageClient() {
               await handleStructuredKnowledgeSave('policies', data as unknown as Record<string, unknown>);
             }}
             onCancel={() => setActiveModal(null)}
+          />
+        </Modal>
+      )}
+
+      {/* Multimedia Modal */}
+      {activeModal === 'multimedia' && (
+        <Modal isOpen onClose={() => setActiveModal(null)} title={t('knowledge.multimediaTitle')} size="2xl">
+          <MultimediaModal
+            items={mediaEntries}
+            isLoading={loadingMedia}
+            isSaving={savingMedia}
+            onAdd={async (title, description, file) => {
+              if (!selectedAgent || !selectedProject) return;
+              setSavingMedia(true);
+              try {
+                const result = await addAgentMedia({
+                  agentId: selectedAgent.id,
+                  projectId: selectedProject.id,
+                  title,
+                  description,
+                  file,
+                });
+                if (result.success) {
+                  toast.success(t('knowledge.multimediaAdded'));
+                  await loadMedia();
+                } else {
+                  toast.error(result.error || tCommon('messages.error'));
+                }
+              } catch {
+                toast.error(tCommon('messages.error'));
+              } finally {
+                setSavingMedia(false);
+              }
+            }}
+            onDelete={async (id, storagePath) => {
+              if (!selectedProject) return;
+              setSavingMedia(true);
+              try {
+                const result = await deleteAgentMedia(id, selectedProject.id, storagePath);
+                if (result.success) {
+                  toast.success(t('knowledge.multimediaDeleted'));
+                  setMediaEntries((prev) => prev.filter((item) => item.id !== id));
+                } else {
+                  toast.error(result.error || tCommon('messages.error'));
+                }
+              } catch {
+                toast.error(tCommon('messages.error'));
+              } finally {
+                setSavingMedia(false);
+              }
+            }}
           />
         </Modal>
       )}
@@ -1716,6 +1810,7 @@ interface KnowledgeTabProps {
   }>;
   structuredKnowledge: StructuredKnowledgeMap;
   knowledgeEntries: KnowledgeEntry[];
+  mediaCount: number;
   loading: boolean;
   onOpenModal: (modal: KnowledgeModal) => void;
   onDeleteEntry: (id: string) => void;
@@ -1953,6 +2048,7 @@ function KnowledgeTab({
   sections,
   structuredKnowledge,
   knowledgeEntries,
+  mediaCount,
   loading,
   onOpenModal,
   onDeleteEntry,
@@ -1979,7 +2075,9 @@ function KnowledgeTab({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {sections.map((section) => {
-            const isConfigured = !!structuredKnowledge[section.key as keyof StructuredKnowledgeMap];
+            const isConfigured = section.key === 'multimedia'
+              ? mediaCount > 0
+              : !!structuredKnowledge[section.key as keyof StructuredKnowledgeMap];
             return (
               <Card
                 key={section.key}

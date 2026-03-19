@@ -20,6 +20,7 @@ export interface SystemPromptParams {
   globalRules: string[];
   systemInstructions: string | null;
   ragResults: Array<{ content: string; title: string | null; similarity: number }>;
+  mediaResults?: Array<{ id: string; title: string; description: string }>;
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
   leadSummary: string | null;
   leadName: string;
@@ -69,6 +70,24 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       .map(r => r.content)
       .join('\n\n');
     parts.push(`=== TU CONOCIMIENTO (BASE DE DATOS) ===\n${knowledge}\n=== FIN CONOCIMIENTO ===`);
+  }
+
+  // --- Available media / images (if any relevant media found via RAG) ---
+  if (params.mediaResults && params.mediaResults.length > 0) {
+    const mediaList = params.mediaResults
+      .map((m, i) => `[MEDIA-${i + 1}] ${m.title} - ${m.description}`)
+      .join('\n');
+    parts.push(
+      `=== IMAGENES DISPONIBLES ===\n` +
+      `Puedes enviar imagenes al lead usando marcadores [MEDIA-X].\n` +
+      `Cuando una imagen sea relevante para la conversacion, incluye el marcador correspondiente en tu respuesta.\n` +
+      `Envia imagenes proactivamente cuando el contexto lo amerite (no esperes a que te pidan).\n` +
+      `MAXIMO 3 imagenes por respuesta. NO repitas imagenes ya enviadas (revisa el HISTORIAL).\n\n` +
+      `${mediaList}\n\n` +
+      `Ejemplo: "Aqui te muestro el departamento [MEDIA-1]"\n` +
+      `El marcador sera reemplazado y la imagen se enviara automaticamente.\n` +
+      `=== FIN IMAGENES DISPONIBLES ===`
+    );
   }
 
   // --- Lead summary (accumulated context from previous conversations) ---

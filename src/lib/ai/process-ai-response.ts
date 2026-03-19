@@ -17,7 +17,9 @@ import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings
 import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
-import { sendToWhatsApp } from '@/lib/whatsapp/send';
+import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
+import { projectHasMedia, searchRelevantMedia } from './search-media';
+import type { MediaSearchResult } from '@/lib/types/agent-media';
 
 // ============================================
 // Types
@@ -110,11 +112,25 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     // --- Step 2: RAG search (with context-enriched query) ---
     let ragResults: Array<{ content: string; title: string | null; similarity: number }> = [];
+    let mediaResults: MediaSearchResult[] = [];
+    let ragQuery = '';
     if (params.agentId) {
       const stepStart = Date.now();
-      const ragQuery = buildRAGQuery(userMessage, params.conversationHistory);
+      ragQuery = buildRAGQuery(userMessage, params.conversationHistory);
       ragResults = await searchRAG(params.agentId, projectId, ragQuery);
       steps.push({ name: 'rag_search', duration: Date.now() - stepStart });
+    }
+
+    // --- Step 2b: Media search (only if project has media configured) ---
+    if (params.agentId && ragQuery) {
+      const stepStart = Date.now();
+      const hasMedia = await projectHasMedia(params.agentId, projectId);
+      if (hasMedia) {
+        mediaResults = await searchRelevantMedia(params.agentId, projectId, ragQuery);
+        if (mediaResults.length > 0) {
+          steps.push({ name: 'media_search', duration: Date.now() - stepStart });
+        }
+      }
     }
 
     // --- Step 3: Build system prompt ---
@@ -133,6 +149,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       globalRules: params.globalRules,
       systemInstructions: params.systemInstructions,
       ragResults,
+      mediaResults: mediaResults.length > 0 ? mediaResults : undefined,
       conversationHistory: params.conversationHistory,
       leadSummary: params.leadSummary,
       leadName: params.leadName,
@@ -182,10 +199,18 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     const shouldHandoff = /\[HANDOFF\]/i.test(rawResponse);
 
+    // Extract [MEDIA-X] markers before cleanup
+    const mediaMarkers = rawResponse.match(/\[MEDIA-(\d+)\]/gi) || [];
+    const requestedMediaIds: number[] = mediaMarkers
+      .map(m => parseInt(m.match(/\d+/)?.[0] || '0'))
+      .filter(n => n >= 1 && n <= mediaResults.length)
+      .slice(0, 3); // Max 3 images per response
+
     // Clean message (remove markers - strict format + fallback for GPT variations)
     const cleanMessage = rawResponse
       .replace(/\[HANDOFF\]/gi, '')
       .replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '')
+      .replace(/\[MEDIA-\d+\]/gi, '')
       .replace(/\n?\*{0,2}[Tt]emperatura\*{0,2}\s*:\s*.+$/gm, '')
       .trim();
 
@@ -327,11 +352,27 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     steps.push({ name: 'db_save', duration: Date.now() - stepDB });
 
-    // --- Step 8: Send to WhatsApp ---
+    // --- Step 8: Send to WhatsApp (text + media) ---
     const stepWA = Date.now();
     const phoneNumber = params.whatsappId || params.leadPhone;
     if (phoneNumber) {
+      // Always send text first
       await sendToWhatsApp(projectId, phoneNumber, cleanMessage, savedMessage.id);
+
+      // Send media images if GPT included [MEDIA-X] markers
+      if (requestedMediaIds.length > 0) {
+        for (const idx of requestedMediaIds) {
+          const media = mediaResults[idx - 1]; // 1-indexed
+          if (media) {
+            try {
+              await sendImageToWhatsApp(projectId, phoneNumber, media.mediaUrl, media.title);
+            } catch (err) {
+              console.error(`[AI Pipeline] Media send failed idx=${idx}:`, err);
+              // Fallback: text was already sent, lead is not left without response
+            }
+          }
+        }
+      }
     }
     steps.push({ name: 'whatsapp_send', duration: Date.now() - stepWA });
 
@@ -340,7 +381,8 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const stepsLog = steps.map(s => `${s.name}=${s.duration}ms`).join(' ');
     console.log(
       `[AI Pipeline] OK leadId=${leadId} agent=${agentName} temp=${suggestedTemperature || 'none'} ` +
-      `handoff=${shouldHandoff} rag=${ragResults.length} ${stepsLog} total=${totalDuration}ms`
+      `handoff=${shouldHandoff} rag=${ragResults.length} media=${requestedMediaIds.length}/${mediaResults.length} ` +
+      `${stepsLog} total=${totalDuration}ms`
     );
 
   } catch (error) {

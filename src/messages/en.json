@@ -840,7 +840,12 @@
       "deleteEntry": "Delete entry",
       "deleteEntryConfirm": "Delete this knowledge?",
       "deleteEntryMessage": "This will be permanently removed from the agent.",
-      "processing": "Processing..."
+      "processing": "Processing...",
+      "multimedia": "Multimedia",
+      "multimediaDesc": "Images your agent can send in conversations.",
+      "multimediaTitle": "Agent Multimedia",
+      "multimediaAdded": "Image added successfully",
+      "multimediaDeleted": "Image deleted successfully"
     },
     "businessHoursForm": {
       "title": "Business Hours",

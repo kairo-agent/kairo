@@ -840,7 +840,12 @@
       "deleteEntry": "Eliminar entrada",
       "deleteEntryConfirm": "Eliminar este conocimiento?",
       "deleteEntryMessage": "Se eliminara permanentemente del agente.",
-      "processing": "Procesando..."
+      "processing": "Procesando...",
+      "multimedia": "Multimedia",
+      "multimediaDesc": "Imagenes que tu agente puede enviar en conversaciones.",
+      "multimediaTitle": "Multimedia del Agente",
+      "multimediaAdded": "Imagen agregada correctamente",
+      "multimediaDeleted": "Imagen eliminada correctamente"
     },
     "businessHoursForm": {
       "title": "Horario de Atencion",
