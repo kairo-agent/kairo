@@ -106,7 +106,7 @@ export async function searchRelevantMedia(
       p_project_id: projectId,
       p_query_embedding: embeddingStr,
       p_match_count: 3,
-      p_match_threshold: 0.40,
+      p_match_threshold: 0.35,
     });
 
     if (error) {
