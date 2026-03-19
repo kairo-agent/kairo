@@ -4,6 +4,63 @@
 
 ---
 
+## [0.13.0] - 2026-03-19
+
+### Chat Media Rendering
+
+Imagenes enviadas por el agente IA y archivos adjuntos del humano ahora se muestran inline en el historial del chat como thumbnails clickeables. Cero storage adicional (usa URLs existentes de Supabase Storage).
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/ai/process-ai-response.ts` | Guarda `mediaAttachments` (url + title) en metadata del mensaje AI |
+| `src/lib/actions/messages.ts` | Guarda `mediaAttachments` en metadata del mensaje humano con adjunto |
+| `src/components/features/LeadChat.tsx` | Renderiza imagenes de `metadata.mediaAttachments` como thumbnails |
+
+**Nota:** Solo mensajes nuevos (post-deploy) muestran imagenes. Mensajes anteriores no tienen `mediaAttachments` en metadata.
+
+### Excel Export
+
+Boton "Excel" (verde #217346) al lado del refresh en la pagina de leads. Abre modal con date picker KAIRO (calendario flotante via React Portal) para seleccionar rango de fechas. Genera .xlsx con headers traducidos (es/en).
+
+**Nuevos archivos:**
+
+| Archivo | Funcion |
+|---------|---------|
+| `src/components/features/ExportLeadsModal.tsx` | Modal con FloatingCalendar (Portal) + date range + export |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/leads.ts` | Nueva `exportLeadsToExcel()` - server action con SheetJS |
+| `src/app/[locale]/(dashboard)/leads/LeadsPageClient.tsx` | Boton Excel + ExportLeadsModal |
+| `src/messages/es.json` + `en.json` | Claves i18n export |
+| `package.json` | Dependencia `xlsx` (SheetJS) - dynamic import |
+
+**Arquitectura:**
+
+- SheetJS importado dinamicamente (`await import('xlsx')`) para no inflar el bundle
+- FloatingCalendar usa `createPortal(document.body)` para escapar del modal overflow
+- Desktop: `position: fixed` + `getBoundingClientRect()` cerca del boton
+- Mobile: overlay centrado con backdrop
+- Server action valida acceso (auth + project access), visible para todos los usuarios
+- react-day-picker en modo `single` (un calendario a la vez, auto-advance start→end)
+
+### ReEngagement Media Support
+
+El pipeline de reengagement ahora soporta envio de imagenes con el mismo protocolo `[MEDIA-X]` del AI pipeline regular. Funciona en todos los intentos (initial + follow-up 1 + follow-up 2).
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/app/api/cron/reengagement/route.ts` | Media search, marker extraction, mediaAttachments en metadata, sendImageToWhatsApp |
+| `src/lib/ai/generate-reengagement.ts` | Nuevo param `mediaItems`, seccion IMAGENES DISPONIBLES en prompt |
+
+---
+
 ## [0.12.0] - 2026-03-18
 
 ### Agent Media - Imagenes via WhatsApp con RAG Semantico
