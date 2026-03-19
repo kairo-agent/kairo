@@ -39,7 +39,7 @@ import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { getReEngagementConfig, saveReEngagementConfig } from '@/lib/actions/reengagement';
 import { DEFAULT_REENGAGEMENT_CONFIG, type ReEngagementConfig } from '@/lib/types/reengagement';
-import { listAgentMedia, addAgentMedia, deleteAgentMedia } from '@/lib/actions/agent-media';
+import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia } from '@/lib/actions/agent-media';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { MultimediaModal } from '@/components/knowledge/MultimediaModal';
 import { FlameIcon, SunIcon, SnowflakeIcon } from '@/components/icons/LeadIcons';
@@ -1014,6 +1014,28 @@ export default function SettingsPageClient() {
                 });
                 if (result.success) {
                   toast.success(t('knowledge.multimediaAdded'));
+                  await loadMedia();
+                } else {
+                  toast.error(result.error || tCommon('messages.error'));
+                }
+              } catch {
+                toast.error(tCommon('messages.error'));
+              } finally {
+                setSavingMedia(false);
+              }
+            }}
+            onEdit={async (id, title, description) => {
+              if (!selectedProject) return;
+              setSavingMedia(true);
+              try {
+                const result = await updateAgentMedia({
+                  id,
+                  projectId: selectedProject.id,
+                  title,
+                  description,
+                });
+                if (result.success) {
+                  toast.success(t('knowledge.multimediaUpdated'));
                   await loadMedia();
                 } else {
                   toast.error(result.error || tCommon('messages.error'));

@@ -167,6 +167,56 @@ export async function listAgentMedia(
 }
 
 /**
+ * Updates a media item's title and description (re-generates embedding)
+ */
+export async function updateAgentMedia(input: {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { id, projectId, title, description } = input;
+
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
+    if (!hasAccess) return { success: false, error: 'Sin permisos para este proyecto' };
+
+    if (!title || title.length > MAX_TITLE_LENGTH) {
+      return { success: false, error: `El titulo debe tener entre 1 y ${MAX_TITLE_LENGTH} caracteres` };
+    }
+    if (!description || description.length > MAX_DESCRIPTION_LENGTH) {
+      return { success: false, error: `La descripcion debe tener entre 1 y ${MAX_DESCRIPTION_LENGTH} caracteres` };
+    }
+
+    // Re-generate embedding with updated text
+    const embedding = await generateEmbedding(`${title}. ${description}`, projectId);
+    const embeddingStr = formatEmbeddingForPg(embedding);
+
+    const supabase = await createClient();
+    const { error } = await supabase.rpc('update_agent_media', {
+      p_id: id,
+      p_project_id: projectId,
+      p_title: title,
+      p_description: description,
+      p_embedding: embeddingStr,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] Update RPC error:', error);
+      return { success: false, error: 'Error al actualizar en base de datos' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[AgentMedia] updateAgentMedia error:', error);
+    return { success: false, error: 'Error interno al actualizar media' };
+  }
+}
+
+/**
  * Deletes a media item and its file from storage
  */
 export async function deleteAgentMedia(

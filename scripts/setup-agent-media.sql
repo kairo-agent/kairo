@@ -185,6 +185,35 @@ $$;
 
 GRANT EXECUTE ON FUNCTION count_agent_media TO authenticated;
 
+-- Function to update agent media (title, description, embedding)
+CREATE OR REPLACE FUNCTION update_agent_media(
+  p_id UUID,
+  p_project_id TEXT,
+  p_title VARCHAR(200),
+  p_description TEXT,
+  p_embedding TEXT
+)
+RETURNS TABLE (updated_count INT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_count INT;
+BEGIN
+  UPDATE agent_media
+  SET title = p_title,
+      description = p_description,
+      embedding = p_embedding::vector(1536),
+      updated_at = NOW()
+  WHERE id = p_id AND project_id = p_project_id;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+  RETURN QUERY SELECT v_count;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION update_agent_media TO authenticated;
+
 -- Step 6: Create RLS Policies
 -- IMPORTANT: Prisma uses camelCase columns ("projectId", "userId", "systemRole")
 

@@ -845,7 +845,8 @@
       "multimediaDesc": "Images your agent can send in conversations.",
       "multimediaTitle": "Agent Multimedia",
       "multimediaAdded": "Image added successfully",
-      "multimediaDeleted": "Image deleted successfully"
+      "multimediaDeleted": "Image deleted successfully",
+      "multimediaUpdated": "Image updated successfully"
     },
     "businessHoursForm": {
       "title": "Business Hours",

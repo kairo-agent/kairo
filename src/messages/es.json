@@ -845,7 +845,8 @@
       "multimediaDesc": "Imagenes que tu agente puede enviar en conversaciones.",
       "multimediaTitle": "Multimedia del Agente",
       "multimediaAdded": "Imagen agregada correctamente",
-      "multimediaDeleted": "Imagen eliminada correctamente"
+      "multimediaDeleted": "Imagen eliminada correctamente",
+      "multimediaUpdated": "Imagen actualizada correctamente"
     },
     "businessHoursForm": {
       "title": "Horario de Atencion",
