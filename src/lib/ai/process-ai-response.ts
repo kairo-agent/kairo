@@ -125,10 +125,8 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     if (params.agentId && ragQuery) {
       const stepStart = Date.now();
       const hasMedia = await projectHasMedia(params.agentId, projectId);
-      console.log(`[AI Pipeline] Media check: agentId=${params.agentId} projectId=${projectId} hasMedia=${hasMedia} ragQuery="${ragQuery.slice(0, 80)}"`);
       if (hasMedia) {
         mediaResults = await searchRelevantMedia(params.agentId, projectId, ragQuery);
-        console.log(`[AI Pipeline] Media search results: ${mediaResults.length} items`, mediaResults.map(m => `${m.title} (${m.similarity.toFixed(3)})`));
         if (mediaResults.length > 0) {
           steps.push({ name: 'media_search', duration: Date.now() - stepStart });
         }
