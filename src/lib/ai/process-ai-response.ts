@@ -384,43 +384,55 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const stepWA = Date.now();
     const phoneNumber = params.whatsappId || params.leadPhone;
     if (phoneNumber) {
-      // Send fixed first-contact media BEFORE text (visual impact first)
+      // Send order: fixed image → text → fixed video → RAG images → RAG videos
+      // This matches WhatsApp delivery order (video takes longer to process)
+      const allFixedAttachments: Array<{ url: string; title: string; type: string; position: string }> = [];
+
+      // Step 1: Send fixed image BEFORE text
       if (params.messageCount <= 2 && params.agentId) {
-        const fixedAttachments: Array<{ url: string; title: string; type: string; position: string }> = [];
         try {
-          // Fixed image first
           const firstContactImage = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact');
           if (firstContactImage) {
             await sendImageToWhatsApp(projectId, phoneNumber, firstContactImage.mediaUrl);
-            fixedAttachments.push({ url: firstContactImage.mediaUrl, title: firstContactImage.title, type: 'image', position: 'before' });
-          }
-          // Fixed video second (after image, before text)
-          const firstContactVideo = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact_video');
-          if (firstContactVideo) {
-            await sendVideoToWhatsApp(projectId, phoneNumber, firstContactVideo.mediaUrl);
-            fixedAttachments.push({ url: firstContactVideo.mediaUrl, title: firstContactVideo.title, type: 'video', position: 'before' });
-          }
-          // Update saved message metadata with fixed attachments
-          if (fixedAttachments.length > 0) {
-            await prisma.message.update({
-              where: { id: savedMessage.id },
-              data: {
-                metadata: {
-                  ...(savedMessage.metadata as Record<string, unknown> || {}),
-                  mediaAttachments: [...fixedAttachments, ...mediaAttachments],
-                },
-              },
-            });
+            allFixedAttachments.push({ url: firstContactImage.mediaUrl, title: firstContactImage.title, type: 'image', position: 'before' });
           }
         } catch (err) {
-          console.error('[AI Pipeline] First contact media failed:', err);
+          console.error('[AI Pipeline] First contact image failed:', err);
         }
       }
 
-      // Send text message
+      // Step 2: Send text message
       await sendToWhatsApp(projectId, phoneNumber, cleanMessage, savedMessage.id);
 
-      // Send RAG images if GPT included [MEDIA-X] markers (after text)
+      // Step 3: Send fixed video AFTER text (video delivery is slower on WhatsApp)
+      if (params.messageCount <= 2 && params.agentId) {
+        try {
+          const firstContactVideo = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact_video');
+          if (firstContactVideo) {
+            await sendVideoToWhatsApp(projectId, phoneNumber, firstContactVideo.mediaUrl);
+            allFixedAttachments.push({ url: firstContactVideo.mediaUrl, title: firstContactVideo.title, type: 'video', position: 'after' });
+          }
+        } catch (err) {
+          console.error('[AI Pipeline] First contact video failed:', err);
+        }
+      }
+
+      // Update saved message metadata with fixed attachments
+      if (allFixedAttachments.length > 0) {
+        const beforeFixed = allFixedAttachments.filter(a => a.position === 'before');
+        const afterFixed = allFixedAttachments.filter(a => a.position === 'after');
+        await prisma.message.update({
+          where: { id: savedMessage.id },
+          data: {
+            metadata: {
+              ...(savedMessage.metadata as Record<string, unknown> || {}),
+              mediaAttachments: [...beforeFixed, ...afterFixed, ...mediaAttachments],
+            },
+          },
+        });
+      }
+
+      // Step 4: Send RAG images if GPT included [MEDIA-X] markers
       if (requestedMediaIds.length > 0) {
         for (const idx of requestedMediaIds) {
           const media = mediaResults[idx - 1];
@@ -434,7 +446,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
         }
       }
 
-      // Send RAG videos if GPT included [VIDEO-X] markers (after images)
+      // Step 5: Send RAG videos if GPT included [VIDEO-X] markers
       if (requestedVideoIds.length > 0) {
         for (const idx of requestedVideoIds) {
           const video = videoResults[idx - 1];

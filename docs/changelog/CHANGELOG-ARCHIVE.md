@@ -1,6 +1,20 @@
-# KAIRO - Changelog Archive (v0.9.4 y anteriores)
+# KAIRO - Changelog Archive (v0.11.0 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.9.5+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.11.1+).
+
+---
+
+## [0.11.0] - 2026-03-16
+
+Archivado desde CHANGELOG.md. Contenido: ReEngagement auto follow-up para leads silenciosos. Cron jobs migrados a Supabase pg_cron + pg_net. DB migration: `lastReEngagementAt`, `reEngagementCount`, `reEngagementConfig`. Elegibilidad: agente enabled, lead AI mode, ultimo msg es del AI, lead silencioso > delayHours < 24h, horario comercial. Fix critico: tipos extraidos de 'use server' a `lib/types/reengagement.ts`.
+
+---
+
+## [0.10.2] - 2026-03-15
+
+Archivado desde CHANGELOG.md. Contenido: RAG Query Enrichment (`buildRAGQuery()` para mensajes < 15 chars, ctx window 2 respuestas, cap 500 chars). URL word wrap en chat. Timestamp con hora en toda la app. Drag & drop rule reordering (@dnd-kit). Collapsible sections en Settings. Global Rule WhatsApp text-only format.
+
+---
 
 ---
 

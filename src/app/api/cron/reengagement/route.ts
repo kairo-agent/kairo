@@ -20,7 +20,7 @@ import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateReEngagementMessage } from '@/lib/ai/generate-reengagement';
 import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
 import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from '@/lib/ai/search-media';
-import type { MediaSearchResult } from '@/lib/types/agent-media';
+import type { MediaSearchResult, FixedEventMedia } from '@/lib/types/agent-media';
 import type { FixedEventType } from '@/lib/types/agent-media';
 import type { ReEngagementConfig } from '@/lib/types/reengagement';
 
@@ -320,25 +320,48 @@ export async function GET(request: Request) {
             },
           });
 
-          // Send fixed event media BEFORE text (image first, then video)
+          // Send order: fixed image → text → fixed video → RAG media
+          // Video goes AFTER text because WhatsApp processes video slower than text,
+          // so the actual delivery order matches our intended display order.
           const fixedEventType = `reengagement_${attemptNumber}` as FixedEventType;
           const fixedVideoEventType = `reengagement_${attemptNumber}_video` as FixedEventType;
           const fixedAttachments: Array<{ url: string; title: string; type: string; position: string }> = [];
+          let fixedVideo: FixedEventMedia | null = null;
+
+          // Step 1: Send fixed image BEFORE text
           try {
-            // Fixed image first
             const fixedMedia = await getFixedMediaForEvent(agent.id, agent.projectId, fixedEventType);
             if (fixedMedia) {
               await sendImageToWhatsApp(agent.projectId, lead.whatsappId!, fixedMedia.mediaUrl);
               fixedAttachments.push({ url: fixedMedia.mediaUrl, title: fixedMedia.title, type: 'image', position: 'before' });
             }
-            // Fixed video second (after image, before text)
-            const fixedVideo = await getFixedMediaForEvent(agent.id, agent.projectId, fixedVideoEventType);
-            if (fixedVideo) {
+            // Pre-fetch fixed video (send later, after text)
+            fixedVideo = await getFixedMediaForEvent(agent.id, agent.projectId, fixedVideoEventType);
+          } catch (fixedErr) {
+            console.error(`[ReEngagement] Fixed image send failed:`, fixedErr);
+          }
+
+          // Step 2: Send text via WhatsApp
+          const sendResult = await sendToWhatsApp(
+            agent.projectId,
+            lead.whatsappId,
+            cleanMessage,
+            savedMessage.id
+          );
+
+          // Step 3: Send fixed video AFTER text
+          if (fixedVideo && sendResult.success) {
+            try {
               await sendVideoToWhatsApp(agent.projectId, lead.whatsappId!, fixedVideo.mediaUrl);
-              fixedAttachments.push({ url: fixedVideo.mediaUrl, title: fixedVideo.title, type: 'video', position: 'before' });
+              fixedAttachments.push({ url: fixedVideo.mediaUrl, title: fixedVideo.title, type: 'video', position: 'after' });
+            } catch (vidErr) {
+              console.error(`[ReEngagement] Fixed video send failed:`, vidErr);
             }
-            // Update metadata with fixed attachments
-            if (fixedAttachments.length > 0) {
+          }
+
+          // Update metadata with fixed attachments
+          if (fixedAttachments.length > 0) {
+            try {
               await prisma.message.update({
                 where: { id: savedMessage.id },
                 data: {
@@ -351,18 +374,10 @@ export async function GET(request: Request) {
                   },
                 },
               });
+            } catch (metaErr) {
+              console.error(`[ReEngagement] Metadata update failed:`, metaErr);
             }
-          } catch (fixedErr) {
-            console.error(`[ReEngagement] Fixed media send failed:`, fixedErr);
           }
-
-          // Send text via WhatsApp
-          const sendResult = await sendToWhatsApp(
-            agent.projectId,
-            lead.whatsappId,
-            cleanMessage,
-            savedMessage.id
-          );
 
           // Send RAG images if GPT included [MEDIA-X] markers (after text)
           if (sendResult.success && requestedMediaIds.length > 0) {
