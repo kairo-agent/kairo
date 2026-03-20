@@ -38,7 +38,7 @@ import { LocationContactForm } from '@/components/knowledge/LocationContactForm'
 import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { getReEngagementConfig, saveReEngagementConfig } from '@/lib/actions/reengagement';
-import { DEFAULT_REENGAGEMENT_CONFIG, type ReEngagementConfig } from '@/lib/types/reengagement';
+import { DEFAULT_REENGAGEMENT_CONFIG, generateTimeOptions, getWindowDurationHours, type ReEngagementConfig } from '@/lib/types/reengagement';
 import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia } from '@/lib/actions/agent-media';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { MultimediaModal } from '@/components/knowledge/MultimediaModal';
@@ -1887,7 +1887,12 @@ function ReEngagementTab({
     );
   }
 
-  const delayOptions = Array.from({ length: 20 }, (_, i) => i + 1);
+  const delayOptions = Array.from({ length: 5 }, (_, i) => i + 1);
+  const timeOptions = generateTimeOptions();
+  const windowStart = config.sendWindowStart || '17:00';
+  const windowEnd = config.sendWindowEnd || '23:00';
+  const windowDuration = getWindowDurationHours(windowStart, windowEnd);
+  const isWindowTooSmall = windowDuration <= config.delayHours;
 
   return (
     <div className="space-y-6">
@@ -1951,6 +1956,42 @@ function ReEngagementTab({
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Send Window */}
+          <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+              {t('reengagement.sendWindow')}
+            </label>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              {t('reengagement.sendWindowHelp')}
+            </p>
+            <div className="flex items-center gap-3">
+              <select
+                value={windowStart}
+                onChange={(e) => setConfig(prev => ({ ...prev, sendWindowStart: e.target.value }))}
+                className="w-36 px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+              >
+                {timeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              <span className="text-sm text-[var(--text-tertiary)]">→</span>
+              <select
+                value={windowEnd}
+                onChange={(e) => setConfig(prev => ({ ...prev, sendWindowEnd: e.target.value }))}
+                className="w-36 px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+              >
+                {timeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            {isWindowTooSmall && (
+              <p className="text-xs text-red-500 mt-2">
+                {t('reengagement.sendWindowWarning', { minHours: config.delayHours + 1 })}
+              </p>
+            )}
           </div>
 
           {/* Prompt Template (Initial ReEngagement) */}
@@ -2078,7 +2119,10 @@ function ReEngagementTab({
               <ClockIcon className="w-4 h-4 text-[var(--text-tertiary)] mt-0.5 flex-shrink-0" />
               <div className="space-y-1.5">
                 <p className="text-xs text-[var(--text-tertiary)]">
-                  {t('reengagement.businessHoursNote')}
+                  {t('reengagement.sendWindowNote', {
+                    start: timeOptions.find(o => o.value === windowStart)?.label || windowStart,
+                    end: timeOptions.find(o => o.value === windowEnd)?.label || windowEnd,
+                  })}
                 </p>
                 <p className="text-xs text-[var(--text-tertiary)]">
                   {t('reengagement.antiSpamNote')}
@@ -2094,7 +2138,7 @@ function ReEngagementTab({
         <div className="flex justify-end">
           <Button
             onClick={onSave}
-            disabled={saving}
+            disabled={saving || isWindowTooSmall}
             className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white"
           >
             {saving ? (

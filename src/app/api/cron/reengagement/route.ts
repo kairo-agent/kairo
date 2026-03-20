@@ -70,9 +70,11 @@ export async function GET(request: Request) {
       const config = agent.reEngagementConfig as ReEngagementConfig | null;
       if (!config?.enabled || !config.promptTemplate) continue;
 
-      // Check business hours in project timezone
+      // Check send window in project timezone
       const timezone = agent.project.organization.defaultTimezone || 'America/Lima';
-      if (!isWithinBusinessHours(timezone)) {
+      const windowStart = config.sendWindowStart || '09:00';
+      const windowEnd = config.sendWindowEnd || '22:00';
+      if (!isWithinSendWindow(timezone, windowStart, windowEnd)) {
         continue;
       }
 
@@ -388,21 +390,35 @@ export async function GET(request: Request) {
 }
 
 /**
- * Check if current time is within business hours (9 AM - 8 PM) in given timezone
+ * Check if current time is within the configured send window in given timezone.
+ * Supports windows that cross midnight (e.g. 22:00 → 02:00).
  */
-function isWithinBusinessHours(timezone: string): boolean {
+function isWithinSendWindow(timezone: string, windowStart: string, windowEnd: string): boolean {
   try {
     const now = new Date();
-    const formatter = new Intl.DateTimeFormat('en-US', {
+    const hourFormatter = new Intl.DateTimeFormat('en-US', {
       timeZone: timezone,
       hour: 'numeric',
+      minute: 'numeric',
       hour12: false,
     });
-    const hour = parseInt(formatter.format(now), 10);
-    return hour >= 9 && hour < 22; // 9 AM - 10 PM
+    const parts = hourFormatter.format(now).split(':');
+    const currentMin = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+
+    const [sh, sm] = windowStart.split(':').map(Number);
+    const [eh, em] = windowEnd.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = eh * 60 + em;
+
+    if (startMin <= endMin) {
+      // Normal window (e.g. 17:00 → 23:00)
+      return currentMin >= startMin && currentMin < endMin;
+    } else {
+      // Crosses midnight (e.g. 22:00 → 02:00)
+      return currentMin >= startMin || currentMin < endMin;
+    }
   } catch {
-    // If timezone is invalid, default to allowing (UTC check)
-    const hour = new Date().getUTCHours();
-    return hour >= 14 && hour < 25; // Approximate Lima business hours in UTC
+    // If timezone is invalid, default to allowing
+    return true;
   }
 }
