@@ -33,6 +33,20 @@ export function ExpandableTextarea({
     }
   }, [isExpanded]);
 
+  // Intercept Escape at document level BEFORE parent modal's handler
+  // This prevents parent modal from closing when expanded view is dismissed
+  useEffect(() => {
+    if (!isExpanded) return;
+    const interceptEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation();
+        setIsExpanded(false);
+      }
+    };
+    document.addEventListener('keydown', interceptEscape, true); // capture phase
+    return () => document.removeEventListener('keydown', interceptEscape, true);
+  }, [isExpanded]);
+
   return (
     <>
       {/* Normal textarea with expand button */}
@@ -43,7 +57,7 @@ export function ExpandableTextarea({
           placeholder={placeholder}
           rows={rows}
           className={cn(
-            'w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm resize-none pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]',
+            'w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm resize-none pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)] whitespace-pre-wrap',
             className
           )}
           {...rest}
@@ -75,7 +89,7 @@ export function ExpandableTextarea({
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           maxLength={rest.maxLength}
-          className="w-full px-4 py-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none min-h-[60vh] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+          className="w-full px-4 py-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none min-h-[60vh] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent whitespace-pre-wrap"
         />
       </Modal>
     </>
