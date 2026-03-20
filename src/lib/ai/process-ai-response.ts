@@ -250,11 +250,11 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const mediaAttachments = [
       ...requestedMediaIds.map(idx => {
         const media = mediaResults[idx - 1];
-        return media ? { url: media.mediaUrl, title: media.title, type: 'image' } : null;
+        return media ? { url: media.mediaUrl, title: media.title, type: 'image', position: 'after' } : null;
       }),
       ...requestedVideoIds.map(idx => {
         const video = videoResults[idx - 1];
-        return video ? { url: video.mediaUrl, title: video.title, type: 'video' } : null;
+        return video ? { url: video.mediaUrl, title: video.title, type: 'video', position: 'after' } : null;
       }),
     ].filter(Boolean);
 
@@ -386,19 +386,19 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     if (phoneNumber) {
       // Send fixed first-contact media BEFORE text (visual impact first)
       if (params.messageCount <= 2 && params.agentId) {
-        const fixedAttachments: Array<{ url: string; title: string; type: string }> = [];
+        const fixedAttachments: Array<{ url: string; title: string; type: string; position: string }> = [];
         try {
           // Fixed image first
           const firstContactImage = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact');
           if (firstContactImage) {
             await sendImageToWhatsApp(projectId, phoneNumber, firstContactImage.mediaUrl);
-            fixedAttachments.push({ url: firstContactImage.mediaUrl, title: firstContactImage.title, type: 'image' });
+            fixedAttachments.push({ url: firstContactImage.mediaUrl, title: firstContactImage.title, type: 'image', position: 'before' });
           }
           // Fixed video second (after image, before text)
           const firstContactVideo = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact_video');
           if (firstContactVideo) {
             await sendVideoToWhatsApp(projectId, phoneNumber, firstContactVideo.mediaUrl);
-            fixedAttachments.push({ url: firstContactVideo.mediaUrl, title: firstContactVideo.title, type: 'video' });
+            fixedAttachments.push({ url: firstContactVideo.mediaUrl, title: firstContactVideo.title, type: 'video', position: 'before' });
           }
           // Update saved message metadata with fixed attachments
           if (fixedAttachments.length > 0) {

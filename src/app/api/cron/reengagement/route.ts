@@ -295,13 +295,13 @@ export async function GET(request: Request) {
           const mediaAttachments = [
             ...requestedMediaIds.map(idx => {
               const media = mediaResults[idx - 1];
-              return media ? { url: media.mediaUrl, title: media.title, type: 'image' } : null;
+              return media ? { url: media.mediaUrl, title: media.title, type: 'image', position: 'after' } : null;
             }),
             ...requestedVideoIds.map(idx => {
               const video = videoResults[idx - 1];
-              return video ? { url: video.mediaUrl, title: video.title, type: 'video' } : null;
+              return video ? { url: video.mediaUrl, title: video.title, type: 'video', position: 'after' } : null;
             }),
-          ].filter((a): a is { url: string; title: string; type: string } => a !== null);
+          ].filter((a): a is { url: string; title: string; type: string; position: string } => a !== null);
 
           // Save message to conversation
           const savedMessage = await prisma.message.create({
@@ -323,19 +323,19 @@ export async function GET(request: Request) {
           // Send fixed event media BEFORE text (image first, then video)
           const fixedEventType = `reengagement_${attemptNumber}` as FixedEventType;
           const fixedVideoEventType = `reengagement_${attemptNumber}_video` as FixedEventType;
-          const fixedAttachments: Array<{ url: string; title: string; type: string }> = [];
+          const fixedAttachments: Array<{ url: string; title: string; type: string; position: string }> = [];
           try {
             // Fixed image first
             const fixedMedia = await getFixedMediaForEvent(agent.id, agent.projectId, fixedEventType);
             if (fixedMedia) {
               await sendImageToWhatsApp(agent.projectId, lead.whatsappId!, fixedMedia.mediaUrl);
-              fixedAttachments.push({ url: fixedMedia.mediaUrl, title: fixedMedia.title, type: 'image' });
+              fixedAttachments.push({ url: fixedMedia.mediaUrl, title: fixedMedia.title, type: 'image', position: 'before' });
             }
             // Fixed video second (after image, before text)
             const fixedVideo = await getFixedMediaForEvent(agent.id, agent.projectId, fixedVideoEventType);
             if (fixedVideo) {
               await sendVideoToWhatsApp(agent.projectId, lead.whatsappId!, fixedVideo.mediaUrl);
-              fixedAttachments.push({ url: fixedVideo.mediaUrl, title: fixedVideo.title, type: 'video' });
+              fixedAttachments.push({ url: fixedVideo.mediaUrl, title: fixedVideo.title, type: 'video', position: 'before' });
             }
             // Update metadata with fixed attachments
             if (fixedAttachments.length > 0) {

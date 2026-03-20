@@ -66,6 +66,46 @@ function formatMessageText(text: string): ReactNode {
   });
 }
 
+/** Render a single media attachment (image or video card) */
+function renderMediaAttachment(
+  media: { url: string; title: string; type?: string },
+  i: number,
+  openVideoLabel: string
+) {
+  const isVideo = media.type === 'video' || media.url?.endsWith('.mp4');
+  if (isVideo) {
+    return (
+      <a
+        key={`${media.url}-${i}`}
+        href={media.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15 transition-colors max-w-[280px] cursor-pointer"
+      >
+        <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#0B1220]/20 flex items-center justify-center">
+          <svg className="w-5 h-5 text-[#0B1220]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{media.title || 'Video'}</p>
+          <p className="text-xs opacity-60">{openVideoLabel}</p>
+        </div>
+      </a>
+    );
+  }
+  return (
+    <a key={`${media.url}-${i}`} href={media.url} target="_blank" rel="noopener noreferrer" className="block">
+      <img
+        src={media.url}
+        alt={media.title || 'Media'}
+        className="rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+        loading="lazy"
+      />
+    </a>
+  );
+}
+
 // ============================================
 // Types
 // ============================================
@@ -758,6 +798,18 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                       )}
                     </div>
                   )}
+                  {/* Fixed media BEFORE text (position: 'before') */}
+                  {(() => {
+                    const meta = message.metadata as Record<string, unknown> | null;
+                    const attachments = meta?.mediaAttachments as Array<{ url: string; title: string; type?: string; position?: string }> | undefined;
+                    const beforeItems = attachments?.filter(a => a.position === 'before');
+                    if (!beforeItems?.length) return null;
+                    return (
+                      <div className="mb-2 flex flex-col gap-2">
+                        {beforeItems.map((media, i) => renderMediaAttachment(media, i, t('chat.openVideo')))}
+                      </div>
+                    );
+                  })()}
                   {/* Audio message: show badge + transcription */}
                   {(message.metadata as Record<string, unknown>)?.messageType === 'audio' ? (
                     <div>
@@ -781,47 +833,15 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                   ) : (
                     <p className="text-sm whitespace-pre-wrap break-words">{formatMessageText(message.content)}</p>
                   )}
-                  {/* Agent media attachments (images + videos) */}
+                  {/* RAG/other media AFTER text (position: 'after' or no position for old messages) */}
                   {(() => {
                     const meta = message.metadata as Record<string, unknown> | null;
-                    const attachments = meta?.mediaAttachments as Array<{ url: string; title: string; type?: string }> | undefined;
-                    if (!attachments?.length) return null;
+                    const attachments = meta?.mediaAttachments as Array<{ url: string; title: string; type?: string; position?: string }> | undefined;
+                    const afterItems = attachments?.filter(a => a.position !== 'before');
+                    if (!afterItems?.length) return null;
                     return (
                       <div className="mt-2 flex flex-col gap-2">
-                        {attachments.map((media, i) => {
-                          const isVideo = media.type === 'video' || media.url?.endsWith('.mp4');
-                          if (isVideo) {
-                            return (
-                              <a
-                                key={i}
-                                href={media.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15 transition-colors max-w-[280px] cursor-pointer"
-                              >
-                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#0B1220]/20 flex items-center justify-center">
-                                  <svg className="w-5 h-5 text-[#0B1220]" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M8 5v14l11-7z" />
-                                  </svg>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{media.title || 'Video'}</p>
-                                  <p className="text-xs opacity-60">{t('chat.openVideo')}</p>
-                                </div>
-                              </a>
-                            );
-                          }
-                          return (
-                            <a key={i} href={media.url} target="_blank" rel="noopener noreferrer" className="block">
-                              <img
-                                src={media.url}
-                                alt={media.title || 'Media'}
-                                className="rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                loading="lazy"
-                              />
-                            </a>
-                          );
-                        })}
+                        {afterItems.map((media, i) => renderMediaAttachment(media, i, t('chat.openVideo')))}
                       </div>
                     );
                   })()}
