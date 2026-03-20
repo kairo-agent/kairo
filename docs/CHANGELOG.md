@@ -4,13 +4,56 @@
 
 ---
 
-## [0.14.1] - 2026-03-20
+## [0.15.0] - 2026-03-20
+
+### Agent Video Support
+
+Soporte completo de videos en el sistema de Agent Media. Videos se suben, almacenan y envian via WhatsApp con el mismo patron de imagenes (RAG semantico + fixed event slots).
+
+**Nuevos archivos:**
+
+| Archivo | Funcion |
+|---------|---------|
+| `src/lib/utils/video-upload.ts` | Upload client-side directo a Supabase Storage (bypass Vercel 4.5MB limit) |
+| `src/lib/utils/video-thumbnail.ts` | Extraccion de thumbnails via Canvas API (funciona desde File, limitado desde URL por CORS) |
+| `src/components/knowledge/FixedVideoSlot.tsx` | Componente para upload/display de videos fijos por evento |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/agent-media.ts` | Nuevas: `addAgentVideoByUrl()`, `uploadFixedEventVideoByUrl()` (reciben URL post-upload) |
+| `src/lib/ai/search-media.ts` | `searchRelevantVideos()` para busqueda semantica de videos |
+| `src/lib/whatsapp/send.ts` | `sendVideoToWhatsApp()` (WhatsApp Cloud API `type: video`) |
+| `src/lib/ai/process-ai-response.ts` | Soporte [VIDEO-X] markers, envio de videos RAG + fixed event video |
+| `src/app/api/cron/reengagement/route.ts` | Soporte [VIDEO-X] markers + fixed event video en reengagement |
+| `src/lib/ai/generate-reengagement.ts` | Nuevo param `videoItems`, seccion VIDEOS DISPONIBLES en prompt |
+| `src/lib/ai/build-system-prompt.ts` | Seccion VIDEOS DISPONIBLES con markers [VIDEO-X] |
+| `src/components/knowledge/MultimediaModal.tsx` | Tab Videos con `VideoThumbnail` subcomponent, galeria de videos |
+| `src/components/features/LeadChat.tsx` | Video card (icono play #0B1220 + titulo + "Open video" link i18n) |
+| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | `onAddVideo` con upload client-side, FixedVideoSlot en tabs |
+| `src/messages/es.json` + `en.json` | `chat.openVideo`: "Abrir video" / "Open video" |
+
+**Arquitectura:**
+
+- **Client-side upload**: Videos se suben directo a Supabase Storage desde el browser, evitando el limite de 4.5MB de Vercel Hobby serverless functions
+- **Orden de envio WhatsApp**: imagen fija → texto → video fijo → RAG images → RAG videos. Video va DESPUES del texto porque WhatsApp tarda mas en procesar/entregar video que texto
+- **Position tagging**: `position: 'before'` (encima del texto en chat) y `position: 'after'` (debajo del texto). Imagenes fijas = before, videos fijos = after, RAG media = after
+- **Chat rendering**: Videos se muestran como card clickeable (icono play + titulo + link "Abrir video"), no como `<video>` inline (bloqueado por CORS de Supabase Storage)
+- **Thumbnails**: Funcionan desde File objects (upload), no desde URLs (CORS tainted canvas). Fallback a icono de camara
+
+**Limitaciones conocidas:**
+
+- Thumbnails de video no se muestran al recargar pagina (CORS con Supabase Storage bloquea Canvas). Se usa icono de camara como fallback
+- Videos en chat no se reproducen inline (CORS). Se abren en nueva pestaña via link
 
 ### Corregido
 
 - **Send window no persistia en ReEngagement (`src/lib/actions/reengagement.ts`):** El schema Zod del server action no incluia `sendWindowStart` ni `sendWindowEnd`, por lo que esos campos eran strippeados silenciosamente al guardar. Fix: campos agregados al schema. Ademas, los defaults del cron (`09:00-22:00`) alineados con `DEFAULT_REENGAGEMENT_CONFIG` (`17:00-23:00`).
 
 - **Debounce 3s no funcionaba (Redis no configurado):** Upstash Redis no estaba provisionado, por lo que `src/lib/redis.ts` retornaba `null` y el webhook procesaba mensajes inmediatamente sin debounce. Fix: Leo creo base de datos Upstash Redis (free tier, region sa-east-1 Sao Paulo). Variables `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` agregadas a Vercel. Debounce confirmado funcionando: 2 mensajes rapidos producen 1 sola respuesta IA consolidada.
+
+- **Orden de envio WhatsApp inconsistente**: Codigo enviaba imagen → video → texto, pero WhatsApp entregaba imagen → texto → video (video tarda mas en procesarse). Fix: reordenado a imagen → texto → video en `process-ai-response.ts` y `reengagement/route.ts`.
 
 ---
 
