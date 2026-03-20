@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 import { getFixedEventMedia, uploadFixedEventVideoByUrl, deleteFixedEventMedia } from '@/lib/actions/agent-media';
 import { uploadVideoToStorage } from '@/lib/utils/video-upload';
+import { extractThumbnailFromFile, extractThumbnailFromUrl } from '@/lib/utils/video-thumbnail';
 import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
 import { MAX_VIDEO_SIZE_MB } from '@/lib/types/agent-media';
 
@@ -36,6 +37,7 @@ const DEFAULT_TITLES: Record<string, string> = {
 
 export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText }: FixedVideoSlotProps) {
   const [media, setMedia] = useState<FixedEventMedia | null>(null);
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -49,6 +51,10 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
         const result = await getFixedEventMedia(agentId, projectId, eventType);
         if (!cancelled && result.success && result.data) {
           setMedia(result.data);
+          // Extract thumbnail from existing video URL
+          extractThumbnailFromUrl(result.data.mediaUrl).then((thumb) => {
+            if (!cancelled && thumb) setThumbnail(thumb);
+          });
         }
       } catch {
         // silent - slot just shows empty
@@ -93,6 +99,8 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
 
       if (result.success && result.data) {
         setMedia(result.data);
+        // Extract thumbnail from the original file (more reliable than URL)
+        extractThumbnailFromFile(file).then((thumb) => setThumbnail(thumb)).catch(() => {});
         toast.success('Video subido');
       } else {
         toast.error(result.error || 'Error al subir video');
@@ -123,6 +131,7 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
       const result = await deleteFixedEventMedia(agentId, projectId, eventType);
       if (result.success) {
         setMedia(null);
+        setThumbnail(null);
         toast.success('Video eliminado');
       } else {
         toast.error(result.error || 'Error al eliminar video');
@@ -149,15 +158,17 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-3 p-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
-          {/* Video thumbnail (first frame) */}
+          {/* Video thumbnail */}
           <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative">
-            <video
-              src={`${media.mediaUrl}#t=0.5`}
-              className="w-full h-full object-cover"
-              preload="metadata"
-              muted
-              playsInline
-            />
+            {thumbnail ? (
+              <img src={thumbnail} alt={media.title} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                </svg>
+              </div>
+            )}
             {/* Play icon overlay */}
             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
               <svg className="w-4 h-4 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor">

@@ -7,6 +7,7 @@ import { compressImage, formatFileSize } from '@/lib/utils/image-compression';
 import { FixedImageSlot } from '@/components/knowledge/FixedImageSlot';
 import { FixedVideoSlot } from '@/components/knowledge/FixedVideoSlot';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
+import { extractThumbnailFromUrl } from '@/lib/utils/video-thumbnail';
 import { MAX_MEDIA_ITEMS, MAX_VIDEO_ITEMS, MAX_VIDEO_SIZE_MB, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/types/agent-media';
 
 // =============================================================================
@@ -472,6 +473,32 @@ export function MultimediaModal({
 // Subcomponents (shared between tabs)
 // =============================================================================
 
+/** Extracts a thumbnail from a video URL via Canvas and displays it */
+function VideoThumbnail({ url, alt, className }: { url: string; alt: string; className?: string }) {
+  const [thumb, setThumb] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    extractThumbnailFromUrl(url).then((dataUrl) => {
+      if (!cancelled && dataUrl) setThumb(dataUrl);
+    });
+    return () => { cancelled = true; };
+  }, [url]);
+
+  if (thumb) {
+    return <img src={thumb} alt={alt} className={className || 'w-full h-full object-cover'} />;
+  }
+
+  // Fallback: camera icon while loading or if extraction fails
+  return (
+    <div className="w-full h-full flex items-center justify-center">
+      <svg className="w-6 h-6 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+      </svg>
+    </div>
+  );
+}
+
 function MediaItemRow({ item, onEdit, onDelete, mediaType }: {
   item: AgentMediaEntry;
   onEdit: () => void;
@@ -486,13 +513,7 @@ function MediaItemRow({ item, onEdit, onDelete, mediaType }: {
           <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
         ) : (
           <>
-            <video
-              src={`${item.mediaUrl}#t=0.5`}
-              className="w-full h-full object-cover"
-              preload="metadata"
-              muted
-              playsInline
-            />
+            <VideoThumbnail url={item.mediaUrl} alt={item.title} />
             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
               <svg className="w-5 h-5 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M8 5v14l11-7z" />
@@ -539,13 +560,7 @@ function EditForm({ item, editingItem, setEditingItem, onSave, isSaving, mediaTy
             <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
           ) : (
             <>
-              <video
-                src={`${item.mediaUrl}#t=0.5`}
-                className="w-full h-full object-cover"
-                preload="metadata"
-                muted
-                playsInline
-              />
+              <VideoThumbnail url={item.mediaUrl} alt={item.title} />
               <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                 <svg className="w-5 h-5 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M8 5v14l11-7z" />
