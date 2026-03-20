@@ -72,8 +72,8 @@ export async function GET(request: Request) {
 
       // Check send window in project timezone
       const timezone = agent.project.organization.defaultTimezone || 'America/Lima';
-      const windowStart = config.sendWindowStart || '09:00';
-      const windowEnd = config.sendWindowEnd || '22:00';
+      const windowStart = config.sendWindowStart || '17:00';
+      const windowEnd = config.sendWindowEnd || '23:00';
       if (!isWithinSendWindow(timezone, windowStart, windowEnd)) {
         continue;
       }

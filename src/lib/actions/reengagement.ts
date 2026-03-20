@@ -18,13 +18,17 @@ import type { ReEngagementConfig } from '@/lib/types/reengagement';
 // Validation
 // ============================================
 
+const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
+
 const reEngagementConfigSchema = z.object({
   enabled: z.boolean(),
-  delayHours: z.number().int().min(1).max(20),
+  delayHours: z.number().int().min(1).max(5),
   maxAttempts: z.number().int().min(0).max(2).default(2),
   promptTemplate: z.string().max(1000),
   attempt1Instructions: z.string().max(500).default(''),
   attempt2Instructions: z.string().max(500).default(''),
+  sendWindowStart: z.string().regex(timeRegex).optional(),
+  sendWindowEnd: z.string().regex(timeRegex).optional(),
 });
 
 // ============================================
