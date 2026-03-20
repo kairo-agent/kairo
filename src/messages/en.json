@@ -261,7 +261,8 @@
       "realtimeConnected": "Connected in real-time",
       "realtimeConnecting": "Connecting...",
       "max": "max",
-      "maxSize": "max"
+      "maxSize": "max",
+      "openVideo": "Open video"
     },
     "editModal": {
       "title": "Edit Lead",
