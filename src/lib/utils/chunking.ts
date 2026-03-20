@@ -146,7 +146,7 @@ export function estimateTokenCount(text: string): number {
 export function prepareTextForEmbedding(text: string): string {
   return text
     .trim()
-    .replace(/\s+/g, ' ') // Normalize whitespace
-    .replace(/\n{3,}/g, '\n\n') // Max 2 newlines
+    .replace(/[^\S\n]+/g, ' ') // Normalize spaces/tabs but preserve newlines
+    .replace(/\n{3,}/g, '\n\n') // Max 2 consecutive newlines
     .slice(0, 8000); // OpenAI max input is ~8191 tokens
 }
