@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 import { AlertModal } from '@/components/ui/Modal';
 import { compressImage, formatFileSize } from '@/lib/utils/image-compression';
