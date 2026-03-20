@@ -17,8 +17,8 @@ import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings
 import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
-import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
-import { projectHasMedia, searchRelevantMedia, getFixedMediaForEvent } from './search-media';
+import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
+import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
 
 // ============================================
@@ -121,13 +121,19 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       steps.push({ name: 'rag_search', duration: Date.now() - stepStart });
     }
 
-    // --- Step 2b: Media search (only if project has media configured) ---
+    // --- Step 2b: Media search - images + videos (only if project has media configured) ---
+    let videoResults: MediaSearchResult[] = [];
     if (params.agentId && ragQuery) {
       const stepStart = Date.now();
       const hasMedia = await projectHasMedia(params.agentId, projectId);
       if (hasMedia) {
-        mediaResults = await searchRelevantMedia(params.agentId, projectId, ragQuery);
-        if (mediaResults.length > 0) {
+        const [images, videos] = await Promise.all([
+          searchRelevantMedia(params.agentId, projectId, ragQuery),
+          searchRelevantVideos(params.agentId, projectId, ragQuery),
+        ]);
+        mediaResults = images;
+        videoResults = videos;
+        if (mediaResults.length > 0 || videoResults.length > 0) {
           steps.push({ name: 'media_search', duration: Date.now() - stepStart });
         }
       }
@@ -150,6 +156,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       systemInstructions: params.systemInstructions,
       ragResults,
       mediaResults: mediaResults.length > 0 ? mediaResults : undefined,
+      videoResults: videoResults.length > 0 ? videoResults : undefined,
       conversationHistory: params.conversationHistory,
       leadSummary: params.leadSummary,
       leadName: params.leadName,
@@ -199,18 +206,25 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     const shouldHandoff = /\[HANDOFF\]/i.test(rawResponse);
 
-    // Extract [MEDIA-X] markers before cleanup
+    // Extract [MEDIA-X] and [VIDEO-X] markers before cleanup
     const mediaMarkers = rawResponse.match(/\[MEDIA-(\d+)\]/gi) || [];
     const requestedMediaIds: number[] = mediaMarkers
       .map(m => parseInt(m.match(/\d+/)?.[0] || '0'))
       .filter(n => n >= 1 && n <= mediaResults.length)
       .slice(0, 3); // Max 3 images per response
 
+    const videoMarkers = rawResponse.match(/\[VIDEO-(\d+)\]/gi) || [];
+    const requestedVideoIds: number[] = videoMarkers
+      .map(m => parseInt(m.match(/\d+/)?.[0] || '0'))
+      .filter(n => n >= 1 && n <= videoResults.length)
+      .slice(0, 2); // Max 2 videos per response
+
     // Clean message (remove markers - strict format + fallback for GPT variations)
     const cleanMessage = rawResponse
       .replace(/\[HANDOFF\]/gi, '')
       .replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '')
       .replace(/\[MEDIA-\d+\]/gi, '')
+      .replace(/\[VIDEO-\d+\]/gi, '')
       .replace(/\n?\*{0,2}[Tt]emperatura\*{0,2}\s*:\s*.+$/gm, '')
       .trim();
 
@@ -233,10 +247,16 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const stepDB = Date.now();
 
     // Build media attachments for metadata (so chat UI can render them)
-    const mediaAttachments = requestedMediaIds.map(idx => {
-      const media = mediaResults[idx - 1];
-      return media ? { url: media.mediaUrl, title: media.title } : null;
-    }).filter(Boolean);
+    const mediaAttachments = [
+      ...requestedMediaIds.map(idx => {
+        const media = mediaResults[idx - 1];
+        return media ? { url: media.mediaUrl, title: media.title, type: 'image' } : null;
+      }),
+      ...requestedVideoIds.map(idx => {
+        const video = videoResults[idx - 1];
+        return video ? { url: video.mediaUrl, title: video.title, type: 'video' } : null;
+      }),
+    ].filter(Boolean);
 
     // Save AI message
     const savedMessage = await prisma.message.create({
@@ -360,46 +380,69 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     steps.push({ name: 'db_save', duration: Date.now() - stepDB });
 
     // --- Step 8: Send to WhatsApp (text + media) ---
+    // Order: fixed image → fixed video → text → RAG images → RAG videos
     const stepWA = Date.now();
     const phoneNumber = params.whatsappId || params.leadPhone;
     if (phoneNumber) {
-      // Send fixed first-contact image BEFORE text (visual impact first)
+      // Send fixed first-contact media BEFORE text (visual impact first)
       if (params.messageCount <= 2 && params.agentId) {
+        const fixedAttachments: Array<{ url: string; title: string; type: string }> = [];
         try {
-          const firstContactMedia = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact');
-          if (firstContactMedia) {
-            await sendImageToWhatsApp(projectId, phoneNumber, firstContactMedia.mediaUrl);
-            // Update saved message metadata with the fixed image
+          // Fixed image first
+          const firstContactImage = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact');
+          if (firstContactImage) {
+            await sendImageToWhatsApp(projectId, phoneNumber, firstContactImage.mediaUrl);
+            fixedAttachments.push({ url: firstContactImage.mediaUrl, title: firstContactImage.title, type: 'image' });
+          }
+          // Fixed video second (after image, before text)
+          const firstContactVideo = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact_video');
+          if (firstContactVideo) {
+            await sendVideoToWhatsApp(projectId, phoneNumber, firstContactVideo.mediaUrl);
+            fixedAttachments.push({ url: firstContactVideo.mediaUrl, title: firstContactVideo.title, type: 'video' });
+          }
+          // Update saved message metadata with fixed attachments
+          if (fixedAttachments.length > 0) {
             await prisma.message.update({
               where: { id: savedMessage.id },
               data: {
                 metadata: {
                   ...(savedMessage.metadata as Record<string, unknown> || {}),
-                  mediaAttachments: [
-                    ...mediaAttachments,
-                    { url: firstContactMedia.mediaUrl, title: firstContactMedia.title },
-                  ],
+                  mediaAttachments: [...mediaAttachments, ...fixedAttachments],
                 },
               },
             });
           }
         } catch (err) {
-          console.error('[AI Pipeline] First contact image failed:', err);
+          console.error('[AI Pipeline] First contact media failed:', err);
         }
       }
 
       // Send text message
       await sendToWhatsApp(projectId, phoneNumber, cleanMessage, savedMessage.id);
 
-      // Send media images if GPT included [MEDIA-X] markers (after text)
+      // Send RAG images if GPT included [MEDIA-X] markers (after text)
       if (requestedMediaIds.length > 0) {
         for (const idx of requestedMediaIds) {
-          const media = mediaResults[idx - 1]; // 1-indexed
+          const media = mediaResults[idx - 1];
           if (media) {
             try {
               await sendImageToWhatsApp(projectId, phoneNumber, media.mediaUrl);
             } catch (err) {
               console.error(`[AI Pipeline] Media send failed idx=${idx}:`, err);
+            }
+          }
+        }
+      }
+
+      // Send RAG videos if GPT included [VIDEO-X] markers (after images)
+      if (requestedVideoIds.length > 0) {
+        for (const idx of requestedVideoIds) {
+          const video = videoResults[idx - 1];
+          if (video) {
+            try {
+              await sendVideoToWhatsApp(projectId, phoneNumber, video.mediaUrl);
+            } catch (err) {
+              console.error(`[AI Pipeline] Video send failed idx=${idx}:`, err);
             }
           }
         }
@@ -413,6 +456,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     console.log(
       `[AI Pipeline] OK leadId=${leadId} agent=${agentName} temp=${suggestedTemperature || 'none'} ` +
       `handoff=${shouldHandoff} rag=${ragResults.length} media=${requestedMediaIds.length}/${mediaResults.length} ` +
+      `video=${requestedVideoIds.length}/${videoResults.length} ` +
       `${stepsLog} total=${totalDuration}ms`
     );
 

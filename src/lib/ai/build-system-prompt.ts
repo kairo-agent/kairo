@@ -21,6 +21,7 @@ export interface SystemPromptParams {
   systemInstructions: string | null;
   ragResults: Array<{ content: string; title: string | null; similarity: number }>;
   mediaResults?: Array<{ id: string; title: string; description: string }>;
+  videoResults?: Array<{ id: string; title: string; description: string }>;
   conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }>;
   leadSummary: string | null;
   leadName: string;
@@ -70,6 +71,20 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       `${mediaList}\n\n` +
       `Ejemplo: "Aqui te muestro el departamento [MEDIA-1]"\n` +
       `=== FIN IMAGENES DISPONIBLES ===`
+    );
+  }
+
+  // --- Available videos (similar to images, uses [VIDEO-X] markers) ---
+  if (params.videoResults && params.videoResults.length > 0) {
+    const videoList = params.videoResults
+      .map((v, i) => `[VIDEO-${i + 1}] ${v.title} - ${v.description}`)
+      .join('\n');
+    parts.push(
+      `=== VIDEOS DISPONIBLES ===\n` +
+      `Para enviar videos SOLO usa marcadores [VIDEO-X]. NO uses enlaces, URLs ni formato markdown para videos.\n\n` +
+      `${videoList}\n\n` +
+      `Ejemplo: "Te envio un video del recorrido [VIDEO-1]"\n` +
+      `=== FIN VIDEOS DISPONIBLES ===`
     );
   }
 

@@ -1,18 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { compressImage } from '@/lib/utils/image-compression';
 import { getFixedEventMedia, uploadFixedEventMedia, deleteFixedEventMedia } from '@/lib/actions/agent-media';
 import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
+import { MAX_VIDEO_SIZE_MB } from '@/lib/types/agent-media';
 
 // =============================================================================
 // Types
 // =============================================================================
 
-interface FixedImageSlotProps {
-  eventType: FixedEventType;
+interface FixedVideoSlotProps {
+  eventType: FixedEventType; // Must be a video event type (e.g., 'first_contact_video')
   agentId: string;
   projectId: string;
   label: string;
@@ -23,25 +22,22 @@ interface FixedImageSlotProps {
 // Helpers
 // =============================================================================
 
-const DEFAULT_TITLES: Partial<Record<FixedEventType, string>> = {
-  first_contact: 'Imagen de bienvenida',
-  reengagement_0: 'Imagen de seguimiento inicial',
-  reengagement_1: 'Imagen de segundo seguimiento',
-  reengagement_2: 'Imagen de tercer seguimiento',
+const DEFAULT_TITLES: Record<string, string> = {
+  first_contact_video: 'Video de bienvenida',
+  reengagement_0_video: 'Video de seguimiento inicial',
+  reengagement_1_video: 'Video de segundo seguimiento',
+  reengagement_2_video: 'Video de tercer seguimiento',
 };
 
 // =============================================================================
 // Component
 // =============================================================================
 
-export function FixedImageSlot({ eventType, agentId, projectId, label, helpText }: FixedImageSlotProps) {
-  const t = useTranslations('settings');
-
+export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText }: FixedVideoSlotProps) {
   const [media, setMedia] = useState<FixedEventMedia | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [compressing, setCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing media on mount
@@ -63,41 +59,41 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
   }, [agentId, projectId, eventType]);
 
   const handleFileSelect = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      toast.error(t('fixedImage.invalidFormat'));
+    if (file.type !== 'video/mp4') {
+      toast.error('Solo se aceptan videos en formato MP4');
       return;
     }
 
-    setCompressing(true);
-    try {
-      const compressed = await compressImage(file);
-      setCompressing(false);
-      setUploading(true);
+    if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+      toast.error(`El video no debe superar ${MAX_VIDEO_SIZE_MB}MB`);
+      return;
+    }
 
-      const defaultTitle = DEFAULT_TITLES[eventType] || 'Imagen fija';
+    setUploading(true);
+    try {
+      const defaultTitle = DEFAULT_TITLES[eventType] || 'Video';
       const result = await uploadFixedEventMedia({
         agentId,
         projectId,
         eventType,
         title: defaultTitle,
         description: defaultTitle,
-        file: compressed.file,
+        file,
       });
 
       if (result.success && result.data) {
         setMedia(result.data);
-        toast.success(t('fixedImage.uploaded'));
+        toast.success('Video subido');
       } else {
-        toast.error(result.error || t('fixedImage.uploadError'));
+        toast.error(result.error || 'Error al subir video');
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('fixedImage.uploadError'));
+      toast.error(err instanceof Error ? err.message : 'Error al subir video');
     } finally {
-      setCompressing(false);
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [agentId, projectId, eventType, t]);
+  }, [agentId, projectId, eventType]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -117,16 +113,16 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
       const result = await deleteFixedEventMedia(agentId, projectId, eventType);
       if (result.success) {
         setMedia(null);
-        toast.success(t('fixedImage.deleted'));
+        toast.success('Video eliminado');
       } else {
-        toast.error(result.error || t('fixedImage.deleteError'));
+        toast.error(result.error || 'Error al eliminar video');
       }
     } catch {
-      toast.error(t('fixedImage.deleteError'));
+      toast.error('Error al eliminar video');
     } finally {
       setDeleting(false);
     }
-  }, [media, agentId, projectId, eventType, t]);
+  }, [media, agentId, projectId, eventType]);
 
   // Loading state
   if (loading) {
@@ -138,19 +134,16 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
     );
   }
 
-  // Has image - compact display row
+  // Has video - compact display row
   if (media) {
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-3 p-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
-          {/* Thumbnail */}
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-[var(--bg-tertiary)]">
-            <img
-              src={media.mediaUrl}
-              alt={media.title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
+          {/* Video icon thumbnail */}
+          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] flex items-center justify-center">
+            <svg className="w-6 h-6 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+            </svg>
           </div>
 
           {/* Title */}
@@ -167,7 +160,7 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
             onClick={handleDelete}
             disabled={deleting}
             className="flex-shrink-0 p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-            title={t('fixedImage.remove')}
+            title="Eliminar video"
           >
             {deleting ? (
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current" />
@@ -185,45 +178,41 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
     );
   }
 
-  // No image - upload area
+  // No video - upload area
   return (
     <div className="space-y-2">
-      {/* Label */}
       <p className="text-xs font-medium text-[var(--text-secondary)]">
         {label}
       </p>
 
-      {/* Drop zone */}
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        onClick={() => !uploading && !compressing && fileInputRef.current?.click()}
+        onClick={() => !uploading && fileInputRef.current?.click()}
         className="flex items-center justify-center gap-2 p-3 rounded-lg border-2 border-dashed border-[var(--border-primary)] hover:border-[var(--accent-primary)] cursor-pointer transition-colors"
       >
-        {compressing || uploading ? (
+        {uploading ? (
           <>
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[var(--accent-primary)]" />
-            <span className="text-xs text-[var(--text-secondary)]">
-              {compressing ? t('fixedImage.compressing') : t('fixedImage.uploading')}
-            </span>
+            <span className="text-xs text-[var(--text-secondary)]">Subiendo video...</span>
           </>
         ) : (
           <>
             <svg className="w-5 h-5 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
             </svg>
             <span className="text-xs text-[var(--text-secondary)]">
-              {t('fixedImage.dragOrClick')}
+              Arrastra un video o haz clic para seleccionar
             </span>
             <span className="text-xs text-[var(--text-tertiary)]">
-              JPG, PNG, WebP
+              MP4, max {MAX_VIDEO_SIZE_MB}MB
             </span>
           </>
         )}
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="video/mp4"
           onChange={handleInputChange}
           className="hidden"
         />

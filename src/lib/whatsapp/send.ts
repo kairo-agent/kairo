@@ -2,7 +2,7 @@
  * KAIRO - WhatsApp Send Helper
  *
  * Shared utility for sending messages via WhatsApp Cloud API.
- * Supports: text messages, image messages.
+ * Supports: text messages, image messages, video messages.
  * Used by: AI pipeline (process-ai-response), ReEngagement cron, manual messages.
  */
 
@@ -138,6 +138,64 @@ export async function sendImageToWhatsApp(
     return { success: true };
   } catch (error) {
     console.error('[WhatsApp] Image send failed:', error);
+    return { success: false };
+  }
+}
+
+/**
+ * Send a video message via WhatsApp Cloud API.
+ * Used by AI pipeline to send video media alongside text responses.
+ *
+ * NOTE: Same fire-and-forget pattern as sendImageToWhatsApp.
+ * Videos must be MP4 (H.264 + AAC), max 16MB.
+ */
+export async function sendVideoToWhatsApp(
+  projectId: string,
+  phoneNumber: string,
+  videoUrl: string,
+  caption?: string
+): Promise<{ success: boolean }> {
+  try {
+    const [accessToken, phoneNumberId] = await Promise.all([
+      getProjectSecret(projectId, 'whatsapp_access_token'),
+      getProjectSecret(projectId, 'whatsapp_phone_number_id'),
+    ]);
+
+    if (!accessToken || !phoneNumberId) {
+      console.error('[WhatsApp] Credentials not configured for project:', projectId);
+      return { success: false };
+    }
+
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    const whatsappApiUrl = `https://graph.facebook.com/v21.0/${phoneNumberId}/messages`;
+
+    const response = await fetch(whatsappApiUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: cleanPhone,
+        type: 'video',
+        video: {
+          link: videoUrl,
+          ...(caption ? { caption } : {}),
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      console.error('[WhatsApp] Video send error:', data);
+      return { success: false };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('[WhatsApp] Video send failed:', error);
     return { success: false };
   }
 }

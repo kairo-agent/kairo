@@ -39,10 +39,11 @@ import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { getReEngagementConfig, saveReEngagementConfig } from '@/lib/actions/reengagement';
 import { DEFAULT_REENGAGEMENT_CONFIG, generateTimeOptions, getWindowDurationHours, type ReEngagementConfig } from '@/lib/types/reengagement';
-import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia } from '@/lib/actions/agent-media';
+import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia, listAgentVideos, addAgentVideo } from '@/lib/actions/agent-media';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { MultimediaModal } from '@/components/knowledge/MultimediaModal';
 import { FixedImageSlot } from '@/components/knowledge/FixedImageSlot';
+import { FixedVideoSlot } from '@/components/knowledge/FixedVideoSlot';
 import { FlameIcon, SunIcon, SnowflakeIcon } from '@/components/icons/LeadIcons';
 import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 import { toast } from 'sonner';
@@ -268,7 +269,9 @@ export default function SettingsPageClient() {
 
   // Media state
   const [mediaEntries, setMediaEntries] = useState<AgentMediaEntry[]>([]);
+  const [videoEntries, setVideoEntries] = useState<AgentMediaEntry[]>([]);
   const [loadingMedia, setLoadingMedia] = useState(false);
+  const [loadingVideos, setLoadingVideos] = useState(false);
   const [savingMedia, setSavingMedia] = useState(false);
 
   // ReEngagement state
@@ -388,6 +391,21 @@ export default function SettingsPageClient() {
     }
   }, [selectedAgent, selectedProject]);
 
+  const loadVideos = useCallback(async () => {
+    if (!selectedAgent || !selectedProject) return;
+    setLoadingVideos(true);
+    try {
+      const result = await listAgentVideos(selectedAgent.id, selectedProject.id);
+      if (result.success && result.data) {
+        setVideoEntries(result.data);
+      }
+    } catch {
+      // Silent fail - videos are optional
+    } finally {
+      setLoadingVideos(false);
+    }
+  }, [selectedAgent, selectedProject]);
+
   const loadReEngagement = useCallback(async () => {
     if (!selectedAgent) return;
     setLoadingReEngagement(true);
@@ -478,9 +496,15 @@ export default function SettingsPageClient() {
         };
         const loadMediaForAgent = async () => {
           try {
-            const result = await listAgentMedia(agent.id, selectedProject.id);
-            if (result.success && result.data) {
-              setMediaEntries(result.data);
+            const [mediaResult, videoResult] = await Promise.all([
+              listAgentMedia(agent.id, selectedProject.id),
+              listAgentVideos(agent.id, selectedProject.id),
+            ]);
+            if (mediaResult.success && mediaResult.data) {
+              setMediaEntries(mediaResult.data);
+            }
+            if (videoResult.success && videoResult.data) {
+              setVideoEntries(videoResult.data);
             }
           } catch {
             // Silent fail - media is optional
@@ -505,6 +529,7 @@ export default function SettingsPageClient() {
       loadInstructions();
       loadKnowledge();
       loadMedia();
+      loadVideos();
       loadReEngagement();
     } else {
       setInstructions({ ...EMPTY_PROMPT_STRUCTURE });
@@ -512,10 +537,11 @@ export default function SettingsPageClient() {
       setStructuredKnowledge({});
       setKnowledgeEntries([]);
       setMediaEntries([]);
+      setVideoEntries([]);
       setReEngagementConfig({ ...DEFAULT_REENGAGEMENT_CONFIG });
       setOriginalReEngagementConfig({ ...DEFAULT_REENGAGEMENT_CONFIG });
     }
-  }, [selectedAgent, loadInstructions, loadKnowledge, loadMedia, loadReEngagement]);
+  }, [selectedAgent, loadInstructions, loadKnowledge, loadMedia, loadVideos, loadReEngagement]);
 
   // ============================================
   // Instructions Handlers
@@ -1000,22 +1026,14 @@ export default function SettingsPageClient() {
       {/* Multimedia Modal */}
       {activeModal === 'multimedia' && (
         <Modal isOpen onClose={() => setActiveModal(null)} title={t('knowledge.multimediaTitle')} size="2xl">
-          {/* Fixed first-contact image (separate from RAG gallery) */}
-          {selectedAgent && selectedProject && (
-            <div className="mb-4 p-3 rounded-xl border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5">
-              <FixedImageSlot
-                eventType="first_contact"
-                agentId={selectedAgent.id}
-                projectId={selectedProject.id}
-                label={t('fixedImage.firstContact')}
-                helpText={t('fixedImage.firstContactHelp')}
-              />
-            </div>
-          )}
           <MultimediaModal
             items={mediaEntries}
+            videoItems={videoEntries}
             isLoading={loadingMedia}
+            isLoadingVideos={loadingVideos}
             isSaving={savingMedia}
+            agentId={selectedAgent?.id || ''}
+            projectId={selectedProject?.id || ''}
             onAdd={async (title, description, file) => {
               if (!selectedAgent || !selectedProject) return;
               setSavingMedia(true);
@@ -1052,6 +1070,7 @@ export default function SettingsPageClient() {
                 if (result.success) {
                   toast.success(t('knowledge.multimediaUpdated'));
                   await loadMedia();
+                  await loadVideos();
                 } else {
                   toast.error(result.error || tCommon('messages.error'));
                 }
@@ -1069,6 +1088,30 @@ export default function SettingsPageClient() {
                 if (result.success) {
                   toast.success(t('knowledge.multimediaDeleted'));
                   setMediaEntries((prev) => prev.filter((item) => item.id !== id));
+                  setVideoEntries((prev) => prev.filter((item) => item.id !== id));
+                } else {
+                  toast.error(result.error || tCommon('messages.error'));
+                }
+              } catch {
+                toast.error(tCommon('messages.error'));
+              } finally {
+                setSavingMedia(false);
+              }
+            }}
+            onAddVideo={async (title, description, file) => {
+              if (!selectedAgent || !selectedProject) return;
+              setSavingMedia(true);
+              try {
+                const result = await addAgentVideo({
+                  agentId: selectedAgent.id,
+                  projectId: selectedProject.id,
+                  title,
+                  description,
+                  file,
+                });
+                if (result.success) {
+                  toast.success('Video agregado');
+                  await loadVideos();
                 } else {
                   toast.error(result.error || tCommon('messages.error'));
                 }
@@ -2014,13 +2057,20 @@ function ReEngagementTab({
               {config.promptTemplate.length}/1000
             </p>
             {agentId && projectId && (
-              <div className="mt-3">
+              <div className="mt-3 space-y-2">
                 <FixedImageSlot
                   eventType="reengagement_0"
                   agentId={agentId}
                   projectId={projectId}
                   label={t('fixedImage.label')}
                   helpText={t('fixedImage.reengagementHelp')}
+                />
+                <FixedVideoSlot
+                  eventType="reengagement_0_video"
+                  agentId={agentId}
+                  projectId={projectId}
+                  label="Video de seguimiento inicial"
+                  helpText="Se enviara despues de la imagen, antes del texto"
                 />
               </div>
             )}
@@ -2066,13 +2116,20 @@ function ReEngagementTab({
                 {(config.attempt1Instructions || '').length}/500
               </p>
               {agentId && projectId && (
-                <div className="mt-3">
+                <div className="mt-3 space-y-2">
                   <FixedImageSlot
                     eventType="reengagement_1"
                     agentId={agentId}
                     projectId={projectId}
                     label={t('fixedImage.label')}
                     helpText={t('fixedImage.reengagementHelp')}
+                  />
+                  <FixedVideoSlot
+                    eventType="reengagement_1_video"
+                    agentId={agentId}
+                    projectId={projectId}
+                    label="Video de seguimiento #1"
+                    helpText="Se enviara despues de la imagen, antes del texto"
                   />
                 </div>
               )}
@@ -2100,13 +2157,20 @@ function ReEngagementTab({
                 {(config.attempt2Instructions || '').length}/500
               </p>
               {agentId && projectId && (
-                <div className="mt-3">
+                <div className="mt-3 space-y-2">
                   <FixedImageSlot
                     eventType="reengagement_2"
                     agentId={agentId}
                     projectId={projectId}
                     label={t('fixedImage.label')}
                     helpText={t('fixedImage.reengagementHelp')}
+                  />
+                  <FixedVideoSlot
+                    eventType="reengagement_2_video"
+                    agentId={agentId}
+                    projectId={projectId}
+                    label="Video de seguimiento #2"
+                    helpText="Se enviara despues de la imagen, antes del texto"
                   />
                 </div>
               )}

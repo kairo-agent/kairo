@@ -15,7 +15,7 @@ import { verifyAuth, verifyProjectAccess as verifyProjectAccessAuth } from '@/li
 import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings';
 import { createClient } from '@/lib/supabase/server';
 import { uploadMedia, deleteMedia } from '@/lib/actions/media';
-import { MAX_MEDIA_ITEMS, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/types/agent-media';
+import { MAX_MEDIA_ITEMS, MAX_VIDEO_ITEMS, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/types/agent-media';
 import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
 import { invalidateMediaCache } from '@/lib/ai/search-media';
 
@@ -119,7 +119,7 @@ export async function listAgentMedia(
   description: string;
   mediaUrl: string;
   storagePath: string;
-  mediaType: string;
+  mediaType: 'image' | 'video';
   createdAt: string;
   updatedAt: string;
 }>; error?: string }> {
@@ -156,7 +156,7 @@ export async function listAgentMedia(
       description: row.description,
       mediaUrl: row.media_url,
       storagePath: row.storage_path,
-      mediaType: row.media_type,
+      mediaType: (row.media_type || 'image') as 'image' | 'video',
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     }));
@@ -261,7 +261,157 @@ export async function deleteAgentMedia(
 }
 
 // ============================================
-// Fixed Event Media (images tied to specific events)
+// Video CRUD Operations
+// ============================================
+
+/**
+ * Adds a new video to an agent's media library.
+ * No client-side compression - validates MP4 format and 16MB size limit.
+ */
+export async function addAgentVideo(input: {
+  agentId: string;
+  projectId: string;
+  title: string;
+  description: string;
+  file: File;
+}): Promise<{ success: boolean; data?: { id: string; mediaUrl: string }; error?: string }> {
+  try {
+    const { agentId, projectId, title, description, file } = input;
+
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
+    if (!hasAccess) return { success: false, error: 'Sin permisos para este proyecto' };
+
+    if (!title || title.length > MAX_TITLE_LENGTH) {
+      return { success: false, error: `El titulo debe tener entre 1 y ${MAX_TITLE_LENGTH} caracteres` };
+    }
+    if (!description || description.length > MAX_DESCRIPTION_LENGTH) {
+      return { success: false, error: `La descripcion debe tener entre 1 y ${MAX_DESCRIPTION_LENGTH} caracteres` };
+    }
+
+    // Validate video type
+    if (file.type !== 'video/mp4') {
+      return { success: false, error: 'Solo se aceptan videos en formato MP4' };
+    }
+
+    // Check max video items limit
+    const supabase = await createClient();
+    const { data: countData } = await supabase.rpc('count_agent_videos', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+    });
+    const currentCount = countData?.[0]?.count ?? 0;
+    if (currentCount >= MAX_VIDEO_ITEMS) {
+      return { success: false, error: `Maximo ${MAX_VIDEO_ITEMS} videos permitidos` };
+    }
+
+    // Upload file to Supabase Storage
+    const uploadResult = await uploadMedia(projectId, file);
+    if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
+      return { success: false, error: uploadResult.error || 'Error al subir video' };
+    }
+
+    // Generate embedding from description
+    const embedding = await generateEmbedding(`${title}. ${description}`, projectId);
+    const embeddingStr = formatEmbeddingForPg(embedding);
+
+    // Insert into agent_media via RPC (same table, media_type = 'video')
+    const { data, error } = await supabase.rpc('insert_agent_media', {
+      p_project_id: projectId,
+      p_agent_id: agentId,
+      p_title: title,
+      p_description: description,
+      p_media_url: uploadResult.url,
+      p_storage_path: uploadResult.path,
+      p_media_type: 'video',
+      p_embedding: embeddingStr,
+      p_created_by: user.id,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] Insert video RPC error:', error);
+      await deleteMedia(uploadResult.path).catch(() => {});
+      return { success: false, error: 'Error al guardar en base de datos' };
+    }
+
+    const newId = data?.[0]?.id;
+    invalidateMediaCache(agentId, projectId);
+
+    return {
+      success: true,
+      data: { id: newId, mediaUrl: uploadResult.url },
+    };
+  } catch (error) {
+    console.error('[AgentMedia] addAgentVideo error:', error);
+    return { success: false, error: 'Error interno al agregar video' };
+  }
+}
+
+/**
+ * Lists all video items for an agent (excludes fixed event videos)
+ */
+export async function listAgentVideos(
+  agentId: string,
+  projectId: string
+): Promise<{ success: boolean; data?: Array<{
+  id: string;
+  title: string;
+  description: string;
+  mediaUrl: string;
+  storagePath: string;
+  mediaType: 'image' | 'video';
+  createdAt: string;
+  updatedAt: string;
+}>; error?: string }> {
+  try {
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
+    if (!hasAccess) return { success: false, error: 'Sin permisos para este proyecto' };
+
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc('list_agent_videos', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] List videos RPC error:', error);
+      return { success: false, error: 'Error al listar videos' };
+    }
+
+    const items = (data || []).map((row: {
+      id: string;
+      title: string;
+      description: string;
+      media_url: string;
+      storage_path: string;
+      media_type: string;
+      created_at: string;
+      updated_at: string;
+    }) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      mediaUrl: row.media_url,
+      storagePath: row.storage_path,
+      mediaType: (row.media_type || 'video') as 'image' | 'video',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+
+    return { success: true, data: items };
+  } catch (error) {
+    console.error('[AgentMedia] listAgentVideos error:', error);
+    return { success: false, error: 'Error interno al listar videos' };
+  }
+}
+
+// ============================================
+// Fixed Event Media (images/videos tied to specific events)
 // ============================================
 
 /**
@@ -293,7 +443,7 @@ export async function getFixedEventMedia(
 
     return {
       success: true,
-      data: { id: row.id, title: row.title, mediaUrl: row.media_url },
+      data: { id: row.id, title: row.title, mediaUrl: row.media_url, mediaType: row.media_type || 'image' },
     };
   } catch (error) {
     console.error('[AgentMedia] getFixedEventMedia error:', error);
@@ -302,8 +452,9 @@ export async function getFixedEventMedia(
 }
 
 /**
- * Uploads a new fixed image for a specific event type.
- * If an image already exists for this event, it's replaced.
+ * Uploads a new fixed media (image or video) for a specific event type.
+ * If media already exists for this event, it's replaced.
+ * Video event types end with '_video' (e.g., 'first_contact_video').
  */
 export async function uploadFixedEventMedia(input: {
   agentId: string;
@@ -326,16 +477,27 @@ export async function uploadFixedEventMedia(input: {
       return { success: false, error: `El titulo debe tener entre 1 y ${MAX_TITLE_LENGTH} caracteres` };
     }
 
+    // Determine media type from event type
+    const isVideoEvent = eventType.endsWith('_video');
+    const mediaType = isVideoEvent ? 'video' : 'image';
+
+    // Validate file type matches event type
+    if (isVideoEvent && file.type !== 'video/mp4') {
+      return { success: false, error: 'Solo se aceptan videos en formato MP4' };
+    }
+    if (!isVideoEvent && !file.type.startsWith('image/')) {
+      return { success: false, error: 'Solo se aceptan imagenes (JPG, PNG, WebP)' };
+    }
+
     const supabase = await createClient();
 
-    // Delete existing fixed image for this event (if any)
+    // Delete existing fixed media for this event (if any)
     const { data: existing } = await supabase.rpc('get_fixed_event_media', {
       p_agent_id: agentId,
       p_project_id: projectId,
       p_event_type: eventType,
     });
     if (existing?.[0]?.id) {
-      // Clear the event_type so we can replace
       await supabase.rpc('clear_event_media', {
         p_agent_id: agentId,
         p_project_id: projectId,
@@ -362,7 +524,7 @@ export async function uploadFixedEventMedia(input: {
       p_description: descForEmbedding,
       p_media_url: uploadResult.url,
       p_storage_path: uploadResult.path,
-      p_media_type: 'image',
+      p_media_type: mediaType,
       p_embedding: embeddingStr,
       p_created_by: user.id,
     });

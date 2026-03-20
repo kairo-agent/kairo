@@ -1,7 +1,7 @@
 /**
  * KAIRO - Agent Media Semantic Search
  *
- * Searches for relevant media (images) based on conversation context
+ * Searches for relevant media (images + videos) based on conversation context
  * using pgvector semantic search on media descriptions.
  *
  * Includes a feature flag cache to avoid unnecessary embedding calls
@@ -119,9 +119,57 @@ export async function searchRelevantMedia(
       description: row.description,
       mediaUrl: row.media_url,
       similarity: row.similarity,
+      mediaType: 'image' as const,
     }));
   } catch (error) {
     console.error('[MediaSearch] searchRelevantMedia error:', error);
+    return [];
+  }
+}
+
+/**
+ * Searches for relevant videos based on a text query.
+ * Returns up to 2 video items sorted by relevance (cosine similarity).
+ */
+export async function searchRelevantVideos(
+  agentId: string,
+  projectId: string,
+  query: string
+): Promise<MediaSearchResult[]> {
+  try {
+    const queryEmbedding = await generateEmbedding(query, projectId);
+    const embeddingStr = formatEmbeddingForPg(queryEmbedding);
+
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc('search_agent_videos', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+      p_query_embedding: embeddingStr,
+      p_match_count: 2,
+      p_match_threshold: 0.30,
+    });
+
+    if (error) {
+      console.error('[MediaSearch] search_agent_videos RPC error:', error);
+      return [];
+    }
+
+    return (data || []).map((row: {
+      id: string;
+      title: string;
+      description: string;
+      media_url: string;
+      similarity: number;
+    }) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      mediaUrl: row.media_url,
+      similarity: row.similarity,
+      mediaType: 'video' as const,
+    }));
+  } catch (error) {
+    console.error('[MediaSearch] searchRelevantVideos error:', error);
     return [];
   }
 }
@@ -159,6 +207,7 @@ export async function getFixedMediaForEvent(
       id: row.id,
       title: row.title,
       mediaUrl: row.media_url,
+      mediaType: row.media_type || 'image',
     };
   } catch (error) {
     console.error('[MediaSearch] getFixedMediaForEvent error:', error);

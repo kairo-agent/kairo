@@ -25,6 +25,7 @@ interface GenerateReEngagementParams {
   attemptNumber: number;               // 0 = initial, 1 = follow-up 1, 2 = follow-up 2
   leadSummary: string | null;
   mediaItems?: Array<{ title: string; description: string }>;  // Available images
+  videoItems?: Array<{ title: string; description: string }>;  // Available videos
 }
 
 /**
@@ -40,7 +41,7 @@ export async function generateReEngagementMessage(
       agentName, leadName, conversationHistory,
       promptTemplate, attemptInstructions,
       systemInstructions, attemptNumber, leadSummary,
-      mediaItems,
+      mediaItems, videoItems,
     } = params;
 
     // Build conversation context (last 6 messages)
@@ -66,11 +67,15 @@ export async function generateReEngagementMessage(
 
     const maxChars = attemptNumber >= 2 ? 150 : 250;
 
-    // Build media section if images are available
+    // Build media section if images/videos are available
     let mediaSection = '';
     if (mediaItems && mediaItems.length > 0) {
       const mediaList = mediaItems.map((m, i) => `[MEDIA-${i + 1}] ${m.title} - ${m.description}`).join('\n');
-      mediaSection = `\n=== IMAGENES DISPONIBLES ===\n${mediaList}\nPara enviar imagenes SOLO usa marcadores [MEDIA-X]. NO uses enlaces, URLs ni formato markdown. NO inventes nombres de imagenes.\n=== FIN IMAGENES DISPONIBLES ===\n`;
+      mediaSection += `\n=== IMAGENES DISPONIBLES ===\n${mediaList}\nPara enviar imagenes SOLO usa marcadores [MEDIA-X]. NO uses enlaces, URLs ni formato markdown. NO inventes nombres de imagenes.\n=== FIN IMAGENES DISPONIBLES ===\n`;
+    }
+    if (videoItems && videoItems.length > 0) {
+      const videoList = videoItems.map((v, i) => `[VIDEO-${i + 1}] ${v.title} - ${v.description}`).join('\n');
+      mediaSection += `\n=== VIDEOS DISPONIBLES ===\n${videoList}\nPara enviar videos SOLO usa marcadores [VIDEO-X]. NO uses enlaces, URLs ni formato markdown.\n=== FIN VIDEOS DISPONIBLES ===\n`;
     }
 
     const systemPrompt = `Eres ${agentName}. Debes enviar un mensaje de seguimiento breve y natural para retomar la conversacion con ${leadName}.

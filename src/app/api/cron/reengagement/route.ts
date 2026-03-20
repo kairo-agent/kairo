@@ -18,8 +18,8 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateReEngagementMessage } from '@/lib/ai/generate-reengagement';
-import { sendToWhatsApp, sendImageToWhatsApp } from '@/lib/whatsapp/send';
-import { projectHasMedia, searchRelevantMedia, getFixedMediaForEvent } from '@/lib/ai/search-media';
+import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
+import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from '@/lib/ai/search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
 import type { FixedEventType } from '@/lib/types/agent-media';
 import type { ReEngagementConfig } from '@/lib/types/reengagement';
@@ -224,18 +224,23 @@ export async function GET(request: Request) {
             attemptInstructions = config.attempt2Instructions || null;
           }
 
-          // Search for available media for this agent
+          // Search for available media (images + videos) for this agent
           let mediaResults: MediaSearchResult[] = [];
+          let videoResults: MediaSearchResult[] = [];
           if (agent.id) {
             try {
               const hasMedia = await projectHasMedia(agent.id, agent.projectId);
               if (hasMedia) {
                 const searchQuery = lead.summary || conversationHistory[conversationHistory.length - 1]?.content || leadName;
-                mediaResults = await searchRelevantMedia(agent.id, agent.projectId, searchQuery);
+                const [images, videos] = await Promise.all([
+                  searchRelevantMedia(agent.id, agent.projectId, searchQuery),
+                  searchRelevantVideos(agent.id, agent.projectId, searchQuery),
+                ]);
+                mediaResults = images;
+                videoResults = videos;
               }
             } catch (mediaErr) {
               console.error(`[ReEngagement] Media search error for lead ${lead.id}:`, mediaErr);
-              // Continue without media - text message is still valuable
             }
           }
 
@@ -252,6 +257,9 @@ export async function GET(request: Request) {
             mediaItems: mediaResults.length > 0
               ? mediaResults.map(m => ({ title: m.title, description: m.description }))
               : undefined,
+            videoItems: videoResults.length > 0
+              ? videoResults.map(v => ({ title: v.title, description: v.description }))
+              : undefined,
           });
 
           if (!rawMessage) {
@@ -259,16 +267,23 @@ export async function GET(request: Request) {
             continue;
           }
 
-          // Extract [MEDIA-X] markers before cleanup
+          // Extract [MEDIA-X] and [VIDEO-X] markers before cleanup
           const mediaMarkers = rawMessage.match(/\[MEDIA-(\d+)\]/gi) || [];
           const requestedMediaIds: number[] = mediaMarkers
             .map(m => parseInt(m.match(/\d+/)?.[0] || '0'))
             .filter(n => n >= 1 && n <= mediaResults.length)
             .slice(0, 3);
 
+          const videoMarkers = rawMessage.match(/\[VIDEO-(\d+)\]/gi) || [];
+          const requestedVideoIds: number[] = videoMarkers
+            .map(m => parseInt(m.match(/\d+/)?.[0] || '0'))
+            .filter(n => n >= 1 && n <= videoResults.length)
+            .slice(0, 2);
+
           // Clean message (remove markers)
           const cleanMessage = rawMessage
             .replace(/\[MEDIA-\d+\]/gi, '')
+            .replace(/\[VIDEO-\d+\]/gi, '')
             .trim();
 
           if (!cleanMessage) {
@@ -277,10 +292,16 @@ export async function GET(request: Request) {
           }
 
           // Build media attachments for metadata
-          const mediaAttachments = requestedMediaIds.map(idx => {
-            const media = mediaResults[idx - 1];
-            return media ? { url: media.mediaUrl, title: media.title } : null;
-          }).filter((a): a is { url: string; title: string } => a !== null);
+          const mediaAttachments = [
+            ...requestedMediaIds.map(idx => {
+              const media = mediaResults[idx - 1];
+              return media ? { url: media.mediaUrl, title: media.title, type: 'image' } : null;
+            }),
+            ...requestedVideoIds.map(idx => {
+              const video = videoResults[idx - 1];
+              return video ? { url: video.mediaUrl, title: video.title, type: 'video' } : null;
+            }),
+          ].filter((a): a is { url: string; title: string; type: string } => a !== null);
 
           // Save message to conversation
           const savedMessage = await prisma.message.create({
@@ -299,30 +320,40 @@ export async function GET(request: Request) {
             },
           });
 
-          // Send fixed event image BEFORE text (visual impact first)
+          // Send fixed event media BEFORE text (image first, then video)
           const fixedEventType = `reengagement_${attemptNumber}` as FixedEventType;
+          const fixedVideoEventType = `reengagement_${attemptNumber}_video` as FixedEventType;
+          const fixedAttachments: Array<{ url: string; title: string; type: string }> = [];
           try {
+            // Fixed image first
             const fixedMedia = await getFixedMediaForEvent(agent.id, agent.projectId, fixedEventType);
             if (fixedMedia) {
               await sendImageToWhatsApp(agent.projectId, lead.whatsappId!, fixedMedia.mediaUrl);
-              // Update metadata with fixed image
-              if (!mediaAttachments.some((a: { url: string }) => a.url === fixedMedia.mediaUrl)) {
-                await prisma.message.update({
-                  where: { id: savedMessage.id },
-                  data: {
-                    metadata: {
-                      ...savedMessage.metadata as Record<string, unknown>,
-                      mediaAttachments: [
-                        ...mediaAttachments as Array<{ url: string; title: string }>,
-                        { url: fixedMedia.mediaUrl, title: fixedMedia.title },
-                      ],
-                    },
+              fixedAttachments.push({ url: fixedMedia.mediaUrl, title: fixedMedia.title, type: 'image' });
+            }
+            // Fixed video second (after image, before text)
+            const fixedVideo = await getFixedMediaForEvent(agent.id, agent.projectId, fixedVideoEventType);
+            if (fixedVideo) {
+              await sendVideoToWhatsApp(agent.projectId, lead.whatsappId!, fixedVideo.mediaUrl);
+              fixedAttachments.push({ url: fixedVideo.mediaUrl, title: fixedVideo.title, type: 'video' });
+            }
+            // Update metadata with fixed attachments
+            if (fixedAttachments.length > 0) {
+              await prisma.message.update({
+                where: { id: savedMessage.id },
+                data: {
+                  metadata: {
+                    ...savedMessage.metadata as Record<string, unknown>,
+                    mediaAttachments: [
+                      ...mediaAttachments as Array<{ url: string; title: string }>,
+                      ...fixedAttachments,
+                    ],
                   },
-                });
-              }
+                },
+              });
             }
           } catch (fixedErr) {
-            console.error(`[ReEngagement] Fixed image send failed:`, fixedErr);
+            console.error(`[ReEngagement] Fixed media send failed:`, fixedErr);
           }
 
           // Send text via WhatsApp
@@ -333,7 +364,7 @@ export async function GET(request: Request) {
             savedMessage.id
           );
 
-          // Send media images if GPT included [MEDIA-X] markers (after text)
+          // Send RAG images if GPT included [MEDIA-X] markers (after text)
           if (sendResult.success && requestedMediaIds.length > 0) {
             for (const idx of requestedMediaIds) {
               const media = mediaResults[idx - 1];
@@ -342,6 +373,20 @@ export async function GET(request: Request) {
                   await sendImageToWhatsApp(agent.projectId, lead.whatsappId, media.mediaUrl);
                 } catch (imgErr) {
                   console.error(`[ReEngagement] Media send failed idx=${idx}:`, imgErr);
+                }
+              }
+            }
+          }
+
+          // Send RAG videos if GPT included [VIDEO-X] markers (after images)
+          if (sendResult.success && requestedVideoIds.length > 0) {
+            for (const idx of requestedVideoIds) {
+              const video = videoResults[idx - 1];
+              if (video) {
+                try {
+                  await sendVideoToWhatsApp(agent.projectId, lead.whatsappId, video.mediaUrl);
+                } catch (vidErr) {
+                  console.error(`[ReEngagement] Video send failed idx=${idx}:`, vidErr);
                 }
               }
             }
