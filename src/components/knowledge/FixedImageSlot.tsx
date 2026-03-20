@@ -6,7 +6,6 @@ import { toast } from 'sonner';
 import { compressImage } from '@/lib/utils/image-compression';
 import { getFixedEventMedia, uploadFixedEventMedia, deleteFixedEventMedia } from '@/lib/actions/agent-media';
 import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
-import { MAX_TITLE_LENGTH } from '@/lib/types/agent-media';
 
 // =============================================================================
 // Types
@@ -42,7 +41,6 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [title, setTitle] = useState(DEFAULT_TITLES[eventType] || '');
   const [compressing, setCompressing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,7 +52,6 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
         const result = await getFixedEventMedia(agentId, projectId, eventType);
         if (!cancelled && result.success && result.data) {
           setMedia(result.data);
-          setTitle(result.data.title);
         }
       } catch {
         // silent - slot just shows empty
@@ -77,19 +74,18 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
       setCompressing(false);
       setUploading(true);
 
-      const finalTitle = title.trim() || DEFAULT_TITLES[eventType];
+      const defaultTitle = DEFAULT_TITLES[eventType];
       const result = await uploadFixedEventMedia({
         agentId,
         projectId,
         eventType,
-        title: finalTitle,
-        description: finalTitle,
+        title: defaultTitle,
+        description: defaultTitle,
         file: compressed.file,
       });
 
       if (result.success && result.data) {
         setMedia(result.data);
-        setTitle(result.data.title);
         toast.success(t('fixedImage.uploaded'));
       } else {
         toast.error(result.error || t('fixedImage.uploadError'));
@@ -101,7 +97,7 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [agentId, projectId, eventType, title, t]);
+  }, [agentId, projectId, eventType, t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -121,7 +117,6 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
       const result = await deleteFixedEventMedia(agentId, projectId, eventType);
       if (result.success) {
         setMedia(null);
-        setTitle(DEFAULT_TITLES[eventType] || '');
         toast.success(t('fixedImage.deleted'));
       } else {
         toast.error(result.error || t('fixedImage.deleteError'));
@@ -193,20 +188,10 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
   // No image - upload area
   return (
     <div className="space-y-2">
-      {/* Editable title */}
-      <div className="flex items-center gap-2">
-        <label className="text-xs font-medium text-[var(--text-secondary)] flex-shrink-0">
-          {label}
-        </label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={MAX_TITLE_LENGTH}
-          placeholder={DEFAULT_TITLES[eventType]}
-          className="flex-1 px-2 py-1 rounded border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] text-xs focus:outline-none focus:ring-1 focus:ring-[var(--accent-primary)]"
-        />
-      </div>
+      {/* Label */}
+      <p className="text-xs font-medium text-[var(--text-secondary)]">
+        {label}
+      </p>
 
       {/* Drop zone */}
       <div
