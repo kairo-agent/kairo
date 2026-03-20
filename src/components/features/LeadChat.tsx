@@ -799,8 +799,8 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-black/10 dark:bg-white/10 hover:bg-black/15 dark:hover:bg-white/15 transition-colors max-w-[280px] cursor-pointer"
                               >
-                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[var(--kairo-midnight)]/15 dark:bg-white/15 flex items-center justify-center">
-                                  <svg className="w-5 h-5 text-[var(--kairo-midnight)] dark:text-white" viewBox="0 0 24 24" fill="currentColor">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-[#0B1220]/20 flex items-center justify-center">
+                                  <svg className="w-5 h-5 text-[#0B1220]" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M8 5v14l11-7z" />
                                   </svg>
                                 </div>
