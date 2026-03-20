@@ -781,23 +781,42 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
                   ) : (
                     <p className="text-sm whitespace-pre-wrap break-words">{formatMessageText(message.content)}</p>
                   )}
-                  {/* Agent media images attached to this message */}
+                  {/* Agent media attachments (images + videos) */}
                   {(() => {
                     const meta = message.metadata as Record<string, unknown> | null;
-                    const attachments = meta?.mediaAttachments as Array<{ url: string; title: string }> | undefined;
+                    const attachments = meta?.mediaAttachments as Array<{ url: string; title: string; type?: string }> | undefined;
                     if (!attachments?.length) return null;
                     return (
                       <div className="mt-2 flex flex-col gap-2">
-                        {attachments.map((img, i) => (
-                          <a key={i} href={img.url} target="_blank" rel="noopener noreferrer" className="block">
-                            <img
-                              src={img.url}
-                              alt={img.title || 'Media'}
-                              className="rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                              loading="lazy"
-                            />
-                          </a>
-                        ))}
+                        {attachments.map((media, i) => {
+                          const isVideo = media.type === 'video' || media.url?.endsWith('.mp4');
+                          if (isVideo) {
+                            return (
+                              <video
+                                key={i}
+                                src={media.url}
+                                controls
+                                preload="metadata"
+                                playsInline
+                                className="rounded-lg max-w-[280px] max-h-[200px] bg-black"
+                              >
+                                <a href={media.url} target="_blank" rel="noopener noreferrer">
+                                  {media.title || 'Ver video'}
+                                </a>
+                              </video>
+                            );
+                          }
+                          return (
+                            <a key={i} href={media.url} target="_blank" rel="noopener noreferrer" className="block">
+                              <img
+                                src={media.url}
+                                alt={media.title || 'Media'}
+                                className="rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                loading="lazy"
+                              />
+                            </a>
+                          );
+                        })}
                       </div>
                     );
                   })()}

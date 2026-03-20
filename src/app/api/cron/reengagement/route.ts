@@ -345,8 +345,8 @@ export async function GET(request: Request) {
                   metadata: {
                     ...savedMessage.metadata as Record<string, unknown>,
                     mediaAttachments: [
-                      ...mediaAttachments as Array<{ url: string; title: string }>,
                       ...fixedAttachments,
+                      ...mediaAttachments as Array<{ url: string; title: string }>,
                     ],
                   },
                 },

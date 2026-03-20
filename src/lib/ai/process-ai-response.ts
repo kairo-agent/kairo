@@ -407,7 +407,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
               data: {
                 metadata: {
                   ...(savedMessage.metadata as Record<string, unknown> || {}),
-                  mediaAttachments: [...mediaAttachments, ...fixedAttachments],
+                  mediaAttachments: [...fixedAttachments, ...mediaAttachments],
                 },
               },
             });
