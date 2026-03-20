@@ -776,25 +776,27 @@ export function LeadDetailPanel({
 
         {/* Footer Actions */}
         <div className="flex-shrink-0 border-t border-[var(--border-primary)] p-4 lg:p-6">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-row gap-2">
             {isSuperAdmin && (
-              <Button variant="primary" fullWidth disabled>
+              <Button variant="primary" fullWidth disabled title={t('detail.call')}>
                 <PhoneIconSmall />
-                <span>{t('detail.call')}</span>
+                <span className="hidden sm:inline">{t('detail.call')}</span>
               </Button>
             )}
-            <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(true)}>
+            <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(true)} title={t('detail.edit')}>
               <EditIcon />
-              <span>{t('detail.edit')}</span>
+              <span className="hidden sm:inline">{t('detail.edit')}</span>
             </Button>
             <Button
               variant="ghost"
               fullWidth
               className="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30"
               onClick={() => onScheduleFollowUp?.(lead)}
+              title={t('actions.scheduleFollowUp')}
             >
               <ClockIcon />
-              <span>{t('actions.scheduleFollowUp')}</span>
+              <span className="sm:hidden">{t('actions.schedule')}</span>
+              <span className="hidden sm:inline">{t('actions.scheduleFollowUp')}</span>
             </Button>
             <Button
               variant="ghost"
@@ -804,9 +806,10 @@ export function LeadDetailPanel({
                 : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
               }
               onClick={() => onArchiveLead?.(lead)}
+              title={lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}
             >
               {lead.archivedAt ? <UnarchiveIcon /> : <ArchiveIcon />}
-              <span>{lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}</span>
+              <span className="hidden sm:inline">{lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}</span>
             </Button>
           </div>
         </div>
