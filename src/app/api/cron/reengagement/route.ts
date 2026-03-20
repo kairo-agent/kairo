@@ -299,6 +299,32 @@ export async function GET(request: Request) {
             },
           });
 
+          // Send fixed event image BEFORE text (visual impact first)
+          const fixedEventType = `reengagement_${attemptNumber}` as FixedEventType;
+          try {
+            const fixedMedia = await getFixedMediaForEvent(agent.id, agent.projectId, fixedEventType);
+            if (fixedMedia) {
+              await sendImageToWhatsApp(agent.projectId, lead.whatsappId!, fixedMedia.mediaUrl);
+              // Update metadata with fixed image
+              if (!mediaAttachments.some((a: { url: string }) => a.url === fixedMedia.mediaUrl)) {
+                await prisma.message.update({
+                  where: { id: savedMessage.id },
+                  data: {
+                    metadata: {
+                      ...savedMessage.metadata as Record<string, unknown>,
+                      mediaAttachments: [
+                        ...mediaAttachments as Array<{ url: string; title: string }>,
+                        { url: fixedMedia.mediaUrl, title: fixedMedia.title },
+                      ],
+                    },
+                  },
+                });
+              }
+            }
+          } catch (fixedErr) {
+            console.error(`[ReEngagement] Fixed image send failed:`, fixedErr);
+          }
+
           // Send text via WhatsApp
           const sendResult = await sendToWhatsApp(
             agent.projectId,
@@ -307,7 +333,7 @@ export async function GET(request: Request) {
             savedMessage.id
           );
 
-          // Send media images if GPT included [MEDIA-X] markers
+          // Send media images if GPT included [MEDIA-X] markers (after text)
           if (sendResult.success && requestedMediaIds.length > 0) {
             for (const idx of requestedMediaIds) {
               const media = mediaResults[idx - 1];
@@ -318,34 +344,6 @@ export async function GET(request: Request) {
                   console.error(`[ReEngagement] Media send failed idx=${idx}:`, imgErr);
                 }
               }
-            }
-          }
-
-          // Send fixed event image for this attempt (if configured)
-          if (sendResult.success) {
-            const fixedEventType = `reengagement_${attemptNumber}` as FixedEventType;
-            try {
-              const fixedMedia = await getFixedMediaForEvent(agent.id, agent.projectId, fixedEventType);
-              if (fixedMedia) {
-                await sendImageToWhatsApp(agent.projectId, lead.whatsappId!, fixedMedia.mediaUrl);
-                // Update metadata with fixed image
-                if (!mediaAttachments.some((a: { url: string }) => a.url === fixedMedia.mediaUrl)) {
-                  await prisma.message.update({
-                    where: { id: savedMessage.id },
-                    data: {
-                      metadata: {
-                        ...savedMessage.metadata as Record<string, unknown>,
-                        mediaAttachments: [
-                          ...mediaAttachments as Array<{ url: string; title: string }>,
-                          { url: fixedMedia.mediaUrl, title: fixedMedia.title },
-                        ],
-                      },
-                    },
-                  });
-                }
-              }
-            } catch (fixedErr) {
-              console.error(`[ReEngagement] Fixed image send failed:`, fixedErr);
             }
           }
 

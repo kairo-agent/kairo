@@ -363,25 +363,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const stepWA = Date.now();
     const phoneNumber = params.whatsappId || params.leadPhone;
     if (phoneNumber) {
-      // Always send text first
-      await sendToWhatsApp(projectId, phoneNumber, cleanMessage, savedMessage.id);
-
-      // Send media images if GPT included [MEDIA-X] markers
-      if (requestedMediaIds.length > 0) {
-        for (const idx of requestedMediaIds) {
-          const media = mediaResults[idx - 1]; // 1-indexed
-          if (media) {
-            try {
-              await sendImageToWhatsApp(projectId, phoneNumber, media.mediaUrl);
-            } catch (err) {
-              console.error(`[AI Pipeline] Media send failed idx=${idx}:`, err);
-              // Fallback: text was already sent, lead is not left without response
-            }
-          }
-        }
-      }
-
-      // Send fixed first-contact image (if configured and this is the first interaction)
+      // Send fixed first-contact image BEFORE text (visual impact first)
       if (params.messageCount <= 2 && params.agentId) {
         try {
           const firstContactMedia = await getFixedMediaForEvent(params.agentId, projectId, 'first_contact');
@@ -403,6 +385,23 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           }
         } catch (err) {
           console.error('[AI Pipeline] First contact image failed:', err);
+        }
+      }
+
+      // Send text message
+      await sendToWhatsApp(projectId, phoneNumber, cleanMessage, savedMessage.id);
+
+      // Send media images if GPT included [MEDIA-X] markers (after text)
+      if (requestedMediaIds.length > 0) {
+        for (const idx of requestedMediaIds) {
+          const media = mediaResults[idx - 1]; // 1-indexed
+          if (media) {
+            try {
+              await sendImageToWhatsApp(projectId, phoneNumber, media.mediaUrl);
+            } catch (err) {
+              console.error(`[AI Pipeline] Media send failed idx=${idx}:`, err);
+            }
+          }
         }
       }
     }
