@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { getFixedEventMedia, uploadFixedEventMedia, deleteFixedEventMedia } from '@/lib/actions/agent-media';
+import { getFixedEventMedia, uploadFixedEventVideoByUrl, deleteFixedEventMedia } from '@/lib/actions/agent-media';
+import { uploadVideoToStorage } from '@/lib/utils/video-upload';
 import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
 import { MAX_VIDEO_SIZE_MB } from '@/lib/types/agent-media';
 
@@ -71,14 +72,23 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
 
     setUploading(true);
     try {
+      // Upload video directly to Supabase Storage from client (bypasses Vercel 4.5MB limit)
+      const uploadResult = await uploadVideoToStorage(projectId, file);
+      if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
+        toast.error(uploadResult.error || 'Error al subir video');
+        return;
+      }
+
+      // Register in DB via server action (only sends URL, not file)
       const defaultTitle = DEFAULT_TITLES[eventType] || 'Video';
-      const result = await uploadFixedEventMedia({
+      const result = await uploadFixedEventVideoByUrl({
         agentId,
         projectId,
         eventType,
         title: defaultTitle,
         description: defaultTitle,
-        file,
+        mediaUrl: uploadResult.url,
+        storagePath: uploadResult.path,
       });
 
       if (result.success && result.data) {

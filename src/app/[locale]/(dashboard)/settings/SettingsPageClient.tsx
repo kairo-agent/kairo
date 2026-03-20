@@ -39,7 +39,8 @@ import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { getReEngagementConfig, saveReEngagementConfig } from '@/lib/actions/reengagement';
 import { DEFAULT_REENGAGEMENT_CONFIG, generateTimeOptions, getWindowDurationHours, type ReEngagementConfig } from '@/lib/types/reengagement';
-import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia, listAgentVideos, addAgentVideo } from '@/lib/actions/agent-media';
+import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia, listAgentVideos, addAgentVideoByUrl } from '@/lib/actions/agent-media';
+import { uploadVideoToStorage } from '@/lib/utils/video-upload';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { MultimediaModal } from '@/components/knowledge/MultimediaModal';
 import { FixedImageSlot } from '@/components/knowledge/FixedImageSlot';
@@ -1102,12 +1103,20 @@ export default function SettingsPageClient() {
               if (!selectedAgent || !selectedProject) return;
               setSavingMedia(true);
               try {
-                const result = await addAgentVideo({
+                // Upload video directly to Supabase Storage (bypasses Vercel 4.5MB limit)
+                const uploadResult = await uploadVideoToStorage(selectedProject.id, file);
+                if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
+                  toast.error(uploadResult.error || 'Error al subir video');
+                  return;
+                }
+                // Register in DB via server action (only sends URL, not file)
+                const result = await addAgentVideoByUrl({
                   agentId: selectedAgent.id,
                   projectId: selectedProject.id,
                   title,
                   description,
-                  file,
+                  mediaUrl: uploadResult.url,
+                  storagePath: uploadResult.path,
                 });
                 if (result.success) {
                   toast.success('Video agregado');

@@ -350,6 +350,188 @@ export async function addAgentVideo(input: {
 }
 
 /**
+ * Adds a video to an agent's library using a pre-uploaded URL.
+ * The video file is uploaded client-side directly to Supabase Storage
+ * to bypass Vercel's 4.5MB serverless function payload limit.
+ */
+export async function addAgentVideoByUrl(input: {
+  agentId: string;
+  projectId: string;
+  title: string;
+  description: string;
+  mediaUrl: string;
+  storagePath: string;
+}): Promise<{ success: boolean; data?: { id: string; mediaUrl: string }; error?: string }> {
+  try {
+    const { agentId, projectId, title, description, mediaUrl, storagePath } = input;
+
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
+    if (!hasAccess) return { success: false, error: 'Sin permisos para este proyecto' };
+
+    if (!title || title.length > MAX_TITLE_LENGTH) {
+      return { success: false, error: `El titulo debe tener entre 1 y ${MAX_TITLE_LENGTH} caracteres` };
+    }
+    if (!description || description.length > MAX_DESCRIPTION_LENGTH) {
+      return { success: false, error: `La descripcion debe tener entre 1 y ${MAX_DESCRIPTION_LENGTH} caracteres` };
+    }
+    if (!mediaUrl || !storagePath) {
+      return { success: false, error: 'URL y path del video son requeridos' };
+    }
+
+    // Check max video items limit
+    const supabase = await createClient();
+    const { data: countData } = await supabase.rpc('count_agent_videos', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+    });
+    const currentCount = countData?.[0]?.count ?? 0;
+    if (currentCount >= MAX_VIDEO_ITEMS) {
+      return { success: false, error: `Maximo ${MAX_VIDEO_ITEMS} videos permitidos` };
+    }
+
+    // Generate embedding from description
+    const embedding = await generateEmbedding(`${title}. ${description}`, projectId);
+    const embeddingStr = formatEmbeddingForPg(embedding);
+
+    // Insert into agent_media via RPC
+    const { data, error } = await supabase.rpc('insert_agent_media', {
+      p_project_id: projectId,
+      p_agent_id: agentId,
+      p_title: title,
+      p_description: description,
+      p_media_url: mediaUrl,
+      p_storage_path: storagePath,
+      p_media_type: 'video',
+      p_embedding: embeddingStr,
+      p_created_by: user.id,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] Insert video by URL RPC error:', error);
+      await deleteMedia(storagePath).catch(() => {});
+      return { success: false, error: 'Error al guardar en base de datos' };
+    }
+
+    const newId = data?.[0]?.id;
+    invalidateMediaCache(agentId, projectId);
+
+    return {
+      success: true,
+      data: { id: newId, mediaUrl },
+    };
+  } catch (error) {
+    console.error('[AgentMedia] addAgentVideoByUrl error:', error);
+    return { success: false, error: 'Error interno al agregar video' };
+  }
+}
+
+/**
+ * Registers a fixed event video using a pre-uploaded URL.
+ * The video file is uploaded client-side directly to Supabase Storage
+ * to bypass Vercel's 4.5MB serverless function payload limit.
+ */
+export async function uploadFixedEventVideoByUrl(input: {
+  agentId: string;
+  projectId: string;
+  eventType: FixedEventType;
+  title: string;
+  description: string;
+  mediaUrl: string;
+  storagePath: string;
+}): Promise<{ success: boolean; data?: FixedEventMedia; error?: string }> {
+  try {
+    const { agentId, projectId, eventType, title, description, mediaUrl, storagePath } = input;
+
+    const user = await verifyAuth();
+    if (!user) return { success: false, error: 'No autorizado' };
+
+    const hasAccess = await verifyProjectAccessAuth(user.id, user.systemRole, projectId);
+    if (!hasAccess) return { success: false, error: 'Sin permisos para este proyecto' };
+
+    if (!title || title.length > MAX_TITLE_LENGTH) {
+      return { success: false, error: `El titulo debe tener entre 1 y ${MAX_TITLE_LENGTH} caracteres` };
+    }
+    if (!mediaUrl || !storagePath) {
+      return { success: false, error: 'URL y path del video son requeridos' };
+    }
+
+    const supabase = await createClient();
+
+    // Delete existing fixed media for this event (if any)
+    const { data: existing } = await supabase.rpc('get_fixed_event_media', {
+      p_agent_id: agentId,
+      p_project_id: projectId,
+      p_event_type: eventType,
+    });
+    if (existing?.[0]?.id) {
+      await supabase.rpc('clear_event_media', {
+        p_agent_id: agentId,
+        p_project_id: projectId,
+        p_event_type: eventType,
+      });
+    }
+
+    // Generate embedding
+    const descForEmbedding = description || title;
+    const embedding = await generateEmbedding(`${title}. ${descForEmbedding}`, projectId);
+    const embeddingStr = formatEmbeddingForPg(embedding);
+
+    // Insert with media_type = 'video'
+    const { data, error } = await supabase.rpc('insert_agent_media', {
+      p_project_id: projectId,
+      p_agent_id: agentId,
+      p_title: title,
+      p_description: descForEmbedding,
+      p_media_url: mediaUrl,
+      p_storage_path: storagePath,
+      p_media_type: 'video',
+      p_embedding: embeddingStr,
+      p_created_by: user.id,
+    });
+
+    if (error) {
+      console.error('[AgentMedia] Insert fixed video by URL RPC error:', error);
+      await deleteMedia(storagePath).catch(() => {});
+      return { success: false, error: 'Error al guardar en base de datos' };
+    }
+
+    const newId = data?.[0]?.id;
+
+    // Set event_type on the new record
+    if (newId) {
+      await supabase.rpc('clear_event_media', {
+        p_agent_id: agentId,
+        p_project_id: projectId,
+        p_event_type: eventType,
+      });
+      const { error: setError } = await supabase.rpc('set_event_media', {
+        p_agent_id: agentId,
+        p_project_id: projectId,
+        p_event_type: eventType,
+        p_media_id: newId,
+      });
+
+      if (setError) {
+        console.error('[AgentMedia] Set event_type error:', setError);
+      }
+    }
+
+    invalidateMediaCache(agentId, projectId);
+
+    return {
+      success: true,
+      data: { id: newId, title, mediaUrl },
+    };
+  } catch (error) {
+    console.error('[AgentMedia] uploadFixedEventVideoByUrl error:', error);
+    return { success: false, error: 'Error interno al subir video fijo' };
+  }
+}
+
+/**
  * Lists all video items for an agent (excludes fixed event videos)
  */
 export async function listAgentVideos(
