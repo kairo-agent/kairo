@@ -47,6 +47,25 @@ END;
 $$;
 GRANT EXECUTE ON FUNCTION clear_event_media TO authenticated;
 
+-- 4b. RPC: assign event_type to a media item (SECURITY DEFINER to bypass RLS)
+CREATE OR REPLACE FUNCTION set_event_media(
+  p_agent_id TEXT,
+  p_project_id TEXT,
+  p_event_type TEXT,
+  p_media_id UUID
+) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  -- Clear any existing image with this event_type
+  UPDATE agent_media SET event_type = NULL
+  WHERE agent_id = p_agent_id AND project_id = p_project_id AND event_type = p_event_type;
+  -- Assign event_type to the target image
+  UPDATE agent_media SET event_type = p_event_type
+  WHERE id = p_media_id AND agent_id = p_agent_id AND project_id = p_project_id;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION set_event_media TO authenticated;
+
 -- 5. Update search_agent_media to EXCLUDE fixed images from RAG
 CREATE OR REPLACE FUNCTION search_agent_media(
   p_agent_id TEXT, p_project_id TEXT, p_query_embedding TEXT,

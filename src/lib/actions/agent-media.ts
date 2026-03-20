@@ -375,21 +375,22 @@ export async function uploadFixedEventMedia(input: {
 
     const newId = data?.[0]?.id;
 
-    // Set event_type on the new record
+    // Set event_type on the new record via SECURITY DEFINER RPC (RLS-safe)
     if (newId) {
       await supabase.rpc('clear_event_media', {
         p_agent_id: agentId,
         p_project_id: projectId,
         p_event_type: eventType,
       });
-      // Set event_type directly via SQL since insert_agent_media doesn't support it
-      const { error: updateError } = await supabase
-        .from('agent_media')
-        .update({ event_type: eventType })
-        .eq('id', newId);
+      const { error: setError } = await supabase.rpc('set_event_media', {
+        p_agent_id: agentId,
+        p_project_id: projectId,
+        p_event_type: eventType,
+        p_media_id: newId,
+      });
 
-      if (updateError) {
-        console.error('[AgentMedia] Set event_type error:', updateError);
+      if (setError) {
+        console.error('[AgentMedia] Set event_type error:', setError);
       }
     }
 
