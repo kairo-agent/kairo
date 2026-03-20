@@ -4,6 +4,78 @@
 
 ---
 
+## [0.14.0] - 2026-03-19
+
+### Debounce 3s en Webhook WhatsApp
+
+Cuando un lead envia multiples mensajes rapidos, el sistema ahora espera 3 segundos y concatena todos los mensajes en una sola entrada para el AI, evitando respuestas duplicadas.
+
+**Nuevos archivos:**
+
+| Archivo | Funcion |
+|---------|---------|
+| `src/lib/redis.ts` | Singleton Redis client (Upstash) para debounce |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/app/api/webhooks/whatsapp/route.ts` | Debounce con Redis `SET NX EX 3` + `waitUntil` + concatenacion de mensajes |
+
+**Arquitectura:**
+- Redis `SET NX EX 3`: primer mensaje gana, siguientes se ignoran (otro invocation ya espera)
+- `waitUntil(sleep 3s)`: mantiene funcion viva sin bloquear respuesta HTTP
+- Re-fetch mensajes de DB tras 3s, concatena consecutivos del lead
+- Fallback sin Redis (dev): procesa inmediatamente como antes
+
+### Fixed Event Images (Imagenes fijas por evento)
+
+Nuevo sistema de imagenes que se envian SIEMPRE con eventos especificos, independiente del RAG semantico. 4 tipos: `first_contact`, `reengagement_0`, `reengagement_1`, `reengagement_2`.
+
+**Nuevos archivos:**
+
+| Archivo | Funcion |
+|---------|---------|
+| `scripts/setup-fixed-event-media.sql` | Columna `event_type`, indice unico, RPCs (`get_fixed_event_media`, `set_event_media`, `clear_event_media`) |
+| `src/components/knowledge/FixedImageSlot.tsx` | Componente compacto para upload/display de imagenes fijas |
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/types/agent-media.ts` | Nuevos tipos `FixedEventType`, `FixedEventMedia` |
+| `src/lib/actions/agent-media.ts` | Server actions: `getFixedEventMedia`, `uploadFixedEventMedia`, `deleteFixedEventMedia` |
+| `src/lib/ai/search-media.ts` | `getFixedMediaForEvent()`, eliminado `getAllAgentMedia`/`getCachedMediaCount` |
+| `src/lib/ai/process-ai-response.ts` | Envia imagen fija de primer contacto (messageCount <= 2) |
+| `src/app/api/cron/reengagement/route.ts` | Envia imagen fija por intento, eliminado `getAllAgentMedia` |
+| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | FixedImageSlot en Multimedia (first_contact) y ReEngagement (0/1/2) |
+| `src/messages/es.json` + `en.json` | Claves i18n `fixedImage.*` |
+
+**SQL requerido:** `scripts/setup-fixed-event-media.sql` + RPC `set_event_media` (SECURITY DEFINER)
+
+### Horario de envio configurable para ReEngagement
+
+Reemplaza el horario hardcodeado (9 AM - 10 PM) por selectores AM/PM configurables por agente.
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/types/reengagement.ts` | Nuevos campos `sendWindowStart`/`sendWindowEnd`, helpers `generateTimeOptions()`, `getWindowDurationHours()` |
+| `src/app/api/cron/reengagement/route.ts` | `isWithinSendWindow()` reemplaza `isWithinBusinessHours()`, soporta cruce de medianoche |
+| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Selectores AM/PM (30 min), validacion ventana > delay, delay limitado a 1-5h |
+| `src/messages/es.json` + `en.json` | Claves i18n `sendWindow*` |
+
+### Mobile Lead Panel - Botones en una fila
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/features/LeadDetailPanel.tsx` | Botones en fila horizontal: icon-only en mobile (excepto Schedule = icon + texto corto), texto completo en sm+ |
+
+---
+
 ## [0.13.0] - 2026-03-19
 
 ### Chat Media Rendering

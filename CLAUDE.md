@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.13.0 (Chat Media Rendering + Excel Export + ReEngagement Media) |
+| **Version** | v0.14.0 (Debounce + Fixed Event Images + Send Window + Mobile UX) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -81,7 +81,7 @@ src/
     layout/                        # Sidebar, Header, WorkspaceSelector
     admin/                         # Modales de admin
     features/                      # LeadCard, LeadTable, LeadChat, ExportLeadsModal, etc.
-    knowledge/                     # MultimediaModal (agent media management UI)
+    knowledge/                     # MultimediaModal, FixedImageSlot (agent media management UI)
   contexts/                        # Theme, Modal, Workspace, Loading
   lib/
     ai/                            # AI Pipeline (process-ai-response, build-system-prompt, generate-reengagement, search-media)
@@ -94,6 +94,7 @@ src/
     supabase/                      # Client/Server Supabase + Prisma
     auth-helpers.ts                # verifySuperAdmin, getCurrentUser
     rate-limit.ts                  # Rate limiting
+    redis.ts                       # Upstash Redis singleton (debounce)
     email.ts                       # Resend email (handoff notifications)
   messages/                        # es.json, en.json
   i18n/routing.ts                  # Locales y navegacion
@@ -142,7 +143,7 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Mar 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno (n8n removido), RAG (4 fases), OWASP audit v2 + Audit v3, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, archivar/desarchivar leads, resumen IA, notificaciones (3 canales: bell + email + push), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada (5 secciones), dual-name system, Global Rules system, AI-initiated handoff ([HANDOFF] marker), KB free-text edit, deep-link post-login redirect, Web Push Notifications, Supabase Realtime (notifications + leads + chat), region co-location (gru1 + sa-east-1), auth chain optimization, RLS policies (16 tablas + agent_media), hot_lead notifications, distinct notification sounds, admin UserModal redesign, push prompt persistence, ReEngagement auto follow-up, cron jobs en Supabase pg_cron + pg_net, ReEngagement business hours extendido, AI response instructions mejoradas, **Agent Media (imagenes via WhatsApp con RAG semantico, CRUD + edit + compression + [MEDIA-X] markers)**, login cookie fix, loading overlay fix, **chat media rendering (inline images for AI + human messages)**, **Excel export leads (SheetJS, date range, i18n)**, **ReEngagement media support (same [MEDIA-X] protocol as AI pipeline)**.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno (n8n removido), RAG (4 fases), OWASP audit v2 + Audit v3, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, archivar/desarchivar leads, resumen IA, notificaciones (3 canales: bell + email + push), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada (5 secciones), dual-name system, Global Rules system, AI-initiated handoff ([HANDOFF] marker), KB free-text edit, deep-link post-login redirect, Web Push Notifications, Supabase Realtime (notifications + leads + chat), region co-location (gru1 + sa-east-1), auth chain optimization, RLS policies (16 tablas + agent_media), hot_lead notifications, distinct notification sounds, admin UserModal redesign, push prompt persistence, ReEngagement auto follow-up, cron jobs en Supabase pg_cron + pg_net, AI response instructions mejoradas, **Agent Media (RAG semantico + fixed event images, CRUD + compression + [MEDIA-X] markers)**, chat media rendering, Excel export leads, ReEngagement media, **debounce 3s webhook (Redis, anti-race condition)**, **fixed event images (first_contact + reengagement 0/1/2)**, **configurable send window (AM/PM selectors, validation)**, **mobile lead panel buttons (icon-only row)**.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 
@@ -156,9 +157,9 @@ npm run lint     # Verificar codigo
 
 ```
 WhatsApp -> /api/webhooks/whatsapp -> Store msg + Create/Find lead
-  -> Si handoffMode='ai': processAIResponse() [interno]
+  -> Si handoffMode='ai': debounce 3s (Redis) -> concatenar mensajes -> processAIResponse()
   -> RAG search (pgvector) + Media search (pgvector) + OpenAI (GPT-4o-mini)
-  -> Store + Send WhatsApp (text + [MEDIA-X] images)
+  -> Store + Send WhatsApp (text + [MEDIA-X] images + fixed event image)
   -> Si handoffMode='human': solo guarda msg, usuario responde manual
 
 Supabase pg_cron -> /api/cron/reengagement (*/15 min) -> AI follow-up leads silenciosos (con media search)
