@@ -2,10 +2,14 @@
 -- Updates title, description, embedding AND media_url/storage_path when file is replaced.
 -- Used by the edit flow when user changes the image/video file.
 -- SECURITY DEFINER to bypass RLS (same pattern as other agent_media RPCs).
+-- NOTE: Uses TEXT for id/project_id (KAIRO uses CUIDs, not UUIDs).
+
+-- Drop old UUID version if it exists
+DROP FUNCTION IF EXISTS update_agent_media_file(UUID, UUID, TEXT, TEXT, vector, TEXT, TEXT);
 
 CREATE OR REPLACE FUNCTION update_agent_media_file(
-  p_id UUID,
-  p_project_id UUID,
+  p_id TEXT,
+  p_project_id TEXT,
   p_title TEXT,
   p_description TEXT,
   p_embedding vector(1536),

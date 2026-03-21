@@ -4,6 +4,34 @@
 
 ---
 
+## [0.15.1] - 2026-03-21
+
+### Cron cleanup-media protege agent_media
+
+El cron `cleanup-media` eliminaba TODOS los archivos del bucket `media` mayores a 24h, incluyendo imagenes/videos permanentes del agente (agent_media). Esto causaba que las imagenes del agente dejaran de funcionar y los mensajes historicos mostraran thumbnails rotos.
+
+**Fix:** Antes de eliminar, el cron consulta todos los `storage_path` de la tabla `agent_media` y los excluye de la eliminacion.
+
+**Archivo:** `src/app/api/cron/cleanup-media/route.ts`
+
+### Edit media con reemplazo de archivo
+
+Al editar una imagen o video del agente, ahora se puede **reemplazar el archivo** ademas de editar titulo/descripcion. Hover sobre el thumbnail muestra overlay para cambiar. El archivo viejo se elimina automaticamente del storage.
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/agent-media.ts` | `updateAgentMedia()` acepta `newFile`/`newMediaUrl`/`newStoragePath` opcionales |
+| `src/components/knowledge/MultimediaModal.tsx` | EditForm con overlay de cambio, compresion de imagenes, upload client-side de videos |
+| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Callback `onEdit` pasa datos de reemplazo |
+
+**SQL:** `scripts/update-agent-media-file-rpc.sql` — RPC `update_agent_media_file` (SECURITY DEFINER, retorna old_storage_path para cleanup)
+
+**Nota:** Los mensajes historicos que referenciaban imagenes eliminadas por el cron antes del fix mantienen URLs muertas en su `metadata.mediaAttachments`. Esto es irrecuperable.
+
+---
+
 ## [0.15.0] - 2026-03-20
 
 ### Agent Video Support

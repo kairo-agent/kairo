@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.15.0 (Agent Video support + WhatsApp send order fix) |
+| **Version** | v0.15.1 (Cron protection + media edit replacement) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -75,7 +75,7 @@ src/
       whatsapp/send/               # Proxy a WhatsApp Cloud API
       whatsapp/mark-read/          # Read receipts
       rag/search/                  # Busqueda semantica para n8n
-      cron/cleanup-media/          # Limpieza archivos >24h
+      cron/cleanup-media/          # Limpieza archivos >24h (excluye agent_media)
   components/
     ui/                            # Button, Input, Modal, PhoneInput, etc.
     layout/                        # Sidebar, Header, WorkspaceSelector
@@ -143,7 +143,7 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Mar 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno (n8n removido), RAG (4 fases), OWASP audit v2 + Audit v3, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, archivar/desarchivar leads, resumen IA, notificaciones (3 canales: bell + email + push), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada (5 secciones), dual-name system, Global Rules system, AI-initiated handoff ([HANDOFF] marker), KB free-text edit, deep-link post-login redirect, Web Push Notifications, Supabase Realtime (notifications + leads + chat), region co-location (gru1 + sa-east-1), auth chain optimization, RLS policies (16 tablas + agent_media), hot_lead notifications, distinct notification sounds, admin UserModal redesign, push prompt persistence, ReEngagement auto follow-up, cron jobs en Supabase pg_cron + pg_net, AI response instructions mejoradas, **Agent Media (RAG semantico + fixed event images/videos, CRUD + compression + [MEDIA-X]/[VIDEO-X] markers)**, chat media rendering (images + video cards), Excel export leads, ReEngagement media, **debounce 3s webhook (Redis, anti-race condition)**, **fixed event images + videos (first_contact + reengagement 0/1/2)**, **configurable send window (AM/PM selectors, validation)**, **mobile lead panel buttons (icon-only row)**, **Agent Video (client-side upload, WhatsApp send order: img→text→video→RAG)**.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno (n8n removido), RAG (4 fases), OWASP audit v2 + Audit v3, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, archivar/desarchivar leads, resumen IA, notificaciones (3 canales: bell + email + push), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada (5 secciones), dual-name system, Global Rules system, AI-initiated handoff ([HANDOFF] marker), KB free-text edit, deep-link post-login redirect, Web Push Notifications, Supabase Realtime (notifications + leads + chat), region co-location (gru1 + sa-east-1), auth chain optimization, RLS policies (16 tablas + agent_media), hot_lead notifications, distinct notification sounds, admin UserModal redesign, push prompt persistence, ReEngagement auto follow-up, cron jobs en Supabase pg_cron + pg_net, AI response instructions mejoradas, **Agent Media (RAG semantico + fixed event images/videos, CRUD + compression + [MEDIA-X]/[VIDEO-X] markers)**, chat media rendering (images + video cards), Excel export leads, ReEngagement media, **debounce 3s webhook (Redis, anti-race condition)**, **fixed event images + videos (first_contact + reengagement 0/1/2)**, **configurable send window (AM/PM selectors, validation)**, **mobile lead panel buttons (icon-only row)**, **Agent Video (client-side upload, WhatsApp send order: img→text→video→RAG)**, **cron cleanup-media protege agent_media**, **edit media con reemplazo de archivo (imagen/video)**.
 
 **Parcial:** Dashboard home (placeholder, stats no conectados).
 
