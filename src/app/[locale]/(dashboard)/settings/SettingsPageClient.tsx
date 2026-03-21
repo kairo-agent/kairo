@@ -1058,7 +1058,7 @@ export default function SettingsPageClient() {
                 setSavingMedia(false);
               }
             }}
-            onEdit={async (id, title, description) => {
+            onEdit={async (id, title, description, replaceFile, replaceVideoData) => {
               if (!selectedProject) return;
               setSavingMedia(true);
               try {
@@ -1067,6 +1067,9 @@ export default function SettingsPageClient() {
                   projectId: selectedProject.id,
                   title,
                   description,
+                  newFile: replaceFile,
+                  newMediaUrl: replaceVideoData?.mediaUrl,
+                  newStoragePath: replaceVideoData?.storagePath,
                 });
                 if (result.success) {
                   toast.success(t('knowledge.multimediaUpdated'));

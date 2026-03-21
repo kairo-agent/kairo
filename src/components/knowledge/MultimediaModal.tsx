@@ -8,6 +8,7 @@ import { FixedImageSlot } from '@/components/knowledge/FixedImageSlot';
 import { FixedVideoSlot } from '@/components/knowledge/FixedVideoSlot';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { extractThumbnailFromUrl } from '@/lib/utils/video-thumbnail';
+import { uploadVideoToStorage } from '@/lib/utils/video-upload';
 import { MAX_MEDIA_ITEMS, MAX_VIDEO_ITEMS, MAX_VIDEO_SIZE_MB, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/types/agent-media';
 
 // =============================================================================
@@ -21,7 +22,7 @@ interface MultimediaModalProps {
   videoItems: AgentMediaEntry[];
   onAdd: (title: string, description: string, file: File) => Promise<void>;
   onAddVideo: (title: string, description: string, file: File) => Promise<void>;
-  onEdit: (id: string, title: string, description: string) => Promise<void>;
+  onEdit: (id: string, title: string, description: string, replaceFile?: File, replaceVideoData?: { mediaUrl: string; storagePath: string }) => Promise<void>;
   onDelete: (id: string, storagePath: string) => Promise<void>;
   isSaving: boolean;
   isLoading: boolean;
@@ -75,6 +76,11 @@ export function MultimediaModal({
 
   // Edit state (shared for both tabs)
   const [editingItem, setEditingItem] = useState<{ id: string; title: string; description: string } | null>(null);
+  const [editingNewFile, setEditingNewFile] = useState<File | null>(null);
+  const [editingPreviewUrl, setEditingPreviewUrl] = useState<string | null>(null);
+  const [editingCompressing, setEditingCompressing] = useState(false);
+  const [editingFileError, setEditingFileError] = useState('');
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete confirmation
   const [deletingItem, setDeletingItem] = useState<{ id: string; storagePath: string } | null>(null);
@@ -169,11 +175,78 @@ export function MultimediaModal({
   }, [videoFile, videoTitle, videoDescription, onAddVideo, resetVideoForm]);
 
   // --- Shared handlers ---
+  const clearEditFileState = useCallback(() => {
+    if (editingPreviewUrl) URL.revokeObjectURL(editingPreviewUrl);
+    setEditingNewFile(null);
+    setEditingPreviewUrl(null);
+    setEditingFileError('');
+    if (editFileInputRef.current) editFileInputRef.current.value = '';
+  }, [editingPreviewUrl]);
+
+  const handleEditFileSelect = useCallback(async (file: File, mediaType: 'image' | 'video') => {
+    setEditingFileError('');
+    if (mediaType === 'image') {
+      if (!file.type.startsWith('image/')) {
+        setEditingFileError('Solo se aceptan imagenes (JPG, PNG, WebP)');
+        return;
+      }
+      setEditingCompressing(true);
+      try {
+        const result = await compressImage(file);
+        if (editingPreviewUrl) URL.revokeObjectURL(editingPreviewUrl);
+        setEditingNewFile(result.file);
+        setEditingPreviewUrl(URL.createObjectURL(result.file));
+      } catch (err) {
+        setEditingFileError(err instanceof Error ? err.message : 'Error al procesar imagen');
+      } finally {
+        setEditingCompressing(false);
+      }
+    } else {
+      if (file.type !== 'video/mp4') {
+        setEditingFileError('Solo se aceptan videos en formato MP4');
+        return;
+      }
+      if (file.size > MAX_VIDEO_SIZE_MB * 1024 * 1024) {
+        setEditingFileError(`El video no debe superar ${MAX_VIDEO_SIZE_MB}MB`);
+        return;
+      }
+      setEditingNewFile(file);
+      setEditingPreviewUrl(null);
+    }
+  }, [editingPreviewUrl]);
+
+  const handleCancelEdit = useCallback(() => {
+    clearEditFileState();
+    setEditingItem(null);
+  }, [clearEditFileState]);
+
   const handleSaveEdit = useCallback(async () => {
     if (!editingItem || !editingItem.title.trim() || !editingItem.description.trim()) return;
-    await onEdit(editingItem.id, editingItem.title.trim(), editingItem.description.trim());
+
+    const currentMediaType = [...items, ...videoItems].find(i => i.id === editingItem.id)?.mediaType || 'image';
+
+    if (editingNewFile && currentMediaType === 'video') {
+      // Video: upload client-side first, then pass URL to server
+      const uploadResult = await uploadVideoToStorage(projectId, editingNewFile);
+      if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
+        setEditingFileError(uploadResult.error || 'Error al subir video');
+        return;
+      }
+      await onEdit(editingItem.id, editingItem.title.trim(), editingItem.description.trim(), undefined, {
+        mediaUrl: uploadResult.url,
+        storagePath: uploadResult.path,
+      });
+    } else if (editingNewFile && currentMediaType === 'image') {
+      // Image: pass compressed file to server action
+      await onEdit(editingItem.id, editingItem.title.trim(), editingItem.description.trim(), editingNewFile);
+    } else {
+      // No file change
+      await onEdit(editingItem.id, editingItem.title.trim(), editingItem.description.trim());
+    }
+
+    clearEditFileState();
     setEditingItem(null);
-  }, [editingItem, onEdit]);
+  }, [editingItem, editingNewFile, items, videoItems, projectId, onEdit, clearEditFileState]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!deletingItem) return;
@@ -264,8 +337,16 @@ export function MultimediaModal({
                     editingItem={editingItem}
                     setEditingItem={setEditingItem}
                     onSave={handleSaveEdit}
+                    onCancel={handleCancelEdit}
                     isSaving={isSaving}
                     mediaType="image"
+                    newPreviewUrl={editingPreviewUrl}
+                    hasNewFile={!!editingNewFile}
+                    isCompressing={editingCompressing}
+                    fileError={editingFileError}
+                    onFileSelect={(file) => handleEditFileSelect(file, 'image')}
+                    onFileClear={clearEditFileState}
+                    editFileInputRef={editFileInputRef}
                   />
                 ) : (
                   <MediaItemRow
@@ -382,8 +463,16 @@ export function MultimediaModal({
                     editingItem={editingItem}
                     setEditingItem={setEditingItem}
                     onSave={handleSaveEdit}
+                    onCancel={handleCancelEdit}
                     isSaving={isSaving}
                     mediaType="video"
+                    newPreviewUrl={editingPreviewUrl}
+                    hasNewFile={!!editingNewFile}
+                    isCompressing={editingCompressing}
+                    fileError={editingFileError}
+                    onFileSelect={(file) => handleEditFileSelect(file, 'video')}
+                    onFileClear={clearEditFileState}
+                    editFileInputRef={editFileInputRef}
                   />
                 ) : (
                   <MediaItemRow
@@ -544,29 +633,94 @@ function MediaItemRow({ item, onEdit, onDelete, mediaType }: {
   );
 }
 
-function EditForm({ item, editingItem, setEditingItem, onSave, isSaving, mediaType }: {
+function EditForm({ item, editingItem, setEditingItem, onSave, onCancel, isSaving, mediaType, newPreviewUrl, hasNewFile, isCompressing, fileError, onFileSelect, onFileClear, editFileInputRef }: {
   item: AgentMediaEntry;
   editingItem: { id: string; title: string; description: string };
   setEditingItem: (val: { id: string; title: string; description: string } | null) => void;
   onSave: () => Promise<void>;
+  onCancel: () => void;
   isSaving: boolean;
   mediaType: 'image' | 'video';
+  newPreviewUrl: string | null;
+  hasNewFile: boolean;
+  isCompressing: boolean;
+  fileError: string;
+  onFileSelect: (file: File) => void;
+  onFileClear: () => void;
+  editFileInputRef: React.RefObject<HTMLInputElement | null>;
 }) {
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onFileSelect(file);
+  };
+
+  const showNewPreview = mediaType === 'image' && newPreviewUrl;
+  const showNewVideoLabel = mediaType === 'video' && hasNewFile;
+
   return (
     <div className="p-4 rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 space-y-3">
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative">
-          {mediaType === 'image' ? (
-            <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
-          ) : (
-            <>
-              <VideoThumbnail url={item.mediaUrl} alt={item.title} />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                <svg className="w-5 h-5 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M8 5v14l11-7z" />
+        {/* Thumbnail with change overlay */}
+        <div className="flex-shrink-0 space-y-1.5">
+          <div
+            className="w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative group/thumb cursor-pointer"
+            onClick={() => editFileInputRef.current?.click()}
+          >
+            {showNewPreview ? (
+              <>
+                <img src={newPreviewUrl} alt="Nueva imagen" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onFileClear(); }}
+                  className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors z-10"
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </>
+            ) : mediaType === 'image' ? (
+              <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" />
+            ) : (
+              <>
+                <VideoThumbnail url={item.mediaUrl} alt={item.title} />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <svg className="w-5 h-5 text-white drop-shadow" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+              </>
+            )}
+            {/* Change overlay */}
+            {!isCompressing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover/thumb:opacity-100 transition-opacity">
+                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
                 </svg>
               </div>
-            </>
+            )}
+            {isCompressing && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+              </div>
+            )}
+          </div>
+          <input
+            ref={editFileInputRef}
+            type="file"
+            accept={mediaType === 'image' ? 'image/jpeg,image/png,image/webp' : 'video/mp4'}
+            onChange={handleFileInputChange}
+            className="hidden"
+          />
+          {showNewVideoLabel && (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-green-500 font-medium">Nuevo video</span>
+              <button type="button" onClick={onFileClear} className="text-[var(--text-tertiary)] hover:text-red-500">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           )}
         </div>
         <div className="flex-1 min-w-0 space-y-3">
@@ -579,9 +733,10 @@ function EditForm({ item, editingItem, setEditingItem, onSave, isSaving, mediaTy
           />
         </div>
       </div>
+      {fileError && <p className="text-xs text-red-500">{fileError}</p>}
       <div className="flex justify-end gap-3 pt-1">
-        <button type="button" onClick={() => setEditingItem(null)} className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm">Cancelar</button>
-        <button type="button" onClick={onSave} disabled={isSaving || !editingItem.title.trim() || !editingItem.description.trim()} className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Guardando...' : 'Guardar'}</button>
+        <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm">Cancelar</button>
+        <button type="button" onClick={onSave} disabled={isSaving || isCompressing || !editingItem.title.trim() || !editingItem.description.trim()} className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Guardando...' : 'Guardar'}</button>
       </div>
     </div>
   );

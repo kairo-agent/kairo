@@ -23,6 +23,14 @@ export async function GET(request: Request) {
     const cutoffDate = new Date();
     cutoffDate.setHours(cutoffDate.getHours() - MAX_AGE_HOURS);
 
+    // Get all storage paths from agent_media — these are permanent and must NOT be deleted
+    const { data: protectedRows } = await supabase
+      .from('agent_media')
+      .select('storage_path');
+    const protectedPaths = new Set(
+      (protectedRows || []).map((r: { storage_path: string }) => r.storage_path)
+    );
+
     // List all files in bucket
     const { data: folders, error: listError } = await supabase.storage
       .from(BUCKET_NAME)
@@ -34,6 +42,7 @@ export async function GET(request: Request) {
     }
 
     let deletedCount = 0;
+    let skippedCount = 0;
     const errors: string[] = [];
 
     // Iterate through project folders
@@ -41,7 +50,11 @@ export async function GET(request: Request) {
       if (!folder.name) continue;
 
       // List files in each project folder recursively
-      const filesToDelete = await getOldFiles(supabase, folder.name, cutoffDate);
+      const oldFiles = await getOldFiles(supabase, folder.name, cutoffDate);
+
+      // Filter out files that belong to agent_media (permanent)
+      const filesToDelete = oldFiles.filter((path) => !protectedPaths.has(path));
+      skippedCount += oldFiles.length - filesToDelete.length;
 
       if (filesToDelete.length > 0) {
         const { error: deleteError } = await supabase.storage
@@ -56,11 +69,12 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log(`[Cleanup] Deleted ${deletedCount} files older than ${MAX_AGE_HOURS}h`);
+    console.log(`[Cleanup] Deleted ${deletedCount} files older than ${MAX_AGE_HOURS}h (skipped ${skippedCount} agent_media files)`);
 
     return NextResponse.json({
       success: true,
       deletedCount,
+      skippedCount,
       errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {

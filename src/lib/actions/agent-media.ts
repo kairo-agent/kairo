@@ -169,16 +169,20 @@ export async function listAgentMedia(
 }
 
 /**
- * Updates a media item's title and description (re-generates embedding)
+ * Updates a media item's title and description (re-generates embedding).
+ * Optionally replaces the file if newFile (image) or newMediaUrl (video) is provided.
  */
 export async function updateAgentMedia(input: {
   id: string;
   projectId: string;
   title: string;
   description: string;
-}): Promise<{ success: boolean; error?: string }> {
+  newFile?: File;
+  newMediaUrl?: string;
+  newStoragePath?: string;
+}): Promise<{ success: boolean; data?: { mediaUrl: string; storagePath: string }; error?: string }> {
   try {
-    const { id, projectId, title, description } = input;
+    const { id, projectId, title, description, newFile, newMediaUrl, newStoragePath } = input;
 
     const user = await verifyAuth();
     if (!user) return { success: false, error: 'No autorizado' };
@@ -198,6 +202,61 @@ export async function updateAgentMedia(input: {
     const embeddingStr = formatEmbeddingForPg(embedding);
 
     const supabase = await createClient();
+
+    // Determine if file is being replaced
+    const hasFileReplacement = newFile || (newMediaUrl && newStoragePath);
+
+    if (hasFileReplacement) {
+      let uploadedUrl = newMediaUrl;
+      let uploadedPath = newStoragePath;
+
+      // For images: upload the new file server-side
+      if (newFile) {
+        const uploadResult = await uploadMedia(projectId, newFile);
+        if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
+          return { success: false, error: uploadResult.error || 'Error al subir archivo' };
+        }
+        uploadedUrl = uploadResult.url;
+        uploadedPath = uploadResult.path;
+      }
+
+      // Update DB with new file info (returns old storage_path for cleanup)
+      const { data, error } = await supabase.rpc('update_agent_media_file', {
+        p_id: id,
+        p_project_id: projectId,
+        p_title: title,
+        p_description: description,
+        p_embedding: embeddingStr,
+        p_media_url: uploadedUrl!,
+        p_storage_path: uploadedPath!,
+      });
+
+      if (error) {
+        console.error('[AgentMedia] Update file RPC error:', error);
+        // Clean up newly uploaded file if DB update failed
+        if (newFile && uploadedPath) {
+          await deleteMedia(uploadedPath).catch(() => {});
+        }
+        return { success: false, error: 'Error al actualizar en base de datos' };
+      }
+
+      // Delete old file from storage (best-effort)
+      const oldPath = data?.[0]?.old_storage_path;
+      if (oldPath && oldPath !== uploadedPath) {
+        await deleteMedia(oldPath).catch((err) => {
+          console.error('[AgentMedia] Old file cleanup failed:', err);
+        });
+      }
+
+      invalidateMediaCache(id, projectId);
+
+      return {
+        success: true,
+        data: { mediaUrl: uploadedUrl!, storagePath: uploadedPath! },
+      };
+    }
+
+    // No file replacement — just update title/description
     const { error } = await supabase.rpc('update_agent_media', {
       p_id: id,
       p_project_id: projectId,
