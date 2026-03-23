@@ -24,12 +24,31 @@ export async function GET(request: Request) {
     cutoffDate.setHours(cutoffDate.getHours() - MAX_AGE_HOURS);
 
     // Get all storage paths from agent_media — these are permanent and must NOT be deleted
-    const { data: protectedRows } = await supabase
+    // FAILSAFE: If this query fails, abort cleanup entirely to prevent deleting protected files
+    const { data: protectedRows, error: protectedError } = await supabase
       .from('agent_media')
       .select('storage_path');
+
+    if (protectedError) {
+      console.error('[Cleanup] ABORT — failed to fetch agent_media protected paths:', protectedError);
+      return NextResponse.json(
+        { error: 'Cannot proceed: failed to load protected paths from agent_media' },
+        { status: 500 }
+      );
+    }
+
+    if (!protectedRows) {
+      console.error('[Cleanup] ABORT — agent_media query returned null (unexpected)');
+      return NextResponse.json(
+        { error: 'Cannot proceed: agent_media query returned null' },
+        { status: 500 }
+      );
+    }
+
     const protectedPaths = new Set(
-      (protectedRows || []).map((r: { storage_path: string }) => r.storage_path)
+      protectedRows.map((r: { storage_path: string }) => r.storage_path)
     );
+    console.log(`[Cleanup] Loaded ${protectedPaths.size} protected agent_media paths`);
 
     // List all files in bucket
     const { data: folders, error: listError } = await supabase.storage
