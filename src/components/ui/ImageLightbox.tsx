@@ -13,7 +13,11 @@ export function ImageLightbox({ src, alt, type, onClose }: ImageLightboxProps) {
   const isVideo = type === 'video' || src?.endsWith('.mp4');
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.key === 'Escape') onClose();
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      onClose();
+    }
   }, [onClose]);
 
   useEffect(() => {
