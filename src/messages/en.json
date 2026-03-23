@@ -349,6 +349,23 @@
       "last30days": "30 days",
       "thisMonth": "This month",
       "custom": "Custom"
+    },
+    "charts": {
+      "leadsPerDay": "Leads per day",
+      "temperature": "Lead temperature",
+      "status": "Lead status",
+      "conversionRate": "Conversion rate",
+      "noData": "No data for this period",
+      "hot": "Hot",
+      "warm": "Warm",
+      "cold": "Cold",
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "proposal": "Proposal",
+      "negotiation": "Negotiation",
+      "won": "Won",
+      "lost": "Lost"
     }
   },
   "workspace": {

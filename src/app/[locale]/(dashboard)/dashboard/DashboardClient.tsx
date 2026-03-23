@@ -4,10 +4,14 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useTranslations, useLocale } from 'next-intl';
 import { Card } from '@/components/ui/Card';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { getDashboardStats } from '@/lib/actions/dashboard';
-import type { DashboardStats, DashboardDateRange } from '@/lib/actions/dashboard';
+import { getDashboardStats, getDashboardCharts } from '@/lib/actions/dashboard';
+import type { DashboardStats, DashboardDateRange, DashboardChartData } from '@/lib/actions/dashboard';
 import { DateRangePicker } from '@/components/ui/DateRangePicker';
 import { cn } from '@/lib/utils';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend,
+} from 'recharts';
 
 // ============================================
 // Types
@@ -32,21 +36,32 @@ const DATE_RANGE_OPTIONS: DateRangeOption[] = [
 ];
 
 // ============================================
+// Chart Colors
+// ============================================
+
+const TEMP_COLORS: Record<string, string> = {
+  hot: '#EF4444',
+  warm: '#F59E0B',
+  cold: '#3B82F6',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  new: '#6366F1',
+  contacted: '#3B82F6',
+  qualified: '#10B981',
+  proposal: '#F59E0B',
+  negotiation: '#F97316',
+  won: '#22C55E',
+  lost: '#EF4444',
+};
+
+// ============================================
 // SVG Icons (inline, no external dependencies)
 // ============================================
 
 function PeopleIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#3B82F6"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
@@ -57,16 +72,7 @@ function PeopleIcon() {
 
 function CheckIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#10B981"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );
@@ -74,16 +80,7 @@ function CheckIcon() {
 
 function HandIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#F59E0B"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 11V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v0" />
       <path d="M14 10V4a2 2 0 0 0-2-2 2 2 0 0 0-2 2v2" />
       <path d="M10 10.5V6a2 2 0 0 0-2-2 2 2 0 0 0-2 2v8" />
@@ -94,16 +91,7 @@ function HandIcon() {
 
 function RobotIcon() {
   return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#00E5FF"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="11" width="18" height="10" rx="2" />
       <circle cx="12" cy="5" r="2" />
       <path d="M12 7v4" />
@@ -111,20 +99,19 @@ function RobotIcon() {
   );
 }
 
+function TrendUpIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+      <polyline points="17 6 23 6 23 12" />
+    </svg>
+  );
+}
+
 function CalendarIcon({ className }: { className?: string }) {
   return (
-    <svg
-      className={cn('w-4 h-4', className)}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-      />
+    <svg className={cn('w-4 h-4', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   );
 }
@@ -133,41 +120,85 @@ function CalendarIcon({ className }: { className?: string }) {
 // Stat Card Component
 // ============================================
 
-function StatCard({
-  icon,
-  value,
-  label,
-  bgColor,
-  isLoading,
-}: {
+function StatCard({ icon, value, label, bgColor, isLoading, suffix }: {
   icon: React.ReactNode;
-  value: number;
+  value: number | string;
   label: string;
   bgColor: string;
   isLoading: boolean;
+  suffix?: string;
 }) {
   return (
     <Card className="p-4">
-      <div
-        className={cn(
-          'flex items-center gap-3 transition-opacity duration-200',
-          isLoading && 'opacity-50'
-        )}
-      >
-        <div
-          className={cn(
-            'w-10 h-10 rounded-lg flex items-center justify-center',
-            bgColor
-          )}
-        >
+      <div className={cn('flex items-center gap-3 transition-opacity duration-200', isLoading && 'opacity-50')}>
+        <div className={cn('w-10 h-10 rounded-lg flex items-center justify-center', bgColor)}>
           {icon}
         </div>
         <div>
-          <p className="text-2xl font-bold text-[var(--text-primary)]">{value}</p>
+          <p className="text-2xl font-bold text-[var(--text-primary)]">
+            {value}{suffix && <span className="text-base font-medium ml-0.5">{suffix}</span>}
+          </p>
           <p className="text-xs text-[var(--text-secondary)]">{label}</p>
         </div>
       </div>
     </Card>
+  );
+}
+
+// ============================================
+// Chart Card wrapper
+// ============================================
+
+function ChartCard({ title, children, isLoading, isEmpty }: {
+  title: string;
+  children: React.ReactNode;
+  isLoading: boolean;
+  isEmpty?: boolean;
+}) {
+  const t = useTranslations('dashboard');
+  return (
+    <Card className="p-4">
+      <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">{title}</h3>
+      <div className={cn('transition-opacity duration-200', isLoading && 'opacity-50')}>
+        {isEmpty ? (
+          <div className="flex items-center justify-center h-[200px] text-xs text-[var(--text-tertiary)]">
+            {t('charts.noData')}
+          </div>
+        ) : children}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================
+// Custom Tooltip
+// ============================================
+
+function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-3 py-2 shadow-lg">
+      <p className="text-xs text-[var(--text-secondary)]">{label}</p>
+      <p className="text-sm font-bold text-[var(--text-primary)]">{payload[0].value}</p>
+    </div>
+  );
+}
+
+// ============================================
+// Custom Legend for Pie Charts
+// ============================================
+
+function PieLegend({ payload, labelMap }: { payload?: Array<{ value: string; color: string }>; labelMap: Record<string, string> }) {
+  if (!payload) return null;
+  return (
+    <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2">
+      {payload.map((entry) => (
+        <div key={entry.value} className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+          <span className="text-[11px] text-[var(--text-secondary)]">{labelMap[entry.value] || entry.value}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -181,8 +212,9 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
   const { selectedOrganization, selectedProject } = useWorkspace();
 
   const [stats, setStats] = useState<DashboardStats>(initialStats);
+  const [charts, setCharts] = useState<DashboardChartData | null>(null);
   const [activeDateRange, setActiveDateRange] = useState<DashboardDateRange>('today');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [customRange, setCustomRange] = useState<{ start: Date | null; end: Date | null }>({
     start: null,
@@ -195,7 +227,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
   useEffect(() => {
     if (!hasFetchedRef.current && (selectedProject?.id || selectedOrganization?.id)) {
       hasFetchedRef.current = true;
-      fetchStats(activeDateRange);
+      fetchAll(activeDateRange);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject?.id, selectedOrganization?.id]);
@@ -203,36 +235,28 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
   // Close custom picker on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (
-        customPickerRef.current &&
-        !customPickerRef.current.contains(event.target as Node)
-      ) {
+      if (customPickerRef.current && !customPickerRef.current.contains(event.target as Node)) {
         setShowCustomPicker(false);
       }
     }
-
     if (showCustomPicker) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [showCustomPicker]);
 
-  const fetchStats = useCallback(
-    async (
-      dateRange: DashboardDateRange,
-      custom?: { start: string | null; end: string | null }
-    ) => {
+  const fetchAll = useCallback(
+    async (dateRange: DashboardDateRange, custom?: { start: string | null; end: string | null }) => {
       setIsLoading(true);
       try {
-        const result = await getDashboardStats(
-          selectedProject?.id,
-          selectedOrganization?.id,
-          dateRange,
-          custom
-        );
-        setStats(result);
+        const [statsResult, chartsResult] = await Promise.all([
+          getDashboardStats(selectedProject?.id, selectedOrganization?.id, dateRange, custom),
+          getDashboardCharts(selectedProject?.id, selectedOrganization?.id, dateRange, custom),
+        ]);
+        setStats(statsResult);
+        setCharts(chartsResult);
       } catch (error) {
-        console.error('Error fetching dashboard stats:', error);
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -248,34 +272,68 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
         return;
       }
       setShowCustomPicker(false);
-      fetchStats(range);
+      fetchAll(range);
     },
-    [fetchStats]
+    [fetchAll]
   );
 
   const handleCustomRangeChange = useCallback(
     (range: { start: Date | null; end: Date | null }) => {
       setCustomRange(range);
       if (range.start || range.end) {
-        fetchStats('custom', {
+        fetchAll('custom', {
           start: range.start?.toISOString() ?? null,
           end: range.end?.toISOString() ?? null,
         });
       }
     },
-    [fetchStats]
+    [fetchAll]
   );
+
+  // Conversion rate
+  const conversionRate = stats.totalLeads > 0
+    ? Math.round((stats.leadsWon / stats.totalLeads) * 100)
+    : 0;
+
+  // Format bar chart dates
+  const barData = (charts?.leadsPerDay || []).map((d) => ({
+    ...d,
+    label: new Date(d.date + 'T00:00:00').toLocaleDateString(locale === 'es' ? 'es-PE' : 'en-US', { day: '2-digit', month: 'short' }),
+  }));
+
+  // Pie chart data with labels
+  const tempLabelMap: Record<string, string> = {
+    hot: t('charts.hot'),
+    warm: t('charts.warm'),
+    cold: t('charts.cold'),
+  };
+
+  const statusLabelMap: Record<string, string> = {
+    new: t('charts.new'),
+    contacted: t('charts.contacted'),
+    qualified: t('charts.qualified'),
+    proposal: t('charts.proposal'),
+    negotiation: t('charts.negotiation'),
+    won: t('charts.won'),
+    lost: t('charts.lost'),
+  };
+
+  const tempData = (charts?.temperatureDistribution || []).map((d) => ({
+    name: d.temperature,
+    value: d.count,
+  }));
+
+  const statusData = (charts?.statusDistribution || []).filter((d) => d.count > 0).map((d) => ({
+    name: d.status,
+    value: d.count,
+  }));
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
       {/* Page header */}
       <div>
-        <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-          {t('welcome')}
-        </h2>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          {t('subtitle')}
-        </p>
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('welcome')}</h2>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">{t('subtitle')}</p>
       </div>
 
       {/* Date range filter pills */}
@@ -324,37 +382,70 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
         )}
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={<PeopleIcon />}
-          value={stats.totalLeads}
-          label={t('stats.totalLeads')}
-          bgColor="bg-blue-100 dark:bg-blue-900/30"
-          isLoading={isLoading}
-        />
-        <StatCard
-          icon={<CheckIcon />}
-          value={stats.leadsWon}
-          label={t('stats.leadsWon')}
-          bgColor="bg-green-100 dark:bg-green-900/30"
-          isLoading={isLoading}
-        />
-        <StatCard
-          icon={<HandIcon />}
-          value={stats.leadsInHumanMode}
-          label={t('stats.inHumanMode')}
-          bgColor="bg-amber-100 dark:bg-amber-900/30"
-          isLoading={isLoading}
-        />
-        <StatCard
-          icon={<RobotIcon />}
-          value={stats.activeAgents}
-          label={t('stats.activeAgents')}
-          bgColor="bg-cyan-100 dark:bg-cyan-900/30"
-          isLoading={isLoading}
-        />
+      {/* Stats grid — 5 cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+        <StatCard icon={<PeopleIcon />} value={stats.totalLeads} label={t('stats.totalLeads')} bgColor="bg-blue-100 dark:bg-blue-900/30" isLoading={isLoading} />
+        <StatCard icon={<CheckIcon />} value={stats.leadsWon} label={t('stats.leadsWon')} bgColor="bg-green-100 dark:bg-green-900/30" isLoading={isLoading} />
+        <StatCard icon={<TrendUpIcon />} value={conversionRate} label={t('charts.conversionRate')} bgColor="bg-emerald-100 dark:bg-emerald-900/30" isLoading={isLoading} suffix="%" />
+        <StatCard icon={<HandIcon />} value={stats.leadsInHumanMode} label={t('stats.inHumanMode')} bgColor="bg-amber-100 dark:bg-amber-900/30" isLoading={isLoading} />
+        <StatCard icon={<RobotIcon />} value={stats.activeAgents} label={t('stats.activeAgents')} bgColor="bg-cyan-100 dark:bg-cyan-900/30" isLoading={isLoading} />
       </div>
+
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Leads per day — bar chart (spans 2 cols on desktop) */}
+        <div className="lg:col-span-2">
+          <ChartCard title={t('charts.leadsPerDay')} isLoading={isLoading} isEmpty={barData.length === 0}>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={barData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--accent-primary)', opacity: 0.08 }} />
+                <Bar dataKey="count" fill="#00E5FF" radius={[4, 4, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </ChartCard>
+        </div>
+
+        {/* Temperature — donut */}
+        <ChartCard title={t('charts.temperature')} isLoading={isLoading} isEmpty={tempData.length === 0}>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={tempData} dataKey="value" nameKey="name" cx="50%" cy="45%" innerRadius={45} outerRadius={70} paddingAngle={3} strokeWidth={0}>
+                {tempData.map((entry) => (
+                  <Cell key={entry.name} fill={TEMP_COLORS[entry.name] || '#6B7280'} />
+                ))}
+              </Pie>
+              <Legend content={<PieLegend labelMap={tempLabelMap} />} />
+              <Tooltip formatter={(value, name) => [value, tempLabelMap[String(name)] || name]} />
+            </PieChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
+
+      {/* Status distribution — full width bar */}
+      <ChartCard title={t('charts.status')} isLoading={isLoading} isEmpty={statusData.length === 0}>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={statusData} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+            <YAxis
+              type="category"
+              dataKey="name"
+              tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+              axisLine={false}
+              tickLine={false}
+              width={90}
+              tickFormatter={(v: string) => statusLabelMap[v] || v}
+            />
+            <Tooltip formatter={(value) => [value, '']} />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24}>
+              {statusData.map((entry) => (
+                <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#6B7280'} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
     </div>
   );
 }

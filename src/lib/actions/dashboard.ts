@@ -21,6 +21,12 @@ export interface DashboardStats {
   activeAgents: number;
 }
 
+export interface DashboardChartData {
+  leadsPerDay: Array<{ date: string; count: number }>;
+  temperatureDistribution: Array<{ temperature: string; count: number }>;
+  statusDistribution: Array<{ status: string; count: number }>;
+}
+
 export type DashboardDateRange =
   | 'today'
   | 'yesterday'
@@ -256,5 +262,91 @@ export async function getDashboardStatsSSR(
   } catch (error) {
     console.error('Error fetching dashboard stats (SSR):', error);
     return emptyStats;
+  }
+}
+
+// ============================================
+// Charts: getDashboardCharts (client-callable)
+// ============================================
+
+const EMPTY_CHARTS: DashboardChartData = {
+  leadsPerDay: [],
+  temperatureDistribution: [],
+  statusDistribution: [],
+};
+
+export async function getDashboardCharts(
+  projectId?: string,
+  organizationId?: string,
+  dateRange: DashboardDateRange = 'today',
+  customDateRange?: { start: string | null; end: string | null }
+): Promise<DashboardChartData> {
+  try {
+    const user = await verifyAuth();
+    if (!user) return EMPTY_CHARTS;
+
+    const accessibleProjects = await getAccessibleProjectIds(
+      user.id,
+      user.systemRole,
+      projectId,
+      organizationId
+    );
+
+    if (!accessibleProjects) return EMPTY_CHARTS;
+
+    const dateFilter = buildDateFilter(dateRange, customDateRange);
+    const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
+
+    const baseWhere: Prisma.LeadWhereInput = {
+      ...projectFilter,
+      archivedAt: null,
+      ...(dateFilter ? { createdAt: dateFilter } : {}),
+    };
+
+    const [leads, tempGroups, statusGroups] = await Promise.all([
+      // Leads per day — fetch dates only, group client-side
+      prisma.lead.findMany({
+        where: baseWhere,
+        select: { createdAt: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+
+      // Temperature distribution
+      prisma.lead.groupBy({
+        by: ['temperature'],
+        where: { ...projectFilter, archivedAt: null },
+        _count: true,
+      }),
+
+      // Status distribution
+      prisma.lead.groupBy({
+        by: ['status'],
+        where: { ...projectFilter, archivedAt: null },
+        _count: true,
+      }),
+    ]);
+
+    // Group leads by date
+    const dateMap = new Map<string, number>();
+    for (const lead of leads) {
+      const day = lead.createdAt.toISOString().slice(0, 10);
+      dateMap.set(day, (dateMap.get(day) || 0) + 1);
+    }
+    const leadsPerDay = Array.from(dateMap.entries()).map(([date, count]) => ({ date, count }));
+
+    return {
+      leadsPerDay,
+      temperatureDistribution: tempGroups.map((g) => ({
+        temperature: g.temperature,
+        count: g._count,
+      })),
+      statusDistribution: statusGroups.map((g) => ({
+        status: g.status,
+        count: g._count,
+      })),
+    };
+  } catch (error) {
+    console.error('Error fetching dashboard charts:', error);
+    return EMPTY_CHARTS;
   }
 }
