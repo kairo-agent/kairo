@@ -86,8 +86,8 @@ export function MultimediaModal({
   // Delete confirmation
   const [deletingItem, setDeletingItem] = useState<{ id: string; storagePath: string } | null>(null);
 
-  // Lightbox state
-  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string; type?: 'image' | 'video' } | null>(null);
+  // Lightbox state (images only — videos open in new tab due to CORS)
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
 
   // --- Image handlers ---
   const resetImageForm = useCallback(() => {
@@ -359,7 +359,7 @@ export function MultimediaModal({
                     onEdit={() => setEditingItem({ id: item.id, title: item.title, description: item.description })}
                     onDelete={() => setDeletingItem({ id: item.id, storagePath: item.storagePath })}
                     mediaType="image"
-                    onLightbox={(url, alt, type) => setLightboxImage({ url, alt, type })}
+                    onLightbox={(url, alt) => setLightboxImage({ url, alt })}
                   />
                 )
               ))}
@@ -486,7 +486,7 @@ export function MultimediaModal({
                     onEdit={() => setEditingItem({ id: item.id, title: item.title, description: item.description })}
                     onDelete={() => setDeletingItem({ id: item.id, storagePath: item.storagePath })}
                     mediaType="video"
-                    onLightbox={(url, alt, type) => setLightboxImage({ url, alt, type })}
+                    onLightbox={(url, alt) => setLightboxImage({ url, alt })}
                   />
                 )
               ))}
@@ -566,7 +566,6 @@ export function MultimediaModal({
         <ImageLightbox
           src={lightboxImage.url}
           alt={lightboxImage.alt}
-          type={lightboxImage.type}
           onClose={() => setLightboxImage(null)}
         />
       )}
@@ -616,14 +615,14 @@ function MediaItemRow({ item, onEdit, onDelete, mediaType, onLightbox }: {
   onEdit: () => void;
   onDelete: () => void;
   mediaType: 'image' | 'video';
-  onLightbox?: (url: string, alt: string, type?: 'image' | 'video') => void;
+  onLightbox?: (url: string, alt: string) => void;
 }) {
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] group">
       {/* Thumbnail */}
       <div
-        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative ${onLightbox ? 'cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] transition-all' : ''}`}
-        onClick={() => onLightbox?.(item.mediaUrl, item.title, mediaType)}
+        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] transition-all`}
+        onClick={() => mediaType === 'video' ? window.open(item.mediaUrl, '_blank') : onLightbox?.(item.mediaUrl, item.title)}
       >
         {mediaType === 'image' ? (
           <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" loading="lazy" />

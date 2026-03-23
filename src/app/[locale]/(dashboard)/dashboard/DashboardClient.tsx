@@ -190,6 +190,16 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
   });
   const customPickerRef = useRef<HTMLDivElement>(null);
 
+  // Re-fetch on mount with correct workspace context (SSR doesn't have localStorage)
+  const hasFetchedRef = useRef(false);
+  useEffect(() => {
+    if (!hasFetchedRef.current && (selectedProject?.id || selectedOrganization?.id)) {
+      hasFetchedRef.current = true;
+      fetchStats(activeDateRange);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProject?.id, selectedOrganization?.id]);
+
   // Close custom picker on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

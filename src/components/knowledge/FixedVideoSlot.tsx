@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 import { getFixedEventMedia, uploadFixedEventVideoByUrl, deleteFixedEventMedia } from '@/lib/actions/agent-media';
 import { uploadVideoToStorage } from '@/lib/utils/video-upload';
 import { extractThumbnailFromFile, extractThumbnailFromUrl } from '@/lib/utils/video-thumbnail';
-import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
 import { MAX_VIDEO_SIZE_MB } from '@/lib/types/agent-media';
 
@@ -42,7 +41,6 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showLightbox, setShowLightbox] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing media on mount
@@ -163,7 +161,7 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
           {/* Video thumbnail - click to lightbox */}
           <div
             className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] transition-all"
-            onClick={() => setShowLightbox(true)}
+            onClick={() => window.open(media.mediaUrl, '_blank')}
           >
             {thumbnail ? (
               <img src={thumbnail} alt={media.title} className="w-full h-full object-cover" />
@@ -216,15 +214,6 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
           <p className="text-xs text-[var(--text-tertiary)] pl-1">{helpText}</p>
         )}
 
-        {/* Lightbox */}
-        {showLightbox && (
-          <ImageLightbox
-            src={media.mediaUrl}
-            alt={media.title}
-            type="video"
-            onClose={() => setShowLightbox(false)}
-          />
-        )}
       </div>
     );
   }

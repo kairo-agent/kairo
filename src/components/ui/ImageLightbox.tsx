@@ -5,26 +5,24 @@ import { useEffect, useCallback } from 'react';
 interface ImageLightboxProps {
   src: string;
   alt: string;
-  type?: 'image' | 'video';
   onClose: () => void;
 }
 
-export function ImageLightbox({ src, alt, type, onClose }: ImageLightboxProps) {
-  const isVideo = type === 'video' || src?.endsWith('.mp4');
-
+export function ImageLightbox({ src, alt, onClose }: ImageLightboxProps) {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === 'Escape') {
-      e.stopPropagation();
+      e.preventDefault();
       e.stopImmediatePropagation();
       onClose();
     }
   }, [onClose]);
 
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown);
+    // Use capture phase to intercept Escape BEFORE Modal's bubble-phase listener
+    document.addEventListener('keydown', handleKeyDown, true);
     document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
       document.body.style.overflow = '';
     };
   }, [handleKeyDown]);
@@ -44,23 +42,13 @@ export function ImageLightbox({ src, alt, type, onClose }: ImageLightboxProps) {
         </svg>
       </button>
 
-      {/* Content */}
-      {isVideo ? (
-        <video
-          src={src}
-          controls
-          autoPlay
-          className="max-w-[90vw] max-h-[85vh] rounded-lg shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        />
-      ) : (
-        <img
-          src={src}
-          alt={alt}
-          className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        />
-      )}
+      {/* Image */}
+      <img
+        src={src}
+        alt={alt}
+        className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
     </div>
   );
 }
