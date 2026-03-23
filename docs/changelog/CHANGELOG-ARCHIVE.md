@@ -1,6 +1,13 @@
-# KAIRO - Changelog Archive (v0.11.0 y anteriores)
+# KAIRO - Changelog Archive (v0.11.1 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.11.1+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.12.0+).
+
+---
+
+## [0.11.1] - 2026-03-18
+
+- **ReEngagement business hours extendido:** Horario cambiado de 9 AM - 8 PM a 9 AM - 10 PM.
+- **AI response instructions mejoradas:** Reglas explicitas para no repetir info, no re-presentarse, avanzar conversacion.
 
 ---
 

@@ -1,6 +1,66 @@
 # KAIRO - Changelog
 
-> Solo se mantienen las ultimas 5 versiones (v0.10.0+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Solo se mantienen las ultimas 5 versiones (v0.12.0+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+
+---
+
+## [0.16.0] - 2026-03-22
+
+### Dashboard Charts & Visualizations
+
+Dashboard completo con charts interactivos (recharts) y metricas conectadas a datos reales.
+
+**Nuevos widgets:**
+
+| Widget | Tipo | Descripcion |
+|--------|------|-------------|
+| Leads por dia | Bar chart (cyan) | Tendencia de captacion por dia, responsive |
+| Temperatura de leads | Donut chart | Distribucion hot/warm/cold con colores |
+| Estado de leads | Horizontal bar | 7 status con colores por etapa del pipeline |
+| Tasa de conversion | Stat card (%) | Won / Total * 100 |
+
+**Archivos nuevos/modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/actions/dashboard.ts` | `getDashboardCharts()` — queries groupBy para temperatura, status, leads/dia |
+| `src/app/[locale]/(dashboard)/dashboard/DashboardClient.tsx` | Reescrito con recharts (BarChart, PieChart), 5 stat cards, mobile responsive |
+| `src/app/[locale]/(dashboard)/dashboard/page.tsx` | SSR default cambiado a `last30days` |
+| `src/messages/es.json` / `en.json` | Labels de charts (i18n) |
+| `package.json` | `recharts` dependency |
+
+**Layout responsive:** 5 stat cards (2 cols mobile, 5 cols desktop), bar chart + donut (1 col mobile, 3 cols desktop), status bar full width.
+
+### Cron cleanup-media failsafe
+
+El cron `cleanup-media` podia borrar TODOS los archivos si la query a `agent_media` fallaba (Set vacio). Ahora **aborta** si no puede cargar los paths protegidos.
+
+**Archivo:** `src/app/api/cron/cleanup-media/route.ts`
+
+### Image Lightbox
+
+Click en thumbnails de imagenes abre lightbox full-screen (overlay oscuro, Esc para cerrar). Videos abren en nueva pestana (CORS Supabase free tier).
+
+**Archivos nuevos/modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/ui/ImageLightbox.tsx` | Nuevo componente, capture-phase ESC listener |
+| `src/components/knowledge/MultimediaModal.tsx` | Lightbox en thumbnails de imagenes, videos abren en nueva tab |
+| `src/components/knowledge/FixedImageSlot.tsx` | Lightbox + timestamp |
+| `src/components/knowledge/FixedVideoSlot.tsx` | Timestamp + open in new tab |
+
+### Upload timestamps en agent media
+
+Fecha/hora de carga visible en todos los items de media (RAG + fixed, imagenes + videos).
+
+**SQL ejecutado:** `get_fixed_event_media` RPC actualizado para retornar `created_at` y `media_type`.
+
+### Corregido
+
+- **Dashboard SSR flash:** Stats de SSR (sin workspace filter) flasheaban antes de client fetch. Fix: `isLoading` inicia en `true`.
+- **ESC lightbox cerraba modal padre:** Listener ahora usa capture phase (`addEventListener(..., true)`) para interceptar antes del Modal.
+- **Dashboard default:** Cambiado de "Today" a "Last 30 days" para vista inicial mas util.
 
 ---
 
@@ -267,19 +327,7 @@ Los agentes IA ahora pueden enviar imagenes relevantes durante conversaciones de
 
 ---
 
-## [0.11.1] - 2026-03-18
-
-### Corregido
-
-- **ReEngagement business hours extendido:** Horario comercial para envio de re-engagement cambiado de 9 AM - 8 PM a 9 AM - 10 PM, permitiendo seguimiento en horarios nocturnos mas comunes en Latam.
-
-### Mejorado
-
-- **AI response instructions mejoradas (`build-system-prompt.ts`):** Reemplazada instruccion generica "respond naturally" con reglas explicitas: revisar historial de conversacion, nunca repetir info ya dada, nunca re-presentarse, avanzar conversacion al siguiente paso logico, y ofrecer asesor humano cuando falta info especifica. Reduce respuestas repetitivas y mejora la experiencia del lead.
-
----
-
-> Versiones v0.11.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.11.1 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 
