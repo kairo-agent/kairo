@@ -213,7 +213,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
 
   const [stats, setStats] = useState<DashboardStats>(initialStats);
   const [charts, setCharts] = useState<DashboardChartData | null>(null);
-  const [activeDateRange, setActiveDateRange] = useState<DashboardDateRange>('today');
+  const [activeDateRange, setActiveDateRange] = useState<DashboardDateRange>('last30days');
   const [isLoading, setIsLoading] = useState(true);
   const [showCustomPicker, setShowCustomPicker] = useState(false);
   const [customRange, setCustomRange] = useState<{ start: Date | null; end: Date | null }>({

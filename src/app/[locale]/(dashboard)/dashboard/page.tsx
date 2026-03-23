@@ -25,7 +25,7 @@ export default async function DashboardOverviewPage() {
   }
 
   const authContext = { id: user.id, systemRole: user.systemRole };
-  const stats = await getDashboardStatsSSR(authContext);
+  const stats = await getDashboardStatsSSR(authContext, undefined, undefined, 'last30days');
 
   return <DashboardClient initialStats={stats} />;
 }
