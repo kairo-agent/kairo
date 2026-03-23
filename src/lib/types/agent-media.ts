@@ -45,4 +45,5 @@ export interface FixedEventMedia {
   title: string;
   mediaUrl: string;
   mediaType?: 'image' | 'video';
+  createdAt?: string;
 }

@@ -684,7 +684,13 @@ export async function getFixedEventMedia(
 
     return {
       success: true,
-      data: { id: row.id, title: row.title, mediaUrl: row.media_url, mediaType: row.media_type || 'image' },
+      data: {
+        id: row.id,
+        title: row.title,
+        mediaUrl: row.media_url,
+        mediaType: row.media_type || 'image',
+        createdAt: row.created_at || undefined,
+      },
     };
   } catch (error) {
     console.error('[AgentMedia] getFixedEventMedia error:', error);

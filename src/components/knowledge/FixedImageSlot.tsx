@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/utils/image-compression';
 import { getFixedEventMedia, uploadFixedEventMedia, deleteFixedEventMedia } from '@/lib/actions/agent-media';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import type { FixedEventType, FixedEventMedia } from '@/lib/types/agent-media';
 
 // =============================================================================
@@ -42,6 +43,7 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [compressing, setCompressing] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing media on mount
@@ -143,8 +145,11 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-3 p-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
-          {/* Thumbnail */}
-          <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-[var(--bg-tertiary)]">
+          {/* Thumbnail - click to lightbox */}
+          <div
+            className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] transition-all"
+            onClick={() => setShowLightbox(true)}
+          >
             <img
               src={media.mediaUrl}
               alt={media.title}
@@ -153,12 +158,17 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
             />
           </div>
 
-          {/* Title */}
+          {/* Title + date */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-[var(--text-primary)] truncate">
               {media.title}
             </p>
             <p className="text-xs text-[var(--text-tertiary)]">{label}</p>
+            {media.createdAt && (
+              <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
+                {new Date(media.createdAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
           </div>
 
           {/* Delete button */}
@@ -180,6 +190,15 @@ export function FixedImageSlot({ eventType, agentId, projectId, label, helpText 
         </div>
         {helpText && (
           <p className="text-xs text-[var(--text-tertiary)] pl-1">{helpText}</p>
+        )}
+
+        {/* Lightbox */}
+        {showLightbox && (
+          <ImageLightbox
+            src={media.mediaUrl}
+            alt={media.title}
+            onClose={() => setShowLightbox(false)}
+          />
         )}
       </div>
     );

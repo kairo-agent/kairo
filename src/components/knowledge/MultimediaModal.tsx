@@ -9,6 +9,7 @@ import { FixedVideoSlot } from '@/components/knowledge/FixedVideoSlot';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { extractThumbnailFromUrl } from '@/lib/utils/video-thumbnail';
 import { uploadVideoToStorage } from '@/lib/utils/video-upload';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 import { MAX_MEDIA_ITEMS, MAX_VIDEO_ITEMS, MAX_VIDEO_SIZE_MB, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/types/agent-media';
 
 // =============================================================================
@@ -84,6 +85,9 @@ export function MultimediaModal({
 
   // Delete confirmation
   const [deletingItem, setDeletingItem] = useState<{ id: string; storagePath: string } | null>(null);
+
+  // Lightbox state
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
 
   // --- Image handlers ---
   const resetImageForm = useCallback(() => {
@@ -355,6 +359,7 @@ export function MultimediaModal({
                     onEdit={() => setEditingItem({ id: item.id, title: item.title, description: item.description })}
                     onDelete={() => setDeletingItem({ id: item.id, storagePath: item.storagePath })}
                     mediaType="image"
+                    onLightbox={(url, alt) => setLightboxImage({ url, alt })}
                   />
                 )
               ))}
@@ -481,6 +486,7 @@ export function MultimediaModal({
                     onEdit={() => setEditingItem({ id: item.id, title: item.title, description: item.description })}
                     onDelete={() => setDeletingItem({ id: item.id, storagePath: item.storagePath })}
                     mediaType="video"
+                    onLightbox={(url, alt) => setLightboxImage({ url, alt })}
                   />
                 )
               ))}
@@ -554,6 +560,15 @@ export function MultimediaModal({
         message="Esta accion no se puede deshacer. El archivo sera eliminado permanentemente."
         onConfirm={handleConfirmDelete}
       />
+
+      {/* Lightbox */}
+      {lightboxImage && (
+        <ImageLightbox
+          src={lightboxImage.url}
+          alt={lightboxImage.alt}
+          onClose={() => setLightboxImage(null)}
+        />
+      )}
     </div>
   );
 }
@@ -588,16 +603,27 @@ function VideoThumbnail({ url, alt, className }: { url: string; alt: string; cla
   );
 }
 
-function MediaItemRow({ item, onEdit, onDelete, mediaType }: {
+function formatMediaDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  } catch { return ''; }
+}
+
+function MediaItemRow({ item, onEdit, onDelete, mediaType, onLightbox }: {
   item: AgentMediaEntry;
   onEdit: () => void;
   onDelete: () => void;
   mediaType: 'image' | 'video';
+  onLightbox?: (url: string, alt: string) => void;
 }) {
   return (
     <div className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] group">
       {/* Thumbnail */}
-      <div className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative">
+      <div
+        className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden bg-[var(--bg-tertiary)] relative ${mediaType === 'image' && onLightbox ? 'cursor-pointer hover:ring-2 hover:ring-[var(--accent-primary)] transition-all' : ''}`}
+        onClick={() => mediaType === 'image' && onLightbox?.(item.mediaUrl, item.title)}
+      >
         {mediaType === 'image' ? (
           <img src={item.mediaUrl} alt={item.title} className="w-full h-full object-cover" loading="lazy" />
         ) : (
@@ -615,6 +641,9 @@ function MediaItemRow({ item, onEdit, onDelete, mediaType }: {
       <div className="flex-1 min-w-0">
         <h4 className="text-sm font-medium text-[var(--text-primary)] mb-0.5 truncate">{item.title}</h4>
         <p className="text-xs text-[var(--text-secondary)] line-clamp-2">{item.description}</p>
+        {item.createdAt && (
+          <p className="text-[10px] text-[var(--text-tertiary)] mt-1">{formatMediaDate(item.createdAt)}</p>
+        )}
       </div>
       {/* Edit + Delete buttons */}
       <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">

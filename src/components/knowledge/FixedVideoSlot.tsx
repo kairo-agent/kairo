@@ -177,12 +177,17 @@ export function FixedVideoSlot({ eventType, agentId, projectId, label, helpText 
             </div>
           </div>
 
-          {/* Title */}
+          {/* Title + date */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-[var(--text-primary)] truncate">
               {media.title}
             </p>
             <p className="text-xs text-[var(--text-tertiary)]">{label}</p>
+            {media.createdAt && (
+              <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
+                {new Date(media.createdAt).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
           </div>
 
           {/* Delete button */}
