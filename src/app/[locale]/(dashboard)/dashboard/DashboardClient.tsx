@@ -57,7 +57,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 const SOURCE_COLORS: Record<string, string> = {
   facebook_ads: '#1877F2',
+  facebook_organic: '#4599FF',
   instagram_ads: '#E4405F',
+  instagram_organic: '#F77737',
   tiktok_ads: '#000000',
   tiktok_organic: '#69C9D0',
   google_ads: '#4285F4',
@@ -344,7 +346,9 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
 
   const sourceLabelMap: Record<string, string> = {
     facebook_ads: t('charts.facebookAds'),
+    facebook_organic: t('charts.facebookOrganic'),
     instagram_ads: t('charts.instagramAds'),
+    instagram_organic: t('charts.instagramOrganic'),
     tiktok_ads: t('charts.tiktokAds'),
     tiktok_organic: t('charts.tiktokOrganic'),
     google_ads: t('charts.googleAds'),

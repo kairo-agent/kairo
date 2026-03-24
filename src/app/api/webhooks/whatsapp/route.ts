@@ -621,8 +621,10 @@ function detectLeadSource(message: WhatsAppMessage): LeadSource {
   if (text.includes('#tiktokads')) return LeadSource.tiktok_ads;
   if (text.includes('#tiktok')) return LeadSource.tiktok_organic;
   if (text.includes('#googleads')) return LeadSource.google_ads;
-  if (text.includes('#facebook')) return LeadSource.facebook_ads;
-  if (text.includes('#instagram')) return LeadSource.instagram_ads;
+  if (text.includes('#facebookads')) return LeadSource.facebook_ads;
+  if (text.includes('#facebook')) return LeadSource.facebook_organic;
+  if (text.includes('#instagramads')) return LeadSource.instagram_ads;
+  if (text.includes('#instagram')) return LeadSource.instagram_organic;
 
   return LeadSource.other;
 }
