@@ -17,6 +17,7 @@ import {
   LeadType,
   LeadStatus,
   LeadTemperature,
+  LeadSource,
   HandoffMode,
   MessageSender,
 } from '@prisma/client';
@@ -143,7 +144,15 @@ interface WhatsAppMessage {
   audio?: WhatsAppMedia;
   video?: WhatsAppMedia;
   document?: WhatsAppMedia & { filename?: string };
-  // Add more types as needed
+  referral?: WhatsAppReferral;
+}
+
+interface WhatsAppReferral {
+  source_url: string;    // URL of the ad (fb.me/... or instagram.com/...)
+  source_type: string;   // "ad"
+  source_id: string;     // Ad ID
+  headline?: string;     // Ad headline
+  body?: string;         // Ad body text
 }
 
 interface WhatsAppMedia {
@@ -595,6 +604,30 @@ function sanitizeContactName(raw: string, phoneNumber: string): string {
 }
 
 // ============================================
+// Detect Lead Source from Meta referral or hashtags
+// ============================================
+
+function detectLeadSource(message: WhatsAppMessage): LeadSource {
+  // 1. Meta CTWA Ads: referral object indicates FB or IG ad
+  if (message.referral) {
+    const url = (message.referral.source_url || '').toLowerCase();
+    if (url.includes('instagram')) return LeadSource.instagram_ads;
+    // Default Meta ads to facebook_ads (fb.me, facebook.com, etc.)
+    return LeadSource.facebook_ads;
+  }
+
+  // 2. Hashtag detection in first message text
+  const text = (message.text?.body || '').toLowerCase();
+  if (text.includes('#tiktokads')) return LeadSource.tiktok_ads;
+  if (text.includes('#tiktok')) return LeadSource.tiktok_organic;
+  if (text.includes('#googleads')) return LeadSource.google_ads;
+  if (text.includes('#facebook')) return LeadSource.facebook_ads;
+  if (text.includes('#instagram')) return LeadSource.instagram_ads;
+
+  return LeadSource.other;
+}
+
+// ============================================
 // Handle Incoming Message
 // ============================================
 
@@ -691,6 +724,9 @@ async function handleIncomingMessage(
       orderBy: { createdAt: 'asc' },
     });
 
+    // Detect lead source from Meta referral or hashtags in first message
+    const detectedSource = detectLeadSource(message);
+
     // Create new lead with conversation and assigned agent
     lead = await prisma.lead.create({
       data: {
@@ -700,6 +736,7 @@ async function handleIncomingMessage(
         phone: `+${whatsappId}`,
         whatsappId,
         channel: LeadChannel.whatsapp,
+        source: detectedSource,
         type: LeadType.ai_agent,
         status: LeadStatus.new,
         temperature: LeadTemperature.cold,
@@ -740,11 +777,11 @@ async function handleIncomingMessage(
         leadId: lead.id,
         type: 'lead_created',
         description: 'Lead creado desde WhatsApp',
-        metadata: { source: 'whatsapp_direct', channel: 'whatsapp' },
+        metadata: { source: detectedSource, channel: 'whatsapp', ...(message.referral ? { adId: message.referral.source_id, adHeadline: message.referral.headline } : {}) },
       },
     });
 
-    console.log(`[OK] New lead created: ${lead.id.substring(0, 8)}...`);
+    console.log(`[OK] New lead created: ${lead.id.substring(0, 8)}... (source: ${detectedSource})`);
   } else {
     // Add message to existing conversation
     let conversationId = lead.conversation?.id;

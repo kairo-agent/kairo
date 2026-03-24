@@ -305,6 +305,11 @@ enum LeadSource {
   social_media
   advertising
   event
+  facebook_ads
+  instagram_ads
+  tiktok_ads
+  tiktok_organic
+  google_ads
   other
 }
 

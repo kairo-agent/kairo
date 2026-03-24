@@ -209,6 +209,11 @@ export enum LeadSource {
   SOCIAL_MEDIA = 'social_media',
   ADVERTISING = 'advertising',
   EVENT = 'event',
+  FACEBOOK_ADS = 'facebook_ads',
+  INSTAGRAM_ADS = 'instagram_ads',
+  TIKTOK_ADS = 'tiktok_ads',
+  TIKTOK_ORGANIC = 'tiktok_organic',
+  GOOGLE_ADS = 'google_ads',
   OTHER = 'other'
 }
 

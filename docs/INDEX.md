@@ -35,6 +35,11 @@
 | [NOTIFICATIONS.md](NOTIFICATIONS.md) | Sistema de notificaciones: tabla, RLS, polling, NotificationDropdown, pg_cron, follow-up badges |
 | [FOLLOW-UP-SCHEDULING.md](FOLLOW-UP-SCHEDULING.md) | Alternativas evaluadas para seguimiento (implementado en v0.7.16) |
 
+### Features (Planes de implementacion)
+| Documento | Contenido clave |
+|-----------|----------------|
+| [CONVERSATIONAL-FORM.md](CONVERSATIONAL-FORM.md) | Plan completo: formulario conversacional por agente, 7 fases, schema + pipeline + UI |
+
 ### Performance y Operaciones
 | Documento | Contenido clave |
 |-----------|----------------|
@@ -64,3 +69,4 @@
 | Colores y brand | [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) |
 | Migraciones de BD | [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) |
 | Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |
+| Formulario conversacional | [CONVERSATIONAL-FORM.md](CONVERSATIONAL-FORM.md) |
