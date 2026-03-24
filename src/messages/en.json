@@ -365,7 +365,19 @@
       "proposal": "Proposal",
       "negotiation": "Negotiation",
       "won": "Won",
-      "lost": "Lost"
+      "lost": "Lost",
+      "source": "Lead source",
+      "facebookAds": "Facebook Ads",
+      "instagramAds": "Instagram Ads",
+      "tiktokAds": "TikTok Ads",
+      "tiktokOrganic": "TikTok Organic",
+      "googleAds": "Google Ads",
+      "website": "Website",
+      "referral": "Referral",
+      "socialMedia": "Social Media",
+      "advertising": "Advertising",
+      "event": "Event",
+      "other": "Other"
     }
   },
   "workspace": {

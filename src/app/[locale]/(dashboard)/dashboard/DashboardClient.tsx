@@ -55,6 +55,20 @@ const STATUS_COLORS: Record<string, string> = {
   lost: '#EF4444',
 };
 
+const SOURCE_COLORS: Record<string, string> = {
+  facebook_ads: '#1877F2',
+  instagram_ads: '#E4405F',
+  tiktok_ads: '#000000',
+  tiktok_organic: '#69C9D0',
+  google_ads: '#4285F4',
+  website: '#10B981',
+  referral: '#8B5CF6',
+  social_media: '#F59E0B',
+  advertising: '#F97316',
+  event: '#EC4899',
+  other: '#6B7280',
+};
+
 // ============================================
 // SVG Icons (inline, no external dependencies)
 // ============================================
@@ -328,6 +342,25 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
     value: d.count,
   }));
 
+  const sourceLabelMap: Record<string, string> = {
+    facebook_ads: t('charts.facebookAds'),
+    instagram_ads: t('charts.instagramAds'),
+    tiktok_ads: t('charts.tiktokAds'),
+    tiktok_organic: t('charts.tiktokOrganic'),
+    google_ads: t('charts.googleAds'),
+    website: t('charts.website'),
+    referral: t('charts.referral'),
+    social_media: t('charts.socialMedia'),
+    advertising: t('charts.advertising'),
+    event: t('charts.event'),
+    other: t('charts.other'),
+  };
+
+  const sourceData = (charts?.sourceDistribution || []).filter((d) => d.count > 0).map((d) => ({
+    name: d.source,
+    value: d.count,
+  })).sort((a, b) => b.value - a.value);
+
   return (
     <div className="p-4 lg:p-6 space-y-6">
       {/* Page header */}
@@ -423,29 +456,54 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
         </ChartCard>
       </div>
 
-      {/* Status distribution — full width bar */}
-      <ChartCard title={t('charts.status')} isLoading={isLoading} isEmpty={statusData.length === 0}>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart data={statusData} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
-            <YAxis
-              type="category"
-              dataKey="name"
-              tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
-              axisLine={false}
-              tickLine={false}
-              width={90}
-              tickFormatter={(v: string) => statusLabelMap[v] || v}
-            />
-            <Tooltip formatter={(value) => [value, '']} />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24}>
-              {statusData.map((entry) => (
-                <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#6B7280'} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      {/* Status + Source distribution — side by side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ChartCard title={t('charts.status')} isLoading={isLoading} isEmpty={statusData.length === 0}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={statusData} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                axisLine={false}
+                tickLine={false}
+                width={90}
+                tickFormatter={(v: string) => statusLabelMap[v] || v}
+              />
+              <Tooltip formatter={(value) => [value, '']} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                {statusData.map((entry) => (
+                  <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#6B7280'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title={t('charts.source')} isLoading={isLoading} isEmpty={sourceData.length === 0}>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={sourceData} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
+                axisLine={false}
+                tickLine={false}
+                width={110}
+                tickFormatter={(v: string) => sourceLabelMap[v] || v}
+              />
+              <Tooltip formatter={(value) => [value, '']} />
+              <Bar dataKey="value" radius={[0, 4, 4, 0]} maxBarSize={24}>
+                {sourceData.map((entry) => (
+                  <Cell key={entry.name} fill={SOURCE_COLORS[entry.name] || '#6B7280'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      </div>
     </div>
   );
 }

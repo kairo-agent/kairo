@@ -365,7 +365,19 @@
       "proposal": "Propuesta",
       "negotiation": "Negociacion",
       "won": "Ganado",
-      "lost": "Perdido"
+      "lost": "Perdido",
+      "source": "Origen de leads",
+      "facebookAds": "Facebook Ads",
+      "instagramAds": "Instagram Ads",
+      "tiktokAds": "TikTok Ads",
+      "tiktokOrganic": "TikTok Orgánico",
+      "googleAds": "Google Ads",
+      "website": "Sitio Web",
+      "referral": "Referido",
+      "socialMedia": "Redes Sociales",
+      "advertising": "Publicidad",
+      "event": "Evento",
+      "other": "Otro"
     }
   },
   "workspace": {

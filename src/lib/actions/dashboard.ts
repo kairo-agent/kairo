@@ -25,6 +25,7 @@ export interface DashboardChartData {
   leadsPerDay: Array<{ date: string; count: number }>;
   temperatureDistribution: Array<{ temperature: string; count: number }>;
   statusDistribution: Array<{ status: string; count: number }>;
+  sourceDistribution: Array<{ source: string; count: number }>;
 }
 
 export type DashboardDateRange =
@@ -273,6 +274,7 @@ const EMPTY_CHARTS: DashboardChartData = {
   leadsPerDay: [],
   temperatureDistribution: [],
   statusDistribution: [],
+  sourceDistribution: [],
 };
 
 export async function getDashboardCharts(
@@ -303,7 +305,7 @@ export async function getDashboardCharts(
       ...(dateFilter ? { createdAt: dateFilter } : {}),
     };
 
-    const [leads, tempGroups, statusGroups] = await Promise.all([
+    const [leads, tempGroups, statusGroups, sourceGroups] = await Promise.all([
       // Leads per day — fetch dates only, group client-side
       prisma.lead.findMany({
         where: baseWhere,
@@ -324,6 +326,13 @@ export async function getDashboardCharts(
         where: { ...projectFilter, archivedAt: null },
         _count: true,
       }),
+
+      // Source distribution
+      prisma.lead.groupBy({
+        by: ['source'],
+        where: baseWhere,
+        _count: true,
+      }),
     ]);
 
     // Group leads by date
@@ -342,6 +351,10 @@ export async function getDashboardCharts(
       })),
       statusDistribution: statusGroups.map((g) => ({
         status: g.status,
+        count: g._count,
+      })),
+      sourceDistribution: sourceGroups.map((g) => ({
+        source: g.source,
         count: g._count,
       })),
     };
