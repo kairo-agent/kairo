@@ -4,6 +4,25 @@
 
 ---
 
+## [0.16.2] - 2026-03-25
+
+### Fix: Post-Login Redirect Missing Locale Prefix
+
+Usuarios reportaron que despues de login eran redirigidos a `/leads` en lugar de `/es/leads`, causando pagina rota sin locale.
+
+**Causa raiz:** `(dashboard)/page.tsx` usaba `redirect('/leads')` de `next/navigation` (sin locale). Cuando un usuario visitaba la raiz (`/`), el middleware guardaba `redirect=/` en la URL de login. Despues de autenticarse, el deep-link enviaba a `/es/` → `page.tsx` redirigía a `/leads` sin prefijo de locale.
+
+**Fixes:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/app/[locale]/(dashboard)/page.tsx` | Usa `getLocale()` + redirect con locale explicito (`/${locale}/leads`) |
+| `src/app/[locale]/(auth)/login/page.tsx` | Deep-link ignora `/` como destino (no es un destino util, cae al flujo normal) |
+
+**Nota:** El sistema de deep-link post-login para notificaciones por email (`/es/leads?leadId=xxx`) no fue afectado — sigue funcionando correctamente.
+
+---
+
 ## [0.16.1] - 2026-03-24
 
 ### Lead Source Auto-Detection
