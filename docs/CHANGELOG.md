@@ -4,6 +4,48 @@
 
 ---
 
+## [0.16.1] - 2026-03-24
+
+### Lead Source Auto-Detection
+
+Deteccion automatica del origen de leads al momento de creacion. Dos mecanismos:
+
+1. **Meta Referral (CTWA Ads):** Cuando un lead viene de un anuncio Click-to-WhatsApp en Facebook o Instagram, Meta envia un objeto `referral` en el webhook. Se parsea `source_url` para distinguir FB vs IG.
+2. **Hashtags en primer mensaje:** Para plataformas sin referral nativo (TikTok, Google, organicos), se detectan hashtags en el mensaje prefijado del link wa.me.
+
+| Hashtag | Source |
+|---------|--------|
+| *(CTWA Ad FB)* | `facebook_ads` (auto) |
+| *(CTWA Ad IG)* | `instagram_ads` (auto) |
+| `#facebookads` | `facebook_ads` |
+| `#facebook` | `facebook_organic` |
+| `#instagramads` | `instagram_ads` |
+| `#instagram` | `instagram_organic` |
+| `#tiktokads` | `tiktok_ads` |
+| `#tiktok` | `tiktok_organic` |
+| `#googleads` | `google_ads` |
+
+**Enum LeadSource actualizado:** +7 valores (`facebook_ads`, `facebook_organic`, `instagram_ads`, `instagram_organic`, `tiktok_ads`, `tiktok_organic`, `google_ads`).
+
+### Dashboard Source Chart
+
+Horizontal bar chart "Origen de leads" al lado derecho del chart de "Estado de leads". Colores por plataforma, ordenado por cantidad, respeta filtro de fecha.
+
+**Archivos modificados:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `prisma/schema.prisma` | 7 nuevos valores en enum `LeadSource` |
+| `src/types/index.ts` | Enum TypeScript sincronizado |
+| `src/app/api/webhooks/whatsapp/route.ts` | `WhatsAppReferral` type + `detectLeadSource()` + source en lead creation |
+| `src/lib/actions/dashboard.ts` | `sourceDistribution` query (groupBy source) |
+| `src/app/[locale]/(dashboard)/dashboard/DashboardClient.tsx` | Source horizontal bar chart + colores + labels |
+| `src/messages/es.json` / `en.json` | Labels i18n para 11 sources |
+
+**Migraciones:** `20260324_add_lead_source_platforms`, `20260324_add_fb_ig_organic_sources`
+
+---
+
 ## [0.16.0] - 2026-03-22
 
 ### Dashboard Charts & Visualizations
