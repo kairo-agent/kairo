@@ -162,8 +162,10 @@ function LoginPageContent() {
         }
 
         // Check for redirect param from middleware or sessionStorage deep-link
+        // Skip root "/" as deep-link — it's not a real destination (user just visited the app root)
         const savedRedirect = sessionStorage.getItem('kairo-redirect-after-login');
-        const deepLink = redirectParam || savedRedirect;
+        const rawDeepLink = redirectParam || savedRedirect;
+        const deepLink = rawDeepLink && rawDeepLink !== '/' ? rawDeepLink : null;
         if (deepLink && deepLink.startsWith('/') && !deepLink.startsWith('//')) {
           sessionStorage.removeItem('kairo-redirect-after-login');
           // Ensure deep-link has locale prefix (e.g., /leads -> /es/leads)
