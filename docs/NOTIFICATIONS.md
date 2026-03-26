@@ -1,7 +1,7 @@
 # Sistema de Notificaciones - KAIRO
 
-> **Estado**: v0.10.2 - Actualizado Mar 2026
-> **Canales**: Bell (in-app polling 15s) + Email (Resend) + Web Push (VAPID)
+> **Estado**: v0.17.0 - Actualizado Mar 2026
+> **Canales**: Bell (in-app Realtime + polling fallback) + Email (Resend) + Web Push (VAPID)
 
 ## Arquitectura
 
@@ -38,12 +38,13 @@ Evento (webhook/cron/action)
 
 ## Tipos de notificacion
 
-| Tipo | Trigger | Source |
-|------|---------|--------|
-| `new_message` | WhatsApp webhook recibe mensaje inbound (solo modo human) | webhook |
-| `follow_up_due` | pg_cron detecta `nextFollowUpAt <= NOW()` | pg_cron |
-| `handoff_request` | AI pipeline detecta `[HANDOFF]` marker en respuesta del agente | ai_pipeline |
-| `lead_assigned` | (futuro) Server action asigna lead | server_action |
+| Tipo | Trigger | Source | Bell | Email | Push |
+|------|---------|--------|------|-------|------|
+| `new_message` | WhatsApp webhook recibe mensaje inbound (solo modo human) | webhook | Si | Si | Si |
+| `follow_up_due` | pg_cron detecta `nextFollowUpAt <= NOW()` | pg_cron + pg_net | Si | Si | Si |
+| `handoff_request` | AI pipeline detecta `[HANDOFF]` marker en respuesta del agente | ai_pipeline | Si | Si | Si |
+| `hot_lead` | AI response con temperature=hot | ai_pipeline | Si | Si | Si |
+| `lead_assigned` | (futuro) Server action asigna lead | server_action | Si | No | No |
 
 ## Archivos clave
 
@@ -56,7 +57,9 @@ Evento (webhook/cron/action)
 | `src/lib/actions/leads.ts` | `getLeadById()` para fetch individual (deep-link desde notificacion) |
 | `src/components/layout/Header.tsx` | Integra NotificationDropdown |
 | `src/app/api/webhooks/whatsapp/route.ts` | Crea notificacion fire-and-forget en inbound |
-| `scripts/pg-cron-followup-notifications.sql` | SQL para pg_cron en Supabase |
+| `scripts/pg-cron-followup-notifications.sql` | SQL para pg_cron en Supabase (bell + pg_net call) |
+| `src/app/api/cron/followup-notify/route.ts` | Endpoint para email + push de follow-ups (llamado por pg_net) |
+| `src/lib/email.ts` | `sendFollowUpEmail()` - template email de seguimiento pendiente |
 
 ## Follow-up Scheduling
 

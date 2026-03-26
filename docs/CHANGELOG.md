@@ -4,6 +4,27 @@
 
 ---
 
+## [0.17.0] - 2026-03-26
+
+### Follow-up notifications: Email + Push
+
+Los seguimientos programados (`follow_up_due`) solo generaban notificacion de campana (bell). Ahora tambien envian **email** y **push** a los miembros del proyecto que tengan estas preferencias activadas.
+
+**Arquitectura:** El pg_cron sigue insertando bell notifications directo (para Realtime instantaneo). Adicionalmente, cuando encuentra follow-ups pendientes, llama al nuevo endpoint via `pg_net` para enviar email + push. Solo se invoca cuando hay follow-ups reales (no cada minuto), manteniendo el free tier.
+
+**Template email:** Mismo diseno KAIRO dark (fondo #0B1220, card #111827, boton cyan #00E5FF) con mensaje "Seguimiento pendiente" + nombre del lead + proyecto. Soporta i18n (es/en).
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/email.ts` | `sendFollowUpEmail()` + `buildFollowUpEmailHtml()` + i18n `followUpI18n` |
+| `src/app/api/cron/followup-notify/route.ts` | Nuevo endpoint: recibe leads de pg_net, envia email + push |
+| `scripts/pg-cron-followup-notifications.sql` | Agrega `pg_net` extension + `net.http_post()` condicional al endpoint |
+| `docs/NOTIFICATIONS.md` | Tabla de canales por tipo actualizada |
+
+**Deploy:** Despues de deploy a Vercel, ejecutar el SQL actualizado en Supabase SQL Editor. Requiere `app.settings.app_url` y `app.settings.cron_secret` configurados en la DB.
+
+---
+
 ## [0.16.2] - 2026-03-25
 
 ### Fix: Post-Login Redirect Missing Locale Prefix

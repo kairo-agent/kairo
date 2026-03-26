@@ -3,10 +3,18 @@
 -- Run this in Supabase SQL Editor AFTER the notifications table is created
 -- ============================================
 
--- Step 1: Enable pg_cron extension (if not already enabled)
+-- Step 1: Enable extensions (if not already enabled)
 CREATE EXTENSION IF NOT EXISTS pg_cron;
+CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Step 2: Create the function that generates follow-up notifications
+-- Step 2: Unschedule existing job (if updating)
+-- SELECT cron.unschedule('create-followup-notifications');
+
+-- Step 3: Create the function that generates follow-up notifications
+-- Bell notifications are inserted directly (picked up by Supabase Realtime).
+-- Email + Push are sent via pg_net HTTP call to the Vercel endpoint.
+--
+-- IMPORTANT: Replace <CRON_SECRET> with the actual value from Vercel env vars.
 CREATE OR REPLACE FUNCTION create_followup_notifications()
 RETURNS void
 LANGUAGE plpgsql
@@ -16,6 +24,8 @@ AS $$
 DECLARE
   lead_record RECORD;
   member_record RECORD;
+  leads_payload jsonb := '[]'::jsonb;
+  lead_entry jsonb;
 BEGIN
   -- Find leads with follow-ups that are due (within last 5 minutes window)
   FOR lead_record IN
@@ -34,7 +44,16 @@ BEGIN
           AND n."createdAt" > NOW() - INTERVAL '10 minutes'
       )
   LOOP
-    -- Notify all project members with relevant roles
+    -- Build lead entry for the HTTP payload
+    lead_entry := jsonb_build_object(
+      'leadId', lead_record.id,
+      'leadName', substring(lead_record."firstName" from 1 for 50),
+      'projectId', lead_record."projectId",
+      'organizationId', lead_record."organizationId"
+    );
+    leads_payload := leads_payload || jsonb_build_array(lead_entry);
+
+    -- Notify all project members with relevant roles (bell notification)
     FOR member_record IN
       SELECT pm."userId"
       FROM project_members pm
@@ -60,10 +79,23 @@ BEGIN
       );
     END LOOP;
   END LOOP;
+
+  -- If any follow-ups were found, call the API for email + push notifications
+  -- URL and secret hardcoded (Supabase free tier cannot use ALTER DATABASE SET)
+  IF jsonb_array_length(leads_payload) > 0 THEN
+    PERFORM net.http_post(
+      url := 'https://app.kairoagent.com/api/cron/followup-notify',
+      body := jsonb_build_object('leads', leads_payload),
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer <CRON_SECRET>'
+      )
+    );
+  END IF;
 END;
 $$;
 
--- Step 3: Schedule the job to run every minute
+-- Step 4: Schedule the job to run every minute
 SELECT cron.schedule(
   'create-followup-notifications',
   '* * * * *',
@@ -74,7 +106,7 @@ SELECT cron.schedule(
 -- To verify the job is scheduled:
 -- SELECT * FROM cron.job;
 --
--- To unschedule:
+-- To unschedule (if updating):
 -- SELECT cron.unschedule('create-followup-notifications');
 --
 -- To test manually:
