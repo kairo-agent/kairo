@@ -52,6 +52,7 @@ const followUpI18n = {
     heading: 'Seguimiento pendiente',
     body: (leadName: string) =>
       `Tienes un seguimiento programado con <strong>${leadName}</strong>.`,
+    scheduled: 'Programado',
     cta: 'Ver en KAIRO',
   },
   en: {
@@ -59,6 +60,7 @@ const followUpI18n = {
     heading: 'Follow-up due',
     body: (leadName: string) =>
       `You have a scheduled follow-up with <strong>${leadName}</strong>.`,
+    scheduled: 'Scheduled',
     cta: 'View in KAIRO',
   },
 } as const;
@@ -349,13 +351,31 @@ export async function sendHotLeadEmail(params: {
 // Follow-up email builder
 // ============================================
 
+function formatFollowUpDate(dateStr: string, locale: 'es' | 'en'): string {
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleString(locale === 'es' ? 'es-PE' : 'en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch {
+    return '';
+  }
+}
+
 function buildFollowUpEmailHtml(params: {
   leadName: string;
   projectName: string;
   leadId: string;
   locale: 'es' | 'en';
+  scheduledAt?: string;
 }): string {
-  const { leadName, projectName, leadId, locale } = params;
+  const { leadName, projectName, leadId, locale, scheduledAt } = params;
   const t = followUpI18n[locale] || followUpI18n.es;
   const base = i18n[locale] || i18n.es;
   const ctaUrl = `https://app.kairoagent.com/${locale}/leads?leadId=${encodeURIComponent(leadId)}`;
@@ -390,6 +410,10 @@ function buildFollowUpEmailHtml(params: {
               <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#D1D5DB;">
                 ${t.body(leadName)}
               </p>
+              ${scheduledAt ? `<!-- Scheduled date -->
+              <p style="margin:0 0 8px;font-size:14px;color:#F97316;">
+                ${t.scheduled}: <strong>${formatFollowUpDate(scheduledAt, locale)}</strong>
+              </p>` : ''}
               <!-- Project -->
               <p style="margin:0 0 28px;font-size:14px;color:#9CA3AF;">
                 ${base.project}: <strong style="color:#D1D5DB;">${projectName}</strong>
@@ -437,11 +461,12 @@ export async function sendFollowUpEmail(params: {
   projectName: string;
   leadId: string;
   locale: 'es' | 'en';
+  scheduledAt?: string;
 }): Promise<void> {
   const client = getResendClient();
   if (!client) return;
 
-  const { recipientEmail, ccEmails, leadName, projectName, leadId, locale } = params;
+  const { recipientEmail, ccEmails, leadName, projectName, leadId, locale, scheduledAt } = params;
   const t = followUpI18n[locale] || followUpI18n.es;
   const fromEmail = process.env.RESEND_FROM_EMAIL || 'KAIRO <no-reply@kairoagent.com>';
 
@@ -456,7 +481,7 @@ export async function sendFollowUpEmail(params: {
       from: fromEmail,
       to: recipientEmail,
       subject: t.subject(leadName),
-      html: buildFollowUpEmailHtml({ leadName, projectName, leadId, locale }),
+      html: buildFollowUpEmailHtml({ leadName, projectName, leadId, locale, scheduledAt }),
     };
 
     const validCc = ccEmails.filter((e) => e && e.includes('@'));

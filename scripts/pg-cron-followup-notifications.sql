@@ -30,7 +30,7 @@ BEGIN
   -- Find leads with follow-ups that are due (within last 5 minutes window)
   FOR lead_record IN
     SELECT l.id, l."firstName", l."lastName", l."projectId",
-           p."organizationId"
+           l."nextFollowUpAt", p."organizationId"
     FROM leads l
     JOIN projects p ON l."projectId" = p.id
     WHERE l."nextFollowUpAt" <= NOW()
@@ -49,7 +49,8 @@ BEGIN
       'leadId', lead_record.id,
       'leadName', substring(lead_record."firstName" from 1 for 50),
       'projectId', lead_record."projectId",
-      'organizationId', lead_record."organizationId"
+      'organizationId', lead_record."organizationId",
+      'scheduledAt', lead_record."nextFollowUpAt"
     );
     leads_payload := leads_payload || jsonb_build_array(lead_entry);
 

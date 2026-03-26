@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  let body: { leads: Array<{ leadId: string; leadName: string; projectId: string; organizationId: string }> };
+  let body: { leads: Array<{ leadId: string; leadName: string; projectId: string; organizationId: string; scheduledAt?: string }> };
   try {
     body = await request.json();
   } catch {
@@ -98,6 +98,7 @@ export async function POST(request: Request) {
               projectName,
               leadId: lead.leadId,
               locale: validLocale,
+              scheduledAt: lead.scheduledAt,
             }).then(() => { emailsSent++; })
               .catch((err) =>
                 console.error(`[FollowUp Email] Error for ${user.id.slice(0, 8)}...:`, err)
