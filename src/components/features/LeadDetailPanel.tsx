@@ -27,6 +27,7 @@ import {
 } from '@/lib/actions/leads';
 import LeadEditModal from './LeadEditModal';
 import LeadChat from './LeadChat';
+import { sendMessage } from '@/lib/actions/messages';
 
 // ============================================
 // Types
@@ -70,6 +71,12 @@ const EmailIcon = () => (
 const PhoneIconSmall = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+  </svg>
+);
+
+const VideoCallIcon = () => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
   </svg>
 );
 
@@ -235,6 +242,9 @@ export function LeadDetailPanel({
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
+  // Jitsi video call state
+  const [isStartingCall, setIsStartingCall] = useState(false);
+
   // PERFORMANCE (P2-2): Single consolidated call instead of 2 separate server actions
   const loadNotesAndActivities = useCallback(async () => {
     if (!lead?.id) return;
@@ -341,6 +351,32 @@ export function LeadDetailPanel({
         getLeadActivities(lead.id).then(setActivities);
       }
     }, 500);
+  };
+
+  // Jitsi video call handler
+  const handleStartVideoCall = async () => {
+    if (!lead?.id || !lead.phone || isStartingCall) return;
+
+    setIsStartingCall(true);
+    try {
+      // Generate unique room ID
+      const roomId = `kairo-${lead.id.slice(0, 8)}-${Date.now().toString(36)}`;
+      const jitsiUrl = `https://meet.jit.si/${roomId}`;
+
+      // Send link to lead via WhatsApp
+      const callMessage = locale === 'es'
+        ? `Hola ${lead.firstName || ''}, te comparto un enlace para una videollamada: ${jitsiUrl}`
+        : `Hi ${lead.firstName || ''}, here is a link for a video call: ${jitsiUrl}`;
+
+      await sendMessage(lead.id, callMessage);
+
+      // Open Jitsi room in new tab for the agent
+      window.open(jitsiUrl, '_blank');
+    } catch (error) {
+      console.error('[VideoCall] Error starting call:', error);
+    } finally {
+      setIsStartingCall(false);
+    }
   };
 
   const renderActivityIcon = (type: string) => {
@@ -777,9 +813,22 @@ export function LeadDetailPanel({
         {/* Footer Actions */}
         <div className="flex-shrink-0 border-t border-[var(--border-primary)] p-4 lg:p-6">
           <div className="flex flex-row gap-2">
-            {isSuperAdmin && (
-              <Button variant="primary" fullWidth disabled title={t('detail.call')}>
-                <PhoneIconSmall />
+            {isSuperAdmin && lead.phone && (
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handleStartVideoCall}
+                disabled={isStartingCall}
+                title={t('detail.call')}
+              >
+                {isStartingCall ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <VideoCallIcon />
+                )}
                 <span className="hidden sm:inline">{t('detail.call')}</span>
               </Button>
             )}
