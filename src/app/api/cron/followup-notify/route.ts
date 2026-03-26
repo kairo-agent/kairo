@@ -99,6 +99,7 @@ export async function POST(request: Request) {
               leadId: lead.leadId,
               locale: validLocale,
               scheduledAt: lead.scheduledAt,
+              timezone: (prefs.timezone as string) || 'America/Lima',
             }).then(() => { emailsSent++; })
               .catch((err) =>
                 console.error(`[FollowUp Email] Error for ${user.id.slice(0, 8)}...:`, err)
