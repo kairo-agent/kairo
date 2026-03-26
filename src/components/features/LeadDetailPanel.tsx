@@ -365,8 +365,8 @@ export function LeadDetailPanel({
 
       // Send link to lead via WhatsApp
       const callMessage = locale === 'es'
-        ? `Hola ${lead.firstName || ''}, te comparto un enlace para una videollamada: ${jitsiUrl}`
-        : `Hi ${lead.firstName || ''}, here is a link for a video call: ${jitsiUrl}`;
+        ? `Estimado ${lead.firstName || ''}, te comparto un enlace para una videollamada: ${jitsiUrl}`
+        : `Dear ${lead.firstName || ''}, here is a link for a video call: ${jitsiUrl}`;
 
       await sendMessage(lead.id, callMessage);
 

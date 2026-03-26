@@ -21,7 +21,29 @@ Los seguimientos programados (`follow_up_due`) solo generaban notificacion de ca
 | `scripts/pg-cron-followup-notifications.sql` | Agrega `pg_net` extension + `net.http_post()` condicional al endpoint |
 | `docs/NOTIFICATIONS.md` | Tabla de canales por tipo actualizada |
 
-**Deploy:** Despues de deploy a Vercel, ejecutar el SQL actualizado en Supabase SQL Editor. Requiere `app.settings.app_url` y `app.settings.cron_secret` configurados en la DB.
+**Deploy:** Despues de deploy a Vercel, ejecutar el SQL actualizado en Supabase SQL Editor. URL y CRON_SECRET hardcodeados en la funcion SECURITY DEFINER (Supabase free tier no permite ALTER DATABASE SET).
+
+### Follow-up email: timezone + fecha programada
+
+El email de follow-up ahora incluye la fecha/hora programada ("Programado: 26 mar. 2026, 12:15 p.m.") formateada en el timezone del usuario (preference `timezone`, default America/Lima).
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/email.ts` | `formatFollowUpDate()` con timezone, campo `scheduledAt` en template |
+| `src/app/api/cron/followup-notify/route.ts` | Pasa `scheduledAt` + `timezone` del usuario |
+| `scripts/pg-cron-followup-notifications.sql` | Incluye `nextFollowUpAt` en payload pg_net |
+
+### Videollamada Jitsi Meet (super_admin only)
+
+Boton "Llamar" en el panel del lead ahora inicia una videollamada via Jitsi Meet (servidor publico, costo cero). Solo visible para super_admin.
+
+**Flujo:** Click → genera sala unica → envia link al lead por WhatsApp (mismo numero del agente) → abre sala en nueva pestana para el agente.
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/components/features/LeadDetailPanel.tsx` | `handleStartVideoCall()`, icono VideoCallIcon, import sendMessage |
+
+**Escalabilidad futura:** Migrar a **8x8 JaaS** (Jitsi as a Service) para embeber videollamada dentro de KAIRO con branding propio. Free tier: 10,000 min/mes. Evaluar cuando haya ingresos que justifiquen el salto.
 
 ---
 
