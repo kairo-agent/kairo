@@ -160,6 +160,8 @@ function mapStatus(status: string): LeadStatus {
     'new': LeadStatus.NEW,
     'contacted': LeadStatus.CONTACTED,
     'qualified': LeadStatus.QUALIFIED,
+    'unqualified': LeadStatus.UNQUALIFIED,
+    'no_response': LeadStatus.NO_RESPONSE,
     'proposal': LeadStatus.PROPOSAL,
     'negotiation': LeadStatus.NEGOTIATION,
     'won': LeadStatus.WON,
