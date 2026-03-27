@@ -34,6 +34,14 @@ Todos los botones con fondo cyan (`--accent-primary`) ahora usan texto oscuro (`
 
 Criterios HOT/WARM/COLD ahora tienen iconos edit (lapiz), duplicate (copiar), delete (papelera) al hover, igual que las Reglas especificas. Edit inline con input + save/cancel.
 
+### Fix: human chat media metadata preserved
+
+sendMessage sobrescribia el metadata del mensaje al recibir respuesta de WhatsApp API, perdiendo los mediaAttachments (URL de imagen/video). Ahora hace merge con el metadata existente. Ademas, cleanup-media cron extendido de 24h a 5 dias para que media enviada por humanos permanezca visible en el historial.
+
+### Fix: all dashboard stats respect date range filter
+
+"En modo humano" ignoraba el rango de fecha seleccionado, siempre mostrando estado actual. Ahora filtra por updatedAt dentro del rango, consistente con Won, Customer y Archived.
+
 ### Source detection debug logging
 
 Log temporal del `referral` de Meta en webhook para diagnosticar clasificacion FB vs IG ads. Hallazgo: Meta siempre envia `fb.me/` como source_url, no distingue Instagram.
