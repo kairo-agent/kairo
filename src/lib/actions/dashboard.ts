@@ -184,12 +184,13 @@ export async function getDashboardStats(
         },
       }),
 
-      // 4. Leads currently in human mode (no date filter - current state)
+      // 4. Leads in human mode (within date range by updatedAt)
       prisma.lead.count({
         where: {
           ...projectFilter,
           archivedAt: null,
           handoffMode: 'human',
+          ...(dateFilter ? { updatedAt: dateFilter } : {}),
         },
       }),
 
@@ -287,6 +288,7 @@ export async function getDashboardStatsSSR(
           ...projectFilter,
           archivedAt: null,
           handoffMode: 'human',
+          ...(dateFilter ? { updatedAt: dateFilter } : {}),
         },
       }),
 
