@@ -776,7 +776,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
               <>
                 {t('chat.takeControl')}
                 {isWindowActive && (
-                  <span className="ml-1.5 font-mono text-[10px] opacity-80">
+                  <span className="ml-1.5 opacity-80">
                     {formatCountdown(whatsappCountdown!)}
                   </span>
                 )}
