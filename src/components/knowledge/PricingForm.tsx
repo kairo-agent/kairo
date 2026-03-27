@@ -24,7 +24,8 @@ const labels = {
   save: 'Guardar',
   cancel: 'Cancelar',
   saving: 'Guardando...',
-  currency: 'Moneda',
+  currency: 'Moneda (Global)',
+  currencyGlobal: 'Global',
   addItem: 'Agregar servicio',
   remove: 'Quitar',
   serviceName: 'Nombre del servicio',
@@ -69,7 +70,7 @@ export function PricingForm({
   const addItem = useCallback(() => {
     setItems((prev) => {
       if (prev.length >= MAX_ITEMS) return prev;
-      return [...prev, { name: '', price: '', description: '' }];
+      return [...prev, { name: '', price: '', description: '', currency: '' }];
     });
   }, []);
 
@@ -89,7 +90,12 @@ export function PricingForm({
   );
 
   const handleSave = () => {
-    onSave({ currency, items, notes: notes || undefined });
+    // Clean up: remove empty currency overrides (they inherit global)
+    const cleanedItems = items.map(item => ({
+      ...item,
+      currency: item.currency || undefined,
+    }));
+    onSave({ currency, items: cleanedItems, notes: notes || undefined });
   };
 
   return (
@@ -151,8 +157,8 @@ export function PricingForm({
                 </button>
               </div>
 
-              {/* Name + Price row */}
-              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3">
+              {/* Name + Price + Currency row */}
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-3">
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-[var(--text-secondary)]">
                     {labels.serviceName}
@@ -166,7 +172,7 @@ export function PricingForm({
                     className={inputClass}
                   />
                 </div>
-                <div className="space-y-1 sm:w-32">
+                <div className="space-y-1 sm:w-28">
                   <label className="block text-xs font-medium text-[var(--text-secondary)]">
                     {labels.price}
                   </label>
@@ -186,6 +192,23 @@ export function PricingForm({
                     maxLength={20}
                     className={inputClass}
                   />
+                </div>
+                <div className="space-y-1 sm:w-28">
+                  <label className="block text-xs font-medium text-[var(--text-secondary)]">
+                    {labels.currency}
+                  </label>
+                  <select
+                    value={item.currency || ''}
+                    onChange={(e) => updateItem(index, 'currency', e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">{labels.currencyGlobal}</option>
+                    {CURRENCY_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

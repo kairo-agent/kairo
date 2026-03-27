@@ -8,6 +8,7 @@ export interface ServiceItem {
   name: string;
   price: string;
   description?: string;
+  currency?: string; // Per-service currency override. Empty or undefined = inherit global
 }
 
 export interface PricingData {
@@ -40,6 +41,7 @@ const serviceItemSchema = z.object({
   name: z.string().min(1).max(100),
   price: z.string().min(1).max(50),
   description: z.string().max(300).optional(),
+  currency: z.string().max(10).optional(),
 });
 
 export const pricingSchema = z.object({
@@ -50,15 +52,19 @@ export const pricingSchema = z.object({
 
 export function composePricingText(data: PricingData): string {
   const sections: string[] = [];
-  const sym = CURRENCY_SYMBOLS[data.currency] || data.currency;
+  const globalCurrency = data.currency;
+  const globalSym = CURRENCY_SYMBOLS[globalCurrency] || globalCurrency;
 
   sections.push('SERVICES & PRICING / SERVICIOS Y PRECIOS:');
-  sections.push(`Currency / Moneda: ${data.currency}`);
+  sections.push(`Default currency / Moneda por defecto: ${globalCurrency}`);
 
   for (const item of data.items) {
+    const itemCurrency = item.currency || globalCurrency;
+    const sym = CURRENCY_SYMBOLS[itemCurrency] || itemCurrency;
     const priceStr = /^\d/.test(item.price) ? `${sym}${item.price}` : item.price;
+    const currencyLabel = itemCurrency !== globalCurrency ? ` ${itemCurrency}` : '';
     const desc = item.description ? ` - ${item.description}` : '';
-    sections.push(`- ${item.name}: ${priceStr}${desc}`);
+    sections.push(`- ${item.name}: ${priceStr}${currencyLabel}${desc}`);
   }
 
   if (data.notes?.trim()) {
