@@ -49,6 +49,8 @@ const STATUS_COLORS: Record<string, string> = {
   new: '#6366F1',
   contacted: '#3B82F6',
   qualified: '#10B981',
+  unqualified: '#78716C',
+  no_response: '#94A3B8',
   proposal: '#F59E0B',
   negotiation: '#F97316',
   won: '#22C55E',
@@ -338,6 +340,8 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
     new: t('charts.new'),
     contacted: t('charts.contacted'),
     qualified: t('charts.qualified'),
+    unqualified: t('charts.unqualified'),
+    no_response: t('charts.noResponse'),
     proposal: t('charts.proposal'),
     negotiation: t('charts.negotiation'),
     won: t('charts.won'),
@@ -483,7 +487,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
                 tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
                 axisLine={false}
                 tickLine={false}
-                width={90}
+                width={110}
                 tickFormatter={(v: string) => statusLabelMap[v] || v}
               />
               <Tooltip formatter={(value) => [value, '']} />

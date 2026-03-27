@@ -287,6 +287,8 @@ enum LeadStatus {
   new
   contacted
   qualified
+  unqualified
+  no_response
   proposal
   negotiation
   won
