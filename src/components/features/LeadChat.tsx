@@ -216,9 +216,12 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
     mode: 'ai' | 'human';
     handoffAt: Date | null;
     handoffUser: string | null;
+    channel: string | null;
+    lastLeadMessageAt: Date | null;
   } | null>(null);
   const [error, setError] = useState('');
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  const [whatsappCountdown, setWhatsappCountdown] = useState<number | null>(null);
 
   // IDs de mensajes ya procesados para evitar duplicados
   const processedMessageIds = useRef<Set<string>>(new Set());
@@ -319,6 +322,61 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
 
   // Hook de Supabase Realtime
   const isHumanMode = handoffStatus?.mode === 'human';
+  const isWhatsApp = handoffStatus?.channel === 'whatsapp';
+
+  // ============================================
+  // WhatsApp 24h Window Countdown
+  // ============================================
+
+  // Compute lastLeadMessageAt from loaded messages (more up-to-date than server)
+  // Falls back to server value from handoffStatus
+  const computedLastLeadMessageAt = useMemo(() => {
+    // Find the most recent lead message from loaded conversation
+    if (allMessages.length > 0) {
+      for (let i = allMessages.length - 1; i >= 0; i--) {
+        if (allMessages[i].sender === 'lead') {
+          return new Date(allMessages[i].createdAt);
+        }
+      }
+    }
+    // Fallback to server value
+    return handoffStatus?.lastLeadMessageAt ? new Date(handoffStatus.lastLeadMessageAt) : null;
+  }, [allMessages, handoffStatus?.lastLeadMessageAt]);
+
+  // Countdown timer: updates every second
+  useEffect(() => {
+    if (!isWhatsApp || !computedLastLeadMessageAt) {
+      setWhatsappCountdown(null);
+      return;
+    }
+
+    const calcRemaining = () => {
+      const elapsed = Date.now() - computedLastLeadMessageAt.getTime();
+      const remaining = 24 * 60 * 60 * 1000 - elapsed;
+      return Math.max(0, Math.floor(remaining / 1000));
+    };
+
+    setWhatsappCountdown(calcRemaining());
+
+    const interval = setInterval(() => {
+      const remaining = calcRemaining();
+      setWhatsappCountdown(remaining);
+      if (remaining <= 0) clearInterval(interval);
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isWhatsApp, computedLastLeadMessageAt]);
+
+  const isWindowExpired = isWhatsApp && whatsappCountdown !== null && whatsappCountdown <= 0;
+  const isWindowActive = isWhatsApp && whatsappCountdown !== null && whatsappCountdown > 0;
+
+  // Format seconds to HH:MM:SS
+  const formatCountdown = (totalSeconds: number): string => {
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
   /**
    * Callback cuando un mensaje se actualiza (delivered/read status)
@@ -705,15 +763,24 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
             variant={isHumanMode ? 'ghost' : 'primary'}
             size="sm"
             onClick={handleToggleHandoff}
-            disabled={isTogglingHandoff}
+            disabled={isTogglingHandoff || (!isHumanMode && isWindowExpired)}
             className="text-xs"
           >
             {isTogglingHandoff ? (
               <SpinnerIcon className="w-3 h-3" />
             ) : isHumanMode ? (
               t('chat.returnToAI')
+            ) : isWindowExpired ? (
+              t('chat.windowExpired')
             ) : (
-              t('chat.takeControl')
+              <>
+                {t('chat.takeControl')}
+                {isWindowActive && (
+                  <span className="ml-1.5 font-mono text-[10px] opacity-80">
+                    {formatCountdown(whatsappCountdown!)}
+                  </span>
+                )}
+              </>
             )}
           </Button>
         </div>
@@ -902,7 +969,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
       )}
 
       {/* Message Input with Emoji Picker */}
-      {isHumanMode && (
+      {isHumanMode && !isWindowExpired && (
         <div className="flex-shrink-0 border-t border-[var(--border-primary)]">
           {/* Rich Chat Input */}
           <div className="p-3 bg-[var(--bg-secondary)] relative">
@@ -944,10 +1011,26 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
         </div>
       )}
 
+      {/* Human Mode + WhatsApp Window Expired Notice */}
+      {isHumanMode && isWindowExpired && (
+        <div className="px-3 py-3 text-xs text-center text-amber-500 bg-amber-50 dark:bg-amber-950/20 border-t border-amber-200 dark:border-amber-800/30">
+          <span className="font-medium">{t('chat.windowExpired')}</span>
+          <span className="block mt-0.5 text-[var(--text-tertiary)]">{t('chat.windowExpiredNotice')}</span>
+        </div>
+      )}
+
       {/* AI Mode Notice */}
-      {!isHumanMode && (
+      {!isHumanMode && !isWindowExpired && (
         <div className="px-3 py-2 text-xs text-center text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] border-t border-[var(--border-primary)]">
           {t('chat.aiModeNotice')}
+        </div>
+      )}
+
+      {/* AI Mode + WhatsApp Window Expired */}
+      {!isHumanMode && isWindowExpired && (
+        <div className="px-3 py-3 text-xs text-center text-amber-500 bg-amber-50 dark:bg-amber-950/20 border-t border-amber-200 dark:border-amber-800/30">
+          <span className="font-medium">{t('chat.windowExpired')}</span>
+          <span className="block mt-0.5 text-[var(--text-tertiary)]">{t('chat.windowExpiredAiNotice')}</span>
         </div>
       )}
     </div>

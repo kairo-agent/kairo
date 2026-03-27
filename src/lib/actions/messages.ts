@@ -531,7 +531,13 @@ export async function toggleHandoffMode(
 
 export async function getLeadHandoffStatus(
   leadId: string
-): Promise<{ mode: 'ai' | 'human'; handoffAt: Date | null; handoffUser: string | null } | null> {
+): Promise<{
+  mode: 'ai' | 'human';
+  handoffAt: Date | null;
+  handoffUser: string | null;
+  channel: string | null;
+  lastLeadMessageAt: Date | null;
+} | null> {
   try {
     const user = await verifyAuth();
 
@@ -545,8 +551,12 @@ export async function getLeadHandoffStatus(
         projectId: true,
         handoffMode: true,
         handoffAt: true,
+        channel: true,
         handoffUser: {
           select: { firstName: true, lastName: true },
+        },
+        conversation: {
+          select: { id: true },
         },
       },
     });
@@ -560,12 +570,28 @@ export async function getLeadHandoffStatus(
       return null;
     }
 
+    // Get the last message from the lead (for WhatsApp 24h window calculation)
+    let lastLeadMessageAt: Date | null = null;
+    if (lead.conversation) {
+      const lastLeadMsg = await prisma.message.findFirst({
+        where: {
+          conversationId: lead.conversation.id,
+          sender: 'lead',
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      });
+      lastLeadMessageAt = lastLeadMsg?.createdAt ?? null;
+    }
+
     return {
       mode: lead.handoffMode as 'ai' | 'human',
       handoffAt: lead.handoffAt,
       handoffUser: lead.handoffUser
         ? `${lead.handoffUser.firstName} ${lead.handoffUser.lastName}`
         : null,
+      channel: lead.channel,
+      lastLeadMessageAt,
     };
   } catch (error) {
     console.error('Error getting handoff status:', error);
