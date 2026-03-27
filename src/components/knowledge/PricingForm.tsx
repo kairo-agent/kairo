@@ -281,7 +281,7 @@ export function PricingForm({
           type="button"
           onClick={handleSave}
           disabled={isSaving}
-          className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium"
+          className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium"
         >
           {isSaving ? labels.saving : labels.save}
         </button>

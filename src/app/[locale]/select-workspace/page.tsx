@@ -450,7 +450,7 @@ function SelectWorkspaceContent() {
                 'w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl',
                 'font-medium transition-all duration-200',
                 canContinue && !isSubmitting
-                  ? 'bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-primary-hover)]'
+                  ? 'bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:bg-[var(--accent-primary-hover)]'
                   : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] cursor-not-allowed'
               )}
             >

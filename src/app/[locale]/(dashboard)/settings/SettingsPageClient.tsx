@@ -2215,7 +2215,7 @@ function ReEngagementTab({
           <Button
             onClick={onSave}
             disabled={saving || isWindowTooSmall}
-            className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white"
+            className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)]"
           >
             {saving ? (
               <span className="flex items-center gap-2">

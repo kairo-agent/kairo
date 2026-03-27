@@ -415,7 +415,7 @@ export function MultimediaModal({
               <TitleDescriptionFields title={title} setTitle={setTitle} description={description} setDescription={setDescription} titleLabel="Titulo de la imagen" titlePlaceholder="Ej: Departamento de 2 dormitorios" />
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={resetImageForm} className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm">Cancelar</button>
-                <button type="button" onClick={handleAdd} disabled={isSaving || !compressInfo || !title.trim() || !description.trim()} className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Subiendo...' : 'Agregar'}</button>
+                <button type="button" onClick={handleAdd} disabled={isSaving || !compressInfo || !title.trim() || !description.trim()} className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Subiendo...' : 'Agregar'}</button>
               </div>
             </div>
           ) : (
@@ -535,7 +535,7 @@ export function MultimediaModal({
               <TitleDescriptionFields title={videoTitle} setTitle={setVideoTitle} description={videoDescription} setDescription={setVideoDescription} titleLabel="Titulo del video" titlePlaceholder="Ej: Recorrido virtual del departamento" />
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={resetVideoForm} className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm">Cancelar</button>
-                <button type="button" onClick={handleAddVideo} disabled={isSaving || !videoFile || !videoTitle.trim() || !videoDescription.trim()} className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Subiendo...' : 'Agregar'}</button>
+                <button type="button" onClick={handleAddVideo} disabled={isSaving || !videoFile || !videoTitle.trim() || !videoDescription.trim()} className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Subiendo...' : 'Agregar'}</button>
               </div>
             </div>
           ) : (
@@ -765,7 +765,7 @@ function EditForm({ item, editingItem, setEditingItem, onSave, onCancel, isSavin
       {fileError && <p className="text-xs text-red-500">{fileError}</p>}
       <div className="flex justify-end gap-3 pt-1">
         <button type="button" onClick={onCancel} className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors text-sm">Cancelar</button>
-        <button type="button" onClick={onSave} disabled={isSaving || isCompressing || !editingItem.title.trim() || !editingItem.description.trim()} className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Guardando...' : 'Guardar'}</button>
+        <button type="button" onClick={onSave} disabled={isSaving || isCompressing || !editingItem.title.trim() || !editingItem.description.trim()} className="px-3 py-1.5 rounded-lg bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:opacity-90 disabled:opacity-50 transition-colors text-sm font-medium">{isSaving ? 'Guardando...' : 'Guardar'}</button>
       </div>
     </div>
   );

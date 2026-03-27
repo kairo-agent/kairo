@@ -402,7 +402,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
                   'px-3 py-1.5 text-sm rounded-full border transition-colors duration-150',
                   'focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-1',
                   isActive
-                    ? 'bg-[var(--accent-primary)] text-white border-[var(--accent-primary)]'
+                    ? 'bg-[var(--accent-primary)] text-[var(--kairo-midnight)] border-[var(--accent-primary)]'
                     : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]'
                 )}
               >
