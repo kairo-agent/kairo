@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 const BUCKET_NAME = 'media';
-const MAX_AGE_HOURS = 24;
+const MAX_AGE_HOURS = 120; // 5 days
 
 export async function GET(request: Request) {
   // Verify cron secret (Vercel sends this header)

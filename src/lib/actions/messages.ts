@@ -413,10 +413,12 @@ export async function sendMessage(
 
           if (!waResponse.ok) {
             console.error(`[FAIL] WhatsApp API error:`, waData.error?.message || waData);
+            const existingMeta = (message.metadata as Record<string, unknown>) || {};
             await prisma.message.update({
               where: { id: message.id },
               data: {
                 metadata: {
+                  ...existingMeta,
                   whatsappError: waData.error?.message || 'Unknown error',
                   whatsappErrorCode: waData.error?.code,
                   sentVia: 'human_chat_direct',
@@ -426,11 +428,12 @@ export async function sendMessage(
           } else {
             const whatsappMsgId = waData.messages?.[0]?.id;
             console.log(`[OK] Human message sent via WhatsApp API${whatsappMsgId ? ` (wamid: ${whatsappMsgId.substring(0, 12)}...)` : ''}`);
+            const existingMeta = (message.metadata as Record<string, unknown>) || {};
             await prisma.message.update({
               where: { id: message.id },
               data: {
                 ...(whatsappMsgId ? { whatsappMsgId, isDelivered: true, deliveredAt: new Date() } : {}),
-                metadata: { sentVia: 'human_chat_direct' },
+                metadata: { ...existingMeta, sentVia: 'human_chat_direct' },
               },
             });
           }
