@@ -1237,12 +1237,30 @@ function TemperatureCriteriaLevel({
   onChange: (criteria: string[]) => void;
 }) {
   const [newCriteria, setNewCriteria] = useState('');
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState('');
 
   const handleAdd = () => {
     const trimmed = newCriteria.trim();
     if (!trimmed || criteria.length >= 20) return;
     onChange([...criteria, trimmed]);
     setNewCriteria('');
+  };
+
+  const handleEditSave = () => {
+    if (editingIndex === null) return;
+    const trimmed = editingText.trim();
+    if (!trimmed) return;
+    const updated = [...criteria];
+    updated[editingIndex] = trimmed;
+    onChange(updated);
+    setEditingIndex(null);
+    setEditingText('');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingIndex(null);
+    setEditingText('');
   };
 
   return (
@@ -1279,15 +1297,55 @@ function TemperatureCriteriaLevel({
         {criteria.length > 0 && (
           <div className="space-y-1">
             {criteria.map((c, i) => (
-              <div key={i} className="flex items-center gap-2 group px-2 py-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors">
-                <span className="text-xs text-[var(--text-tertiary)] w-4 text-center">{i + 1}</span>
-                <span className="flex-1 text-sm text-[var(--text-primary)]">{c}</span>
-                <button
-                  onClick={() => onChange(criteria.filter((_, idx) => idx !== i))}
-                  className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] opacity-0 group-hover:opacity-100 transition-all"
-                >
-                  <XIcon />
-                </button>
+              <div key={i} className="flex items-start gap-2 group px-2 py-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors">
+                {editingIndex === i ? (
+                  <div className="flex-1 flex gap-2 items-center">
+                    <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-1">{i + 1}</span>
+                    <input
+                      type="text"
+                      value={editingText}
+                      onChange={(e) => setEditingText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleEditSave();
+                        if (e.key === 'Escape') handleCancelEdit();
+                      }}
+                      maxLength={300}
+                      className="flex-1 px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleEditSave}
+                      className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors"
+                    >
+                      <CheckIcon />
+                    </button>
+                    <button
+                      onClick={handleCancelEdit}
+                      className="p-1 text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+                    >
+                      <XIcon />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-0.5">{i + 1}</span>
+                    <span className="flex-1 text-sm text-[var(--text-primary)]">{c}</span>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button
+                        onClick={() => { setEditingIndex(i); setEditingText(c); }}
+                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        onClick={() => onChange(criteria.filter((_, idx) => idx !== i))}
+                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 rounded transition-colors"
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
