@@ -6,9 +6,9 @@
 
 ## [0.18.0] - 2026-03-27
 
-### Dashboard: Archived leads stat card + responsive grid
+### Dashboard: 8 stat cards + close rate + conversion rate
 
-6to stat card "Leads archivados" con icono rojo. Grid responsive: 2 cols mobile, 3 cols <1500px, 6 cols >=1500px. Renombrado chart "Estado de leads" a "Estado de leads (Tipificacion)" (es/en).
+Reestructuracion completa de stat cards: Total leads (active+archived), Leads activos, Leads ganados, Clientes, Tasa de cierre (won/active), Tasa de conversion (customer/active), En modo humano, Leads archivados. Agentes activos oculto del UI pero mantenido en API. Grid: 2 cols mobile, 4 cols desktop. Todos los stats respetan el filtro de rango de fecha (fix: human mode antes no filtraba). Renombrado chart "Estado de leads" a "Estado de leads (Tipificacion)" (es/en).
 
 ### Nuevos lead statuses: unqualified, no_response, customer
 
