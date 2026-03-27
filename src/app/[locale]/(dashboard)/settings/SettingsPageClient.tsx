@@ -1338,6 +1338,13 @@ function TemperatureCriteriaLevel({
                         <PencilIcon />
                       </button>
                       <button
+                        onClick={() => { if (criteria.length < 20) onChange([...criteria, c]); }}
+                        disabled={criteria.length >= 20}
+                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors disabled:opacity-50"
+                      >
+                        <CopyIcon />
+                      </button>
+                      <button
                         onClick={() => onChange(criteria.filter((_, idx) => idx !== i))}
                         className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 rounded transition-colors"
                       >
