@@ -16,7 +16,9 @@ export default async function DashboardOverviewPage() {
       <DashboardClient
         initialStats={{
           totalLeads: 0,
+          activeLeads: 0,
           leadsWon: 0,
+          leadsCustomer: 0,
           leadsInHumanMode: 0,
           activeAgents: 0,
           archivedLeads: 0,

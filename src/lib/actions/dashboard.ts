@@ -16,7 +16,9 @@ import type { Prisma } from '@prisma/client';
 
 export interface DashboardStats {
   totalLeads: number;
+  activeLeads: number;
   leadsWon: number;
+  leadsCustomer: number;
   leadsInHumanMode: number;
   activeAgents: number;
   archivedLeads: number;
@@ -127,7 +129,9 @@ export async function getDashboardStats(
 ): Promise<DashboardStats> {
   const emptyStats: DashboardStats = {
     totalLeads: 0,
+    activeLeads: 0,
     leadsWon: 0,
+    leadsCustomer: 0,
     leadsInHumanMode: 0,
     activeAgents: 0,
     archivedLeads: 0,
@@ -150,8 +154,8 @@ export async function getDashboardStats(
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
-    const [totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
-      // 1. Total leads created in date range (non-archived)
+    const [activeLeads, leadsWon, leadsCustomer, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
+      // 1. Active leads created in date range (non-archived)
       prisma.lead.count({
         where: {
           ...projectFilter,
@@ -170,7 +174,17 @@ export async function getDashboardStats(
         },
       }),
 
-      // 3. Leads currently in human mode (no date filter - current state)
+      // 3. Leads customer (status changed to 'customer' in date range)
+      prisma.lead.count({
+        where: {
+          ...projectFilter,
+          archivedAt: null,
+          status: 'customer',
+          ...(dateFilter ? { updatedAt: dateFilter } : {}),
+        },
+      }),
+
+      // 4. Leads currently in human mode (no date filter - current state)
       prisma.lead.count({
         where: {
           ...projectFilter,
@@ -179,7 +193,7 @@ export async function getDashboardStats(
         },
       }),
 
-      // 4. Active agents (no date filter - current state)
+      // 5. Active agents (no date filter - current state)
       prisma.aIAgent.count({
         where: {
           ...agentProjectFilter,
@@ -187,7 +201,7 @@ export async function getDashboardStats(
         },
       }),
 
-      // 5. Archived leads (archived within date range)
+      // 6. Archived leads (archived within date range)
       prisma.lead.count({
         where: {
           ...projectFilter,
@@ -197,7 +211,9 @@ export async function getDashboardStats(
       }),
     ]);
 
-    return { totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads };
+    const totalLeads = activeLeads + archivedLeads;
+
+    return { totalLeads, activeLeads, leadsWon, leadsCustomer, leadsInHumanMode, activeAgents, archivedLeads };
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     return emptyStats;
@@ -217,7 +233,9 @@ export async function getDashboardStatsSSR(
 ): Promise<DashboardStats> {
   const emptyStats: DashboardStats = {
     totalLeads: 0,
+    activeLeads: 0,
     leadsWon: 0,
+    leadsCustomer: 0,
     leadsInHumanMode: 0,
     activeAgents: 0,
     archivedLeads: 0,
@@ -237,7 +255,7 @@ export async function getDashboardStatsSSR(
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
-    const [totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
+    const [activeLeads, leadsWon, leadsCustomer, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
       prisma.lead.count({
         where: {
           ...projectFilter,
@@ -259,6 +277,15 @@ export async function getDashboardStatsSSR(
         where: {
           ...projectFilter,
           archivedAt: null,
+          status: 'customer',
+          ...(dateFilter ? { updatedAt: dateFilter } : {}),
+        },
+      }),
+
+      prisma.lead.count({
+        where: {
+          ...projectFilter,
+          archivedAt: null,
           handoffMode: 'human',
         },
       }),
@@ -270,7 +297,6 @@ export async function getDashboardStatsSSR(
         },
       }),
 
-      // 5. Archived leads (archived within date range)
       prisma.lead.count({
         where: {
           ...projectFilter,
@@ -280,7 +306,9 @@ export async function getDashboardStatsSSR(
       }),
     ]);
 
-    return { totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads };
+    const totalLeads = activeLeads + archivedLeads;
+
+    return { totalLeads, activeLeads, leadsWon, leadsCustomer, leadsInHumanMode, activeAgents, archivedLeads };
   } catch (error) {
     console.error('Error fetching dashboard stats (SSR):', error);
     return emptyStats;

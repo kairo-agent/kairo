@@ -137,6 +137,25 @@ function ArchiveIcon() {
   );
 }
 
+function CustomerIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="8.5" cy="7" r="4" />
+      <polyline points="17 11 19 13 23 9" />
+    </svg>
+  );
+}
+
+function CloseRateIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <polyline points="22 4 12 14.01 9 11.01" />
+    </svg>
+  );
+}
+
 function CalendarIcon({ className }: { className?: string }) {
   return (
     <svg className={cn('w-4 h-4', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -319,9 +338,14 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
     [fetchAll]
   );
 
-  // Conversion rate
-  const conversionRate = stats.totalLeads > 0
-    ? Math.round((stats.leadsWon / stats.totalLeads) * 100)
+  // Close rate (won / active leads)
+  const closeRate = stats.activeLeads > 0
+    ? Math.round((stats.leadsWon / stats.activeLeads) * 100)
+    : 0;
+
+  // Conversion rate (customer / active leads)
+  const conversionRate = stats.activeLeads > 0
+    ? Math.round((stats.leadsCustomer / stats.activeLeads) * 100)
     : 0;
 
   // Format bar chart dates
@@ -435,13 +459,15 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
         )}
       </div>
 
-      {/* Stats grid — 6 cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 min-[1500px]:grid-cols-6 gap-3 lg:gap-4">
+      {/* Stats grid — 8 cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <StatCard icon={<PeopleIcon />} value={stats.totalLeads} label={t('stats.totalLeads')} bgColor="bg-blue-100 dark:bg-blue-900/30" isLoading={isLoading} />
+        <StatCard icon={<PeopleIcon />} value={stats.activeLeads} label={t('stats.activeLeads')} bgColor="bg-indigo-100 dark:bg-indigo-900/30" isLoading={isLoading} />
         <StatCard icon={<CheckIcon />} value={stats.leadsWon} label={t('stats.leadsWon')} bgColor="bg-green-100 dark:bg-green-900/30" isLoading={isLoading} />
+        <StatCard icon={<CustomerIcon />} value={stats.leadsCustomer} label={t('stats.leadsCustomer')} bgColor="bg-sky-100 dark:bg-sky-900/30" isLoading={isLoading} />
+        <StatCard icon={<CloseRateIcon />} value={closeRate} label={t('stats.closeRate')} bgColor="bg-purple-100 dark:bg-purple-900/30" isLoading={isLoading} suffix="%" />
         <StatCard icon={<TrendUpIcon />} value={conversionRate} label={t('charts.conversionRate')} bgColor="bg-emerald-100 dark:bg-emerald-900/30" isLoading={isLoading} suffix="%" />
         <StatCard icon={<HandIcon />} value={stats.leadsInHumanMode} label={t('stats.inHumanMode')} bgColor="bg-amber-100 dark:bg-amber-900/30" isLoading={isLoading} />
-        <StatCard icon={<RobotIcon />} value={stats.activeAgents} label={t('stats.activeAgents')} bgColor="bg-cyan-100 dark:bg-cyan-900/30" isLoading={isLoading} />
         <StatCard icon={<ArchiveIcon />} value={stats.archivedLeads} label={t('stats.archivedLeads')} bgColor="bg-red-100 dark:bg-red-900/30" isLoading={isLoading} />
       </div>
 

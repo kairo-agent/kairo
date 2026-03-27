@@ -344,7 +344,10 @@
     "subtitle": "Overview of your activity and key metrics",
     "stats": {
       "totalLeads": "Total leads",
+      "activeLeads": "Active leads",
       "leadsWon": "Leads won",
+      "leadsCustomer": "Customers",
+      "closeRate": "Close rate",
       "inHumanMode": "In human mode",
       "activeAgents": "Active agents",
       "archivedLeads": "Archived leads"
