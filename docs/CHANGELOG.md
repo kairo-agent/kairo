@@ -4,6 +4,46 @@
 
 ---
 
+## [0.18.0] - 2026-03-27
+
+### Dashboard: Archived leads stat card + responsive grid
+
+6to stat card "Leads archivados" con icono rojo. Grid responsive: 2 cols mobile, 3 cols <1500px, 6 cols >=1500px. Renombrado chart "Estado de leads" a "Estado de leads (Tipificacion)" (es/en).
+
+### Nuevos lead statuses: unqualified, no_response, customer
+
+3 nuevos estados de tipificacion: "No Calificado" (gris piedra), "Sin Respuesta" (gris slate), "Cliente" (sky blue). Agregados a Prisma enum, TypeScript enum, LEAD_STATUS_CONFIG, dashboard charts, filtros, traducciones es/en, y mapStatus helper.
+
+### Auto-tipify: new → no_response post-reengagement
+
+Leads en status `new` que recibieron un reengagement hace >24h sin responder son automaticamente cambiados a `no_response`. Corre dentro del cron de reengagement existente (cada 15 min). Solo afecta leads en modo AI, no archivados. Non-fatal on error.
+
+### WhatsApp 24h window countdown en chat
+
+Timer HH:MM:SS en el boton "Tomar control" mostrando tiempo restante de la ventana 24h de WhatsApp. Cuando expira: boton deshabilitado (modo AI), chat input deshabilitado con notice "Ventana expirada" (modo humano). Timer se resetea via Realtime cuando el lead envia nuevo mensaje. Solo aplica a leads de canal WhatsApp. `getLeadHandoffStatus()` ahora retorna `channel` + `lastLeadMessageAt`.
+
+### Per-service currency en pricing KB
+
+Cada servicio puede tener su propia moneda (override) o heredar la global. Selector por servicio con opciones "Global" + PEN/USD/EUR/MXN. Label global renombrado a "Moneda (Global)". `composePricingText()` agrega codigo de moneda cuando difiere de la global. No requiere migracion DB (JSONB).
+
+### UX: Dark text on accent buttons
+
+Todos los botones con fondo cyan (`--accent-primary`) ahora usan texto oscuro (`--kairo-midnight`) para legibilidad. 9 archivos corregidos: KB forms, dashboard, settings, workspace.
+
+### Inline edit criterios de calificacion
+
+Criterios HOT/WARM/COLD ahora tienen iconos edit (lapiz), duplicate (copiar), delete (papelera) al hover, igual que las Reglas especificas. Edit inline con input + save/cancel.
+
+### Source detection debug logging
+
+Log temporal del `referral` de Meta en webhook para diagnosticar clasificacion FB vs IG ads. Hallazgo: Meta siempre envia `fb.me/` como source_url, no distingue Instagram.
+
+### Tooling: Vercel CLI + MCP
+
+Vercel CLI instalado y linkeado al proyecto. Token configurado. Vercel MCP (Public Beta) agregado para acceso directo a logs desde Claude Code.
+
+---
+
 ## [0.17.0] - 2026-03-26
 
 ### Follow-up notifications: Email + Push

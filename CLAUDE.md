@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.17.0 (Follow-up email + push notifications) |
+| **Version** | v0.18.0 (Lead statuses, WhatsApp 24h timer, per-service currency) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -144,9 +144,9 @@ npm run lint     # Verificar codigo
 
 ## Estado Actual (Mar 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno (n8n removido), RAG (4 fases), OWASP audit v2 + Audit v3, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, archivar/desarchivar leads, resumen IA, notificaciones (3 canales: bell + email + push), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada (5 secciones), dual-name system, Global Rules system, AI-initiated handoff ([HANDOFF] marker), KB free-text edit, deep-link post-login redirect, Web Push Notifications, Supabase Realtime (notifications + leads + chat), region co-location (gru1 + sa-east-1), auth chain optimization, RLS policies (16 tablas + agent_media), hot_lead notifications, distinct notification sounds, admin UserModal redesign, push prompt persistence, ReEngagement auto follow-up, cron jobs en Supabase pg_cron + pg_net, AI response instructions mejoradas, Agent Media (RAG semantico + fixed event images/videos, CRUD + compression + markers), chat media rendering (images + video cards), Excel export leads, ReEngagement media, debounce 3s webhook (Redis), fixed event images + videos, configurable send window, mobile lead panel buttons, Agent Video, cron cleanup-media protege agent_media, edit media con reemplazo de archivo, Dashboard charts (recharts: leads/dia, temperatura donut, status bar, conversion rate), Image lightbox + upload timestamps en agent media, cron cleanup-media failsafe, Lead source auto-detection (Meta referral + hashtags), Dashboard source chart (horizontal bar), fix login redirect locale prefix, follow-up email + push notifications (pg_net), **videollamada Jitsi Meet (super_admin only)**.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno (n8n removido), RAG (4 fases), OWASP audit v2 + Audit v3, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, archivar/desarchivar leads, resumen IA, notificaciones (3 canales: bell + email + push), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada (5 secciones), dual-name system, Global Rules system, AI-initiated handoff ([HANDOFF] marker), KB free-text edit, deep-link post-login redirect, Web Push Notifications, Supabase Realtime (notifications + leads + chat), region co-location (gru1 + sa-east-1), auth chain optimization, RLS policies (16 tablas + agent_media), hot_lead notifications, distinct notification sounds, admin UserModal redesign, push prompt persistence, ReEngagement auto follow-up, cron jobs en Supabase pg_cron + pg_net, AI response instructions mejoradas, Agent Media (RAG semantico + fixed event images/videos, CRUD + compression + markers), chat media rendering (images + video cards), Excel export leads, ReEngagement media, debounce 3s webhook (Redis), fixed event images + videos, configurable send window, mobile lead panel buttons, Agent Video, cron cleanup-media protege agent_media, edit media con reemplazo de archivo, Dashboard charts (recharts: leads/dia, temperatura donut, status bar, conversion rate), Image lightbox + upload timestamps en agent media, cron cleanup-media failsafe, Lead source auto-detection (Meta referral + hashtags), Dashboard source chart (horizontal bar), fix login redirect locale prefix, follow-up email + push notifications (pg_net), videollamada Jitsi Meet (super_admin only), **Dashboard archived leads stat card (6 cards responsive)**, **nuevos lead statuses (unqualified, no_response, customer)**, **auto-tipify no_response post-reengagement 24h**, **WhatsApp 24h window countdown en chat**, **per-service currency en pricing KB**, **inline edit criterios de calificacion**, **Vercel CLI + MCP integrado**.
 
-**Pendiente:** Crear lead, paginas de reportes/agents, moneda dinamica, mostrar media entrante del lead en chat (requiere descargar de WhatsApp API → storage).
+**Pendiente:** Crear lead, paginas de reportes/agents, mostrar media entrante del lead en chat (requiere descargar de WhatsApp API → storage).
 
 **Perf completo:** Todas las optimizaciones implementadas. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 
@@ -161,7 +161,7 @@ WhatsApp -> /api/webhooks/whatsapp -> Store msg + Create/Find lead (detect sourc
   -> Store + Send WhatsApp (fixed image → text → fixed video → RAG images/videos)
   -> Si handoffMode='human': solo guarda msg, usuario responde manual
 
-Supabase pg_cron -> /api/cron/reengagement (*/15 min) -> AI follow-up leads silenciosos (con media search)
+Supabase pg_cron -> /api/cron/reengagement (*/15 min) -> Auto-tipify new→no_response (24h) + AI follow-up leads silenciosos (con media search)
 Supabase pg_cron -> /api/cron/cleanup-media (diario 3AM) -> Limpieza archivos >24h
 
 Organization > Project > Lead > Conversation > Message
