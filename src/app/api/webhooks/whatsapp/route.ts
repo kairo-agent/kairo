@@ -610,10 +610,11 @@ function sanitizeContactName(raw: string, phoneNumber: string): string {
 function detectLeadSource(message: WhatsAppMessage): LeadSource {
   // 1. Meta CTWA Ads: referral object indicates FB or IG ad
   if (message.referral) {
+    console.log('[Source Detection] Meta referral data:', JSON.stringify(message.referral));
     const url = (message.referral.source_url || '').toLowerCase();
-    if (url.includes('instagram')) return LeadSource.instagram_ads;
-    // Default Meta ads to facebook_ads (fb.me, facebook.com, etc.)
-    return LeadSource.facebook_ads;
+    const detected = url.includes('instagram') ? LeadSource.instagram_ads : LeadSource.facebook_ads;
+    console.log(`[Source Detection] source_url="${url}" → ${detected}`);
+    return detected;
   }
 
   // 2. Hashtag detection in first message text
