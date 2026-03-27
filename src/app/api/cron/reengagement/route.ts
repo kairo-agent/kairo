@@ -37,9 +37,60 @@ export async function GET(request: Request) {
   let processed = 0;
   let sent = 0;
   let skipped = 0;
+  let autoNoResponse = 0;
   const errors: string[] = [];
 
   try {
+    // ============================================
+    // Auto-tipify: leads in status 'new' that received a reengagement
+    // >24h ago without responding → mark as 'no_response'
+    // ============================================
+    try {
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      const leadsToAutoTipify = await prisma.$queryRaw<Array<{ id: string }>>`
+        SELECT l.id
+        FROM leads l
+        INNER JOIN conversations c ON c."leadId" = l.id
+        -- Verify the lead has at least one reengagement message
+        INNER JOIN LATERAL (
+          SELECT m."createdAt" as last_re_at
+          FROM messages m
+          WHERE m."conversationId" = c.id
+            AND m.sender = 'ai'
+            AND (m.metadata->>'isReEngagement')::boolean = true
+          ORDER BY m."createdAt" DESC
+          LIMIT 1
+        ) last_re ON true
+        -- Verify the last message overall is from AI (lead hasn't responded)
+        INNER JOIN LATERAL (
+          SELECT m.sender
+          FROM messages m
+          WHERE m."conversationId" = c.id
+          ORDER BY m."createdAt" DESC
+          LIMIT 1
+        ) last_msg ON last_msg.sender = 'ai'
+        WHERE l.status = 'new'
+          AND l."archivedAt" IS NULL
+          AND l."handoffMode" = 'ai'
+          -- Last reengagement was sent >24h ago
+          AND last_re.last_re_at < ${twentyFourHoursAgo}
+      `;
+
+      if (leadsToAutoTipify.length > 0) {
+        const leadIds = leadsToAutoTipify.map(l => l.id);
+        await prisma.lead.updateMany({
+          where: { id: { in: leadIds } },
+          data: { status: 'no_response', updatedAt: new Date() },
+        });
+        autoNoResponse = leadIds.length;
+        console.log(`[ReEngagement] Auto-tipified ${autoNoResponse} leads to no_response`);
+      }
+    } catch (tipifyError) {
+      console.error('[ReEngagement] Auto-tipify error:', tipifyError);
+      // Non-fatal: continue with normal reengagement processing
+    }
+
     // Find all active agents with reEngagement enabled
     const agents = await prisma.aIAgent.findMany({
       where: {
@@ -435,6 +486,7 @@ export async function GET(request: Request) {
       processed,
       sent,
       skipped,
+      autoNoResponse,
       errors: errors.length,
       duration: Date.now() - startTime,
     });
