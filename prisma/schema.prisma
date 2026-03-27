@@ -292,6 +292,7 @@ enum LeadStatus {
   proposal
   negotiation
   won
+  customer
   lost
 }
 

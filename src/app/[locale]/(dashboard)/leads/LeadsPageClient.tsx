@@ -165,6 +165,7 @@ function mapStatus(status: string): LeadStatus {
     'proposal': LeadStatus.PROPOSAL,
     'negotiation': LeadStatus.NEGOTIATION,
     'won': LeadStatus.WON,
+    'customer': LeadStatus.CUSTOMER,
     'lost': LeadStatus.LOST,
   };
   return statusMap[status] || LeadStatus.NEW;

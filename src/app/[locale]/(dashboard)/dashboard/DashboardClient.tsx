@@ -54,6 +54,7 @@ const STATUS_COLORS: Record<string, string> = {
   proposal: '#F59E0B',
   negotiation: '#F97316',
   won: '#22C55E',
+  customer: '#0EA5E9',
   lost: '#EF4444',
 };
 
@@ -345,6 +346,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
     proposal: t('charts.proposal'),
     negotiation: t('charts.negotiation'),
     won: t('charts.won'),
+    customer: t('charts.customer'),
     lost: t('charts.lost'),
   };
 

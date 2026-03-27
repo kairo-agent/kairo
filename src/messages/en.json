@@ -177,6 +177,7 @@
       "proposal": "Proposal",
       "negotiation": "Negotiation",
       "won": "Won",
+      "customer": "Customer",
       "lost": "Lost"
     },
     "potential": {
@@ -370,6 +371,7 @@
       "proposal": "Proposal",
       "negotiation": "Negotiation",
       "won": "Won",
+      "customer": "Customer",
       "lost": "Lost",
       "source": "Lead source",
       "facebookAds": "Facebook Ads",

@@ -196,6 +196,7 @@ export enum LeadStatus {
   PROPOSAL = 'proposal',
   NEGOTIATION = 'negotiation',
   WON = 'won',
+  CUSTOMER = 'customer',
   LOST = 'lost'
 }
 
@@ -325,6 +326,7 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, { label: string; color: stri
   [LeadStatus.PROPOSAL]: { label: 'Propuesta', color: '#8B5CF6', bgColor: 'rgba(139, 92, 246, 0.1)' },
   [LeadStatus.NEGOTIATION]: { label: 'Negociación', color: '#EC4899', bgColor: 'rgba(236, 72, 153, 0.1)' },
   [LeadStatus.WON]: { label: 'Ganado', color: '#059669', bgColor: 'rgba(5, 150, 105, 0.1)' },
+  [LeadStatus.CUSTOMER]: { label: 'Cliente', color: '#0EA5E9', bgColor: 'rgba(14, 165, 233, 0.1)' },
   [LeadStatus.LOST]: { label: 'Perdido', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.1)' },
 };
 
