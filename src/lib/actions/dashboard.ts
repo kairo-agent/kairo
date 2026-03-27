@@ -19,6 +19,7 @@ export interface DashboardStats {
   leadsWon: number;
   leadsInHumanMode: number;
   activeAgents: number;
+  archivedLeads: number;
 }
 
 export interface DashboardChartData {
@@ -129,6 +130,7 @@ export async function getDashboardStats(
     leadsWon: 0,
     leadsInHumanMode: 0,
     activeAgents: 0,
+    archivedLeads: 0,
   };
 
   try {
@@ -148,7 +150,7 @@ export async function getDashboardStats(
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
-    const [totalLeads, leadsWon, leadsInHumanMode, activeAgents] = await Promise.all([
+    const [totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
       // 1. Total leads created in date range (non-archived)
       prisma.lead.count({
         where: {
@@ -184,9 +186,18 @@ export async function getDashboardStats(
           isActive: true,
         },
       }),
+
+      // 5. Archived leads (archived within date range)
+      prisma.lead.count({
+        where: {
+          ...projectFilter,
+          archivedAt: { not: null },
+          ...(dateFilter ? { archivedAt: dateFilter } : {}),
+        },
+      }),
     ]);
 
-    return { totalLeads, leadsWon, leadsInHumanMode, activeAgents };
+    return { totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads };
   } catch (error) {
     console.error('Error fetching dashboard stats:', error);
     return emptyStats;
@@ -209,6 +220,7 @@ export async function getDashboardStatsSSR(
     leadsWon: 0,
     leadsInHumanMode: 0,
     activeAgents: 0,
+    archivedLeads: 0,
   };
 
   try {
@@ -225,7 +237,7 @@ export async function getDashboardStatsSSR(
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
-    const [totalLeads, leadsWon, leadsInHumanMode, activeAgents] = await Promise.all([
+    const [totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
       prisma.lead.count({
         where: {
           ...projectFilter,
@@ -257,9 +269,18 @@ export async function getDashboardStatsSSR(
           isActive: true,
         },
       }),
+
+      // 5. Archived leads (archived within date range)
+      prisma.lead.count({
+        where: {
+          ...projectFilter,
+          archivedAt: { not: null },
+          ...(dateFilter ? { archivedAt: dateFilter } : {}),
+        },
+      }),
     ]);
 
-    return { totalLeads, leadsWon, leadsInHumanMode, activeAgents };
+    return { totalLeads, leadsWon, leadsInHumanMode, activeAgents, archivedLeads };
   } catch (error) {
     console.error('Error fetching dashboard stats (SSR):', error);
     return emptyStats;

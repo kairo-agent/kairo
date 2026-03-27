@@ -124,6 +124,16 @@ function TrendUpIcon() {
   );
 }
 
+function ArchiveIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="21 8 21 21 3 21 3 8" />
+      <rect x="1" y="3" width="22" height="5" />
+      <line x1="10" y1="12" x2="14" y2="12" />
+    </svg>
+  );
+}
+
 function CalendarIcon({ className }: { className?: string }) {
   return (
     <svg className={cn('w-4 h-4', className)} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -419,13 +429,14 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
         )}
       </div>
 
-      {/* Stats grid — 5 cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
+      {/* Stats grid — 6 cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 min-[1500px]:grid-cols-6 gap-3 lg:gap-4">
         <StatCard icon={<PeopleIcon />} value={stats.totalLeads} label={t('stats.totalLeads')} bgColor="bg-blue-100 dark:bg-blue-900/30" isLoading={isLoading} />
         <StatCard icon={<CheckIcon />} value={stats.leadsWon} label={t('stats.leadsWon')} bgColor="bg-green-100 dark:bg-green-900/30" isLoading={isLoading} />
         <StatCard icon={<TrendUpIcon />} value={conversionRate} label={t('charts.conversionRate')} bgColor="bg-emerald-100 dark:bg-emerald-900/30" isLoading={isLoading} suffix="%" />
         <StatCard icon={<HandIcon />} value={stats.leadsInHumanMode} label={t('stats.inHumanMode')} bgColor="bg-amber-100 dark:bg-amber-900/30" isLoading={isLoading} />
         <StatCard icon={<RobotIcon />} value={stats.activeAgents} label={t('stats.activeAgents')} bgColor="bg-cyan-100 dark:bg-cyan-900/30" isLoading={isLoading} />
+        <StatCard icon={<ArchiveIcon />} value={stats.archivedLeads} label={t('stats.archivedLeads')} bgColor="bg-red-100 dark:bg-red-900/30" isLoading={isLoading} />
       </div>
 
       {/* Charts row */}

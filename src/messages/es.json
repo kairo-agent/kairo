@@ -340,7 +340,8 @@
       "totalLeads": "Total leads",
       "leadsWon": "Leads ganados",
       "inHumanMode": "En modo humano",
-      "activeAgents": "Agentes activos"
+      "activeAgents": "Agentes activos",
+      "archivedLeads": "Leads archivados"
     },
     "dateRange": {
       "today": "Hoy",
@@ -353,7 +354,7 @@
     "charts": {
       "leadsPerDay": "Leads por dia",
       "temperature": "Temperatura de leads",
-      "status": "Estado de leads",
+      "status": "Estado de leads (Tipificación)",
       "conversionRate": "Tasa de conversion",
       "noData": "Sin datos para este periodo",
       "hot": "Caliente",

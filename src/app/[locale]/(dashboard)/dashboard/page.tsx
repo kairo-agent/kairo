@@ -19,6 +19,7 @@ export default async function DashboardOverviewPage() {
           leadsWon: 0,
           leadsInHumanMode: 0,
           activeAgents: 0,
+          archivedLeads: 0,
         }}
       />
     );
