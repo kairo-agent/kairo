@@ -114,6 +114,7 @@ interface LeadChatProps {
   leadId: string;
   leadName: string;
   isOpen?: boolean;
+  disabled?: boolean;
 }
 
 // ============================================
@@ -159,7 +160,7 @@ const LiveIcon = () => (
 // Component
 // ============================================
 
-export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
+export function LeadChat({ leadId, leadName, isOpen = true, disabled = false }: LeadChatProps) {
   const t = useTranslations('leads');
   const tCommon = useTranslations('common');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -763,7 +764,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
             variant={isHumanMode ? 'ghost' : 'primary'}
             size="sm"
             onClick={handleToggleHandoff}
-            disabled={isTogglingHandoff || (!isHumanMode && isWindowExpired)}
+            disabled={disabled || isTogglingHandoff || (!isHumanMode && isWindowExpired)}
             className="text-xs"
           >
             {isTogglingHandoff ? (
@@ -969,7 +970,7 @@ export function LeadChat({ leadId, leadName, isOpen = true }: LeadChatProps) {
       )}
 
       {/* Message Input with Emoji Picker */}
-      {isHumanMode && !isWindowExpired && (
+      {isHumanMode && !isWindowExpired && !disabled && (
         <div className="flex-shrink-0 border-t border-[var(--border-primary)]">
           {/* Rich Chat Input */}
           <div className="p-3 bg-[var(--bg-secondary)] relative">

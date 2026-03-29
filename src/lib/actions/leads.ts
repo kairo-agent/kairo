@@ -6,7 +6,9 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { verifyAuth, verifyProjectAccess } from './auth';
+import { revalidatePath } from 'next/cache';
+import { verifyAuth, verifyProjectAccess, getProjectRole } from './auth';
+import { getEffectiveRole, isViewerOnly, canActOnLead, canTakeUnassignedLead, canReassignLead } from '@/lib/permissions';
 import { validatePhone, normalizePhone } from '@/lib/utils';
 import { notifyProjectMembers } from './notifications';
 import type { Lead as PrismaLead, AIAgent, Prisma, Note, Activity, User, LeadStatus as PrismaLeadStatus } from '@prisma/client';
@@ -64,6 +66,7 @@ export type LeadGridItem = Pick<
   | 'projectId'
 > & {
   assignedAgent: Pick<AIAgent, 'id' | 'name' | 'type'> | null;
+  assignedUser: { id: string; firstName: string; lastName: string } | null;
 };
 
 // Get leads stats for a project
@@ -318,6 +321,9 @@ export async function getLeadsPaginatedSSR(
               type: true,
             },
           },
+          assignedUser: {
+            select: { id: true, firstName: true, lastName: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -506,6 +512,10 @@ export async function getLeadsPaginated(
               type: true,
             },
           },
+          // Assigned user info
+          assignedUser: {
+            select: { id: true, firstName: true, lastName: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -613,6 +623,10 @@ export async function getLeads(
             type: true,
           },
         },
+        // Assigned user info
+        assignedUser: {
+          select: { id: true, firstName: true, lastName: true },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -697,7 +711,7 @@ export async function updateLeadStatus(
 
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { projectId: true, status: true },
+      select: { projectId: true, status: true, assignedUserId: true },
     });
 
     if (!lead) {
@@ -707,6 +721,16 @@ export async function updateLeadStatus(
     const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin acceso a este lead' };
+    }
+
+    // Role-based access control
+    const roleInfo = await getProjectRole(user.id, user.systemRole, lead.projectId);
+    const effectiveRole = getEffectiveRole(user.systemRole, roleInfo.isOrgOwner ?? false, roleInfo.projectRole);
+    if (isViewerOnly(effectiveRole)) {
+      return { success: false, error: 'Sin permisos para esta acción' };
+    }
+    if (!canActOnLead(effectiveRole, lead.assignedUserId, user.id)) {
+      return { success: false, error: 'Este lead está asignado a otro usuario' };
     }
 
     const oldStatus = lead.status;
@@ -873,6 +897,7 @@ export async function updateLead(
         temperature: true,
         firstName: true,
         lastName: true,
+        assignedUserId: true,
         project: { select: { organizationId: true, name: true } },
       },
     });
@@ -884,6 +909,16 @@ export async function updateLead(
     const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
     if (!hasAccess) {
       return { success: false, error: 'Sin acceso a este lead' };
+    }
+
+    // Role-based access control
+    const roleInfo = await getProjectRole(user.id, user.systemRole, lead.projectId);
+    const effectiveRole = getEffectiveRole(user.systemRole, roleInfo.isOrgOwner ?? false, roleInfo.projectRole);
+    if (isViewerOnly(effectiveRole)) {
+      return { success: false, error: 'Sin permisos para esta acción' };
+    }
+    if (!canActOnLead(effectiveRole, lead.assignedUserId, user.id)) {
+      return { success: false, error: 'Este lead está asignado a otro usuario' };
     }
 
     // Validate and normalize phone if provided
@@ -1329,6 +1364,9 @@ export async function getLeadById(leadId: string): Promise<LeadGridItem | null> 
             type: true,
           },
         },
+        assignedUser: {
+          select: { id: true, firstName: true, lastName: true },
+        },
       },
     });
 
@@ -1494,5 +1532,155 @@ export async function exportLeadsToExcel(
   } catch (error) {
     console.error('Error exporting leads:', error);
     return { success: false, error: 'Error interno' };
+  }
+}
+
+// ============================================
+// ASSIGN / REASSIGN LEAD
+// ============================================
+
+export async function assignLead(
+  leadId: string,
+  targetUserId: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const user = await verifyAuth();
+
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { id: true, projectId: true, assignedUserId: true },
+    });
+
+    if (!lead) {
+      return { success: false, error: 'Lead no encontrado' };
+    }
+
+    const roleInfo = await getProjectRole(user.id, user.systemRole, lead.projectId);
+    if (!roleInfo.hasAccess) {
+      return { success: false, error: 'Sin acceso a este lead' };
+    }
+
+    const effectiveRole = getEffectiveRole(user.systemRole, roleInfo.isOrgOwner ?? false, roleInfo.projectRole);
+
+    if (isViewerOnly(effectiveRole)) {
+      return { success: false, error: 'Sin permisos para esta acción' };
+    }
+
+    // No-op if already assigned to the target
+    if (lead.assignedUserId === targetUserId) {
+      return { success: true };
+    }
+
+    // Permission checks based on action type
+    if (targetUserId === user.id) {
+      // Self-assign: lead must be unassigned and user needs >= agent
+      if (lead.assignedUserId) {
+        return { success: false, error: 'Este lead ya está asignado a otro usuario' };
+      }
+      if (!canTakeUnassignedLead(effectiveRole)) {
+        return { success: false, error: 'Sin permisos para tomar este lead' };
+      }
+    } else {
+      // Unassign (null) or reassign to different user: requires >= manager
+      if (!canReassignLead(effectiveRole)) {
+        return { success: false, error: 'Sin permisos para reasignar leads' };
+      }
+    }
+
+    // Update lead assignment
+    await prisma.$transaction([
+      prisma.lead.update({
+        where: { id: leadId },
+        data: {
+          assignedUserId: targetUserId,
+          updatedAt: new Date(),
+        },
+      }),
+      prisma.activity.create({
+        data: {
+          leadId,
+          type: 'assignment_change',
+          description: targetUserId
+            ? `Lead asignado a ${targetUserId === user.id ? 'sí mismo' : 'otro usuario'}`
+            : 'Lead desasignado',
+          performedBy: user.id,
+          metadata: {
+            previousAssignedUserId: lead.assignedUserId,
+            newAssignedUserId: targetUserId,
+          },
+        },
+      }),
+    ]);
+
+    revalidatePath('/leads');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error assigning lead:', error);
+    return { success: false, error: 'Error al asignar lead' };
+  }
+}
+
+// ============================================
+// GET PROJECT TEAM MEMBERS
+// ============================================
+
+export async function getProjectTeamMembers(
+  projectId: string
+): Promise<{ success: boolean; members?: { id: string; firstName: string; lastName: string; role: string }[]; error?: string }> {
+  try {
+    const user = await verifyAuth();
+
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const hasAccess = await verifyProjectAccess(user.id, user.systemRole, projectId);
+    if (!hasAccess) {
+      return { success: false, error: 'Sin acceso a este proyecto' };
+    }
+
+    const projectMembers = await prisma.projectMember.findMany({
+      where: { projectId },
+      select: {
+        role: true,
+        user: {
+          select: { id: true, firstName: true, lastName: true },
+        },
+      },
+    });
+
+    // Role hierarchy for sorting
+    const roleOrder: Record<string, number> = {
+      admin: 1,
+      manager: 2,
+      agent: 3,
+      viewer: 4,
+    };
+
+    const members = projectMembers
+      .map((pm) => ({
+        id: pm.user.id,
+        firstName: pm.user.firstName,
+        lastName: pm.user.lastName,
+        role: pm.role,
+      }))
+      .sort((a, b) => {
+        const roleA = roleOrder[a.role] ?? 99;
+        const roleB = roleOrder[b.role] ?? 99;
+        if (roleA !== roleB) return roleA - roleB;
+        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+
+    return { success: true, members };
+  } catch (error) {
+    console.error('Error getting project team members:', error);
+    return { success: false, error: 'Error al obtener miembros del equipo' };
   }
 }

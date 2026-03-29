@@ -58,6 +58,11 @@ export interface ServerLead {
     name: string;
     type: string;
   } | null;
+  assignedUser?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
 }
 
 export interface TransformedLead {
@@ -91,6 +96,11 @@ export interface TransformedLead {
     id: string;
     name: string;
     type: string;
+  };
+  assignedUser?: {
+    id: string;
+    firstName: string;
+    lastName: string;
   };
 }
 
@@ -151,6 +161,13 @@ function transformLeads(serverLeads: Awaited<ReturnType<typeof getLeadsPaginated
           id: lead.assignedAgent.id,
           name: lead.assignedAgent.name,
           type: lead.assignedAgent.type,
+        }
+      : undefined,
+    assignedUser: lead.assignedUser
+      ? {
+          id: lead.assignedUser.id,
+          firstName: lead.assignedUser.firstName,
+          lastName: lead.assignedUser.lastName,
         }
       : undefined,
   }));

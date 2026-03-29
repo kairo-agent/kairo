@@ -274,7 +274,7 @@ function LeadTable({ leads, onLeadClick }: LeadTableProps) {
 
   return (
     <div className="overflow-x-auto overflow-y-hidden rounded-xl border border-[var(--border-primary)]">
-      <table className="w-full min-w-[900px]">
+      <table className="w-full min-w-[1000px]">
         <thead>
           <tr className="bg-[var(--bg-tertiary)] border-b border-[var(--border-primary)]">
             <th
@@ -330,6 +330,9 @@ function LeadTable({ leads, onLeadClick }: LeadTableProps) {
                 {t('table.lastContact')}
                 <SortIcon field="lastContactAt" currentSortField={sortField} sortDirection={sortDirection} />
               </div>
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+              {t('table.assigned')}
             </th>
             <th className="px-4 py-3 text-center text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
               {t('table.actions')}
@@ -454,6 +457,22 @@ function LeadTable({ leads, onLeadClick }: LeadTableProps) {
                   <span className="text-sm text-[var(--text-tertiary)]">
                     {lead.lastContactAt ? formatRelativeTime(lead.lastContactAt) : '-'}
                   </span>
+                </td>
+
+                {/* Assigned User */}
+                <td className="px-4 py-3">
+                  {lead.assignedUser ? (
+                    <div className="flex items-center gap-2" title={`${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`}>
+                      <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-[var(--kairo-midnight)] text-[10px] font-bold leading-none flex-shrink-0">
+                        {getInitials(lead.assignedUser.firstName, lead.assignedUser.lastName)}
+                      </div>
+                      <span className="text-sm text-[var(--text-secondary)] truncate max-w-[100px]">
+                        {lead.assignedUser.firstName} {lead.assignedUser.lastName}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-sm text-[var(--text-tertiary)]">-</span>
+                  )}
                 </td>
 
                 {/* Actions */}
@@ -769,6 +788,9 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
         assignedAgent: serverLead.assignedAgent
           ? { id: serverLead.assignedAgent.id, name: serverLead.assignedAgent.name, type: serverLead.assignedAgent.type }
           : undefined,
+        assignedUser: serverLead.assignedUser
+          ? { id: serverLead.assignedUser.id, firstName: serverLead.assignedUser.firstName, lastName: serverLead.assignedUser.lastName }
+          : undefined,
       };
 
       setSelectedLead(transformed);
@@ -978,6 +1000,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     summaryUpdatedAt: selectedLead.summaryUpdatedAt,
     createdAt: selectedLead.createdAt,
     updatedAt: selectedLead.updatedAt,
+    assignedUser: selectedLead.assignedUser as any,
   } : null;
 
   // Transform leads for LeadCard (needs Lead type with enums)
@@ -1006,6 +1029,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     nextFollowUpAt: lead.nextFollowUpAt,
     createdAt: lead.createdAt,
     updatedAt: lead.updatedAt,
+    assignedUser: lead.assignedUser as any,
   });
 
   // Use pagination from query (with fallback to initial data for SSR)
@@ -1177,6 +1201,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
                   >
                     <LeadCard
                       lead={transformLeadForCard(lead)}
+                      assignedUser={lead.assignedUser}
                       onClick={() => handleLeadClick(lead)}
                       onStatusChange={(_, newStatus) => handleStatusChange(lead, newStatus)}
                       onViewDetails={() => handleLeadClick(lead)}

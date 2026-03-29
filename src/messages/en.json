@@ -207,6 +207,7 @@
       "channel": "Channel",
       "value": "Value",
       "lastContact": "Last contact",
+      "assigned": "Assigned",
       "actions": "Actions"
     },
     "detail": {
@@ -330,6 +331,20 @@
         "title": "No leads found",
         "message": "There are no leads matching the selected filters. Try adjusting your search criteria."
       }
+    },
+    "assignment": {
+      "unassigned": "Unassigned",
+      "assignedTo": "Assigned to",
+      "takeLead": "Take Lead",
+      "reassign": "Reassign",
+      "unassign": "Unassign",
+      "selectMember": "Select member",
+      "notYourLead": "This lead is assigned to {name}",
+      "viewerNotice": "Read only - you don't have permissions to perform actions",
+      "selfAssigned": "You have assigned this lead to yourself",
+      "reassigned": "Lead reassigned successfully",
+      "unassigned_success": "Assignment removed",
+      "error": "Error assigning lead"
     }
   },
   "notifications": {

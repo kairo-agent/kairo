@@ -5,12 +5,17 @@ import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { createUser, updateUser, updateOrganizationMemberOwnership } from '@/lib/actions/admin';
+import { createUser, updateUser, updateOrganizationMemberOwnership, updateProjectMemberRole } from '@/lib/actions/admin';
 import { SystemRole, ProjectRole } from '@/types';
 
 interface OrganizationMembership {
   isOwner: boolean;
   organization: { id: string; name: string };
+}
+
+interface ProjectMembership {
+  role: string;
+  project: { id: string; name: string };
 }
 
 interface User {
@@ -22,6 +27,7 @@ interface User {
   isActive: boolean;
   avatarUrl?: string | null;
   organizationMemberships?: OrganizationMembership[];
+  projectMemberships?: ProjectMembership[];
 }
 
 interface Organization {
@@ -181,8 +187,9 @@ export default function UserModal({
   const [copied, setCopied] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [passwordCopied, setPasswordCopied] = useState(false);
-  // Track ownership changes in edit mode
+  // Track ownership and role changes in edit mode
   const [ownershipChanges, setOwnershipChanges] = useState<Record<string, boolean>>({});
+  const [roleChanges, setRoleChanges] = useState<Record<string, ProjectRole>>({});
 
   // Filter projects by selected organization
   const filteredProjects = formData.organizationId
@@ -243,6 +250,7 @@ export default function UserModal({
     setShowPassword(false);
     setPasswordCopied(false);
     setOwnershipChanges({});
+    setRoleChanges({});
   }, [user, isOpen]);
 
   const handleGeneratePassword = () => {
@@ -289,6 +297,19 @@ export default function UserModal({
             });
             if (ownerResult.error) {
               setError(ownerResult.error);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        // Apply project role changes
+        const roleEntries = Object.entries(roleChanges);
+        if (roleEntries.length > 0) {
+          for (const [projectId, role] of roleEntries) {
+            const roleResult = await updateProjectMemberRole(user.id, projectId, role);
+            if (roleResult.error) {
+              setError(roleResult.error);
               setLoading(false);
               return;
             }
@@ -694,6 +715,45 @@ export default function UserModal({
                         />
                       </button>
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Project roles (only for edit, when user has project memberships) */}
+        {isEdit && user?.projectMemberships && user.projectMemberships.length > 0 && (
+          <div className="space-y-3 pt-4 border-t border-[var(--border-primary)]">
+            <h4 className="text-sm font-medium text-[var(--text-primary)]">
+              {t('projects')}
+            </h4>
+            <div className="space-y-2">
+              {user.projectMemberships.map((membership) => {
+                const currentRole = roleChanges[membership.project.id] ?? membership.role;
+                return (
+                  <div
+                    key={membership.project.id}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)]"
+                  >
+                    <span className="text-sm text-[var(--text-primary)]">
+                      {membership.project.name}
+                    </span>
+                    <select
+                      value={currentRole}
+                      onChange={(e) => {
+                        setRoleChanges(prev => ({
+                          ...prev,
+                          [membership.project.id]: e.target.value as ProjectRole,
+                        }));
+                      }}
+                      className="px-2 py-1 rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-xs focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)] focus:border-transparent"
+                    >
+                      <option value="admin">{tProjectRoles('admin')}</option>
+                      <option value="manager">{tProjectRoles('manager')}</option>
+                      <option value="agent">{tProjectRoles('agent')}</option>
+                      <option value="viewer">{tProjectRoles('viewer')}</option>
+                    </select>
                   </div>
                 );
               })}

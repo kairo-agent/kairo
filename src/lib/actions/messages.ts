@@ -6,8 +6,9 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { verifyAuth, verifyProjectAccess } from './auth';
+import { verifyAuth, verifyProjectAccess, getProjectRole } from './auth';
 import { getProjectSecret } from './secrets';
+import { getEffectiveRole, isViewerOnly, canActOnLead } from '@/lib/permissions';
 import type { Message, Conversation, Prisma } from '@prisma/client';
 import { MessageSender, HandoffMode } from '@prisma/client';
 
@@ -96,6 +97,7 @@ const leadSelectForSendMessage = {
   lastName: true,
   phone: true,
   whatsappId: true,
+  assignedUserId: true,
   project: {
     select: {
       id: true,
@@ -114,6 +116,7 @@ const leadSelectForHandoffToggle = {
   id: true,
   projectId: true,
   whatsappId: true,
+  assignedUserId: true,
 } as const;
 
 /**
@@ -309,6 +312,16 @@ export async function sendMessage(
       return { success: false, error: 'Sin acceso a este lead' };
     }
 
+    // Role-based access control
+    const roleInfo = await getProjectRole(user.id, user.systemRole, lead.projectId);
+    const effectiveRole = getEffectiveRole(user.systemRole, roleInfo.isOrgOwner ?? false, roleInfo.projectRole);
+    if (isViewerOnly(effectiveRole)) {
+      return { success: false, error: 'Sin permisos para esta acción' };
+    }
+    if (!canActOnLead(effectiveRole, lead.assignedUserId, user.id)) {
+      return { success: false, error: 'Este lead está asignado a otro usuario' };
+    }
+
     // Ensure conversation exists
     let conversationId = lead.conversation?.id;
     if (!conversationId) {
@@ -498,6 +511,16 @@ export async function toggleHandoffMode(
       return { success: false, error: 'Sin acceso a este lead' };
     }
 
+    // Role-based access control
+    const roleInfo = await getProjectRole(user.id, user.systemRole, lead.projectId);
+    const effectiveRole = getEffectiveRole(user.systemRole, roleInfo.isOrgOwner ?? false, roleInfo.projectRole);
+    if (isViewerOnly(effectiveRole)) {
+      return { success: false, error: 'Sin permisos para esta acción' };
+    }
+    if (!canActOnLead(effectiveRole, lead.assignedUserId, user.id)) {
+      return { success: false, error: 'Este lead está asignado a otro usuario' };
+    }
+
     // Update handoff mode
     await prisma.lead.update({
       where: { id: leadId },
@@ -520,6 +543,28 @@ export async function toggleHandoffMode(
         metadata: { mode },
       },
     });
+
+    // Auto-assign lead if unassigned when taking control
+    if (mode === 'human' && !lead.assignedUserId) {
+      await prisma.lead.update({
+        where: { id: leadId },
+        data: { assignedUserId: user.id },
+      });
+
+      await prisma.activity.create({
+        data: {
+          leadId,
+          type: 'lead_assigned',
+          description: `${user.firstName} ${user.lastName} se auto-asignó el lead al tomar control`,
+          performedBy: user.id,
+          metadata: {
+            previousAssignedUserId: null,
+            newAssignedUserId: user.id,
+            trigger: 'take_control',
+          },
+        },
+      });
+    }
 
     return { success: true };
   } catch (error) {

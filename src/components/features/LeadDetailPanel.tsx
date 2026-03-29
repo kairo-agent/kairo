@@ -25,7 +25,10 @@ import {
   type NoteWithAuthor,
   type ActivityWithPerformer,
 } from '@/lib/actions/leads';
+import { useEffectiveRole } from '@/hooks/useEffectiveRole';
+import { isViewerOnly, canActOnLead } from '@/lib/permissions';
 import LeadEditModal from './LeadEditModal';
+import { LeadAssignment } from './LeadAssignment';
 import LeadChat from './LeadChat';
 import { sendMessage } from '@/lib/actions/messages';
 
@@ -226,6 +229,8 @@ export function LeadDetailPanel({
   const dateLocale = locale === 'es' ? es : enUS;
   const user = useCurrentUser();
   const isSuperAdmin = user.systemRole === 'super_admin';
+  const effectiveRole = useEffectiveRole();
+  const canAct = !isViewerOnly(effectiveRole) && canActOnLead(effectiveRole, lead?.assignedUserId, user.id);
   const panelRef = useRef<HTMLDivElement>(null);
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
@@ -601,6 +606,22 @@ export function LeadDetailPanel({
             )}
           </div>
 
+          {/* Lead Assignment */}
+          <LeadAssignment
+            lead={lead}
+            onAssignmentChanged={async () => {
+              if (onLeadUpdated) await onLeadUpdated();
+              loadNotesAndActivities();
+            }}
+          />
+
+          {/* Viewer Notice */}
+          {isViewerOnly(effectiveRole) && (
+            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-sm">
+              {t('assignment.viewerNotice')}
+            </div>
+          )}
+
           {/* Follow-up Detail */}
           {lead.nextFollowUpAt && (() => {
             const followUpDate = new Date(lead.nextFollowUpAt);
@@ -680,6 +701,7 @@ export function LeadDetailPanel({
                 leadId={lead.id}
                 leadName={`${lead.firstName} ${lead.lastName}`}
                 isOpen={isOpen}
+                disabled={!canAct}
               />
             </div>
           </CollapsibleSection>
@@ -718,35 +740,37 @@ export function LeadDetailPanel({
               )}
 
               {/* Add Note Form */}
-              <div className="flex gap-2 pt-2">
-                <input
-                  type="text"
-                  value={newNoteContent}
-                  onChange={(e) => setNewNoteContent(e.target.value)}
-                  placeholder={t('panel.addNotePlaceholder')}
-                  className="flex-1 px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleAddNote();
-                    }
-                  }}
-                  disabled={isAddingNote}
-                />
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={handleAddNote}
-                  disabled={!newNoteContent.trim() || isAddingNote}
-                  className="px-3"
-                >
-                  {isAddingNote ? (
-                    <SpinnerIcon className="w-4 h-4" />
-                  ) : (
-                    <PlusIcon />
-                  )}
-                </Button>
-              </div>
+              {canAct && (
+                <div className="flex gap-2 pt-2">
+                  <input
+                    type="text"
+                    value={newNoteContent}
+                    onChange={(e) => setNewNoteContent(e.target.value)}
+                    placeholder={t('panel.addNotePlaceholder')}
+                    className="flex-1 px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleAddNote();
+                      }
+                    }}
+                    disabled={isAddingNote}
+                  />
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleAddNote}
+                    disabled={!newNoteContent.trim() || isAddingNote}
+                    className="px-3"
+                  >
+                    {isAddingNote ? (
+                      <SpinnerIcon className="w-4 h-4" />
+                    ) : (
+                      <PlusIcon />
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </CollapsibleSection>
 
@@ -813,7 +837,7 @@ export function LeadDetailPanel({
         {/* Footer Actions */}
         <div className="flex-shrink-0 border-t border-[var(--border-primary)] p-4 lg:p-6">
           <div className="flex flex-row gap-2">
-            {isSuperAdmin && lead.phone && (
+            {canAct && lead.phone && (
               <Button
                 variant="primary"
                 fullWidth
@@ -832,34 +856,38 @@ export function LeadDetailPanel({
                 <span className="hidden sm:inline">{t('detail.call')}</span>
               </Button>
             )}
-            <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(true)} title={t('detail.edit')}>
-              <EditIcon />
-              <span className="hidden sm:inline">{t('detail.edit')}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              fullWidth
-              className="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30"
-              onClick={() => onScheduleFollowUp?.(lead)}
-              title={t('actions.scheduleFollowUp')}
-            >
-              <ClockIcon />
-              <span className="sm:hidden">{t('actions.schedule')}</span>
-              <span className="hidden sm:inline">{t('actions.scheduleFollowUp')}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              fullWidth
-              className={lead.archivedAt
-                ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30'
-                : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
-              }
-              onClick={() => onArchiveLead?.(lead)}
-              title={lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}
-            >
-              {lead.archivedAt ? <UnarchiveIcon /> : <ArchiveIcon />}
-              <span className="hidden sm:inline">{lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}</span>
-            </Button>
+            {canAct && (
+              <>
+                <Button variant="secondary" fullWidth onClick={() => setIsEditModalOpen(true)} title={t('detail.edit')}>
+                  <EditIcon />
+                  <span className="hidden sm:inline">{t('detail.edit')}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  className="text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30"
+                  onClick={() => onScheduleFollowUp?.(lead)}
+                  title={t('actions.scheduleFollowUp')}
+                >
+                  <ClockIcon />
+                  <span className="sm:hidden">{t('actions.schedule')}</span>
+                  <span className="hidden sm:inline">{t('actions.scheduleFollowUp')}</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  className={lead.archivedAt
+                    ? 'text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30'
+                    : 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
+                  }
+                  onClick={() => onArchiveLead?.(lead)}
+                  title={lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}
+                >
+                  {lead.archivedAt ? <UnarchiveIcon /> : <ArchiveIcon />}
+                  <span className="hidden sm:inline">{lead.archivedAt ? t('actions.unarchiveLead') : t('actions.archiveLead')}</span>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -207,6 +207,7 @@
       "channel": "Canal",
       "value": "Valor",
       "lastContact": "Último contacto",
+      "assigned": "Asignado",
       "actions": "Acciones"
     },
     "detail": {
@@ -330,6 +331,20 @@
         "title": "No se encontraron leads",
         "message": "No hay leads que coincidan con los filtros seleccionados. Intenta ajustar los criterios de búsqueda."
       }
+    },
+    "assignment": {
+      "unassigned": "Sin asignar",
+      "assignedTo": "Asignado a",
+      "takeLead": "Tomar Lead",
+      "reassign": "Reasignar",
+      "unassign": "Quitar asignación",
+      "selectMember": "Seleccionar miembro",
+      "notYourLead": "Este lead está asignado a {name}",
+      "viewerNotice": "Solo lectura - no tienes permisos para realizar acciones",
+      "selfAssigned": "Te has asignado este lead",
+      "reassigned": "Lead reasignado correctamente",
+      "unassigned_success": "Asignación removida",
+      "error": "Error al asignar lead"
     }
   },
   "notifications": {

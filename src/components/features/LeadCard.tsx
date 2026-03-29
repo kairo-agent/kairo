@@ -51,6 +51,7 @@ const BuildingIcon = () => (
 
 interface LeadCardProps {
   lead: Lead;
+  assignedUser?: { id: string; firstName: string; lastName: string } | null;
   onClick?: (lead: Lead) => void;
   onStatusChange?: (lead: Lead, newStatus: LeadStatus) => void;
   onViewDetails?: (lead: Lead) => void;
@@ -63,6 +64,7 @@ interface LeadCardProps {
 
 export function LeadCard({
   lead,
+  assignedUser,
   onClick,
   onStatusChange,
   onViewDetails,
@@ -256,6 +258,21 @@ export function LeadCard({
           </span>
           <span className="text-xs text-[var(--text-secondary)]">{t(`channel.${lead.channel}`)}</span>
         </div>
+
+        {/* Assigned User */}
+        {assignedUser && (
+          <div
+            className="flex items-center gap-1.5"
+            title={`${assignedUser.firstName} ${assignedUser.lastName}`}
+          >
+            <div className="w-5 h-5 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-[var(--kairo-midnight)] text-[10px] font-bold leading-none">
+              {getInitials(assignedUser.firstName, assignedUser.lastName)}
+            </div>
+            <span className="text-xs text-[var(--text-secondary)] truncate max-w-[80px]">
+              {assignedUser.firstName}
+            </span>
+          </div>
+        )}
 
       </div>
 

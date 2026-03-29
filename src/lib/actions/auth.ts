@@ -213,3 +213,48 @@ export async function verifyProjectAccess(
 
   return !!membership;
 }
+
+/**
+ * Get user's project role AND org ownership in a single query.
+ * Returns the data needed to compute EffectiveRole.
+ */
+export async function getProjectRole(
+  userId: string,
+  systemRole: string,
+  projectId: string
+): Promise<{ hasAccess: boolean; projectRole?: string; isOrgOwner?: boolean }> {
+  if (systemRole === 'super_admin') {
+    return { hasAccess: true };
+  }
+
+  const membership = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId } },
+    select: {
+      role: true,
+      project: {
+        select: { organizationId: true },
+      },
+    },
+  });
+
+  if (!membership) {
+    return { hasAccess: false };
+  }
+
+  // Check org ownership
+  const orgMembership = await prisma.organizationMember.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: membership.project.organizationId,
+        userId,
+      },
+    },
+    select: { isOwner: true },
+  });
+
+  return {
+    hasAccess: true,
+    projectRole: membership.role,
+    isOrgOwner: orgMembership?.isOwner ?? false,
+  };
+}

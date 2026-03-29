@@ -19,12 +19,16 @@ import { Sidebar, Header } from '@/components/layout';
 import { cn } from '@/lib/utils';
 
 // Type for user from Prisma (simplified for client)
-interface DashboardUser {
+export interface DashboardUser {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
   systemRole: string;
+  organizationMemberships?: Array<{
+    organizationId: string;
+    isOwner: boolean;
+  }>;
   projectMemberships?: Array<{
     id: string;
     projectId: string;
