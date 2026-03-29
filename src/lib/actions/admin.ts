@@ -528,6 +528,36 @@ export async function addUserToOrganization(data: {
   }
 }
 
+export async function updateOrganizationMemberOwnership(data: {
+  userId: string;
+  organizationId: string;
+  isOwner: boolean;
+}) {
+  if (!await verifySuperAdmin()) {
+    return { error: 'No autorizado' };
+  }
+
+  try {
+    await prisma.organizationMember.update({
+      where: {
+        organizationId_userId: {
+          organizationId: data.organizationId,
+          userId: data.userId,
+        },
+      },
+      data: {
+        isOwner: data.isOwner,
+      },
+    });
+
+    revalidatePath('/admin/users');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating organization ownership:', error);
+    return { error: 'Error al actualizar el ownership de la organización' };
+  }
+}
+
 export async function removeUserFromOrganization(userId: string, organizationId: string) {
   if (!await verifySuperAdmin()) {
     return { error: 'No autorizado' };

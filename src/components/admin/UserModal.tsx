@@ -5,8 +5,13 @@ import { useTranslations } from 'next-intl';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { createUser, updateUser } from '@/lib/actions/admin';
+import { createUser, updateUser, updateOrganizationMemberOwnership } from '@/lib/actions/admin';
 import { SystemRole, ProjectRole } from '@/types';
+
+interface OrganizationMembership {
+  isOwner: boolean;
+  organization: { id: string; name: string };
+}
 
 interface User {
   id: string;
@@ -16,6 +21,7 @@ interface User {
   systemRole: SystemRole;
   isActive: boolean;
   avatarUrl?: string | null;
+  organizationMemberships?: OrganizationMembership[];
 }
 
 interface Organization {
@@ -175,6 +181,8 @@ export default function UserModal({
   const [copied, setCopied] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [passwordCopied, setPasswordCopied] = useState(false);
+  // Track ownership changes in edit mode
+  const [ownershipChanges, setOwnershipChanges] = useState<Record<string, boolean>>({});
 
   // Filter projects by selected organization
   const filteredProjects = formData.organizationId
@@ -234,6 +242,7 @@ export default function UserModal({
     setCopied(false);
     setShowPassword(false);
     setPasswordCopied(false);
+    setOwnershipChanges({});
   }, [user, isOpen]);
 
   const handleGeneratePassword = () => {
@@ -265,10 +274,29 @@ export default function UserModal({
 
         if (result.error) {
           setError(result.error);
-        } else {
-          onSuccess();
-          onClose();
+          setLoading(false);
+          return;
         }
+
+        // Apply ownership changes
+        const ownershipEntries = Object.entries(ownershipChanges);
+        if (ownershipEntries.length > 0) {
+          for (const [orgId, isOwner] of ownershipEntries) {
+            const ownerResult = await updateOrganizationMemberOwnership({
+              userId: user.id,
+              organizationId: orgId,
+              isOwner,
+            });
+            if (ownerResult.error) {
+              setError(ownerResult.error);
+              setLoading(false);
+              return;
+            }
+          }
+        }
+
+        onSuccess();
+        onClose();
       } else {
         // Validate password
         if (!formData.password) {
@@ -617,6 +645,59 @@ export default function UserModal({
             <label htmlFor="isActive" className="text-sm text-[var(--text-primary)]">
               {t('active')}
             </label>
+          </div>
+        )}
+
+        {/* Organization ownership (only for edit, when user has memberships) */}
+        {isEdit && user?.organizationMemberships && user.organizationMemberships.length > 0 && (
+          <div className="space-y-3 pt-4 border-t border-[var(--border-primary)]">
+            <h4 className="text-sm font-medium text-[var(--text-primary)]">
+              {t('organizations')}
+            </h4>
+            <div className="space-y-2">
+              {user.organizationMemberships.map((membership) => {
+                const currentValue = ownershipChanges[membership.organization.id] ?? membership.isOwner;
+                return (
+                  <div
+                    key={membership.organization.id}
+                    className="flex items-center justify-between px-3 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)]"
+                  >
+                    <span className="text-sm text-[var(--text-primary)]">
+                      {membership.organization.name}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <label
+                        htmlFor={`owner-${membership.organization.id}`}
+                        className={`text-xs font-medium ${currentValue ? 'text-purple-500' : 'text-[var(--text-tertiary)]'}`}
+                      >
+                        Owner
+                      </label>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={currentValue}
+                        id={`owner-${membership.organization.id}`}
+                        onClick={() => {
+                          setOwnershipChanges(prev => ({
+                            ...prev,
+                            [membership.organization.id]: !currentValue,
+                          }));
+                        }}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-[var(--bg-secondary)] ${
+                          currentValue ? 'bg-purple-500' : 'bg-[var(--bg-tertiary)]'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            currentValue ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
