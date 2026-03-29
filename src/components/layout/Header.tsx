@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { getInitials } from '@/lib/utils';
 import { signOut } from '@/lib/actions/auth';
 import { NotificationDropdown } from './NotificationDropdown';
+import { useEffectiveRole } from '@/hooks/useEffectiveRole';
 import type { Locale } from '@/types';
 
 // SVG Icons
@@ -184,6 +185,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const localeDropdownRef = useRef<HTMLDivElement>(null);
+  const effectiveRole = useEffectiveRole();
 
   // Fallback user data if not provided
   const displayUser = user || {
@@ -401,7 +403,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
                 </p>
                 <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{displayUser.email}</p>
                 <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
-                  {getRoleLabel(displayUser.systemRole)}
+                  {getRoleLabel(effectiveRole)}
                 </span>
               </div>
 
