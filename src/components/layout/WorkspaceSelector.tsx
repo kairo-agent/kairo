@@ -5,9 +5,9 @@
 // Organization and Project dropdowns for sidebar
 // ============================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useWorkspace, type WorkspaceOrganization } from '@/contexts/WorkspaceContext';
 import { useLoading } from '@/contexts/LoadingContext';
 import { getOrganizations, getProjects } from '@/lib/actions/workspace';
 import { cn } from '@/lib/utils';
@@ -248,16 +248,35 @@ export function WorkspaceSelector() {
 
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
 
+  // Validate and auto-select workspace on mount
+  const validateAndSelectOrg = useCallback((orgs: WorkspaceOrganization[]) => {
+    if (orgs.length === 0) return;
+
+    // If an org is selected, validate it belongs to user's accessible orgs
+    if (selectedOrganization) {
+      const isValid = orgs.some(o => o.id === selectedOrganization.id);
+      if (!isValid) {
+        // Stale selection from previous user session — clear and auto-select
+        setSelectedOrganization(orgs.length === 1 ? orgs[0] : null);
+        return;
+      }
+    }
+
+    // No org selected — auto-select if user has exactly one
+    if (!selectedOrganization) {
+      if (orgs.length === 1) {
+        setSelectedOrganization(orgs[0]);
+      }
+    }
+  }, [selectedOrganization, setSelectedOrganization]);
+
   // Fetch organizations on mount (only if not already loaded from server)
   useEffect(() => {
     async function fetchOrganizations() {
       // Skip fetch if organizations are already loaded (from server-side prefetch)
       if (organizations.length > 0) {
         setIsLoading(false);
-        // If no org selected but we have orgs, select the first one
-        if (!selectedOrganization && organizations.length > 0) {
-          setSelectedOrganization(organizations[0]);
-        }
+        validateAndSelectOrg(organizations);
         return;
       }
 
@@ -265,11 +284,7 @@ export function WorkspaceSelector() {
       try {
         const orgs = await getOrganizations();
         setOrganizations(orgs);
-
-        // If no org selected but we have orgs, select the first one
-        if (!selectedOrganization && orgs.length > 0) {
-          setSelectedOrganization(orgs[0]);
-        }
+        validateAndSelectOrg(orgs);
       } catch (error) {
         console.error('Error fetching organizations:', error);
       } finally {
@@ -293,6 +308,16 @@ export function WorkspaceSelector() {
       try {
         const projs = await getProjects(selectedOrganization.id);
         setProjects(projs);
+
+        // Validate selected project belongs to this org
+        if (selectedProject && !projs.some(p => p.id === selectedProject.id)) {
+          setSelectedProject(null);
+        }
+
+        // Auto-select if only one project
+        if (!selectedProject && projs.length === 1) {
+          setSelectedProject(projs[0]);
+        }
       } catch (error) {
         console.error('Error fetching projects:', error);
       } finally {

@@ -148,18 +148,12 @@ function LoginPageContent() {
       const result = await signIn(email, password);
 
       if (result.success && result.redirectTo) {
+        // SECURITY: Clear stale workspace selection from previous user session
+        localStorage.removeItem('kairo-selected-org');
+        localStorage.removeItem('kairo-selected-project');
+
         // Determine redirect destination
         let finalRedirect = result.redirectTo;
-
-        // For super_admin: check if org is already selected in localStorage
-        if (result.user?.systemRole === 'super_admin') {
-          const savedOrg = localStorage.getItem('kairo-selected-org');
-          if (savedOrg) {
-            // Already has org selected, go directly to leads
-            finalRedirect = '/leads';
-          }
-          // Otherwise, redirectTo is already /select-workspace
-        }
 
         // Check for redirect param from middleware or sessionStorage deep-link
         // Skip root "/" as deep-link — it's not a real destination (user just visited the app root)

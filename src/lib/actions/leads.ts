@@ -87,7 +87,14 @@ export async function getAccessibleProjectIds(
   organizationId?: string
 ): Promise<string[] | 'all_in_org' | null> {
   if (projectId) {
-    // Specific project requested
+    // Specific project requested — validate access for non-super_admin
+    if (systemRole !== 'super_admin') {
+      const membership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId, userId } },
+        select: { id: true },
+      });
+      if (!membership) return null;
+    }
     return [projectId];
   }
 
