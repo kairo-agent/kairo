@@ -935,7 +935,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
           updatedLead.position !== selectedLead.position ||
           updatedLead.temperature !== selectedLead.temperature ||
           updatedLead.status !== selectedLead.status ||
-          updatedLead.nextFollowUpAt !== selectedLead.nextFollowUpAt;
+          updatedLead.nextFollowUpAt !== selectedLead.nextFollowUpAt ||
+          updatedLead.assignedUserId !== selectedLead.assignedUserId;
 
         if (hasChanged) {
           setSelectedLead(updatedLead);

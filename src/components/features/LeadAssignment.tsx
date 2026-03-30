@@ -27,6 +27,8 @@ interface LeadAssignmentProps {
   onAssignmentChanged?: () => Promise<void>;
 }
 
+type TeamMember = { id: string; firstName: string; lastName: string; role: string };
+
 // ============================================
 // Icons
 // ============================================
@@ -44,6 +46,23 @@ const SpinnerIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const UserIcon = () => (
+  <svg className="w-4 h-4 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+  </svg>
+);
+
+// ============================================
+// Role label helper
+// ============================================
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  manager: 'Manager',
+  agent: 'Agente',
+  viewer: 'Viewer',
+};
+
 // ============================================
 // Component
 // ============================================
@@ -55,10 +74,9 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
 
   const [isLoading, setIsLoading] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [teamMembers, setTeamMembers] = useState<
-    { id: string; firstName: string; lastName: string; role: string }[]
-  >([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
+  const [membersLoaded, setMembersLoaded] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const isAssigned = !!lead.assignedUserId;
@@ -79,23 +97,26 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
-  // Lazy load team members when dropdown opens
+  // Load team members
+  const loadMembers = async () => {
+    if (membersLoaded) return;
+    setIsLoadingMembers(true);
+    try {
+      const result = await getProjectTeamMembers(lead.projectId);
+      if (result.success && result.members) {
+        setTeamMembers(result.members.filter((m) => m.role !== 'viewer'));
+        setMembersLoaded(true);
+      }
+    } catch {
+      toast.error(t('error'));
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  };
+
   const handleOpenDropdown = async () => {
     setIsDropdownOpen(true);
-    if (teamMembers.length === 0) {
-      setIsLoadingMembers(true);
-      try {
-        const result = await getProjectTeamMembers(lead.projectId);
-        if (result.success && result.members) {
-          // Filter out viewers - they can't be assigned leads
-          setTeamMembers(result.members.filter((m) => m.role !== 'viewer'));
-        }
-      } catch {
-        toast.error(t('error'));
-      } finally {
-        setIsLoadingMembers(false);
-      }
-    }
+    await loadMembers();
   };
 
   const handleAssign = async (targetUserId: string | null) => {
@@ -129,6 +150,55 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
     ? `${lead.assignedUser.firstName} ${lead.assignedUser.lastName}`
     : null;
 
+  // Dropdown content (shared between assign and reassign)
+  const renderDropdown = () => (
+    <div className="absolute right-0 top-full mt-1 w-56 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg overflow-hidden z-30">
+      {isLoadingMembers ? (
+        <div className="flex justify-center py-4">
+          <SpinnerIcon className="w-5 h-5 text-[var(--accent-primary)]" />
+        </div>
+      ) : (
+        <div className="py-1 max-h-48 overflow-y-auto">
+          {teamMembers
+            .filter((m) => m.id !== lead.assignedUserId)
+            .map((member) => (
+              <button
+                key={member.id}
+                onClick={() => handleAssign(member.id)}
+                className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[var(--bg-tertiary)] transition-colors"
+              >
+                <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center text-[10px] font-bold text-[var(--accent-primary)]">
+                  {getInitials(member.firstName, member.lastName)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[var(--text-primary)] truncate block">
+                    {member.firstName} {member.lastName}
+                    {member.id === user.id && (
+                      <span className="text-[var(--text-tertiary)] ml-1">(yo)</span>
+                    )}
+                  </span>
+                  <span className="text-[10px] text-[var(--text-tertiary)] uppercase">
+                    {ROLE_LABELS[member.role] || member.role}
+                  </span>
+                </div>
+              </button>
+            ))}
+          {/* Unassign option (only when lead is assigned) */}
+          {isAssigned && (
+            <div className="border-t border-[var(--border-primary)]">
+              <button
+                onClick={() => handleAssign(null)}
+                className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              >
+                {t('unassign')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="flex items-center gap-3 p-3 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)]">
       {/* Avatar / Unassigned indicator */}
@@ -138,9 +208,7 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
         </div>
       ) : (
         <div className="flex-shrink-0 w-8 h-8 rounded-full border-2 border-dashed border-[var(--text-tertiary)] flex items-center justify-center">
-          <svg className="w-4 h-4 text-[var(--text-tertiary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
+          <UserIcon />
         </div>
       )}
 
@@ -150,7 +218,7 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
           <p className="text-sm text-[var(--text-primary)] font-medium truncate">
             {t('assignedTo')} {assignedName}
             {isAssignedToMe && (
-              <span className="text-xs text-[var(--text-tertiary)] ml-1">(t&uacute;)</span>
+              <span className="text-xs text-[var(--text-tertiary)] ml-1">(yo)</span>
             )}
           </p>
         ) : (
@@ -160,76 +228,29 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
 
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
-        {/* Take Lead button - only when unassigned and user can take */}
-        {canTake && (
-          <button
-            onClick={() => handleAssign(user.id)}
-            disabled={isLoading}
-            className="px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {isLoading ? <SpinnerIcon className="w-3 h-3" /> : t('takeLead')}
-          </button>
-        )}
-
-        {/* Reassign dropdown - for managers+ */}
-        {canReassign && isAssigned && (
+        {isLoading ? (
+          <SpinnerIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+        ) : canReassign ? (
+          /* Admin/Manager: always show selector dropdown (assign or reassign) */
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={handleOpenDropdown}
-              disabled={isLoading}
-              className="px-2.5 py-1.5 text-xs font-medium rounded-md border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] transition-colors disabled:opacity-50 flex items-center gap-1"
+              className="px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:opacity-90 transition-opacity flex items-center gap-1.5"
             >
-              {t('reassign')}
+              {isAssigned ? t('reassign') : t('selectMember')}
               <ChevronDownIcon className="w-3 h-3" />
             </button>
-
-            {isDropdownOpen && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg overflow-hidden z-30">
-                {isLoadingMembers ? (
-                  <div className="flex justify-center py-4">
-                    <SpinnerIcon className="w-5 h-5 text-[var(--accent-primary)]" />
-                  </div>
-                ) : (
-                  <div className="py-1 max-h-48 overflow-y-auto">
-                    {teamMembers
-                      .filter((m) => m.id !== lead.assignedUserId)
-                      .map((member) => (
-                        <button
-                          key={member.id}
-                          onClick={() => handleAssign(member.id)}
-                          className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[var(--bg-tertiary)] transition-colors"
-                        >
-                          <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center text-[10px] font-bold text-[var(--accent-primary)]">
-                            {getInitials(member.firstName, member.lastName)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[var(--text-primary)] truncate block">
-                              {member.firstName} {member.lastName}
-                            </span>
-                            <span className="text-[10px] text-[var(--text-tertiary)] uppercase">
-                              {member.role}
-                            </span>
-                          </div>
-                          {member.id === user.id && (
-                            <span className="text-[10px] text-[var(--text-tertiary)]">(t&uacute;)</span>
-                          )}
-                        </button>
-                      ))}
-                    {/* Unassign option */}
-                    <div className="border-t border-[var(--border-primary)]">
-                      <button
-                        onClick={() => handleAssign(null)}
-                        className="w-full px-3 py-2 text-left text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
-                      >
-                        {t('unassign')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+            {isDropdownOpen && renderDropdown()}
           </div>
-        )}
+        ) : canTake ? (
+          /* Agent: only "Tomar Lead" button when unassigned */
+          <button
+            onClick={() => handleAssign(user.id)}
+            className="px-3 py-1.5 text-xs font-medium rounded-md bg-[var(--accent-primary)] text-[var(--kairo-midnight)] hover:opacity-90 transition-opacity"
+          >
+            {t('takeLead')}
+          </button>
+        ) : null}
       </div>
     </div>
   );

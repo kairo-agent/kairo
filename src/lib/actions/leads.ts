@@ -1598,6 +1598,25 @@ export async function assignLead(
       }
     }
 
+    // Fetch target user name and role for activity log
+    let description = 'Lead desasignado';
+    if (targetUserId) {
+      const targetUser = await prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { firstName: true, lastName: true },
+      });
+      const targetMembership = await prisma.projectMember.findUnique({
+        where: { projectId_userId: { projectId: lead.projectId, userId: targetUserId } },
+        select: { role: true },
+      });
+      const targetName = targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : 'usuario';
+      const targetRole = targetMembership?.role || '';
+      const roleSuffix = targetRole ? ` [${targetRole}]` : '';
+      description = targetUserId === user.id
+        ? `Lead asignado a sí mismo${roleSuffix}`
+        : `Lead asignado a: ${targetName}${roleSuffix}`;
+    }
+
     // Update lead assignment
     await prisma.$transaction([
       prisma.lead.update({
@@ -1611,9 +1630,7 @@ export async function assignLead(
         data: {
           leadId,
           type: 'assignment_change',
-          description: targetUserId
-            ? `Lead asignado a ${targetUserId === user.id ? 'sí mismo' : 'otro usuario'}`
-            : 'Lead desasignado',
+          description,
           performedBy: user.id,
           metadata: {
             previousAssignedUserId: lead.assignedUserId,
