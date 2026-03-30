@@ -32,6 +32,7 @@ import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { updateLeadStatus, archiveLead, unarchiveLead, scheduleFollowUp, getLeadById } from '@/lib/actions/leads';
 import { FollowUpModal } from '@/components/features/FollowUpModal';
 import { ExportLeadsModal } from '@/components/features/ExportLeadsModal';
+import { useEffectiveRole } from '@/hooks/useEffectiveRole';
 import { toast } from 'sonner';
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 import { TemperatureIcon } from '@/components/icons/LeadIcons';
@@ -598,6 +599,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const { hideLoading } = useLoading();
   const user = useCurrentUser();
   const isSuperAdmin = user.systemRole === 'super_admin';
+  const effectiveRole = useEffectiveRole();
+  const canExport = effectiveRole === 'super_admin' || effectiveRole === 'owner' || effectiveRole === 'admin';
   const searchParams = useSearchParams();
 
   // Local UI state
@@ -1091,14 +1094,16 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
               <RefreshIcon className={cn('w-5 h-5', isFetching && 'animate-spin')} />
             </button>
 
-            {/* Export Excel Button - visible for all users */}
-            <button
-              onClick={() => setShowExportModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-[#217346] hover:bg-[#1a5c38] transition-colors"
-            >
-              <ExcelIcon />
-              <span className="hidden sm:inline">{t('export.button')}</span>
-            </button>
+            {/* Export Excel Button - only for super_admin, owner, admin */}
+            {canExport && (
+              <button
+                onClick={() => setShowExportModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-white bg-[#217346] hover:bg-[#1a5c38] transition-colors"
+              >
+                <ExcelIcon />
+                <span className="hidden sm:inline">{t('export.button')}</span>
+              </button>
+            )}
 
             {/* New Lead Button - Only visible for super_admin until feature is built */}
             {isSuperAdmin && (

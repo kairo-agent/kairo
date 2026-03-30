@@ -223,6 +223,7 @@ export default function ProfilePage() {
   const t = useTranslations('profile');
   const tCommon = useTranslations('common');
   const tRoles = useTranslations('admin.roles');
+  const tSystemRoles = useTranslations('admin.systemRoles');
   const tPush = useTranslations('pushNotifications.profile');
 
   const [activeTab, setActiveTab] = useState<TabType>('profile');
@@ -497,7 +498,7 @@ export default function ProfilePage() {
                 </h3>
                 <p className="text-sm text-[var(--text-secondary)]">{profile?.email}</p>
                 <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]">
-                  {profile?.systemRole === 'super_admin' ? 'Super Admin' : 'Usuario'}
+                  {tSystemRoles(profile?.systemRole === 'super_admin' ? 'super_admin' : 'user')}
                 </span>
               </div>
             </div>

@@ -1406,6 +1406,18 @@ export async function exportLeadsToExcel(
       return { success: false, error: 'No autorizado' };
     }
 
+    // Restrict export to super_admin, owner, or admin roles
+    if (user.systemRole !== 'super_admin' && projectId) {
+      const roleInfo = await getProjectRole(user.id, user.systemRole, projectId);
+      if (!roleInfo.hasAccess) {
+        return { success: false, error: 'Sin acceso' };
+      }
+      const effectiveRole = getEffectiveRole(user.systemRole, roleInfo.isOrgOwner ?? false, roleInfo.projectRole);
+      if (effectiveRole !== 'owner' && effectiveRole !== 'admin') {
+        return { success: false, error: 'No autorizado para exportar' };
+      }
+    }
+
     const accessibleProjects = await getAccessibleProjectIds(user.id, user.systemRole, projectId, organizationId);
     if (!accessibleProjects) {
       return { success: false, error: 'Sin acceso' };

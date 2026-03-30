@@ -53,22 +53,12 @@ const UserIcon = () => (
 );
 
 // ============================================
-// Role label helper
-// ============================================
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Admin',
-  manager: 'Manager',
-  agent: 'Agente',
-  viewer: 'Viewer',
-};
-
-// ============================================
 // Component
 // ============================================
 
 export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProps) {
   const t = useTranslations('leads.assignment');
+  const tRoles = useTranslations('admin.roles');
   const user = useCurrentUser();
   const effectiveRole = useEffectiveRole();
 
@@ -178,7 +168,7 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
                     )}
                   </span>
                   <span className="text-[10px] text-[var(--text-tertiary)] uppercase">
-                    {ROLE_LABELS[member.role] || member.role}
+                    {tRoles(member.role)}
                   </span>
                 </div>
               </button>

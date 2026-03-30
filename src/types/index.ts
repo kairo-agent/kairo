@@ -380,14 +380,16 @@ export type PageSize = (typeof PAGE_SIZE_OPTIONS)[number];
 // ROLE CONFIGS
 // ============================================
 
-export const SYSTEM_ROLE_CONFIG: Record<SystemRole, { label: string; description: string }> = {
-  [SystemRole.SUPER_ADMIN]: { label: 'Super Admin', description: 'Acceso total al sistema' },
-  [SystemRole.USER]: { label: 'Usuario', description: 'Acceso según membresías' },
+// Note: Display labels come from i18n (admin.systemRoles.* / admin.roles.*)
+export const SYSTEM_ROLE_CONFIG: Record<SystemRole, { key: string }> = {
+  [SystemRole.SUPER_ADMIN]: { key: 'super_admin' },
+  [SystemRole.USER]: { key: 'user' },
 };
 
-export const PROJECT_ROLE_CONFIG: Record<ProjectRole, { label: string; description: string; color: string }> = {
-  [ProjectRole.ADMIN]: { label: 'Administrador', description: 'Control total del proyecto', color: '#EF4444' },
-  [ProjectRole.MANAGER]: { label: 'Manager', description: 'Gestión de equipo y leads', color: '#F59E0B' },
-  [ProjectRole.AGENT]: { label: 'Agente', description: 'Gestión de leads asignados', color: '#3B82F6' },
-  [ProjectRole.VIEWER]: { label: 'Visualizador', description: 'Solo lectura', color: '#6B7280' },
+// Note: Display labels come from i18n (admin.roles.*)
+export const PROJECT_ROLE_CONFIG: Record<ProjectRole, { key: string; color: string }> = {
+  [ProjectRole.ADMIN]: { key: 'admin', color: '#EF4444' },
+  [ProjectRole.MANAGER]: { key: 'manager', color: '#F59E0B' },
+  [ProjectRole.AGENT]: { key: 'agent', color: '#3B82F6' },
+  [ProjectRole.VIEWER]: { key: 'viewer', color: '#6B7280' },
 };

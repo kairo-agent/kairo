@@ -178,6 +178,8 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
   const { showLoading } = useLoading();
   const locale = useLocale() as Locale;
   const t = useTranslations('common');
+  const tRoles = useTranslations('admin.roles');
+  const tSystemRoles = useTranslations('admin.systemRoles');
   const router = useRouter();
   const pathname = usePathname();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -197,15 +199,12 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
 
   // Get role display label
   const getRoleLabel = (role: string): string => {
-    const roleLabels: Record<string, string> = {
-      super_admin: 'Super Admin',
-      admin: 'Admin',
-      manager: 'Manager',
-      agent: 'Agente',
-      viewer: 'Viewer',
-      user: 'Usuario',
-    };
-    return roleLabels[role] || role;
+    // Check system roles first
+    if (role === 'super_admin' || role === 'user') {
+      return tSystemRoles(role);
+    }
+    // Project roles
+    return tRoles(role);
   };
 
   const handleLocaleChange = (newLocale: Locale) => {

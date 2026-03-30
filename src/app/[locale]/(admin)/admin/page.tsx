@@ -637,14 +637,14 @@ export default function AdminOverviewPage() {
                     'px-2 py-1 rounded text-xs font-medium',
                     user.systemRole === 'super_admin' ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                   )}>
-                    {user.systemRole === 'super_admin' ? 'Super Admin' : t(`systemRoles.${user.systemRole}`)}
+                    {t(`systemRoles.${user.systemRole}`)}
                   </span>
                 </td>
                 <td className="py-3 px-4 text-sm text-[var(--text-secondary)]">
                   {user.organizationMemberships.length > 0
                     ? user.organizationMemberships.map((m, i) => (
                         <span key={i}>
-                          {m.organization.name}{m.isOwner ? ' (Owner)' : ''}
+                          {m.organization.name}{m.isOwner ? ` (${t('users.owner')})` : ''}
                           {i < user.organizationMemberships.length - 1 ? ', ' : ''}
                         </span>
                       ))
@@ -655,7 +655,7 @@ export default function AdminOverviewPage() {
                   {user.projectMemberships.length > 0
                     ? user.projectMemberships.map((m, i) => (
                         <span key={i}>
-                          {m.project.name} ({m.role})
+                          {m.project.name} ({t(`roles.${m.role}`)})
                           {i < user.projectMemberships.length - 1 ? ', ' : ''}
                         </span>
                       ))

@@ -641,12 +641,13 @@
         "selectOrg": "Seleccionar organización",
         "selectProject": "Seleccionar proyecto"
       },
-      "confirmDelete": "¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer."
+      "confirmDelete": "¿Estás seguro de eliminar este usuario? Esta acción no se puede deshacer.",
+      "owner": "Propietario"
     },
     "roles": {
       "admin": "Administrador",
       "manager": "Manager",
-      "agent": "Agente",
+      "agent": "Asesor",
       "viewer": "Visualizador"
     },
     "systemRoles": {
