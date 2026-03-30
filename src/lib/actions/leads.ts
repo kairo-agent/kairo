@@ -1583,19 +1583,15 @@ export async function assignLead(
     }
 
     // Permission checks based on action type
-    if (targetUserId === user.id) {
-      // Self-assign: lead must be unassigned and user needs >= agent
-      if (lead.assignedUserId) {
-        return { success: false, error: 'Este lead ya está asignado a otro usuario' };
-      }
+    if (canReassignLead(effectiveRole)) {
+      // Manager+ can assign/reassign/unassign to anyone (including self)
+    } else if (targetUserId === user.id && !lead.assignedUserId) {
+      // Agent self-assign: only when lead is unassigned
       if (!canTakeUnassignedLead(effectiveRole)) {
         return { success: false, error: 'Sin permisos para tomar este lead' };
       }
     } else {
-      // Unassign (null) or reassign to different user: requires >= manager
-      if (!canReassignLead(effectiveRole)) {
-        return { success: false, error: 'Sin permisos para reasignar leads' };
-      }
+      return { success: false, error: 'Sin permisos para reasignar leads' };
     }
 
     // Fetch target user name and role for activity log
