@@ -183,7 +183,8 @@ function getDateRangeFilter(
 function buildLeadWhereClause(
   accessibleProjects: string[] | 'all_in_org',
   organizationId?: string,
-  filters?: Partial<LeadFilters>
+  filters?: Partial<LeadFilters>,
+  currentUserId?: string
 ): Prisma.LeadWhereInput {
   const where: Prisma.LeadWhereInput = {};
 
@@ -241,6 +242,17 @@ function buildLeadWhereClause(
   }
   // 'all' = no filter on archivedAt
 
+  // Assigned to filter
+  if (filters?.assignedTo && filters.assignedTo !== 'all') {
+    if (filters.assignedTo === 'unassigned') {
+      where.assignedUserId = null;
+    } else if (filters.assignedTo === 'mine' && currentUserId) {
+      where.assignedUserId = currentUserId;
+    } else if (Array.isArray(filters.assignedTo)) {
+      where.assignedUserId = { in: filters.assignedTo };
+    }
+  }
+
   return where;
 }
 
@@ -285,7 +297,7 @@ export async function getLeadsPaginatedSSR(
       };
     }
 
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id);
     const page = pagination?.page || 1;
     const limit = pagination?.limit || 25;
     const skip = (page - 1) * limit;
@@ -384,7 +396,7 @@ export async function getLeadsStatsFromDBSSR(
       return { total: 0, byStatus: {}, byTemperature: {} };
     }
 
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id);
 
     const [total, statusCounts, temperatureCounts] = await Promise.all([
       prisma.lead.count({ where }),
@@ -462,7 +474,7 @@ export async function getLeadsPaginated(
     }
 
     // Build where clause with filters
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id);
 
     // Pagination params
     const page = pagination?.page || 1;
@@ -667,7 +679,7 @@ export async function getLeadsStatsFromDB(
       return { total: 0, byStatus: {}, byTemperature: {} };
     }
 
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id);
 
     // Get counts in parallel
     const [total, statusCounts, temperatureCounts] = await Promise.all([

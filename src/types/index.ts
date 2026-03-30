@@ -299,6 +299,7 @@ export interface LeadFilters {
     end: Date | null;
   };
   archiveFilter: 'active' | 'archived' | 'all';
+  assignedTo: string[] | 'all' | 'unassigned' | 'mine';
 }
 
 export type DateRangePreset = 'today' | 'last7days' | 'last30days' | 'last90days' | 'all';

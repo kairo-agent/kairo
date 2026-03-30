@@ -590,6 +590,7 @@ const DEFAULT_FILTERS: LeadFiltersType = {
   dateRange: 'all', // Changed to 'all' since we have data from 1 year
   customDateRange: { start: null, end: null },
   archiveFilter: 'active',
+  assignedTo: 'all',
 };
 
 export default function LeadsPageClient({ initialLeads, initialPagination, initialStats }: LeadsPageClientProps) {
@@ -969,6 +970,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     // if (filters.channel !== 'all') count++;
     if (filters.type !== 'all') count++;
     if (filters.dateRange !== 'all') count++;
+    if (filters.assignedTo !== 'all') count++;
     return count;
   }, [filters]);
 
@@ -1158,6 +1160,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
           locale={locale}
           isExpanded={isFiltersExpanded}
           onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
+          projectId={selectedProject?.id}
+          currentUserId={user.id}
         />
         <FloatingFilterToggle
           isExpanded={isFiltersExpanded}

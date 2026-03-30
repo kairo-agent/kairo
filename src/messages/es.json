@@ -146,7 +146,11 @@
       "archiveFilter": "Archivados",
       "active": "Activos",
       "archived": "Archivados",
-      "archivedBadge": "Archivado"
+      "archivedBadge": "Archivado",
+      "assignedTo": "Asignado a",
+      "allUsers": "Todos",
+      "myLeads": "Mis leads",
+      "unassignedLeads": "Sin asignar"
     },
     "type": {
       "ai_agent": "Agente IA",

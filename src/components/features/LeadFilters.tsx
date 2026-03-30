@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { format } from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
-import { cn } from '@/lib/utils';
+import { cn, getInitials } from '@/lib/utils';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import {
@@ -21,6 +21,7 @@ import {
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 import { TemperatureIcon, LeadTypeIcon } from '@/components/icons/LeadIcons';
 import { DateRangeDropdown } from '@/components/ui/DateRangePicker';
+import { getProjectTeamMembers } from '@/lib/actions/leads';
 
 // ============================================
 // Types
@@ -32,6 +33,16 @@ interface LeadFiltersProps {
   locale?: 'es' | 'en';
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
+  projectId?: string;
+  currentUserId?: string;
+}
+
+// Team member type from getProjectTeamMembers
+interface TeamMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: string;
 }
 
 interface FilterChipProps {
@@ -223,6 +234,228 @@ function ActiveFilterBadge({ label, value, color, bgColor, onRemove }: ActiveFil
 }
 
 // ============================================
+// Role Badge Colors
+// ============================================
+
+const ROLE_BADGE_COLORS: Record<string, { color: string; bgColor: string }> = {
+  admin: { color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.15)' },
+  manager: { color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.15)' },
+  agent: { color: '#3B82F6', bgColor: 'rgba(59, 130, 246, 0.15)' },
+  viewer: { color: '#6B7280', bgColor: 'rgba(107, 114, 128, 0.15)' },
+};
+
+// ============================================
+// Assigned To Dropdown Component
+// ============================================
+
+interface AssignedToDropdownProps {
+  value: string[] | 'all' | 'unassigned' | 'mine';
+  onChange: (value: string[] | 'all' | 'unassigned' | 'mine') => void;
+  projectId?: string;
+  currentUserId?: string;
+  locale?: 'es' | 'en';
+}
+
+function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale = 'es' }: AssignedToDropdownProps) {
+  const t = useTranslations('leads');
+  const tAdmin = useTranslations('admin');
+  const [isOpen, setIsOpen] = useState(false);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  // Lazy load team members when dropdown opens
+  useEffect(() => {
+    if (isOpen && !hasLoaded && projectId) {
+      setIsLoading(true);
+      getProjectTeamMembers(projectId).then((result) => {
+        if (result.success && result.members) {
+          setMembers(result.members);
+        }
+        setHasLoaded(true);
+        setIsLoading(false);
+      });
+    }
+  }, [isOpen, hasLoaded, projectId]);
+
+  // Compute display label
+  const displayLabel = useMemo(() => {
+    if (value === 'all') return t('filters.allUsers');
+    if (value === 'mine') return t('filters.myLeads');
+    if (value === 'unassigned') return t('filters.unassignedLeads');
+    if (Array.isArray(value) && value.length > 0) {
+      if (value.length === 1) {
+        const member = members.find((m) => m.id === value[0]);
+        return member ? `${member.firstName} ${member.lastName}` : '1';
+      }
+      return `${value.length}`;
+    }
+    return t('filters.allUsers');
+  }, [value, members, t]);
+
+  const isActive = value !== 'all';
+
+  const handleToggleUser = (userId: string) => {
+    const currentIds = Array.isArray(value) ? value : [];
+    if (currentIds.includes(userId)) {
+      const newIds = currentIds.filter((id) => id !== userId);
+      onChange(newIds.length === 0 ? 'all' : newIds);
+    } else {
+      onChange([...currentIds, userId]);
+    }
+  };
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
+          'transition-all duration-200 ease-out',
+          'border',
+          'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]',
+          isActive
+            ? 'border-[var(--accent-primary)] text-[var(--accent-primary)] bg-[rgba(0,229,255,0.15)] scale-[1.02] shadow-sm'
+            : 'border-transparent bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+        )}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span>{displayLabel}</span>
+        <ChevronIcon isOpen={isOpen} className="w-3 h-3" />
+      </button>
+
+      {isOpen && (
+        <div
+          className={cn(
+            'absolute top-full left-0 mt-1 z-50',
+            'min-w-[220px] max-h-[300px] overflow-y-auto',
+            'bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg',
+            'py-1'
+          )}
+        >
+          {/* Quick options */}
+          <button
+            type="button"
+            onClick={() => { onChange('all'); setIsOpen(false); }}
+            className={cn(
+              'w-full text-left px-3 py-2 text-sm transition-colors',
+              'hover:bg-[var(--bg-hover)]',
+              value === 'all' ? 'text-[var(--accent-primary)] font-medium' : 'text-[var(--text-primary)]'
+            )}
+          >
+            {t('filters.allUsers')}
+          </button>
+          {currentUserId && (
+            <button
+              type="button"
+              onClick={() => { onChange('mine'); setIsOpen(false); }}
+              className={cn(
+                'w-full text-left px-3 py-2 text-sm transition-colors',
+                'hover:bg-[var(--bg-hover)]',
+                value === 'mine' ? 'text-[var(--accent-primary)] font-medium' : 'text-[var(--text-primary)]'
+              )}
+            >
+              {t('filters.myLeads')}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => { onChange('unassigned'); setIsOpen(false); }}
+            className={cn(
+              'w-full text-left px-3 py-2 text-sm transition-colors',
+              'hover:bg-[var(--bg-hover)]',
+              value === 'unassigned' ? 'text-[var(--accent-primary)] font-medium' : 'text-[var(--text-primary)]'
+            )}
+          >
+            {t('filters.unassignedLeads')}
+          </button>
+
+          {/* Separator */}
+          <div className="border-t border-[var(--border-primary)] my-1" />
+
+          {/* Team members list */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-3">
+              <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            members.map((member) => {
+              const isChecked = Array.isArray(value) && value.includes(member.id);
+              const initials = getInitials(member.firstName, member.lastName);
+              const roleBadge = ROLE_BADGE_COLORS[member.role] || ROLE_BADGE_COLORS.viewer;
+
+              return (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => handleToggleUser(member.id)}
+                  className={cn(
+                    'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors',
+                    'hover:bg-[var(--bg-hover)]',
+                    isChecked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
+                  )}
+                >
+                  {/* Checkbox */}
+                  <div
+                    className={cn(
+                      'w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors',
+                      isChecked
+                        ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]'
+                        : 'border-[var(--border-primary)]'
+                    )}
+                  >
+                    {isChecked && (
+                      <svg className="w-3 h-3 text-[var(--kairo-midnight)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+
+                  {/* Initials avatar */}
+                  <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">{initials}</span>
+                  </div>
+
+                  {/* Name */}
+                  <span className="flex-1 text-left truncate">
+                    {member.firstName} {member.lastName}
+                  </span>
+
+                  {/* Role badge */}
+                  <span
+                    className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                    style={{ color: roleBadge.color, backgroundColor: roleBadge.bgColor }}
+                  >
+                    {tAdmin(`roles.${member.role}`)}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
 // Main Component
 // ============================================
 
@@ -232,6 +465,8 @@ export function LeadFilters({
   locale = 'es',
   isExpanded = false,
   onToggleExpanded,
+  projectId,
+  currentUserId,
 }: LeadFiltersProps) {
   const t = useTranslations('leads');
   const tCommon = useTranslations('common');
@@ -348,6 +583,19 @@ export function LeadFilters({
       });
     }
 
+    if (filters.assignedTo !== 'all') {
+      let assignedValue = '';
+      if (filters.assignedTo === 'mine') assignedValue = t('filters.myLeads');
+      else if (filters.assignedTo === 'unassigned') assignedValue = t('filters.unassignedLeads');
+      else if (Array.isArray(filters.assignedTo)) assignedValue = `${filters.assignedTo.length}`;
+      active.push({
+        key: 'assignedTo',
+        label: t('filters.assignedTo'),
+        value: assignedValue,
+        onRemove: () => onFiltersChange({ ...filters, assignedTo: 'all' }),
+      });
+    }
+
     return active;
   }, [filters, t, onFiltersChange, dateLocale]);
 
@@ -369,6 +617,7 @@ export function LeadFilters({
       dateRange: 'last30days',
       customDateRange: { start: null, end: null },
       archiveFilter: 'active',
+      assignedTo: 'all',
     });
   }, [onFiltersChange]);
 
@@ -483,7 +732,7 @@ export function LeadFilters({
           'grid gap-4 transition-all duration-300 ease-out',
           'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
           isExpanded
-            ? 'opacity-100 max-h-[500px] pb-4 overflow-visible'
+            ? 'opacity-100 max-h-[600px] pb-4 overflow-visible'
             : 'opacity-0 max-h-0 pointer-events-none overflow-hidden'
         )}
       >
@@ -610,6 +859,17 @@ export function LeadFilters({
             label={t('filters.showArchived')}
             isActive={filters.archiveFilter === 'all'}
             onClick={() => onFiltersChange({ ...filters, archiveFilter: 'all' })}
+          />
+        </FilterSection>
+
+        {/* Assigned To Filter */}
+        <FilterSection title={t('filters.assignedTo')}>
+          <AssignedToDropdown
+            value={filters.assignedTo}
+            onChange={(assignedTo) => onFiltersChange({ ...filters, assignedTo })}
+            projectId={projectId}
+            currentUserId={currentUserId}
+            locale={locale}
           />
         </FilterSection>
       </div>
