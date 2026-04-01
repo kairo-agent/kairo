@@ -32,13 +32,13 @@ export const DEFAULT_FORM_CONFIG: FormConfig = {
 };
 
 export const LEAD_FIELD_MAPPINGS = [
-  { value: 'firstName', labelKey: 'settings.form.mapping.firstName' },
-  { value: 'lastName', labelKey: 'settings.form.mapping.lastName' },
-  { value: 'email', labelKey: 'settings.form.mapping.email' },
-  { value: 'phone', labelKey: 'settings.form.mapping.phone' },
-  { value: 'businessName', labelKey: 'settings.form.mapping.businessName' },
-  { value: 'position', labelKey: 'settings.form.mapping.position' },
-  { value: 'estimatedValue', labelKey: 'settings.form.mapping.estimatedValue' },
+  { value: 'firstName', labelKey: 'form.mapping.firstName' },
+  { value: 'lastName', labelKey: 'form.mapping.lastName' },
+  { value: 'email', labelKey: 'form.mapping.email' },
+  { value: 'phone', labelKey: 'form.mapping.phone' },
+  { value: 'businessName', labelKey: 'form.mapping.businessName' },
+  { value: 'position', labelKey: 'form.mapping.position' },
+  { value: 'estimatedValue', labelKey: 'form.mapping.estimatedValue' },
 ] as const;
 
 export function generateFieldKey(label: string): string {

@@ -287,6 +287,7 @@ export default function SettingsPageClient() {
   const [formConfig, setFormConfig] = useState<FormConfig>(DEFAULT_FORM_CONFIG);
   const [originalFormConfig, setOriginalFormConfig] = useState<FormConfig>(DEFAULT_FORM_CONFIG);
   const [savingForm, setSavingForm] = useState(false);
+  const [loadingForm, setLoadingForm] = useState(false);
 
   // Confirm clear rules dialog
   const [showClearRulesConfirm, setShowClearRulesConfirm] = useState(false);
@@ -431,9 +432,11 @@ export default function SettingsPageClient() {
   }, [selectedAgent, tCommon]);
 
   const loadForm = useCallback(async (agentId: string) => {
+    setLoadingForm(true);
     const config = await getFormConfig(agentId);
     setFormConfig(config);
     setOriginalFormConfig(config);
+    setLoadingForm(false);
   }, []);
 
   // Tracks the agent ID whose data was prefetched during initial load,
@@ -1004,6 +1007,7 @@ export default function SettingsPageClient() {
             config={formConfig}
             setConfig={setFormConfig}
             saving={savingForm}
+            loading={loadingForm}
             hasUnsavedChanges={hasUnsavedForm}
             onSave={handleSaveForm}
           />
@@ -2713,6 +2717,7 @@ function FormTab({
   config,
   setConfig,
   saving,
+  loading,
   hasUnsavedChanges,
   onSave,
 }: {
@@ -2720,6 +2725,7 @@ function FormTab({
   config: FormConfig;
   setConfig: React.Dispatch<React.SetStateAction<FormConfig>>;
   saving: boolean;
+  loading: boolean;
   hasUnsavedChanges: boolean;
   onSave: () => void;
 }) {
@@ -2835,9 +2841,11 @@ function FormTab({
           type="button"
           role="switch"
           aria-checked={config.isActive}
-          onClick={() => setConfig(prev => ({ ...prev, isActive: !prev.isActive }))}
+          disabled={loading}
+          onClick={() => !loading && setConfig(prev => ({ ...prev, isActive: !prev.isActive }))}
           className={cn(
             'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+            loading && 'opacity-50 cursor-not-allowed',
             config.isActive ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'
           )}
         >
