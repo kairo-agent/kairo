@@ -2828,7 +2828,7 @@ function FormTab({
             {t('form.enabled')}
           </p>
           <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-            {t('form.enabledHelp')}
+            {t('form.enabledDesc')}
           </p>
         </div>
         <button
