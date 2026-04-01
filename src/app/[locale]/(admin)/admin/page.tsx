@@ -259,14 +259,14 @@ export default function AdminOverviewPage() {
     { label: t('overview.totalOrganizations'), value: stats.totalOrganizations, icon: <OrganizationIcon />, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
     { label: t('overview.totalProjects'), value: stats.totalProjects, icon: <ProjectIcon />, color: 'text-green-500', bgColor: 'bg-green-500/10' },
     { label: t('overview.totalUsers'), value: stats.totalUsers, icon: <UsersIcon />, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
-    { label: t('overview.totalLeads'), value: stats.totalLeads, icon: <LeadsIcon />, color: 'text-[var(--kairo-cyan)]', bgColor: 'bg-[var(--kairo-cyan)]/10' },
+    { label: t('overview.totalLeads'), value: stats.totalLeads, icon: <LeadsIcon />, color: 'text-[var(--accent-text)]', bgColor: 'bg-[var(--kairo-cyan)]/10' },
   ];
 
   // View type buttons
-  const viewTypes: { type: AdminViewType; label: string }[] = [
-    { type: 'organizations', label: t('nav.organizations') },
-    { type: 'projects', label: t('nav.projects') },
-    { type: 'users', label: t('nav.users') },
+  const viewTypes: { type: AdminViewType; label: string; shortLabel: string }[] = [
+    { type: 'organizations', label: t('nav.organizations'), shortLabel: t('nav.organizationsShort') },
+    { type: 'projects', label: t('nav.projects'), shortLabel: t('nav.projects') },
+    { type: 'users', label: t('nav.users'), shortLabel: t('nav.users') },
   ];
 
   // Handle join organization
@@ -483,7 +483,7 @@ export default function AdminOverviewPage() {
                       <button
                         onClick={() => handleJoinOrg(org.id)}
                         disabled={joiningId === org.id}
-                        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)] hover:bg-[var(--kairo-cyan)]/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)] hover:bg-[var(--kairo-cyan)]/20 transition-colors disabled:opacity-50"
                       >
                         <JoinIcon />
                         {joiningId === org.id ? '...' : t('actions.join')}
@@ -567,7 +567,7 @@ export default function AdminOverviewPage() {
                       <button
                         onClick={() => handleJoinProject(project.id)}
                         disabled={joiningId === project.id}
-                        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)] hover:bg-[var(--kairo-cyan)]/20 transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)] hover:bg-[var(--kairo-cyan)]/20 transition-colors disabled:opacity-50"
                       >
                         <JoinIcon />
                         {joiningId === project.id ? '...' : t('actions.join')}
@@ -575,7 +575,7 @@ export default function AdminOverviewPage() {
                     )}
                     <button
                       onClick={() => handleOpenProjectSettings(project)}
-                      className="p-1.5 rounded hover:bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]"
+                      className="p-1.5 rounded hover:bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]"
                       title={t('actions.configure')}
                     >
                       <BotIcon />
@@ -635,7 +635,7 @@ export default function AdminOverviewPage() {
                 <td className="py-3 px-4">
                   <span className={cn(
                     'px-2 py-1 rounded text-xs font-medium',
-                    user.systemRole === 'super_admin' ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
+                    user.systemRole === 'super_admin' ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
                   )}>
                     {t(`systemRoles.${user.systemRole}`)}
                   </span>
@@ -705,16 +705,16 @@ export default function AdminOverviewPage() {
       </h1>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {statCards.map((stat, index) => (
-          <Card key={index} className="p-4">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${stat.bgColor} ${stat.color}`}>
+          <Card key={index} className="p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className={`p-2 sm:p-3 rounded-lg ${stat.bgColor} ${stat.color}`}>
                 {stat.icon}
               </div>
               <div>
-                <p className="text-sm text-[var(--text-secondary)]">{stat.label}</p>
-                <p className="text-2xl font-bold text-[var(--text-primary)]">{stat.value}</p>
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)] truncate">{stat.label}</p>
+                <p className="text-xl sm:text-2xl font-bold text-[var(--text-primary)]">{stat.value}</p>
               </div>
             </div>
           </Card>
@@ -733,11 +733,12 @@ export default function AdminOverviewPage() {
                 className={cn(
                   'px-4 py-2 text-sm font-medium transition-colors',
                   viewType === vt.type
-                    ? 'bg-[var(--kairo-cyan)] text-white'
+                    ? 'bg-[var(--kairo-cyan)] text-[var(--kairo-midnight)]'
                     : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                 )}
               >
-                {vt.label}
+                <span className="sm:hidden">{vt.shortLabel}</span>
+                <span className="hidden sm:inline">{vt.label}</span>
               </button>
             ))}
           </div>
@@ -752,7 +753,7 @@ export default function AdminOverviewPage() {
               className={cn(
                 'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors min-w-[160px]',
                 organizationId
-                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                   : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
               )}
             >
@@ -780,7 +781,7 @@ export default function AdminOverviewPage() {
                     className={cn(
                       'w-full px-3 py-2 text-left text-sm transition-colors',
                       !organizationId
-                        ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                        ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                         : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                     )}
                   >
@@ -796,7 +797,7 @@ export default function AdminOverviewPage() {
                       className={cn(
                         'w-full px-3 py-2 text-left text-sm transition-colors',
                         organizationId === org.id
-                          ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                          ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                           : 'text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
                       )}
                     >
@@ -819,7 +820,7 @@ export default function AdminOverviewPage() {
                 className={cn(
                   'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors min-w-[160px]',
                   projectId
-                    ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                    ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                     : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                 )}
               >
@@ -847,7 +848,7 @@ export default function AdminOverviewPage() {
                       className={cn(
                         'w-full px-3 py-2 text-left text-sm transition-colors',
                         !projectId
-                          ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                          ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                       )}
                     >
@@ -863,7 +864,7 @@ export default function AdminOverviewPage() {
                         className={cn(
                           'w-full px-3 py-2 text-left text-sm transition-colors',
                           projectId === proj.id
-                            ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                            ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                             : 'text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
                         )}
                       >
@@ -894,24 +895,30 @@ export default function AdminOverviewPage() {
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={handleCreateOrg}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 text-sm font-medium hover:bg-blue-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg bg-blue-500/10 text-blue-500 text-sm font-medium hover:bg-blue-500/20 transition-colors"
+              title={t('organizations.new')}
             >
               <PlusIcon />
-              {t('organizations.new').replace('Nueva ', '')}
+              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+              <span className="hidden sm:inline">{t('organizations.new').replace('Nueva ', '')}</span>
             </button>
             <button
               onClick={handleCreateProject}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-green-500/10 text-green-500 text-sm font-medium hover:bg-green-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg bg-green-500/10 text-green-500 text-sm font-medium hover:bg-green-500/20 transition-colors"
+              title={t('projects.new')}
             >
               <PlusIcon />
-              {t('projects.new').replace('Nuevo ', '')}
+              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+              <span className="hidden sm:inline">{t('projects.new').replace('Nuevo ', '')}</span>
             </button>
             <button
               onClick={handleCreateUser}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-purple-500/10 text-purple-500 text-sm font-medium hover:bg-purple-500/20 transition-colors"
+              className="flex items-center gap-1.5 px-2 sm:px-3 py-2 rounded-lg bg-purple-500/10 text-purple-500 text-sm font-medium hover:bg-purple-500/20 transition-colors"
+              title={t('users.new')}
             >
               <PlusIcon />
-              {t('users.new').replace('Nuevo ', '')}
+              <svg className="w-4 h-4 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" /></svg>
+              <span className="hidden sm:inline">{t('users.new').replace('Nuevo ', '')}</span>
             </button>
           </div>
         </div>

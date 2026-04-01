@@ -74,7 +74,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
               height={32}
               className="h-8 w-auto"
             />
-            <span className="text-xs font-medium text-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 px-2 py-0.5 rounded">
+            <span className="text-xs font-medium text-[var(--accent-text)] bg-[var(--kairo-cyan)]/10 px-2 py-0.5 rounded">
               ADMIN
             </span>
           </Link>
@@ -88,7 +88,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             className={cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
               isActive('/admin') && !isActive('/admin/global-rules')
-                ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
             )}
           >
@@ -101,7 +101,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             className={cn(
               'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
               isActive('/admin/global-rules')
-                ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                 : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
             )}
           >

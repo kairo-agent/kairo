@@ -145,7 +145,7 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
     <div className="absolute right-0 top-full mt-1 w-56 bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg overflow-hidden z-30">
       {isLoadingMembers ? (
         <div className="flex justify-center py-4">
-          <SpinnerIcon className="w-5 h-5 text-[var(--accent-primary)]" />
+          <SpinnerIcon className="w-5 h-5 text-[var(--accent-text)]" />
         </div>
       ) : (
         <div className="py-1 max-h-48 overflow-y-auto">
@@ -157,7 +157,7 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
                 onClick={() => handleAssign(member.id)}
                 className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-[var(--bg-tertiary)] transition-colors"
               >
-                <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center text-[10px] font-bold text-[var(--accent-primary)]">
+                <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)]/20 flex items-center justify-center text-[10px] font-bold text-[var(--accent-text)]">
                   {getInitials(member.firstName, member.lastName)}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -219,7 +219,7 @@ export function LeadAssignment({ lead, onAssignmentChanged }: LeadAssignmentProp
       {/* Actions */}
       <div className="flex items-center gap-2 flex-shrink-0">
         {isLoading ? (
-          <SpinnerIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+          <SpinnerIcon className="w-4 h-4 text-[var(--accent-text)]" />
         ) : canReassign ? (
           /* Admin/Manager: always show selector dropdown (assign or reassign) */
           <div className="relative" ref={dropdownRef}>

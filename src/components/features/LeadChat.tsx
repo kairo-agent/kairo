@@ -19,6 +19,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { cn, formatRelativeTime } from '@/lib/utils';
+import AudioPlayer from '@/components/ui/AudioPlayer';
 import {
   getLeadConversation,
   sendMessage,
@@ -29,6 +30,7 @@ import {
   type MessageForChat,
   type PaginatedConversation,
 } from '@/lib/actions/messages';
+import { useWorkspaceOptional } from '@/contexts/WorkspaceContext';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useRealtimeMessages, type RealtimeMessage, type MessageStatusUpdate } from '@/hooks/useRealtimeMessages';
 import ChatInput, { type ChatAttachment, type ChatInputRef } from './ChatInput';
@@ -163,6 +165,8 @@ const LiveIcon = () => (
 export function LeadChat({ leadId, leadName, isOpen = true, disabled = false }: LeadChatProps) {
   const t = useTranslations('leads');
   const tCommon = useTranslations('common');
+  const workspace = useWorkspaceOptional();
+  const orgTimezone = workspace?.selectedOrganization?.defaultTimezone;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
@@ -401,6 +405,7 @@ export function LeadChat({ leadId, leadName, isOpen = true, disabled = false }: 
                 isRead: update.isRead,
                 readAt: update.readAt ? new Date(update.readAt) : null,
                 whatsappMsgId: update.whatsappMsgId,
+                ...(update.metadata ? { metadata: update.metadata } : {}),
               };
             }
             return msg;
@@ -708,7 +713,7 @@ export function LeadChat({ leadId, leadName, isOpen = true, disabled = false }: 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8">
-        <SpinnerIcon className="w-6 h-6 text-[var(--accent-primary)]" />
+        <SpinnerIcon className="w-6 h-6 text-[var(--accent-text)]" />
       </div>
     );
   }
@@ -878,29 +883,127 @@ export function LeadChat({ leadId, leadName, isOpen = true, disabled = false }: 
                       </div>
                     );
                   })()}
-                  {/* Audio message: show badge + transcription */}
-                  {(message.metadata as Record<string, unknown>)?.messageType === 'audio' ? (
-                    <div>
-                      <span className={cn(
-                        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium mb-1',
-                        senderInfo.isRight
-                          ? 'bg-[var(--kairo-midnight)]/10 text-[var(--kairo-midnight)]/70'
-                          : 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
-                      )}>
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                        Audio
-                      </span>
-                      <p className="text-sm whitespace-pre-wrap break-words">
-                        {(message.metadata as Record<string, unknown>)?.transcription
-                          ? formatMessageText(String((message.metadata as Record<string, unknown>).transcription))
-                          : formatMessageText(message.content)}
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-sm whitespace-pre-wrap break-words">{formatMessageText(message.content)}</p>
-                  )}
+                  {/* Incoming media rendering (image/video/audio/document) */}
+                  {(() => {
+                    const meta = message.metadata as Record<string, unknown> | null;
+                    const msgType = meta?.messageType as string | undefined;
+                    const downloadedUrl = meta?.downloadedUrl as string | undefined;
+                    const downloadedAt = meta?.downloadedAt as string | undefined;
+                    const transcription = meta?.transcription as string | undefined;
+
+                    // If media message has no downloadedUrl yet, check if it's still downloading (< 2 min old)
+                    const isMediaMsg = msgType && ['image', 'sticker', 'video', 'audio', 'document'].includes(msgType);
+                    const isDownloading = isMediaMsg && !downloadedUrl && meta?.mediaId &&
+                      (Date.now() - new Date(message.createdAt).getTime()) < 2 * 60 * 1000;
+
+                    const downloadingSpinner = (
+                      <div className="flex items-center gap-2 py-2 opacity-60">
+                        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs">Descargando...</span>
+                      </div>
+                    );
+
+                    // Expiry badge: available until downloadedAt + 5 days
+                    const expiryBadge = downloadedUrl && downloadedAt ? (() => {
+                      const expiry = new Date(new Date(downloadedAt).getTime() + 5 * 24 * 60 * 60 * 1000);
+                      const label = expiry.toLocaleDateString(undefined, { day: '2-digit', month: 'short', ...(orgTimezone ? { timeZone: orgTimezone } : {}) });
+                      return (
+                        <span className="inline-block text-[9px] opacity-40 mt-1">Disponible hasta {label}</span>
+                      );
+                    })() : null;
+
+                    // Audio messages: player + transcription
+                    if (msgType === 'audio') {
+                      return (
+                        <div>
+                          {downloadedUrl ? (
+                            <AudioPlayer src={downloadedUrl} mimeType={String(meta?.mimeType || 'audio/ogg')} onError={() => {}} />
+                          ) : !transcription && (
+                            isDownloading ? downloadingSpinner : <p className="text-sm italic opacity-50 mb-1">Audio expirado</p>
+                          )}
+                          <span className={cn(
+                            'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium mb-1',
+                            senderInfo.isRight
+                              ? 'bg-[var(--kairo-midnight)]/10 text-[var(--kairo-midnight)]/70'
+                              : 'bg-[var(--accent-primary)]/10 text-[var(--accent-text)]'
+                          )}>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                            </svg>
+                            {transcription ? 'Transcripcion' : 'Audio'}
+                          </span>
+                          <p className="text-sm whitespace-pre-wrap break-words">
+                            {transcription
+                              ? formatMessageText(transcription)
+                              : formatMessageText(message.content)}
+                          </p>
+                          {expiryBadge}
+                        </div>
+                      );
+                    }
+
+                    // Image messages
+                    if (msgType === 'image' || msgType === 'sticker') {
+                      const caption = message.content && !message.content.startsWith('[') ? message.content : null;
+                      return (
+                        <div>
+                          {downloadedUrl ? (
+                            <a href={downloadedUrl} target="_blank" rel="noopener noreferrer" className="block">
+                              <img src={downloadedUrl} alt="Media" className="rounded-lg max-w-[240px] max-h-[240px] object-cover cursor-pointer hover:opacity-90 transition-opacity" loading="lazy"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-sm italic opacity-50">Imagen expirada</span>'; }} />
+                            </a>
+                          ) : (
+                            isDownloading ? downloadingSpinner : <p className="text-sm italic opacity-50">Imagen expirada</p>
+                          )}
+                          {caption && <p className="text-sm whitespace-pre-wrap break-words mt-1">{formatMessageText(caption)}</p>}
+                          {expiryBadge}
+                        </div>
+                      );
+                    }
+
+                    // Video messages
+                    if (msgType === 'video') {
+                      const caption = message.content && !message.content.startsWith('[') ? message.content : null;
+                      return (
+                        <div>
+                          {downloadedUrl ? (
+                            <video controls className="rounded-lg max-w-[280px] max-h-[280px]" preload="metadata"
+                              onError={(e) => { (e.target as HTMLVideoElement).style.display = 'none'; const span = document.createElement('span'); span.className = 'text-sm italic opacity-50'; span.textContent = 'Video expirado'; (e.target as HTMLVideoElement).parentElement!.insertBefore(span, e.target as HTMLVideoElement); }}>
+                              <source src={downloadedUrl} type={String(meta?.mimeType || 'video/mp4')} />
+                            </video>
+                          ) : (
+                            isDownloading ? downloadingSpinner : <p className="text-sm italic opacity-50">Video expirado</p>
+                          )}
+                          {caption && <p className="text-sm whitespace-pre-wrap break-words mt-1">{formatMessageText(caption)}</p>}
+                          {expiryBadge}
+                        </div>
+                      );
+                    }
+
+                    // Document messages
+                    if (msgType === 'document') {
+                      const filename = meta?.filename as string || 'Documento';
+                      return (
+                        <div>
+                          {downloadedUrl ? (
+                            <a href={downloadedUrl} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-black/10 hover:bg-black/15 transition-colors max-w-[260px]">
+                              <svg className="w-5 h-5 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                              </svg>
+                              <span className="text-sm truncate">{filename}</span>
+                            </a>
+                          ) : (
+                            isDownloading ? downloadingSpinner : <p className="text-sm italic opacity-50">Archivo expirado</p>
+                          )}
+                          {expiryBadge}
+                        </div>
+                      );
+                    }
+
+                    // Default: plain text
+                    return <p className="text-sm whitespace-pre-wrap break-words">{formatMessageText(message.content)}</p>;
+                  })()}
                   {/* RAG/other media AFTER text (position: 'after' or no position for old messages) */}
                   {(() => {
                     const meta = message.metadata as Record<string, unknown> | null;

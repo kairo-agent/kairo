@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@keyframes pwa-slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
 /* ============================================
    KAIRO - Global Styles
    Based on Brandbook v1.0
@@ -36,6 +41,7 @@
   --accent-primary: #00E5FF;
   --accent-primary-hover: #00CCE5;
   --accent-primary-light: rgba(0, 229, 255, 0.1);
+  --accent-text: #0E7490;
 
   /* Status Colors */
   --status-new: #3B82F6;
@@ -89,6 +95,8 @@
 
   --border-primary: #374151;
   --border-secondary: #4B5563;
+
+  --accent-text: #00E5FF;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);

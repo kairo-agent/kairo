@@ -493,7 +493,7 @@ function LoginPageContent() {
               <div className="flex justify-end">
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-[var(--kairo-cyan)] hover:text-cyan-300 transition-colors font-medium"
+                  className="text-sm text-[var(--accent-text)] hover:text-cyan-300 transition-colors font-medium"
                 >
                   {t('forgotPassword')}
                 </Link>
@@ -531,7 +531,7 @@ function LoginPageContent() {
               {t('noAccount')}{' '}
               <Link
                 href="/register"
-                className="text-[var(--kairo-cyan)] hover:text-cyan-300 transition-colors font-medium"
+                className="text-[var(--accent-text)] hover:text-cyan-300 transition-colors font-medium"
               >
                 {t('createAccount')}
               </Link>

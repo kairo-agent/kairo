@@ -109,7 +109,7 @@ export function DateRangePicker({
       <div className="px-4 py-3 border-b border-[var(--border-primary)] bg-[var(--bg-secondary)]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CalendarIcon className="text-[var(--accent-primary)]" />
+            <CalendarIcon className="text-[var(--accent-text)]" />
             <span className="text-sm font-medium text-[var(--text-primary)]">
               {getDisplayText()}
             </span>
@@ -429,7 +429,7 @@ export function DateRangeDropdown({
           'border border-transparent',
           'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]',
           isActive || isOpen
-            ? 'scale-[1.02] shadow-sm bg-[rgba(0,229,255,0.15)] text-[var(--accent-primary)] border-[var(--accent-primary)]'
+            ? 'scale-[1.02] shadow-sm bg-[rgba(0,229,255,0.15)] text-[var(--accent-text)] border-[var(--accent-primary)]'
             : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         )}
       >

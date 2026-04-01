@@ -330,7 +330,7 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
           'border',
           'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]',
           isActive
-            ? 'border-[var(--accent-primary)] text-[var(--accent-primary)] bg-[rgba(0,229,255,0.15)] scale-[1.02] shadow-sm'
+            ? 'border-[var(--accent-primary)] text-[var(--accent-text)] bg-[rgba(0,229,255,0.15)] scale-[1.02] shadow-sm'
             : 'border-transparent bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         )}
       >
@@ -357,7 +357,7 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
             className={cn(
               'w-full text-left px-3 py-2 text-sm transition-colors',
               'hover:bg-[var(--bg-hover)]',
-              value === 'all' ? 'text-[var(--accent-primary)] font-medium' : 'text-[var(--text-primary)]'
+              value === 'all' ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
             )}
           >
             {t('filters.allUsers')}
@@ -369,7 +369,7 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
               className={cn(
                 'w-full text-left px-3 py-2 text-sm transition-colors',
                 'hover:bg-[var(--bg-hover)]',
-                value === 'mine' ? 'text-[var(--accent-primary)] font-medium' : 'text-[var(--text-primary)]'
+                value === 'mine' ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
               )}
             >
               {t('filters.myLeads')}
@@ -381,7 +381,7 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
             className={cn(
               'w-full text-left px-3 py-2 text-sm transition-colors',
               'hover:bg-[var(--bg-hover)]',
-              value === 'unassigned' ? 'text-[var(--accent-primary)] font-medium' : 'text-[var(--text-primary)]'
+              value === 'unassigned' ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
             )}
           >
             {t('filters.unassignedLeads')}

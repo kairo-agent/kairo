@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
@@ -11,6 +11,12 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
+
 export const metadata: Metadata = {
   title: {
     default: "KAIRO - Gestion de Leads con IA",
@@ -20,7 +26,13 @@ export const metadata: Metadata = {
   keywords: ["leads", "CRM", "IA", "ventas", "automatizacion"],
   authors: [{ name: "KAIRO" }],
   icons: {
-    icon: "/images/logo-main.png",
+    icon: "/images/favicon.svg",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'KAIRO',
   },
 };
 

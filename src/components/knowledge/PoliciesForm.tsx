@@ -133,7 +133,7 @@ export function PoliciesForm({
         <button
           type="button"
           onClick={() => setShowPresets(!showPresets)}
-          className="text-sm font-medium text-[var(--accent-primary)] hover:underline transition-colors"
+          className="text-sm font-medium text-[var(--accent-text)] hover:underline transition-colors"
         >
           {showPresets ? '- Ocultar presets' : '+ Mostrar presets'}
         </button>
@@ -284,7 +284,7 @@ export function PoliciesForm({
         <button
           type="button"
           onClick={() => addItem()}
-          className="w-full text-sm px-3 py-2.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
+          className="w-full text-sm px-3 py-2.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)] transition-colors"
         >
           + {labels.addPolicy}
         </button>

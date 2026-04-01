@@ -476,7 +476,7 @@ export default function UserModal({
               <button
                 type="button"
                 onClick={handleGeneratePassword}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-[var(--kairo-cyan)]/30 text-[var(--kairo-cyan)] hover:bg-[var(--kairo-cyan)]/10 transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md border border-[var(--kairo-cyan)]/30 text-[var(--accent-text)] hover:bg-[var(--kairo-cyan)]/10 transition-colors cursor-pointer"
               >
                 <RefreshIcon className="h-3.5 w-3.5" />
                 {t('password.generate')}
@@ -608,7 +608,7 @@ export default function UserModal({
                     id="isOrgOwner"
                     checked={formData.isOrgOwner}
                     onChange={(e) => setFormData(prev => ({ ...prev, isOrgOwner: e.target.checked }))}
-                    className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--kairo-cyan)] focus:ring-[var(--kairo-cyan)]"
+                    className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--accent-text)] focus:ring-[var(--kairo-cyan)]"
                   />
                   <label htmlFor="isOrgOwner" className="text-sm text-[var(--text-primary)]">
                     Es Owner de la organización
@@ -661,7 +661,7 @@ export default function UserModal({
               id="isActive"
               checked={formData.isActive}
               onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-              className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--kairo-cyan)] focus:ring-[var(--kairo-cyan)]"
+              className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--accent-text)] focus:ring-[var(--kairo-cyan)]"
             />
             <label htmlFor="isActive" className="text-sm text-[var(--text-primary)]">
               {t('active')}

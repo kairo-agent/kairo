@@ -7,6 +7,7 @@ export interface WorkspaceOrganization {
   id: string;
   name: string;
   slug: string;
+  defaultTimezone: string;
 }
 
 export interface WorkspaceProject {

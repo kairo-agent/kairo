@@ -143,10 +143,10 @@
       "moreFilters": "More filters",
       "lessFilters": "Less filters",
       "showArchived": "Show all",
-      "archiveFilter": "Archived",
+      "archiveFilter": "Discarded",
       "active": "Active",
-      "archived": "Archived",
-      "archivedBadge": "Archived",
+      "archived": "Discarded",
+      "archivedBadge": "Discarded",
       "assignedTo": "Assigned to",
       "allUsers": "All",
       "myLeads": "My leads",
@@ -295,15 +295,15 @@
       "assignAgent": "Assign agent",
       "schedule": "Schedule",
       "scheduleFollowUp": "Schedule follow-up",
-      "archiveLead": "Archive lead",
-      "unarchiveLead": "Unarchive lead",
-      "confirmArchive": "Archive this lead?",
-      "confirmArchiveMessage": "The lead will be hidden from the active view but will keep its current status. You can unarchive it at any time.",
-      "confirmUnarchive": "Unarchive this lead?",
-      "confirmUnarchiveMessage": "The lead will reappear in the active view with its original status.",
-      "archiveSuccess": "Lead archived successfully",
-      "unarchiveSuccess": "Lead unarchived successfully",
-      "archiveError": "Error archiving lead",
+      "archiveLead": "Discard lead",
+      "unarchiveLead": "Recover lead",
+      "confirmArchive": "Discard this lead?",
+      "confirmArchiveMessage": "The lead will be discarded and will stop generating notifications or AI responses. You can recover it at any time.",
+      "confirmUnarchive": "Recover this lead?",
+      "confirmUnarchiveMessage": "The lead will return to the active view and notifications and AI will be reactivated.",
+      "archiveSuccess": "Lead discarded successfully",
+      "unarchiveSuccess": "Lead recovered successfully",
+      "archiveError": "Error discarding lead",
       "cancel": "Cancel"
     },
     "followUp": {
@@ -369,7 +369,7 @@
       "closeRate": "Close rate",
       "inHumanMode": "In human mode",
       "activeAgents": "Active agents",
-      "archivedLeads": "Archived leads"
+      "archivedLeads": "Discarded leads"
     },
     "dateRange": {
       "today": "Today",
@@ -412,7 +412,18 @@
       "advertising": "Advertising",
       "event": "Event",
       "other": "Other"
+    },
+    "calculator": {
+      "title": "Cost per lead",
+      "totalLeads": "Total leads",
+      "costPerLead": "Cost per lead"
     }
+  },
+  "pwa": {
+    "subtitle": "Install the app for quick access",
+    "install": "Install app",
+    "understood": "Got it",
+    "iosInstructions": "Tap the Share button and then \"Add to Home Screen\""
   },
   "workspace": {
     "organization": "Organization",
@@ -529,6 +540,7 @@
     "nav": {
       "overview": "Overview",
       "organizations": "Organizations",
+      "organizationsShort": "Orgs.",
       "projects": "Projects",
       "users": "Users",
       "globalRules": "Global Rules",
@@ -560,10 +572,10 @@
     },
     "overview": {
       "title": "System Overview",
-      "totalOrganizations": "Total Organizations",
-      "totalProjects": "Total Projects",
-      "totalUsers": "Total Users",
-      "totalLeads": "Total Leads",
+      "totalOrganizations": "Orgs.",
+      "totalProjects": "Projects",
+      "totalUsers": "Users",
+      "totalLeads": "Leads",
       "recentActivity": "Recent Activity"
     },
     "organizations": {

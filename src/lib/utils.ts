@@ -20,30 +20,34 @@ export function cn(...inputs: ClassValue[]): string {
 
 /**
  * Format time portion as "3:45 PM" (12h format, es-PE)
+ * @param timezone - Optional IANA timezone (e.g., 'America/Lima'). If omitted, uses browser local time.
  */
-function formatTime12h(date: Date): string {
+function formatTime12h(date: Date, timezone?: string): string {
   return date.toLocaleTimeString('es-PE', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    ...(timezone ? { timeZone: timezone } : {}),
   }).toUpperCase(); // "3:45 PM"
 }
 
 /**
  * Format date to localized string (includes time by default)
  * Example: "14 mar. 2026 3:45 PM"
+ * @param timezone - Optional IANA timezone. If omitted, uses browser local time.
  */
-export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
+export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions, timezone?: string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const datePart = dateObj.toLocaleDateString('es-PE', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     ...options,
+    ...(timezone ? { timeZone: timezone } : {}),
   });
   // If custom options are passed, don't append time (caller controls format)
   if (options) return datePart;
-  return `${datePart} ${formatTime12h(dateObj)}`;
+  return `${datePart} ${formatTime12h(dateObj, timezone)}`;
 }
 
 /**
@@ -52,25 +56,35 @@ export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOpt
  * - Yesterday: "Ayer 3:45 PM"
  * - ≤7 days: "hace 2 d 3:45 PM"
  * - >7 days: "14 mar. 2026 3:45 PM"
+ * @param timezone - Optional IANA timezone. If omitted, uses browser local time.
  */
-export function formatRelativeTime(date: Date | string): string {
+export function formatRelativeTime(date: Date | string, timezone?: string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
   const now = new Date();
   const diffInMs = now.getTime() - dateObj.getTime();
   const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-  const time = formatTime12h(dateObj);
+  const time = formatTime12h(dateObj, timezone);
 
-  // Check if same calendar day (today)
-  const isToday = dateObj.toDateString() === now.toDateString();
-  if (isToday) {
-    return `Hoy ${time}`;
-  }
+  if (timezone) {
+    // Compare calendar dates in the target timezone (YYYY-MM-DD)
+    const fmt = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: timezone });
+    const dateStr = fmt(dateObj);
+    const todayStr = fmt(now);
+    const yesterday = new Date(now.getTime() - 86400000);
+    const yesterdayStr = fmt(yesterday);
 
-  // Check if yesterday
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (dateObj.toDateString() === yesterday.toDateString()) {
-    return `Ayer ${time}`;
+    if (dateStr === todayStr) return `Hoy ${time}`;
+    if (dateStr === yesterdayStr) return `Ayer ${time}`;
+  } else {
+    // Browser-local logic (existing behavior)
+    if (dateObj.toDateString() === now.toDateString()) {
+      return `Hoy ${time}`;
+    }
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (dateObj.toDateString() === yesterday.toDateString()) {
+      return `Ayer ${time}`;
+    }
   }
 
   // ≤7 days: relative format with time
@@ -79,7 +93,7 @@ export function formatRelativeTime(date: Date | string): string {
   }
 
   // >7 days: absolute date format (already includes time)
-  return formatDate(dateObj);
+  return formatDate(dateObj, undefined, timezone);
 }
 
 /**

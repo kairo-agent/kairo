@@ -18,6 +18,7 @@ import { createClient } from '@/lib/supabase/server';
 import { buildSystemPrompt } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
+import { getEffectiveTimezone } from '@/lib/timezone';
 import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
 
@@ -46,6 +47,7 @@ export interface AIProcessParams {
   messageCount: number;
   summaryThreshold: number;
   leadSummary: string | null;
+  timezone?: string;
 }
 
 interface PipelineStep {
@@ -101,6 +103,8 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
   try {
     // --- Step 1: Audio transcription (conditional) ---
     let userMessage = params.message;
+    let imageUrl: string | null = null;
+
     if (params.messageType === 'audio' && params.mediaId) {
       const stepStart = Date.now();
       const transcription = await transcribeAudio(params.mediaId, projectId);
@@ -108,6 +112,47 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
         userMessage = transcription;
       }
       steps.push({ name: 'audio_transcribe', duration: Date.now() - stepStart });
+    }
+
+    // --- Step 1b: Image vision - get image URL for GPT ---
+    if (params.messageType === 'image' && params.mediaId) {
+      // Try downloaded URL first (fastest)
+      const imgMsg = await prisma.message.findFirst({
+        where: { conversationId, metadata: { path: ['mediaId'], equals: params.mediaId } },
+        select: { metadata: true },
+      });
+      const meta = imgMsg?.metadata as Record<string, unknown> | null;
+      if (meta?.downloadedUrl) {
+        imageUrl = String(meta.downloadedUrl);
+      } else {
+        // Fallback: get temporary URL from WhatsApp API directly
+        try {
+          const accessToken = await getProjectSecret(projectId, 'whatsapp_access_token');
+          if (accessToken) {
+            const mediaRes = await fetch(`https://graph.facebook.com/v21.0/${params.mediaId}`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            });
+            if (mediaRes.ok) {
+              const mediaInfo = await mediaRes.json();
+              if (mediaInfo.url) {
+                // Download image to buffer and convert to base64 data URL for GPT
+                const imgRes = await fetch(mediaInfo.url, {
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                });
+                if (imgRes.ok) {
+                  const buffer = await imgRes.arrayBuffer();
+                  const base64 = Buffer.from(buffer).toString('base64');
+                  const mime = mediaInfo.mime_type || 'image/jpeg';
+                  imageUrl = `data:${mime};base64,${base64}`;
+                  console.log(`[AI Pipeline] Image fetched from WhatsApp API (${buffer.byteLength} bytes)`);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error('[AI Pipeline] Failed to fetch image from WhatsApp:', err);
+        }
+      }
     }
 
     // --- Step 2: RAG search (with context-enriched query) ---
@@ -140,13 +185,14 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     }
 
     // --- Step 3: Build system prompt ---
+    const effectiveTimezone = getEffectiveTimezone(params.timezone);
     const currentDate = new Date().toLocaleDateString('es-PE', {
       weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-      timeZone: 'America/Lima',
+      timeZone: effectiveTimezone,
     });
     const currentTime = new Date().toLocaleTimeString('es-PE', {
       hour: '2-digit', minute: '2-digit',
-      timeZone: 'America/Lima',
+      timeZone: effectiveTimezone,
     });
 
     const systemPrompt = buildSystemPrompt({
@@ -185,7 +231,12 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userMessage.slice(0, 4096) },
+            imageUrl
+              ? { role: 'user' as const, content: [
+                  { type: 'text' as const, text: (userMessage || 'El usuario envió esta imagen.').slice(0, 4096) },
+                  { type: 'image_url' as const, image_url: { url: imageUrl, detail: 'low' as const } },
+                ] }
+              : { role: 'user' as const, content: userMessage.slice(0, 4096) },
           ],
           temperature: 0.7,
           max_tokens: 500,
@@ -281,21 +332,29 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     let previousTemperature: string | null = null;
 
     if (suggestedTemperature) {
-      // Fetch current temperature to detect HOT transition
-      if (suggestedTemperature === 'hot') {
-        const currentLead = await prisma.lead.findUnique({
-          where: { id: leadId },
-          select: { temperature: true },
-        });
-        previousTemperature = currentLead?.temperature ?? null;
-      }
+      // Guard: only update temperature after the lead has sent at least 3 messages
+      // (need real back-and-forth: lead asks → AI responds → lead answers AI's questions)
+      const leadMessageCount = await prisma.message.count({
+        where: { conversationId, sender: 'lead' },
+      });
 
-      leadUpdates.push(
-        prisma.lead.update({
-          where: { id: leadId },
-          data: { temperature: suggestedTemperature },
-        })
-      );
+      if (leadMessageCount >= 3) {
+        // Fetch current temperature to detect HOT transition
+        if (suggestedTemperature === 'hot') {
+          const currentLead = await prisma.lead.findUnique({
+            where: { id: leadId },
+            select: { temperature: true },
+          });
+          previousTemperature = currentLead?.temperature ?? null;
+        }
+
+        leadUpdates.push(
+          prisma.lead.update({
+            where: { id: leadId },
+            data: { temperature: suggestedTemperature },
+          })
+        );
+      }
     }
 
     if (suggestedSummary && suggestedSummary.trim().length > 0) {

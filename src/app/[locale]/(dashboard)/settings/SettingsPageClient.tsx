@@ -795,12 +795,12 @@ export default function SettingsPageClient() {
     descKey: string;
     modal: KnowledgeModal;
   }> = [
-    { key: 'business_hours', icon: <ClockIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.businessHours', descKey: 'knowledge.businessHoursDesc', modal: 'business_hours' },
-    { key: 'faqs', icon: <HelpCircleIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.faqs', descKey: 'knowledge.faqsDesc', modal: 'faqs' },
-    { key: 'pricing', icon: <DollarSignIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.pricing', descKey: 'knowledge.pricingDesc', modal: 'pricing' },
-    { key: 'location_contact', icon: <MapPinIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.location', descKey: 'knowledge.locationDesc', modal: 'location_contact' },
-    { key: 'policies', icon: <ShieldIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.policies', descKey: 'knowledge.policiesDesc', modal: 'policies' },
-    { key: 'multimedia', icon: <ImageIcon className="w-5 h-5 text-[var(--accent-primary)]" />, titleKey: 'knowledge.multimedia', descKey: 'knowledge.multimediaDesc', modal: 'multimedia' },
+    { key: 'business_hours', icon: <ClockIcon className="w-5 h-5 text-[var(--accent-text)]" />, titleKey: 'knowledge.businessHours', descKey: 'knowledge.businessHoursDesc', modal: 'business_hours' },
+    { key: 'faqs', icon: <HelpCircleIcon className="w-5 h-5 text-[var(--accent-text)]" />, titleKey: 'knowledge.faqs', descKey: 'knowledge.faqsDesc', modal: 'faqs' },
+    { key: 'pricing', icon: <DollarSignIcon className="w-5 h-5 text-[var(--accent-text)]" />, titleKey: 'knowledge.pricing', descKey: 'knowledge.pricingDesc', modal: 'pricing' },
+    { key: 'location_contact', icon: <MapPinIcon className="w-5 h-5 text-[var(--accent-text)]" />, titleKey: 'knowledge.location', descKey: 'knowledge.locationDesc', modal: 'location_contact' },
+    { key: 'policies', icon: <ShieldIcon className="w-5 h-5 text-[var(--accent-text)]" />, titleKey: 'knowledge.policies', descKey: 'knowledge.policiesDesc', modal: 'policies' },
+    { key: 'multimedia', icon: <ImageIcon className="w-5 h-5 text-[var(--accent-text)]" />, titleKey: 'knowledge.multimedia', descKey: 'knowledge.multimediaDesc', modal: 'multimedia' },
   ];
 
   // ============================================
@@ -838,7 +838,7 @@ export default function SettingsPageClient() {
                     <BotIcon className="w-4 h-4" />
                     {agent.name}
                     {agent.isActive && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-500/10 text-green-600 dark:text-green-400">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-500/15 text-green-700">
                         {t('activeAgent')}
                       </span>
                     )}
@@ -851,10 +851,10 @@ export default function SettingsPageClient() {
           selectedAgent && (
             <div className="mb-6 flex items-center gap-3">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
-                <BotIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+                <BotIcon className="w-4 h-4 text-[var(--accent-text)]" />
                 <span className="text-sm font-medium text-[var(--text-primary)]">{selectedAgent.name}</span>
                 {selectedAgent.isActive && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-500/10 text-green-600 dark:text-green-400">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-green-500/15 text-green-700">
                     {t('activeAgent')}
                   </span>
                 )}
@@ -878,11 +878,11 @@ export default function SettingsPageClient() {
                 className={cn(
                   'flex items-center gap-2 px-4 py-2.5 text-sm font-medium transition-all duration-200 border-b-2 -mb-[1px]',
                   isActive
-                    ? 'text-[var(--accent-primary)] border-[var(--accent-primary)]'
+                    ? 'text-[var(--accent-text)] border-[var(--accent-primary)]'
                     : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)] hover:border-[var(--border-primary)]'
                 )}
               >
-                <Icon className={isActive ? 'text-[var(--accent-primary)]' : ''} />
+                <Icon className={isActive ? 'text-[var(--accent-text)]' : ''} />
                 <span className={cn(isActive ? '' : 'hidden sm:inline')}>
                   {t(`tabs.${key}`)}
                 </span>
@@ -1219,6 +1219,127 @@ export default function SettingsPageClient() {
 // Temperature Criteria Section
 // ============================================
 
+// Sortable Temperature Criteria Item (for drag & drop)
+function SortableCriteriaItem({
+  id,
+  index,
+  criterion,
+  editingIndex,
+  editingText,
+  setEditingText,
+  onStartEdit,
+  onEditSave,
+  onCancelEdit,
+  onDuplicate,
+  onDelete,
+  criteriaCount,
+}: {
+  id: string;
+  index: number;
+  criterion: string;
+  editingIndex: number | null;
+  editingText: string;
+  setEditingText: (v: string) => void;
+  onStartEdit: (i: number) => void;
+  onEditSave: () => void;
+  onCancelEdit: () => void;
+  onDuplicate: (i: number) => void;
+  onDelete: (i: number) => void;
+  criteriaCount: number;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: transform ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)` : undefined,
+    transition: isDragging ? transition : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-start gap-2 group px-2 py-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors',
+        isDragging && 'opacity-50 shadow-lg z-10 bg-[var(--bg-secondary)]'
+      )}
+    >
+      {editingIndex === index ? (
+        <div className="flex-1 flex gap-2 items-center">
+          <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-1">{index + 1}</span>
+          <input
+            type="text"
+            value={editingText}
+            onChange={(e) => setEditingText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onEditSave();
+              if (e.key === 'Escape') onCancelEdit();
+            }}
+            maxLength={300}
+            className="flex-1 px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
+            autoFocus
+          />
+          <button
+            onClick={onEditSave}
+            className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors"
+          >
+            <CheckIcon />
+          </button>
+          <button
+            onClick={onCancelEdit}
+            className="p-1 text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+          >
+            <XIcon />
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Drag handle */}
+          <button
+            {...attributes}
+            {...listeners}
+            className="flex-shrink-0 mt-0.5 p-0.5 cursor-grab active:cursor-grabbing text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] touch-none"
+            tabIndex={-1}
+          >
+            <GripVerticalIcon className="w-3.5 h-3.5" />
+          </button>
+          <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-0.5 sm:mt-0">{index + 1}</span>
+          <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-1">
+            <span className="flex-1 text-sm text-[var(--text-primary)]">{criterion}</span>
+            <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0 ml-auto">
+              <button
+                onClick={() => onStartEdit(index)}
+                className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-text)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+              >
+                <PencilIcon />
+              </button>
+              <button
+                onClick={() => onDuplicate(index)}
+                disabled={criteriaCount >= 20}
+                className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-text)] hover:bg-[var(--bg-tertiary)] rounded transition-colors disabled:opacity-50"
+              >
+                <CopyIcon />
+              </button>
+              <button
+                onClick={() => onDelete(index)}
+                className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 rounded transition-colors"
+              >
+                <TrashIcon />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function TemperatureCriteriaLevel({
   label,
   help,
@@ -1239,6 +1360,25 @@ function TemperatureCriteriaLevel({
   const [newCriteria, setNewCriteria] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editingText, setEditingText] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const criteriaIds = useMemo(
+    () => criteria.map((_, i) => `criteria-${label}-${i}`),
+    [criteria, label]
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = criteriaIds.indexOf(active.id as string);
+      const newIndex = criteriaIds.indexOf(over.id as string);
+      onChange(arrayMove(criteria, oldIndex, newIndex));
+    }
+  }
 
   const handleAdd = () => {
     const trimmed = newCriteria.trim();
@@ -1293,69 +1433,31 @@ function TemperatureCriteriaLevel({
             <PlusIcon />
           </button>
         </div>
-        {/* List */}
+        {/* Sortable list */}
         {criteria.length > 0 && (
-          <div className="space-y-1">
-            {criteria.map((c, i) => (
-              <div key={i} className="flex items-start gap-2 group px-2 py-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors">
-                {editingIndex === i ? (
-                  <div className="flex-1 flex gap-2 items-center">
-                    <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-1">{i + 1}</span>
-                    <input
-                      type="text"
-                      value={editingText}
-                      onChange={(e) => setEditingText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleEditSave();
-                        if (e.key === 'Escape') handleCancelEdit();
-                      }}
-                      maxLength={300}
-                      className="flex-1 px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleEditSave}
-                      className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors"
-                    >
-                      <CheckIcon />
-                    </button>
-                    <button
-                      onClick={handleCancelEdit}
-                      className="p-1 text-[var(--text-tertiary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
-                    >
-                      <XIcon />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-0.5">{i + 1}</span>
-                    <span className="flex-1 text-sm text-[var(--text-primary)]">{c}</span>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button
-                        onClick={() => { setEditingIndex(i); setEditingText(c); }}
-                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
-                      >
-                        <PencilIcon />
-                      </button>
-                      <button
-                        onClick={() => { if (criteria.length < 20) onChange([...criteria, c]); }}
-                        disabled={criteria.length >= 20}
-                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors disabled:opacity-50"
-                      >
-                        <CopyIcon />
-                      </button>
-                      <button
-                        onClick={() => onChange(criteria.filter((_, idx) => idx !== i))}
-                        className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 rounded transition-colors"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </>
-                )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={criteriaIds} strategy={verticalListSortingStrategy}>
+              <div className="space-y-1">
+                {criteria.map((c, i) => (
+                  <SortableCriteriaItem
+                    key={criteriaIds[i]}
+                    id={criteriaIds[i]}
+                    index={i}
+                    criterion={c}
+                    editingIndex={editingIndex}
+                    editingText={editingText}
+                    setEditingText={setEditingText}
+                    onStartEdit={(idx) => { setEditingIndex(idx); setEditingText(criteria[idx]); }}
+                    onEditSave={handleEditSave}
+                    onCancelEdit={handleCancelEdit}
+                    onDuplicate={(idx) => { if (criteria.length < 20) onChange([...criteria, criteria[idx]]); }}
+                    onDelete={(idx) => onChange(criteria.filter((_, j) => j !== idx))}
+                    criteriaCount={criteria.length}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>
@@ -1491,8 +1593,8 @@ function SortableRuleItem({
   } = useSortable({ id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)` : undefined,
+    transition: isDragging ? transition : undefined,
   };
 
   return (
@@ -1544,21 +1646,22 @@ function SortableRuleItem({
           >
             <GripVerticalIcon className="w-3.5 h-3.5" />
           </button>
-          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-xs flex items-center justify-center font-medium mt-0.5">
+          <span className="flex-shrink-0 w-5 h-5 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-text)] text-xs flex items-center justify-center font-medium mt-0.5">
             {index + 1}
           </span>
-          <p className="flex-1 text-sm text-[var(--text-primary)] leading-relaxed">{rule}</p>
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <div className="flex-1 flex flex-col sm:flex-row sm:items-center gap-1">
+            <p className="flex-1 text-sm text-[var(--text-primary)] leading-relaxed">{rule}</p>
+          <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0 ml-auto">
             <button
               onClick={() => onStartEditRule(index)}
-              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-text)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
               title={t('instructions.editRule')}
             >
               <PencilIcon />
             </button>
             <button
               onClick={() => onDuplicateRule(index)}
-              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+              className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-text)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
               title={t('instructions.duplicateRule')}
             >
               <CopyIcon />
@@ -1570,6 +1673,7 @@ function SortableRuleItem({
             >
               <TrashIcon />
             </button>
+          </div>
           </div>
         </>
       )}
@@ -1684,9 +1788,9 @@ function InstructionsTab({
             className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
           >
             <div className="flex items-center gap-2">
-              <ShieldIcon className="w-4 h-4 text-[var(--kairo-cyan)]" />
+              <ShieldIcon className="w-4 h-4 text-[var(--accent-text)]" />
               <span>{t('instructions.globalRules')}</span>
-              <span className="text-xs text-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 px-2 py-0.5 rounded-full">
+              <span className="text-xs text-[var(--accent-text)] bg-[var(--accent-text)]/10 px-2 py-0.5 rounded-full">
                 {t('instructions.globalRulesCount', { count: globalRules.length.toString() })}
               </span>
             </div>
@@ -1702,7 +1806,7 @@ function InstructionsTab({
               <div className="divide-y divide-[var(--border-primary)]">
                 {globalRules.map((rule, index) => (
                   <div key={index} className="flex items-start gap-3 px-4 py-2.5">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)] mt-0.5">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold bg-[var(--accent-text)]/10 text-[var(--accent-text)] mt-0.5">
                       {index + 1}
                     </span>
                     <span className="text-sm text-[var(--text-secondary)]">{rule}</span>
@@ -1727,10 +1831,10 @@ function InstructionsTab({
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
           <div className="flex items-center gap-2">
-            <ListIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+            <ListIcon className="w-4 h-4 text-[var(--accent-text)]" />
             <span>{t('instructions.rules')}</span>
             {instructions.rules.length > 0 && (
-              <span className="text-xs text-[var(--accent-primary)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-full">
+              <span className="text-xs text-[var(--accent-text)] bg-[var(--accent-primary)]/10 px-2 py-0.5 rounded-full">
                 {instructions.rules.length}
               </span>
             )}
@@ -1839,7 +1943,7 @@ function InstructionsTab({
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
           <div className="flex items-center gap-2">
-            <ThermometerIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+            <ThermometerIcon className="w-4 h-4 text-[var(--accent-text)]" />
             <span>{t('instructions.temperature')}</span>
           </div>
           <ChevronDownIcon
@@ -1868,7 +1972,7 @@ function InstructionsTab({
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
           <div className="flex items-center gap-2">
-            <UserIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+            <UserIcon className="w-4 h-4 text-[var(--accent-text)]" />
             <span>{t('instructions.personality')}</span>
           </div>
           <ChevronDownIcon
@@ -1904,7 +2008,7 @@ function InstructionsTab({
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
         >
           <div className="flex items-center gap-2">
-            <DocumentTextIcon className="w-4 h-4 text-[var(--accent-primary)]" />
+            <DocumentTextIcon className="w-4 h-4 text-[var(--accent-text)]" />
             <span>{t('instructions.additional')}</span>
           </div>
           <ChevronDownIcon
@@ -2358,7 +2462,7 @@ function KnowledgeTab({
                         className={cn(
                           'inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium',
                           isConfigured
-                            ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+                            ? 'bg-green-500/15 text-green-700'
                             : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
                         )}
                       >
@@ -2370,7 +2474,7 @@ function KnowledgeTab({
                     </p>
                   </div>
                   <button
-                    className="flex-shrink-0 p-1.5 rounded-md text-[var(--text-tertiary)] group-hover:text-[var(--accent-primary)] transition-colors"
+                    className="flex-shrink-0 p-1.5 rounded-md text-[var(--text-tertiary)] group-hover:text-[var(--accent-text)] transition-colors"
                     aria-label={t('knowledge.editSection')}
                   >
                     <PencilIcon />
@@ -2386,7 +2490,7 @@ function KnowledgeTab({
       <div>
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-base font-semibold text-[var(--text-primary)] flex items-center gap-2">
-            <DatabaseIcon className="w-5 h-5 text-[var(--accent-primary)]" />
+            <DatabaseIcon className="w-5 h-5 text-[var(--accent-text)]" />
             {t('knowledge.freeText')}
           </h3>
           <Button variant="secondary" size="sm" onClick={() => onOpenModal('add_knowledge')}>
@@ -2419,10 +2523,10 @@ function KnowledgeTab({
                     {entry.source} - {new Date(entry.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="flex-shrink-0 flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
                   <button
                     onClick={() => onEditEntry(entry)}
-                    className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors"
+                    className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent-text)] hover:bg-[var(--accent-primary)]/10 transition-colors"
                     title={t('knowledge.editEntry')}
                   >
                     <PencilIcon />

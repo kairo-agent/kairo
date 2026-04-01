@@ -630,7 +630,7 @@ export function LeadDetailPanel({
             const isUpcoming = !isOverdue && followUpDate.getTime() - now.getTime() < 24 * 60 * 60 * 1000;
 
             const borderColor = isOverdue ? 'border-l-red-500' : isUpcoming ? 'border-l-orange-500' : 'border-l-[var(--accent-primary)]';
-            const iconColor = isOverdue ? 'text-red-500' : isUpcoming ? 'text-orange-500' : 'text-[var(--accent-primary)]';
+            const iconColor = isOverdue ? 'text-red-500' : isUpcoming ? 'text-orange-500' : 'text-[var(--accent-text)]';
             const bgColor = isOverdue ? 'bg-red-50 dark:bg-red-950/20' : isUpcoming ? 'bg-orange-50 dark:bg-orange-950/20' : 'bg-[var(--bg-tertiary)]';
 
             return (
@@ -651,7 +651,7 @@ export function LeadDetailPanel({
                   </div>
                   <button
                     onClick={() => onScheduleFollowUp?.(lead)}
-                    className="text-xs text-[var(--accent-primary)] hover:underline whitespace-nowrap"
+                    className="text-xs text-[var(--accent-text)] hover:underline whitespace-nowrap"
                   >
                     {t('followUp.reschedule')}
                   </button>
@@ -664,7 +664,7 @@ export function LeadDetailPanel({
           {lead.summary ? (
             <div className="p-4 bg-[var(--bg-tertiary)] rounded-lg border border-[var(--border-primary)]">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[var(--accent-primary)]"><SummaryIcon /></span>
+                <span className="text-[var(--accent-text)]"><SummaryIcon /></span>
                 <h4 className="text-sm font-semibold text-[var(--text-primary)]">
                   {t('panel.aiSummary')}
                 </h4>
@@ -715,7 +715,7 @@ export function LeadDetailPanel({
             <div className="space-y-3">
               {isLoadingNotes ? (
                 <div className="flex justify-center py-4">
-                  <SpinnerIcon className="w-6 h-6 text-[var(--accent-primary)]" />
+                  <SpinnerIcon className="w-6 h-6 text-[var(--accent-text)]" />
                 </div>
               ) : notes.length === 0 ? (
                 <p className="text-sm text-[var(--text-tertiary)] text-center py-2">
@@ -783,7 +783,7 @@ export function LeadDetailPanel({
             <div className="space-y-3">
               {isLoadingActivities ? (
                 <div className="flex justify-center py-4">
-                  <SpinnerIcon className="w-6 h-6 text-[var(--accent-primary)]" />
+                  <SpinnerIcon className="w-6 h-6 text-[var(--accent-text)]" />
                 </div>
               ) : activities.length === 0 ? (
                 <p className="text-sm text-[var(--text-tertiary)] text-center py-2">

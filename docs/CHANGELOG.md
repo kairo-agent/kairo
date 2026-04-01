@@ -1,6 +1,159 @@
 # KAIRO - Changelog
 
-> Solo se mantienen las ultimas 5 versiones (v0.12.0+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Solo se mantienen las ultimas 5 versiones (v0.16.2+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+
+---
+
+## [0.20.1] - 2026-03-31
+
+### Temperature Classification Guard
+
+Guard en el pipeline AI que impide clasificar la temperatura del lead hasta que haya enviado al menos 2 mensajes. Primer contacto siempre queda COLD, evitando falsos WARM en la primera interaccion.
+
+**Archivo:** `src/lib/ai/process-ai-response.ts` — cuenta mensajes con `sender: 'lead'` antes de aplicar `[TEMPERATURA: X]`.
+
+### Drag & Drop en Criterios de Calificacion de Leads
+
+Los criterios de temperatura (HOT/WARM/COLD) en Settings > Instrucciones ahora soportan drag & drop para reordenar, igual que las reglas especificas.
+
+**Componente:** `SortableCriteriaItem` con `@dnd-kit/sortable`. Fix de animacion: solo `translate3d` (sin scale) y sin snap-back al soltar.
+
+### UI Fix: Contraste en tabs del Admin Panel
+
+Tabs "Organizaciones/Proyectos/Usuarios" cambiados de `text-white` a `text-[var(--kairo-midnight)]` sobre fondo cyan para mejor contraste.
+
+---
+
+## [0.20.0] - 2026-03-30
+
+### Incoming Lead Media (NEW FEATURE)
+
+Descarga y renderizado de media entrante de leads en el chat (imagen, video, audio, documento).
+
+**Nuevo archivo:** `src/lib/whatsapp/download-media.ts` — descarga media desde WhatsApp API → Supabase Storage via `waitUntil` (async, non-blocking). Storage path: `incoming/{projectId}/{year}/{month}/{uuid}.{ext}`. Max: 50MB (Supabase free tier).
+
+**Chat UI:** Imagenes (clickable, lightbox), video (player nativo), audio (AudioPlayer custom), documentos (download link). Badge "Disponible hasta {date}" en media activa. "Imagen expirada" / "Audio expirado" en media vencida. Spinner mientras se descarga.
+
+**Expiracion:** Archivos eliminados por cron existente (5 dias). `storageExpiry` en metadata del mensaje.
+
+**CSP:** `media-src` actualizado para dominio Supabase. Bucket MIME types: agregados `audio/*`.
+
+**Realtime:** Actualizaciones de metadata se propagan al chat sin refresh manual.
+
+### GPT-4o-mini Vision (NEW FEATURE)
+
+Analisis de imagenes entrantes via GPT Vision en modo AI. `detail: 'low'` para minimizar costo de tokens.
+
+**Fallback:** Si `downloadedUrl` no esta lista post-debounce, obtiene imagen directamente de WhatsApp API como base64.
+
+**freshMediaId pattern:** Despues del debounce 3s, busca en mensajes pendientes del lead el ultimo `mediaId` de imagen (no el del trigger de debounce, que puede estar desactualizado).
+
+### AudioPlayer + Whisper para todos los modos
+
+**Nuevo componente:** `src/components/ui/AudioPlayer.tsx` — reproductor custom con estilo KAIRO.
+
+**Whisper transcription:** Ahora corre para TODOS los modos (AI + human), no solo AI. Integrado en `download-media.ts` despues del upload. Transcripcion mostrada debajo del reproductor de audio.
+
+### PWA (Progressive Web App)
+
+- `manifest.json` actualizado con iconos maskable (192, 512, apple-touch, badge-72)
+- Meta tags iOS: `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-touch-icon`
+- Viewport con `viewport-fit: cover`
+- Banner de instalacion PWA: deteccion Android/iOS, cooldown 10 dias, tema amber
+- Usa `createPortal` a `document.body` + inline styles (evita conflictos CSS)
+
+### Custom KAIRO Favicon
+
+`favicon.svg` disenado por Leo + iconos PNG generados: `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `badge-72.png`.
+
+### Color system: --accent-text
+
+Nueva variable CSS `--accent-text`: Light=#0E7490 (cyan-700), Dark=#00E5FF. Reemplaza `--accent-primary` y `--kairo-cyan` para TODOS los textos e iconos cyan en ~40 archivos. Nota: Tailwind `dark:` prefix NO funciona (app usa `data-theme`, no `class dark`).
+
+### Terminologia: Archive → Discard
+
+- ES: "Archivar/Desarchivar" → "Descartar/Recuperar"
+- EN: "Archive/Unarchive" → "Discard/Recover"
+- Leads descartados: webhook guarda mensajes pero omite notificaciones y respuestas AI
+- Cron de reengagement ya excluia leads archivados
+
+### Dashboard improvements
+
+- Chart labels visibles por defecto (LabelList en los 4 charts)
+- Widget calculadora de costo por lead (input S/, calculo automatico)
+- Fix margen de barras en charts (top: 20px para label de barra mas alta)
+
+### Mobile improvements
+
+- Header: titulo oculto en mobile (previene overflow horizontal)
+- Admin stats: grid 2 columnas, padding compacto
+- Admin create buttons: icon-only en mobile (org/project/user)
+- Admin tabs: abreviacion "Orgs." en mobile
+- Settings rules: botones de accion siempre visibles en mobile (no solo hover), alineados a derecha
+
+---
+
+## [0.19.0] - 2026-03-29
+
+### RBAC Lead Assignment System
+
+Sistema completo de asignacion de leads basado en roles con jerarquia de permisos.
+
+**Permissions module** (`src/lib/permissions.ts`):
+- Role hierarchy: `super_admin > owner > admin > manager > agent > viewer`
+- `getEffectiveRole()` resuelve maximo privilegio de systemRole + org ownership + project role
+- Permission predicates: `canTakeUnassignedLead` (>= agent), `canWorkOwnLead` (>= agent), `canReassignLead` (>= manager), `canWorkOtherLead` (>= admin), `isViewerOnly`
+
+**New hooks:** `useEffectiveRole()` + `useEffectiveRoleSafe()` (para componentes compartidos entre layouts)
+
+**Server actions:** `assignLead()`, `getProjectTeamMembers()`, `getProjectRole()`
+
+**Role guards en actions existentes:** `updateLead`, `updateLeadStatus`, `sendMessage`, `toggleHandoffMode` ahora verifican permisos RBAC. Auto-assign lead on Take Control cuando lead sin asignar.
+
+**UI - LeadAssignment component:**
+- Admin/Manager: dropdown selector para asignar cualquier miembro del equipo
+- Agent: boton "Tomar Lead" (solo cuando sin asignar)
+- Viewer: sin acciones
+- Assigned user visible en lead cards (grid) y tabla
+
+**Activity log:** "Lead asignado a: Name [role]"
+
+### Effective role in header
+
+Badge en dropdown del header muestra rol efectivo (Admin, Manager, Asesor, Viewer) en vez de generico "Usuario". Usa `useEffectiveRoleSafe()`.
+
+### Owner toggle in edit user modal
+
+Super_admin puede asignar/remover ownership de organizacion desde el modal de edicion de usuario (no solo al crear). Nueva server action: `updateOrganizationMemberOwnership()`.
+
+### Agent role renamed to Asesor/Advisor
+
+- ES: "Agente" → "Asesor" / EN: "Agent" → "Advisor"
+- Todos los labels hardcodeados eliminados, todo via i18n
+- Eliminados label/description de PROJECT_ROLE_CONFIG y SYSTEM_ROLE_CONFIG en types
+
+### "Assigned to" filter
+
+Nuevo filtro en "Mas filtros": dropdown con Todos, Mis leads, Sin asignar + multi-select team members con checkboxes. Server-side filtering via `buildLeadWhereClause` con parametro `assignedTo`. Agregado a `LeadFilters` type.
+
+### Excel export restricted
+
+Boton Excel + server action restringidos a super_admin, owner, y admin solamente.
+
+### Project role editing in UserModal
+
+Edicion de rol de proyecto en el modal de edicion de usuario (admin panel).
+
+### Jitsi video call unlocked for all roles
+
+Boton de videollamada ahora disponible para todos los roles (antes solo super_admin).
+
+### Security fix: Cross-session workspace leakage
+
+- Clear localStorage workspace on login (previene org/project stale de usuario anterior)
+- Validacion de workspace almacenado contra memberships del usuario en app init
+- Auto-select org/project cuando usuario tiene solo uno
+- Validacion de projectId en `getAccessibleProjectIds()` para non-super_admin
 
 ---
 
@@ -114,372 +267,7 @@ Usuarios reportaron que despues de login eran redirigidos a `/leads` en lugar de
 
 ---
 
-## [0.16.1] - 2026-03-24
-
-### Lead Source Auto-Detection
-
-Deteccion automatica del origen de leads al momento de creacion. Dos mecanismos:
-
-1. **Meta Referral (CTWA Ads):** Cuando un lead viene de un anuncio Click-to-WhatsApp en Facebook o Instagram, Meta envia un objeto `referral` en el webhook. Se parsea `source_url` para distinguir FB vs IG.
-2. **Hashtags en primer mensaje:** Para plataformas sin referral nativo (TikTok, Google, organicos), se detectan hashtags en el mensaje prefijado del link wa.me.
-
-| Hashtag | Source |
-|---------|--------|
-| *(CTWA Ad FB)* | `facebook_ads` (auto) |
-| *(CTWA Ad IG)* | `instagram_ads` (auto) |
-| `#facebookads` | `facebook_ads` |
-| `#facebook` | `facebook_organic` |
-| `#instagramads` | `instagram_ads` |
-| `#instagram` | `instagram_organic` |
-| `#tiktokads` | `tiktok_ads` |
-| `#tiktok` | `tiktok_organic` |
-| `#googleads` | `google_ads` |
-
-**Enum LeadSource actualizado:** +7 valores (`facebook_ads`, `facebook_organic`, `instagram_ads`, `instagram_organic`, `tiktok_ads`, `tiktok_organic`, `google_ads`).
-
-### Dashboard Source Chart
-
-Horizontal bar chart "Origen de leads" al lado derecho del chart de "Estado de leads". Colores por plataforma, ordenado por cantidad, respeta filtro de fecha.
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `prisma/schema.prisma` | 7 nuevos valores en enum `LeadSource` |
-| `src/types/index.ts` | Enum TypeScript sincronizado |
-| `src/app/api/webhooks/whatsapp/route.ts` | `WhatsAppReferral` type + `detectLeadSource()` + source en lead creation |
-| `src/lib/actions/dashboard.ts` | `sourceDistribution` query (groupBy source) |
-| `src/app/[locale]/(dashboard)/dashboard/DashboardClient.tsx` | Source horizontal bar chart + colores + labels |
-| `src/messages/es.json` / `en.json` | Labels i18n para 11 sources |
-
-**Migraciones:** `20260324_add_lead_source_platforms`, `20260324_add_fb_ig_organic_sources`
-
----
-
-## [0.16.0] - 2026-03-22
-
-### Dashboard Charts & Visualizations
-
-Dashboard completo con charts interactivos (recharts) y metricas conectadas a datos reales.
-
-**Nuevos widgets:**
-
-| Widget | Tipo | Descripcion |
-|--------|------|-------------|
-| Leads por dia | Bar chart (cyan) | Tendencia de captacion por dia, responsive |
-| Temperatura de leads | Donut chart | Distribucion hot/warm/cold con colores |
-| Estado de leads | Horizontal bar | 7 status con colores por etapa del pipeline |
-| Tasa de conversion | Stat card (%) | Won / Total * 100 |
-
-**Archivos nuevos/modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/dashboard.ts` | `getDashboardCharts()` — queries groupBy para temperatura, status, leads/dia |
-| `src/app/[locale]/(dashboard)/dashboard/DashboardClient.tsx` | Reescrito con recharts (BarChart, PieChart), 5 stat cards, mobile responsive |
-| `src/app/[locale]/(dashboard)/dashboard/page.tsx` | SSR default cambiado a `last30days` |
-| `src/messages/es.json` / `en.json` | Labels de charts (i18n) |
-| `package.json` | `recharts` dependency |
-
-**Layout responsive:** 5 stat cards (2 cols mobile, 5 cols desktop), bar chart + donut (1 col mobile, 3 cols desktop), status bar full width.
-
-### Cron cleanup-media failsafe
-
-El cron `cleanup-media` podia borrar TODOS los archivos si la query a `agent_media` fallaba (Set vacio). Ahora **aborta** si no puede cargar los paths protegidos.
-
-**Archivo:** `src/app/api/cron/cleanup-media/route.ts`
-
-### Image Lightbox
-
-Click en thumbnails de imagenes abre lightbox full-screen (overlay oscuro, Esc para cerrar). Videos abren en nueva pestana (CORS Supabase free tier).
-
-**Archivos nuevos/modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/ui/ImageLightbox.tsx` | Nuevo componente, capture-phase ESC listener |
-| `src/components/knowledge/MultimediaModal.tsx` | Lightbox en thumbnails de imagenes, videos abren en nueva tab |
-| `src/components/knowledge/FixedImageSlot.tsx` | Lightbox + timestamp |
-| `src/components/knowledge/FixedVideoSlot.tsx` | Timestamp + open in new tab |
-
-### Upload timestamps en agent media
-
-Fecha/hora de carga visible en todos los items de media (RAG + fixed, imagenes + videos).
-
-**SQL ejecutado:** `get_fixed_event_media` RPC actualizado para retornar `created_at` y `media_type`.
-
-### Corregido
-
-- **Dashboard SSR flash:** Stats de SSR (sin workspace filter) flasheaban antes de client fetch. Fix: `isLoading` inicia en `true`.
-- **ESC lightbox cerraba modal padre:** Listener ahora usa capture phase (`addEventListener(..., true)`) para interceptar antes del Modal.
-- **Dashboard default:** Cambiado de "Today" a "Last 30 days" para vista inicial mas util.
-
----
-
-## [0.15.1] - 2026-03-21
-
-### Cron cleanup-media protege agent_media
-
-El cron `cleanup-media` eliminaba TODOS los archivos del bucket `media` mayores a 24h, incluyendo imagenes/videos permanentes del agente (agent_media). Esto causaba que las imagenes del agente dejaran de funcionar y los mensajes historicos mostraran thumbnails rotos.
-
-**Fix:** Antes de eliminar, el cron consulta todos los `storage_path` de la tabla `agent_media` y los excluye de la eliminacion.
-
-**Archivo:** `src/app/api/cron/cleanup-media/route.ts`
-
-### Edit media con reemplazo de archivo
-
-Al editar una imagen o video del agente, ahora se puede **reemplazar el archivo** ademas de editar titulo/descripcion. Hover sobre el thumbnail muestra overlay para cambiar. El archivo viejo se elimina automaticamente del storage.
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/agent-media.ts` | `updateAgentMedia()` acepta `newFile`/`newMediaUrl`/`newStoragePath` opcionales |
-| `src/components/knowledge/MultimediaModal.tsx` | EditForm con overlay de cambio, compresion de imagenes, upload client-side de videos |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Callback `onEdit` pasa datos de reemplazo |
-
-**SQL:** `scripts/update-agent-media-file-rpc.sql` — RPC `update_agent_media_file` (SECURITY DEFINER, retorna old_storage_path para cleanup)
-
-**Nota:** Los mensajes historicos que referenciaban imagenes eliminadas por el cron antes del fix mantienen URLs muertas en su `metadata.mediaAttachments`. Esto es irrecuperable.
-
----
-
-## [0.15.0] - 2026-03-20
-
-### Agent Video Support
-
-Soporte completo de videos en el sistema de Agent Media. Videos se suben, almacenan y envian via WhatsApp con el mismo patron de imagenes (RAG semantico + fixed event slots).
-
-**Nuevos archivos:**
-
-| Archivo | Funcion |
-|---------|---------|
-| `src/lib/utils/video-upload.ts` | Upload client-side directo a Supabase Storage (bypass Vercel 4.5MB limit) |
-| `src/lib/utils/video-thumbnail.ts` | Extraccion de thumbnails via Canvas API (funciona desde File, limitado desde URL por CORS) |
-| `src/components/knowledge/FixedVideoSlot.tsx` | Componente para upload/display de videos fijos por evento |
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/agent-media.ts` | Nuevas: `addAgentVideoByUrl()`, `uploadFixedEventVideoByUrl()` (reciben URL post-upload) |
-| `src/lib/ai/search-media.ts` | `searchRelevantVideos()` para busqueda semantica de videos |
-| `src/lib/whatsapp/send.ts` | `sendVideoToWhatsApp()` (WhatsApp Cloud API `type: video`) |
-| `src/lib/ai/process-ai-response.ts` | Soporte [VIDEO-X] markers, envio de videos RAG + fixed event video |
-| `src/app/api/cron/reengagement/route.ts` | Soporte [VIDEO-X] markers + fixed event video en reengagement |
-| `src/lib/ai/generate-reengagement.ts` | Nuevo param `videoItems`, seccion VIDEOS DISPONIBLES en prompt |
-| `src/lib/ai/build-system-prompt.ts` | Seccion VIDEOS DISPONIBLES con markers [VIDEO-X] |
-| `src/components/knowledge/MultimediaModal.tsx` | Tab Videos con `VideoThumbnail` subcomponent, galeria de videos |
-| `src/components/features/LeadChat.tsx` | Video card (icono play #0B1220 + titulo + "Open video" link i18n) |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | `onAddVideo` con upload client-side, FixedVideoSlot en tabs |
-| `src/messages/es.json` + `en.json` | `chat.openVideo`: "Abrir video" / "Open video" |
-
-**Arquitectura:**
-
-- **Client-side upload**: Videos se suben directo a Supabase Storage desde el browser, evitando el limite de 4.5MB de Vercel Hobby serverless functions
-- **Orden de envio WhatsApp**: imagen fija → texto → video fijo → RAG images → RAG videos. Video va DESPUES del texto porque WhatsApp tarda mas en procesar/entregar video que texto
-- **Position tagging**: `position: 'before'` (encima del texto en chat) y `position: 'after'` (debajo del texto). Imagenes fijas = before, videos fijos = after, RAG media = after
-- **Chat rendering**: Videos se muestran como card clickeable (icono play + titulo + link "Abrir video"), no como `<video>` inline (bloqueado por CORS de Supabase Storage)
-- **Thumbnails**: Funcionan desde File objects (upload), no desde URLs (CORS tainted canvas). Fallback a icono de camara
-
-**Limitaciones conocidas:**
-
-- Thumbnails de video no se muestran al recargar pagina (CORS con Supabase Storage bloquea Canvas). Se usa icono de camara como fallback
-- Videos en chat no se reproducen inline (CORS). Se abren en nueva pestaña via link
-
-### Corregido
-
-- **Send window no persistia en ReEngagement (`src/lib/actions/reengagement.ts`):** El schema Zod del server action no incluia `sendWindowStart` ni `sendWindowEnd`, por lo que esos campos eran strippeados silenciosamente al guardar. Fix: campos agregados al schema. Ademas, los defaults del cron (`09:00-22:00`) alineados con `DEFAULT_REENGAGEMENT_CONFIG` (`17:00-23:00`).
-
-- **Debounce 3s no funcionaba (Redis no configurado):** Upstash Redis no estaba provisionado, por lo que `src/lib/redis.ts` retornaba `null` y el webhook procesaba mensajes inmediatamente sin debounce. Fix: Leo creo base de datos Upstash Redis (free tier, region sa-east-1 Sao Paulo). Variables `UPSTASH_REDIS_REST_URL` y `UPSTASH_REDIS_REST_TOKEN` agregadas a Vercel. Debounce confirmado funcionando: 2 mensajes rapidos producen 1 sola respuesta IA consolidada.
-
-- **Orden de envio WhatsApp inconsistente**: Codigo enviaba imagen → video → texto, pero WhatsApp entregaba imagen → texto → video (video tarda mas en procesarse). Fix: reordenado a imagen → texto → video en `process-ai-response.ts` y `reengagement/route.ts`.
-
----
-
-## [0.14.0] - 2026-03-19
-
-### Debounce 3s en Webhook WhatsApp
-
-Cuando un lead envia multiples mensajes rapidos, el sistema ahora espera 3 segundos y concatena todos los mensajes en una sola entrada para el AI, evitando respuestas duplicadas.
-
-**Nuevos archivos:**
-
-| Archivo | Funcion |
-|---------|---------|
-| `src/lib/redis.ts` | Singleton Redis client (Upstash) para debounce |
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/app/api/webhooks/whatsapp/route.ts` | Debounce con Redis `SET NX EX 3` + `waitUntil` + concatenacion de mensajes |
-
-**Arquitectura:**
-- Redis `SET NX EX 3`: primer mensaje gana, siguientes se ignoran (otro invocation ya espera)
-- `waitUntil(sleep 3s)`: mantiene funcion viva sin bloquear respuesta HTTP
-- Re-fetch mensajes de DB tras 3s, concatena consecutivos del lead
-- Fallback sin Redis (dev): procesa inmediatamente como antes
-
-### Fixed Event Images (Imagenes fijas por evento)
-
-Nuevo sistema de imagenes que se envian SIEMPRE con eventos especificos, independiente del RAG semantico. 4 tipos: `first_contact`, `reengagement_0`, `reengagement_1`, `reengagement_2`.
-
-**Nuevos archivos:**
-
-| Archivo | Funcion |
-|---------|---------|
-| `scripts/setup-fixed-event-media.sql` | Columna `event_type`, indice unico, RPCs (`get_fixed_event_media`, `set_event_media`, `clear_event_media`) |
-| `src/components/knowledge/FixedImageSlot.tsx` | Componente compacto para upload/display de imagenes fijas |
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/types/agent-media.ts` | Nuevos tipos `FixedEventType`, `FixedEventMedia` |
-| `src/lib/actions/agent-media.ts` | Server actions: `getFixedEventMedia`, `uploadFixedEventMedia`, `deleteFixedEventMedia` |
-| `src/lib/ai/search-media.ts` | `getFixedMediaForEvent()`, eliminado `getAllAgentMedia`/`getCachedMediaCount` |
-| `src/lib/ai/process-ai-response.ts` | Envia imagen fija de primer contacto (messageCount <= 2) |
-| `src/app/api/cron/reengagement/route.ts` | Envia imagen fija por intento, eliminado `getAllAgentMedia` |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | FixedImageSlot en Multimedia (first_contact) y ReEngagement (0/1/2) |
-| `src/messages/es.json` + `en.json` | Claves i18n `fixedImage.*` |
-
-**SQL requerido:** `scripts/setup-fixed-event-media.sql` + RPC `set_event_media` (SECURITY DEFINER)
-
-### Horario de envio configurable para ReEngagement
-
-Reemplaza el horario hardcodeado (9 AM - 10 PM) por selectores AM/PM configurables por agente.
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/types/reengagement.ts` | Nuevos campos `sendWindowStart`/`sendWindowEnd`, helpers `generateTimeOptions()`, `getWindowDurationHours()` |
-| `src/app/api/cron/reengagement/route.ts` | `isWithinSendWindow()` reemplaza `isWithinBusinessHours()`, soporta cruce de medianoche |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Selectores AM/PM (30 min), validacion ventana > delay, delay limitado a 1-5h |
-| `src/messages/es.json` + `en.json` | Claves i18n `sendWindow*` |
-
-### Mobile Lead Panel - Botones en una fila
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/features/LeadDetailPanel.tsx` | Botones en fila horizontal: icon-only en mobile (excepto Schedule = icon + texto corto), texto completo en sm+ |
-
----
-
-## [0.13.0] - 2026-03-19
-
-### Chat Media Rendering
-
-Imagenes enviadas por el agente IA y archivos adjuntos del humano ahora se muestran inline en el historial del chat como thumbnails clickeables. Cero storage adicional (usa URLs existentes de Supabase Storage).
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/ai/process-ai-response.ts` | Guarda `mediaAttachments` (url + title) en metadata del mensaje AI |
-| `src/lib/actions/messages.ts` | Guarda `mediaAttachments` en metadata del mensaje humano con adjunto |
-| `src/components/features/LeadChat.tsx` | Renderiza imagenes de `metadata.mediaAttachments` como thumbnails |
-
-**Nota:** Solo mensajes nuevos (post-deploy) muestran imagenes. Mensajes anteriores no tienen `mediaAttachments` en metadata.
-
-### Excel Export
-
-Boton "Excel" (verde #217346) al lado del refresh en la pagina de leads. Abre modal con date picker KAIRO (calendario flotante via React Portal) para seleccionar rango de fechas. Genera .xlsx con headers traducidos (es/en).
-
-**Nuevos archivos:**
-
-| Archivo | Funcion |
-|---------|---------|
-| `src/components/features/ExportLeadsModal.tsx` | Modal con FloatingCalendar (Portal) + date range + export |
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/leads.ts` | Nueva `exportLeadsToExcel()` - server action con SheetJS |
-| `src/app/[locale]/(dashboard)/leads/LeadsPageClient.tsx` | Boton Excel + ExportLeadsModal |
-| `src/messages/es.json` + `en.json` | Claves i18n export |
-| `package.json` | Dependencia `xlsx` (SheetJS) - dynamic import |
-
-**Arquitectura:**
-
-- SheetJS importado dinamicamente (`await import('xlsx')`) para no inflar el bundle
-- FloatingCalendar usa `createPortal(document.body)` para escapar del modal overflow
-- Desktop: `position: fixed` + `getBoundingClientRect()` cerca del boton
-- Mobile: overlay centrado con backdrop
-- Server action valida acceso (auth + project access), visible para todos los usuarios
-- react-day-picker en modo `single` (un calendario a la vez, auto-advance start→end)
-
-### ReEngagement Media Support
-
-El pipeline de reengagement ahora soporta envio de imagenes con el mismo protocolo `[MEDIA-X]` del AI pipeline regular. Funciona en todos los intentos (initial + follow-up 1 + follow-up 2).
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/app/api/cron/reengagement/route.ts` | Media search, marker extraction, mediaAttachments en metadata, sendImageToWhatsApp |
-| `src/lib/ai/generate-reengagement.ts` | Nuevo param `mediaItems`, seccion IMAGENES DISPONIBLES en prompt |
-
----
-
-## [0.12.0] - 2026-03-18
-
-### Agent Media - Imagenes via WhatsApp con RAG Semantico
-
-Los agentes IA ahora pueden enviar imagenes relevantes durante conversaciones de WhatsApp. Las imagenes se buscan semanticamente por descripcion (pgvector) y se envian como mensajes separados despues del texto.
-
-**Nuevos archivos:**
-
-| Archivo | Funcion |
-|---------|---------|
-| `scripts/setup-agent-media.sql` | Tabla `agent_media` + 6 RPCs + RLS + indices |
-| `src/lib/types/agent-media.ts` | Tipos `AgentMediaEntry`, `MediaSearchResult`, constantes |
-| `src/lib/actions/agent-media.ts` | Server actions: add, list, update, delete media |
-| `src/lib/utils/image-compression.ts` | Compresion client-side Canvas API (max 1080px, JPEG 85%) |
-| `src/components/knowledge/MultimediaModal.tsx` | Modal UI: upload, preview, edit inline, delete |
-| `src/lib/ai/search-media.ts` | Busqueda semantica + feature flag cache (5 min TTL) |
-
-**Archivos modificados:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/whatsapp/send.ts` | Nueva `sendImageToWhatsApp()` (WhatsApp Cloud API `type: image`) |
-| `src/lib/ai/build-system-prompt.ts` | Seccion `IMAGENES DISPONIBLES` con markers `[MEDIA-X]` |
-| `src/lib/ai/process-ai-response.ts` | Media search (step 2b), parseo markers (step 5), envio imagenes (step 8) |
-| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | Card Multimedia en Knowledge tab + modal |
-| `src/messages/es.json` + `en.json` | Claves i18n multimedia |
-
-**Arquitectura:**
-
-- Feature flag: `projectHasMedia()` - cero overhead para proyectos sin media
-- Fallback: texto siempre se envia primero, fallo de imagen no afecta al lead
-- Comportamiento de imagenes (proactividad, limites, repeticiones) controlado via Global Rules / Specific Rules, no hardcodeado
-- Solo sintaxis tecnica de markers `[MEDIA-X]` hardcodeada en prompt (no instrucciones de comportamiento)
-- Seccion `IMAGENES DISPONIBLES` posicionada ANTES del KB texto en el prompt (evita que GPT use URLs del KB como imagenes)
-- Threshold semantico: 0.30 (ajustado tras analisis de scores reales: imagenes relevantes ~0.33-0.34)
-- Imagenes se envian sin caption (titulo) en WhatsApp - el texto de GPT ya provee contexto
-- Compresion client-side: max 1080px lado mas largo, JPEG 85%, rechaza < 200x200
-- Descripciones deben ser semanticas (para QUE sirve la imagen, CUANDO es relevante), no instrucciones para GPT
-
-**Lecciones de prompt engineering:**
-
-- Descripciones de media: optimizar para RAG semantico, no instrucciones de comportamiento
-- Titulos: visibles en UI + system prompt, usados por GPT para identificar la imagen
-- Reglas de comportamiento (cuando enviar, limites, proactividad): van en Global/Specific Rules
-- Meta Ads: mensaje pre-llenado con contexto especifico mejora el match semantico del RAG
-
-### Login Fixes
-
-- **ERR_TOO_MANY_REDIRECTS (`middleware.ts`):** Cookies de sesion Supabase se seteaban en un response separado pero el middleware retornaba `intlResponse`, perdiendo los tokens y causando redirect loop infinito. Fix: cookies se propagan a `intlResponse` y a todos los redirects.
-- **Loading overlay post-logout (`login/page.tsx`):** `showLoading(persist=true)` guardaba estado en localStorage, pero al remontar LoginPage el overlay no se limpiaba. Fix: `hideLoading()` explicito en mount de login page.
-
----
-
-> Versiones v0.11.1 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.16.1 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 

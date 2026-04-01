@@ -365,7 +365,7 @@ export function LocationContactForm({
           <button
             type="button"
             onClick={addSocial}
-            className="w-full text-sm px-3 py-2 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
+            className="w-full text-sm px-3 py-2 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)] transition-colors"
           >
             + {labels.addSocial}
           </button>
@@ -465,7 +465,7 @@ export function LocationContactForm({
           <button
             type="button"
             onClick={addLocation}
-            className="w-full text-sm px-3 py-2 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
+            className="w-full text-sm px-3 py-2 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)] transition-colors"
           >
             + {labels.addLocation}
           </button>

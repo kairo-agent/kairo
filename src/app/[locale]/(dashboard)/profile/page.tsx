@@ -497,7 +497,7 @@ export default function ProfilePage() {
                   {profile?.firstName} {profile?.lastName}
                 </h3>
                 <p className="text-sm text-[var(--text-secondary)]">{profile?.email}</p>
-                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]">
+                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]">
                   {tSystemRoles(profile?.systemRole === 'super_admin' ? 'super_admin' : 'user')}
                 </span>
               </div>
@@ -620,7 +620,7 @@ export default function ProfilePage() {
                       {formData.notifyCcEmails.map((email) => (
                         <span
                           key={email}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)] border border-[var(--kairo-cyan)]/20"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)] border border-[var(--kairo-cyan)]/20"
                         >
                           <MailIcon />
                           {email}
@@ -749,7 +749,7 @@ export default function ProfilePage() {
                         {tPush('pushDescription')}
                       </span>
                       {pushDeviceCount > 0 && pushEnabled && (
-                        <span className="block text-xs text-[var(--kairo-cyan)] mt-1">
+                        <span className="block text-xs text-[var(--accent-text)] mt-1">
                           {tPush('devicesActive', { count: pushDeviceCount })}
                         </span>
                       )}
@@ -809,7 +809,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={handleGeneratePassword}
-                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--kairo-cyan)] hover:text-[var(--kairo-cyan)]/80 transition-colors"
+                  className="flex items-center gap-1.5 text-xs font-medium text-[var(--accent-text)] hover:text-[var(--accent-text)]/80 transition-colors"
                 >
                   <RefreshIcon />
                   {t('changePassword.generate')}

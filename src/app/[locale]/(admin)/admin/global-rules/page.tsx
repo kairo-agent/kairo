@@ -143,7 +143,7 @@ export default function GlobalRulesPage() {
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
-        <div className="p-2 rounded-lg bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]">
+        <div className="p-2 rounded-lg bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]">
           <ShieldIcon />
         </div>
         <h1 className="text-2xl font-bold text-[var(--text-primary)]">
@@ -207,7 +207,7 @@ export default function GlobalRulesPage() {
                 <span className={cn(
                   'flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold',
                   rule.isActive
-                    ? 'bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                    ? 'bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                     : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'
                 )}>
                   {index + 1}

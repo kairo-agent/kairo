@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { verifyAuth, verifyProjectAccess, getProjectRole } from './auth';
 import { getEffectiveRole, isViewerOnly, canActOnLead, canTakeUnassignedLead, canReassignLead } from '@/lib/permissions';
+import { getEffectiveTimezone, getStartOfDayInTimezone, getEndOfDayInTimezone } from '@/lib/timezone';
 import { validatePhone, normalizePhone } from '@/lib/utils';
 import { notifyProjectMembers } from './notifications';
 import type { Lead as PrismaLead, AIAgent, Prisma, Note, Activity, User, LeadStatus as PrismaLeadStatus } from '@prisma/client';
@@ -77,6 +78,19 @@ export type LeadsStats = {
 };
 
 // ============================================
+// HELPER: Get organization timezone
+// ============================================
+
+async function getOrgTimezone(organizationId?: string): Promise<string> {
+  if (!organizationId) return getEffectiveTimezone();
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { defaultTimezone: true },
+  });
+  return getEffectiveTimezone(org?.defaultTimezone);
+}
+
+// ============================================
 // HELPER: Get accessible project IDs for user
 // ============================================
 
@@ -143,14 +157,16 @@ export async function getAccessibleProjectIds(
 
 function getDateRangeFilter(
   dateRange: DateRangePreset | 'custom',
-  customDateRange?: { start: Date | null; end: Date | null }
+  customDateRange?: { start: Date | null; end: Date | null },
+  timezone?: string
 ): Prisma.DateTimeNullableFilter | undefined {
   const now = new Date();
 
   switch (dateRange) {
     case 'today': {
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+      const tz = timezone || getEffectiveTimezone();
+      const startOfDay = getStartOfDayInTimezone(tz);
+      const endOfDay = getEndOfDayInTimezone(tz);
       return { gte: startOfDay, lt: endOfDay };
     }
     case 'last7days': {
@@ -184,7 +200,8 @@ function buildLeadWhereClause(
   accessibleProjects: string[] | 'all_in_org',
   organizationId?: string,
   filters?: Partial<LeadFilters>,
-  currentUserId?: string
+  currentUserId?: string,
+  timezone?: string
 ): Prisma.LeadWhereInput {
   const where: Prisma.LeadWhereInput = {};
 
@@ -227,7 +244,7 @@ function buildLeadWhereClause(
 
   // Date range filter
   if (filters?.dateRange && filters.dateRange !== 'all') {
-    const dateFilter = getDateRangeFilter(filters.dateRange, filters.customDateRange);
+    const dateFilter = getDateRangeFilter(filters.dateRange, filters.customDateRange, timezone);
     if (dateFilter) {
       where.lastContactAt = dateFilter;
     }
@@ -297,7 +314,8 @@ export async function getLeadsPaginatedSSR(
       };
     }
 
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id);
+    const timezone = await getOrgTimezone(organizationId);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id, timezone);
     const page = pagination?.page || 1;
     const limit = pagination?.limit || 25;
     const skip = (page - 1) * limit;
@@ -396,7 +414,8 @@ export async function getLeadsStatsFromDBSSR(
       return { total: 0, byStatus: {}, byTemperature: {} };
     }
 
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id);
+    const timezone = await getOrgTimezone(organizationId);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id, timezone);
 
     const [total, statusCounts, temperatureCounts] = await Promise.all([
       prisma.lead.count({ where }),
@@ -474,7 +493,8 @@ export async function getLeadsPaginated(
     }
 
     // Build where clause with filters
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id);
+    const timezone = await getOrgTimezone(organizationId);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id, timezone);
 
     // Pagination params
     const page = pagination?.page || 1;
@@ -593,7 +613,8 @@ export async function getLeads(
       return [];
     }
 
-    const where = buildLeadWhereClause(accessibleProjects, organizationId);
+    const timezone = await getOrgTimezone(organizationId);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, undefined, undefined, timezone);
 
     // OPTIMIZATION: Partial select for legacy function
     // Returns same fields as getLeadsPaginated for consistency
@@ -679,7 +700,8 @@ export async function getLeadsStatsFromDB(
       return { total: 0, byStatus: {}, byTemperature: {} };
     }
 
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id);
+    const timezone = await getOrgTimezone(organizationId);
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id, timezone);
 
     // Get counts in parallel
     const [total, statusCounts, temperatureCounts] = await Promise.all([
@@ -1435,6 +1457,8 @@ export async function exportLeadsToExcel(
       return { success: false, error: 'Sin acceso' };
     }
 
+    const timezone = await getOrgTimezone(organizationId);
+
     // Build where clause with date filter on createdAt
     const where: Prisma.LeadWhereInput = {};
 
@@ -1451,9 +1475,9 @@ export async function exportLeadsToExcel(
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
-      // Set end to end of day
-      end.setHours(23, 59, 59, 999);
-      where.createdAt = { gte: start, lte: end };
+      // Use timezone-aware end of day instead of UTC setHours
+      const endOfDay = getEndOfDayInTimezone(timezone, end);
+      where.createdAt = { gte: start, lte: endOfDay };
     }
 
     const leads = await prisma.lead.findMany({
@@ -1514,6 +1538,7 @@ export async function exportLeadsToExcel(
       return new Date(date).toLocaleDateString(isEs ? 'es-PE' : 'en-US', {
         year: 'numeric', month: '2-digit', day: '2-digit',
         hour: '2-digit', minute: '2-digit',
+        timeZone: timezone,
       });
     };
 

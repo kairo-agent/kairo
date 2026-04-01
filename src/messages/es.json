@@ -143,10 +143,10 @@
       "moreFilters": "Más filtros",
       "lessFilters": "Menos filtros",
       "showArchived": "Mostrar todos",
-      "archiveFilter": "Archivados",
+      "archiveFilter": "Descartados",
       "active": "Activos",
-      "archived": "Archivados",
-      "archivedBadge": "Archivado",
+      "archived": "Descartados",
+      "archivedBadge": "Descartado",
       "assignedTo": "Asignado a",
       "allUsers": "Todos",
       "myLeads": "Mis leads",
@@ -295,15 +295,15 @@
       "assignAgent": "Asignar agente",
       "schedule": "Agendar",
       "scheduleFollowUp": "Programar seguimiento",
-      "archiveLead": "Archivar lead",
-      "unarchiveLead": "Desarchivar lead",
-      "confirmArchive": "Archivar este lead?",
-      "confirmArchiveMessage": "El lead se ocultara de la vista activa pero conservara su estado actual. Puedes desarchivarlo en cualquier momento.",
-      "confirmUnarchive": "Desarchivar este lead?",
-      "confirmUnarchiveMessage": "El lead volvera a aparecer en la vista activa con su estado original.",
-      "archiveSuccess": "Lead archivado correctamente",
-      "unarchiveSuccess": "Lead desarchivado correctamente",
-      "archiveError": "Error al archivar el lead",
+      "archiveLead": "Descartar lead",
+      "unarchiveLead": "Recuperar lead",
+      "confirmArchive": "Descartar este lead?",
+      "confirmArchiveMessage": "El lead sera descartado y dejara de generar notificaciones o respuestas de IA. Puedes recuperarlo en cualquier momento.",
+      "confirmUnarchive": "Recuperar este lead?",
+      "confirmUnarchiveMessage": "El lead volvera a la vista activa y se reactivaran las notificaciones y la IA.",
+      "archiveSuccess": "Lead descartado correctamente",
+      "unarchiveSuccess": "Lead recuperado correctamente",
+      "archiveError": "Error al descartar el lead",
       "cancel": "Cancelar"
     },
     "followUp": {
@@ -369,7 +369,7 @@
       "closeRate": "Tasa de cierre",
       "inHumanMode": "En modo humano",
       "activeAgents": "Agentes activos",
-      "archivedLeads": "Leads archivados"
+      "archivedLeads": "Leads descartados"
     },
     "dateRange": {
       "today": "Hoy",
@@ -412,7 +412,18 @@
       "advertising": "Publicidad",
       "event": "Evento",
       "other": "Otro"
+    },
+    "calculator": {
+      "title": "Costo por lead",
+      "totalLeads": "Total leads",
+      "costPerLead": "Costo por lead"
     }
+  },
+  "pwa": {
+    "subtitle": "Instala la app para acceso rapido",
+    "install": "Instalar app",
+    "understood": "Entendido",
+    "iosInstructions": "Toca el boton Compartir y luego \"Agregar a pantalla de inicio\""
   },
   "workspace": {
     "organization": "Organización",
@@ -529,6 +540,7 @@
     "nav": {
       "overview": "Resumen",
       "organizations": "Organizaciones",
+      "organizationsShort": "Orgs.",
       "projects": "Proyectos",
       "users": "Usuarios",
       "globalRules": "Reglas Globales",
@@ -560,10 +572,10 @@
     },
     "overview": {
       "title": "Resumen del Sistema",
-      "totalOrganizations": "Total Organizaciones",
-      "totalProjects": "Total Proyectos",
-      "totalUsers": "Total Usuarios",
-      "totalLeads": "Total Leads",
+      "totalOrganizations": "Orgs.",
+      "totalProjects": "Proyectos",
+      "totalUsers": "Usuarios",
+      "totalLeads": "Leads",
       "recentActivity": "Actividad Reciente"
     },
     "organizations": {

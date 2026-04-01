@@ -10,7 +10,7 @@ import { DateRangePicker } from '@/components/ui/DateRangePicker';
 import { cn } from '@/lib/utils';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, LabelList,
 } from 'recharts';
 
 // ============================================
@@ -110,7 +110,7 @@ function HandIcon() {
 
 function RobotIcon() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00E5FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="11" width="18" height="10" rx="2" />
       <circle cx="12" cy="5" r="2" />
       <path d="M12 7v4" />
@@ -236,14 +236,19 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 // Custom Legend for Pie Charts
 // ============================================
 
-function PieLegend({ payload, labelMap }: { payload?: Array<{ value: string; color: string }>; labelMap: Record<string, string> }) {
+function PieLegend({ payload, labelMap, dataMap }: { payload?: Array<{ value: string; color: string }>; labelMap: Record<string, string>; dataMap?: Record<string, number> }) {
   if (!payload) return null;
   return (
     <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2">
       {payload.map((entry) => (
         <div key={entry.value} className="flex items-center gap-1.5">
           <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-          <span className="text-[11px] text-[var(--text-secondary)]">{labelMap[entry.value] || entry.value}</span>
+          <span className="text-[11px] text-[var(--text-secondary)]">
+            {labelMap[entry.value] || entry.value}
+            {dataMap && dataMap[entry.value] !== undefined && (
+              <span className="font-semibold text-[var(--text-primary)]"> ({dataMap[entry.value]})</span>
+            )}
+          </span>
         </div>
       ))}
     </div>
@@ -268,6 +273,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
     start: null,
     end: null,
   });
+  const [adSpend, setAdSpend] = useState<string>('');
   const customPickerRef = useRef<HTMLDivElement>(null);
 
   // Re-fetch on mount with correct workspace context (SSR doesn't have localStorage)
@@ -379,6 +385,9 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
     value: d.count,
   }));
 
+  const tempDataMap: Record<string, number> = {};
+  tempData.forEach((d) => { tempDataMap[d.name] = d.value; });
+
   const statusData = (charts?.statusDistribution || []).filter((d) => d.count > 0).map((d) => ({
     name: d.status,
     value: d.count,
@@ -471,17 +480,68 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
         <StatCard icon={<ArchiveIcon />} value={stats.archivedLeads} label={t('stats.archivedLeads')} bgColor="bg-red-100 dark:bg-red-900/30" isLoading={isLoading} />
       </div>
 
+      {/* Cost per lead calculator */}
+      <Card className="p-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-6">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-cyan-100 dark:bg-cyan-900/30 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <span className="text-sm font-semibold text-[var(--text-primary)]">{t('calculator.title')}</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[var(--text-secondary)]">S/</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={adSpend}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === '' || /^\d+\.?\d{0,2}$/.test(val)) {
+                  setAdSpend(val);
+                }
+              }}
+              placeholder="0.00"
+              className="w-28 px-3 py-1.5 text-sm rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+            />
+          </div>
+
+          <div className="hidden sm:block w-px h-8 bg-[var(--border-color)]" />
+
+          <div className="flex items-center gap-4 sm:gap-6">
+            <div>
+              <p className="text-xs text-[var(--text-secondary)]">{t('calculator.totalLeads')}</p>
+              <p className="text-lg font-bold text-[var(--text-primary)]">{stats.totalLeads}</p>
+            </div>
+            <div>
+              <p className="text-xs text-[var(--text-secondary)]">{t('calculator.costPerLead')}</p>
+              <p className="text-lg font-bold text-[var(--accent-text)]">
+                S/ {adSpend && parseFloat(adSpend) > 0 && stats.totalLeads > 0
+                  ? (parseFloat(adSpend) / stats.totalLeads).toFixed(2)
+                  : '—'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
+
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Leads per day — bar chart (spans 2 cols on desktop) */}
         <div className="lg:col-span-2">
           <ChartCard title={t('charts.leadsPerDay')} isLoading={isLoading} isEmpty={barData.length === 0}>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={barData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+              <BarChart data={barData} margin={{ top: 20, right: 5, left: -20, bottom: 5 }}>
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-tertiary)' }} axisLine={false} tickLine={false} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: 'var(--accent-primary)', opacity: 0.08 }} />
-                <Bar dataKey="count" fill="#00E5FF" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="count" fill="#00E5FF" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                  <LabelList dataKey="count" position="top" style={{ fontSize: 11, fill: 'var(--text-secondary)', fontWeight: 600 }} />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -491,12 +551,17 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
         <ChartCard title={t('charts.temperature')} isLoading={isLoading} isEmpty={tempData.length === 0}>
           <ResponsiveContainer width="100%" height={220}>
             <PieChart>
-              <Pie data={tempData} dataKey="value" nameKey="name" cx="50%" cy="45%" innerRadius={45} outerRadius={70} paddingAngle={3} strokeWidth={0}>
+              <Pie data={tempData} dataKey="value" nameKey="name" cx="50%" cy="45%" innerRadius={45} outerRadius={70} paddingAngle={3} strokeWidth={0} label={({ value, cx: cxPos, cy: cyPos, midAngle = 0, outerRadius: or = 70 }) => {
+                const RADIAN = Math.PI / 180;
+                const x = (cxPos as number) + (or + 14) * Math.cos(-midAngle * RADIAN);
+                const y = (cyPos as number) + (or + 14) * Math.sin(-midAngle * RADIAN);
+                return <text x={x} y={y} textAnchor="middle" dominantBaseline="central" style={{ fontSize: 11, fontWeight: 600, fill: 'var(--text-secondary)' }}>{value}</text>;
+              }} labelLine={false}>
                 {tempData.map((entry) => (
                   <Cell key={entry.name} fill={TEMP_COLORS[entry.name] || '#6B7280'} />
                 ))}
               </Pie>
-              <Legend content={<PieLegend labelMap={tempLabelMap} />} />
+              <Legend content={<PieLegend labelMap={tempLabelMap} dataMap={tempDataMap} />} />
               <Tooltip formatter={(value, name) => [value, tempLabelMap[String(name)] || name]} />
             </PieChart>
           </ResponsiveContainer>
@@ -523,6 +588,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
                 {statusData.map((entry) => (
                   <Cell key={entry.name} fill={STATUS_COLORS[entry.name] || '#6B7280'} />
                 ))}
+                <LabelList dataKey="value" position="right" style={{ fontSize: 11, fill: 'var(--text-secondary)', fontWeight: 600 }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
@@ -546,6 +612,7 @@ export default function DashboardClient({ initialStats }: DashboardClientProps) 
                 {sourceData.map((entry) => (
                   <Cell key={entry.name} fill={SOURCE_COLORS[entry.name] || '#6B7280'} />
                 ))}
+                <LabelList dataKey="value" position="right" style={{ fontSize: 11, fill: 'var(--text-secondary)', fontWeight: 600 }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>

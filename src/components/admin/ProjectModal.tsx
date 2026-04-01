@@ -245,7 +245,7 @@ export default function ProjectModal({
               id="isActive"
               checked={formData.isActive}
               onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-              className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--kairo-cyan)] focus:ring-[var(--kairo-cyan)]"
+              className="w-4 h-4 rounded border-[var(--border-primary)] text-[var(--accent-text)] focus:ring-[var(--kairo-cyan)]"
             />
             <label htmlFor="isActive" className="text-sm text-[var(--text-primary)]">
               {t('active')}

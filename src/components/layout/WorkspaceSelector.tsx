@@ -185,7 +185,7 @@ function Dropdown({
                 'text-sm text-left',
                 'transition-colors duration-150',
                 value === 'all' || !value
-                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-text)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
               )}
             >
@@ -208,7 +208,7 @@ function Dropdown({
                 'text-sm text-left',
                 'transition-colors duration-150',
                 value === option.id
-                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-text)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
               )}
             >

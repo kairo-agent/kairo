@@ -103,13 +103,14 @@ function getTemperatureBadge(temperature: string): { label: string; className: s
 
 // formatTimeAgo removed — now uses formatRelativeTime from @/lib/utils
 
-function formatFollowUpDate(date: Date): string {
+function formatFollowUpDate(date: Date, timezone?: string): string {
   const d = new Date(date);
   return d.toLocaleDateString('es-PE', {
     day: 'numeric',
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
+    ...(timezone ? { timeZone: timezone } : {}),
   });
 }
 
@@ -192,7 +193,7 @@ export function NotificationDropdown() {
             {unreadCount > 0 && (
               <button
                 onClick={markAllAsRead}
-                className="text-xs text-[var(--accent-primary)] hover:underline"
+                className="text-xs text-[var(--accent-text)] hover:underline"
               >
                 {t('markAllRead')}
               </button>
@@ -264,7 +265,7 @@ export function NotificationDropdown() {
                       {/* Follow-up date (for follow_up_due notifications) */}
                       {notification.type === 'follow_up_due' && lead?.nextFollowUpAt && (
                         <p className="text-[10px] text-orange-500 mt-0.5">
-                          {t('scheduledFor')} {formatFollowUpDate(lead.nextFollowUpAt)}
+                          {t('scheduledFor')} {formatFollowUpDate(lead.nextFollowUpAt, workspace?.selectedOrganization?.defaultTimezone)}
                         </p>
                       )}
 

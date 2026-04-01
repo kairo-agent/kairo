@@ -1,6 +1,48 @@
-# KAIRO - Changelog Archive (v0.11.1 y anteriores)
+# KAIRO - Changelog Archive (v0.16.1 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.12.0+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.16.2+).
+
+---
+
+## [0.16.1] - 2026-03-24
+
+Archivado desde CHANGELOG.md. Contenido: Lead Source Auto-Detection (Meta Referral CTWA Ads + hashtags en primer mensaje). 7 nuevos LeadSource enum values. Dashboard Source Chart (horizontal bar). Migraciones: `20260324_add_lead_source_platforms`, `20260324_add_fb_ig_organic_sources`.
+
+---
+
+## [0.16.0] - 2026-03-22
+
+Archivado desde CHANGELOG.md. Contenido: Dashboard Charts (recharts: leads/dia bar, temperatura donut, status horizontal bar, conversion stat card). Cron cleanup-media failsafe. Image Lightbox (full-screen overlay). Upload timestamps en agent media. Fixes: SSR flash, ESC lightbox, dashboard default 30 days.
+
+---
+
+## [0.15.1] - 2026-03-21
+
+Archivado desde CHANGELOG.md. Contenido: Cron cleanup-media protege agent_media (excluye storage_path de agent_media table). Edit media con reemplazo de archivo (overlay hover, old file cleanup). RPC `update_agent_media_file`.
+
+---
+
+## [0.15.0] - 2026-03-20
+
+Archivado desde CHANGELOG.md. Contenido: Agent Video Support (upload client-side, video-upload.ts, video-thumbnail.ts, FixedVideoSlot, searchRelevantVideos, sendVideoToWhatsApp, [VIDEO-X] markers, position tagging, send order img→text→video→RAG). Fixes: ReEngagement sendWindow Zod schema, Redis debounce provisionado (Upstash sa-east-1), WhatsApp send order.
+
+---
+
+## [0.14.0] - 2026-03-19
+
+Archivado desde CHANGELOG.md. Contenido: Debounce 3s en Webhook WhatsApp (Redis `SET NX EX 3` + `waitUntil` + concatenacion). Fixed Event Images (4 tipos: first_contact, reengagement_0/1/2, RPCs SECURITY DEFINER). Horario de envio configurable para ReEngagement (selectores AM/PM, cruce de medianoche). Mobile Lead Panel botones en fila horizontal (icon-only mobile, texto completo sm+).
+
+---
+
+## [0.13.0] - 2026-03-19
+
+Archivado desde CHANGELOG.md. Contenido: Chat Media Rendering (imagenes inline como thumbnails clickeables, mediaAttachments en metadata). Excel Export (SheetJS dynamic import, FloatingCalendar con Portal, server action con auth + project access). ReEngagement Media Support (protocolo [MEDIA-X] en todos los intentos).
+
+---
+
+## [0.12.0] - 2026-03-18
+
+Archivado desde CHANGELOG.md. Contenido: Agent Media - Imagenes via WhatsApp con RAG Semantico (tabla agent_media + pgvector, search-media.ts, markers [MEDIA-X], compresion client-side Canvas API, feature flag projectHasMedia()). Login Fixes (ERR_TOO_MANY_REDIRECTS cookies middleware, loading overlay post-logout).
 
 ---
 
@@ -407,145 +449,15 @@ Mensajes de audio ahora muestran la transcripcion directamente en el chat de KAI
 
 ---
 
-## [0.7.8] - 2026-01-31
+## [0.7.0 - 0.7.8] - 2026-01-29 a 2026-01-31
 
-### Security (LOW Risk)
-- **Redis para Rate Limiting Persistente** - `@upstash/redis` instalado
-- **Headers OWASP Adicionales** (13 headers totales):
-  - `X-Permitted-Cross-Domain-Policies`, `X-Download-Options`, `Cross-Origin-Opener-Policy`, `Cross-Origin-Resource-Policy`
+Resumen: RAG Fases 1-4 completadas (pgvector, embeddings, UI admin, endpoint /api/rag/search). Security hardening (OWASP headers, rate limiting, Redis, CVE fixes, fail-closed, timingSafeEqual). API /api/ai/respond. Read receipts automaticos. n8n Railway integracion. Fix: search_agent_knowledge SQL, Supabase Realtime RLS.
 
 ---
 
-## [0.7.7] - 2026-01-31
+## [0.5.0 - 0.6.2] - 2026-01-20 a 2026-01-24
 
-### Security
-- **HTTP Security Headers** - Configuracion completa en `next.config.ts`
-- **Rate Limiting implementado en APIs criticas**
-
----
-
-## [0.7.6] - 2026-01-31
-
-### Security
-- Next.js actualizado a 16.1.6 (CVE fixes)
-- Fail-closed en validacion de secrets
-- timingSafeEqual en comparacion de secrets
-
----
-
-## [0.7.5] - 2026-01-30
-
-### Features
-- **Nuevo endpoint `/api/ai/respond`** - Guardar y enviar en un solo paso
-- **Read Receipt automatico** - Lead ve doble check azul
-
----
-
-## [0.7.4] - 2026-01-30
-
-### Features
-- **RAG Fase 4 COMPLETADA** - Flujo end-to-end funcional
-- **Endpoint `/api/rag/search`** para n8n con busqueda semantica
-
----
-
-## [0.7.3] - 2026-01-29
-
-### Features
-- Webhook WhatsApp envia datos del agente a n8n
-- **Restriccion: Solo 1 agente activo por proyecto** (radio button)
-
----
-
-## [0.7.2] - 2026-01-29
-
-### Corregido
-- Funcion SQL `search_agent_knowledge` corregida (parametro `TEXT` en lugar de `vector`)
-
----
-
-## [0.7.1] - 2026-01-29
-
-### Features
-- **Migracion de n8n a Railway (produccion)**
-- **Integracion KAIRO <-> n8n Railway** end-to-end validado
-
-### Corregido
-- **Bug critico: Supabase Realtime no enviaba broadcasts** - RLS policies faltantes en tabla `messages`
-
----
-
-## [0.7.0] - 2026-01-29
-
-### Features
-- **RAG (Retrieval Augmented Generation) - Fases 1-3 completadas**
-  - Fase 1: pgvector + `agent_knowledge` table + RPCs + RLS
-  - Fase 2: Server Actions + embeddings OpenAI (text-embedding-3-small)
-  - Fase 3: UI Admin en ProjectSettingsModal (tab "Conocimiento")
-
----
-
-## [0.6.2] - 2026-01-24
-
-### Performance
-- **Fase 4: Composite Indexes y Partial Selects**
-  - Indices compuestos en Prisma schema
-  - Tipos optimizados: `LeadGridItem`, `MessageForChat`
-
----
-
-## [0.6.1] - 2026-01-24
-
-### Performance
-- **Fase 3: Consolidacion de Server Actions** - fire-and-forget para `markMessagesAsRead()`
-
-### UX/UI
-- Login/Logout Loading Overlay
-- Scroll Block en LeadDetailPanel
-
----
-
-## [0.6.0] - 2026-01-24
-
-### Performance
-- **Fase 1:** Request-Scoped Caching con `React.cache()`
-- **Fase 1:** In-Memory Cache para Webhooks WhatsApp (TTL 5 min)
-- **Fase 2:** Paginacion Backend con Cursor (`PaginatedConversation`)
-- **Fase 2:** React Query con `useInfiniteQuery`
-
----
-
-## [0.5.3] - 2026-01-23
-
-### Seguridad
-- API `/api/whatsapp/send` - Autenticacion reforzada (Supabase Auth + memberships)
-- Webhook HMAC-SHA256 con `verifyWebhookSignature()`
-
----
-
-## [0.5.2] - 2026-01-22
-
-### Agregado
-- **WhatsApp Read Receipts** - Endpoint `/api/whatsapp/mark-read`
-- **Rate Limiting Utility** (`src/lib/rate-limit.ts`)
-- **WhatsApp Status Indicators** en Chat (enviado/entregado/leido)
-
----
-
-## [0.5.1] - 2026-01-22
-
-### Agregado
-- **Integracion directa con WhatsApp Cloud API**
-- **Creacion automatica de leads** desde WhatsApp
-
----
-
-## [0.5.0] - 2026-01-20
-
-### Agregado
-- **Gestion completa de Agentes IA** en ProjectSettingsModal (CRUD)
-- **Sistema de Secrets encriptados** (AES-256-GCM) para proyectos
-- **Tab WhatsApp** en ProjectSettingsModal
+Resumen: Performance 4 fases (React.cache, in-memory cache, paginacion cursor, React Query useInfiniteQuery, composite indexes, partial selects, server action consolidation). WhatsApp Cloud API integracion directa. Read receipts. Rate limiting. HMAC-SHA256 webhook. Agentes IA CRUD + secrets encriptados (AES-256-GCM).
 
 ---
 

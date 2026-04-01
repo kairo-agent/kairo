@@ -27,6 +27,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { getRedis } from '@/lib/redis';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { processAIResponse } from '@/lib/ai/process-ai-response';
+import { downloadAndStoreMedia } from '@/lib/whatsapp/download-media';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
 import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
@@ -707,6 +708,7 @@ async function handleIncomingMessage(
       whatsappId: true,
       summary: true,
       handoffMode: true,
+      archivedAt: true,
       conversation: true,
       assignedAgent: {
         select: { id: true, name: true, systemInstructions: true, promptStructure: true },
@@ -767,6 +769,7 @@ async function handleIncomingMessage(
         whatsappId: true,
         summary: true,
         handoffMode: true,
+        archivedAt: true,
         conversation: true,
         assignedAgent: {
           select: { id: true, name: true, systemInstructions: true, promptStructure: true },
@@ -785,6 +788,20 @@ async function handleIncomingMessage(
     });
 
     console.log(`[OK] New lead created: ${lead.id.substring(0, 8)}... (source: ${detectedSource})`);
+
+    // Download incoming media for new leads
+    if (metadata.mediaId && lead.conversation?.id) {
+      waitUntil(
+        downloadAndStoreMedia({
+          mediaId: String(metadata.mediaId),
+          mimeType: String(metadata.mimeType || ''),
+          projectId,
+          whatsappMsgId: message.id,
+          conversationId: lead.conversation.id,
+          messageType: message.type,
+        }).catch((err) => console.error('[Media Download] Error:', err))
+      );
+    }
   } else {
     // Add message to existing conversation
     let conversationId = lead.conversation?.id;
@@ -860,6 +877,26 @@ async function handleIncomingMessage(
     }
 
     console.log(`[OK] Message added to lead: ${lead.id.substring(0, 8)}...`);
+
+    // Download incoming media async (image, video, audio, document, sticker)
+    if (metadata.mediaId && conversationId) {
+      waitUntil(
+        downloadAndStoreMedia({
+          mediaId: String(metadata.mediaId),
+          mimeType: String(metadata.mimeType || ''),
+          projectId,
+          whatsappMsgId: message.id,
+          conversationId,
+          messageType: message.type,
+        }).catch((err) => console.error('[Media Download] Error:', err))
+      );
+    }
+  }
+
+  // Discarded leads: save message (above) but skip notifications and AI
+  if (lead.archivedAt) {
+    console.log(`[SKIP] Lead ${lead.id.substring(0, 8)}... is discarded — no notifications or AI`);
+    return NextResponse.json({ success: true });
   }
 
   // Background: notify project members about new message
@@ -941,7 +978,7 @@ async function handleIncomingMessage(
     const [project, globalRules] = await Promise.all([
       prisma.project.findUnique({
         where: { id: projectId },
-        select: { name: true, organizationId: true },
+        select: { name: true, organizationId: true, organization: { select: { defaultTimezone: true } } },
       }),
       getActiveGlobalRules(),
     ]);
@@ -971,6 +1008,7 @@ async function handleIncomingMessage(
       const conversationId = lead.conversation?.id || '';
       const organizationId = project?.organizationId || '';
       const companyName = project?.name || 'KAIRO';
+      const orgTimezone = project?.organization?.defaultTimezone || null;
       const leadSummary = lead.summary || null;
 
       waitUntil(
@@ -985,6 +1023,8 @@ async function handleIncomingMessage(
             let freshHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
             let freshMessageCount = totalMessageCount;
             let concatenatedMessage = content;
+            let freshMediaId: string | null = mediaId;
+            let freshMessageType: string = message.type;
 
             if (conversationId) {
               const [msgCount, recentMsgs] = await Promise.all([
@@ -993,7 +1033,7 @@ async function handleIncomingMessage(
                   where: { conversationId },
                   orderBy: { createdAt: 'desc' },
                   take: 12,
-                  select: { content: true, sender: true },
+                  select: { content: true, sender: true, metadata: true },
                 }),
               ]);
 
@@ -1017,6 +1057,17 @@ async function handleIncomingMessage(
                 concatenatedMessage = pendingLeadMsgs[0];
               }
 
+              // Find the latest image in pending lead messages (for vision)
+              for (let i = chronological.length - 1; i >= 0; i--) {
+                if (chronological[i].sender !== 'lead') break;
+                const meta = chronological[i].metadata as Record<string, unknown> | null;
+                if (meta?.messageType === 'image' && meta?.mediaId) {
+                  freshMediaId = String(meta.mediaId);
+                  freshMessageType = 'image';
+                  break;
+                }
+              }
+
               // History = everything except the pending lead messages
               const historyMsgs = chronological.slice(0, chronological.length - pendingLeadMsgs.length);
               freshHistory = historyMsgs.map(msg => ({
@@ -1034,8 +1085,8 @@ async function handleIncomingMessage(
               leadPhone: lead.phone,
               whatsappId: lead.whatsappId || null,
               message: concatenatedMessage,
-              messageType: message.type,
-              mediaId,
+              messageType: freshMessageType,
+              mediaId: freshMediaId,
               agentId,
               agentName,
               globalRules,
@@ -1046,6 +1097,7 @@ async function handleIncomingMessage(
               messageCount: freshMessageCount,
               summaryThreshold: 5,
               leadSummary,
+              timezone: orgTimezone || undefined,
             });
           } catch (err) {
             console.error('[WhatsApp Webhook] AI pipeline error:', err);

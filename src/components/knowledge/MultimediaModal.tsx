@@ -277,7 +277,7 @@ export function MultimediaModal({
           onClick={() => setActiveTab('images')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'images'
-              ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
+              ? 'border-[var(--accent-primary)] text-[var(--accent-text)]'
               : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
           }`}
         >
@@ -292,7 +292,7 @@ export function MultimediaModal({
           onClick={() => setActiveTab('videos')}
           className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'videos'
-              ? 'border-[var(--accent-primary)] text-[var(--accent-primary)]'
+              ? 'border-[var(--accent-primary)] text-[var(--accent-text)]'
               : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
           }`}
         >
@@ -420,7 +420,7 @@ export function MultimediaModal({
             </div>
           ) : (
             items.length < MAX_MEDIA_ITEMS && (
-              <button type="button" onClick={() => setShowAddForm(true)} className="w-full text-sm px-3 py-2.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors">
+              <button type="button" onClick={() => setShowAddForm(true)} className="w-full text-sm px-3 py-2.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)] transition-colors">
                 + Agregar imagen
               </button>
             )
@@ -513,7 +513,7 @@ export function MultimediaModal({
               ) : (
                 <div className="flex items-center gap-4">
                   <div className="flex-shrink-0 w-16 h-16 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center relative">
-                    <svg className="w-8 h-8 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <svg className="w-8 h-8 text-[var(--accent-text)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
                     </svg>
                     <button
@@ -540,7 +540,7 @@ export function MultimediaModal({
             </div>
           ) : (
             videoItems.length < MAX_VIDEO_ITEMS && (
-              <button type="button" onClick={() => setShowVideoAddForm(true)} className="w-full text-sm px-3 py-2.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors">
+              <button type="button" onClick={() => setShowVideoAddForm(true)} className="w-full text-sm px-3 py-2.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)] transition-colors">
                 + Agregar video
               </button>
             )
@@ -596,7 +596,7 @@ function VideoThumbnail({ url, alt, className }: { url: string; alt: string; cla
   // Fallback: camera icon while loading or if extraction fails
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <svg className="w-6 h-6 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <svg className="w-6 h-6 text-[var(--accent-text)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
       </svg>
     </div>
@@ -647,7 +647,7 @@ function MediaItemRow({ item, onEdit, onDelete, mediaType, onLightbox }: {
       </div>
       {/* Edit + Delete buttons */}
       <div className="flex-shrink-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-        <button onClick={onEdit} className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/10 transition-colors" title="Editar">
+        <button onClick={onEdit} className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent-text)] hover:bg-[var(--accent-primary)]/10 transition-colors" title="Editar">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
           </svg>

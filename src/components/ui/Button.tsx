@@ -39,7 +39,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         focus-visible:ring-[var(--accent-primary)]
       `,
       secondary: `
-        border-2 border-[var(--accent-primary)] text-[var(--accent-primary)]
+        border-2 border-[var(--accent-primary)] text-[var(--accent-text)]
         bg-transparent hover:bg-[var(--accent-primary-light)]
         focus-visible:ring-[var(--accent-primary)]
       `,

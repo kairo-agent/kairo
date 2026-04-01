@@ -104,7 +104,7 @@ function FloatingCalendar({
   const calendarContent = (
     <div ref={calRef} className="export-date-picker rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] shadow-2xl overflow-hidden">
       <div className="px-3 py-2 border-b border-[var(--border-primary)] bg-[var(--bg-secondary)]">
-        <span className="text-xs font-medium text-[var(--accent-primary)]">{label}</span>
+        <span className="text-xs font-medium text-[var(--accent-text)]">{label}</span>
       </div>
       <div className="p-3 flex justify-center">
         <style jsx global>{`
@@ -399,7 +399,7 @@ export function ExportLeadsModal({
                 startDate ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'
               )}
             >
-              <CalendarIcon className="w-4 h-4 text-[var(--accent-primary)] shrink-0" />
+              <CalendarIcon className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
               {formatDisplay(startDate, isEs ? 'Seleccionar' : 'Select')}
             </button>
           </div>
@@ -428,7 +428,7 @@ export function ExportLeadsModal({
                 endDate ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'
               )}
             >
-              <CalendarIcon className="w-4 h-4 text-[var(--accent-primary)] shrink-0" />
+              <CalendarIcon className="w-4 h-4 text-[var(--accent-text)] shrink-0" />
               {formatDisplay(endDate, isEs ? 'Seleccionar' : 'Select')}
             </button>
           </div>

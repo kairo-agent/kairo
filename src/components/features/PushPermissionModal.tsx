@@ -38,7 +38,7 @@ export default function PushPermissionModal({ onAccept, onDismiss }: PushPermiss
       <div className="relative bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
         {/* Icon */}
         <div className="flex justify-center">
-          <div className="w-20 h-20 rounded-full bg-[var(--kairo-cyan)]/10 flex items-center justify-center text-[var(--kairo-cyan)]">
+          <div className="w-20 h-20 rounded-full bg-[var(--kairo-cyan)]/10 flex items-center justify-center text-[var(--accent-text)]">
             <BellRingIcon />
           </div>
         </div>

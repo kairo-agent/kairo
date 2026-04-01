@@ -155,8 +155,8 @@ const LOCALE_LABELS: Record<Locale, string> = {
 };
 
 const LOCALE_FLAGS: Record<Locale, string> = {
-  es: '🇪🇸',
-  en: '🇺🇸',
+  es: 'ES',
+  en: 'EN',
 };
 
 // User type for Header
@@ -282,7 +282,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
         </button>
 
         {/* Page title */}
-        <h1 className="text-lg font-semibold text-[var(--text-primary)]">{title}</h1>
+        <h1 className="text-lg font-semibold text-[var(--text-primary)] hidden sm:block">{title}</h1>
       </div>
 
       {/* Right section */}
@@ -323,7 +323,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
                     'w-full flex items-center gap-2 px-4 py-2',
                     'text-sm',
                     locale === loc
-                      ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+                      ? 'bg-[var(--accent-primary-light)] text-[var(--accent-text)]'
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]',
                     'transition-colors duration-200'
                   )}
@@ -401,7 +401,7 @@ export function Header({ title, onMenuClick, user }: HeaderProps) {
                   {displayUser.firstName} {displayUser.lastName}
                 </p>
                 <p className="text-xs text-[var(--text-tertiary)] mt-0.5">{displayUser.email}</p>
-                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--accent-primary-light)] text-[var(--accent-primary)]">
+                <span className="inline-block mt-1 px-2 py-0.5 text-xs font-medium rounded-full bg-[var(--accent-primary-light)] text-[var(--accent-text)]">
                   {getRoleLabel(effectiveRole ?? displayUser.systemRole)}
                 </span>
               </div>

@@ -209,7 +209,7 @@ export function BusinessHoursForm({
           <button
             type="button"
             onClick={copyMondayToWeekdays}
-            className="text-xs px-3 py-1.5 rounded-md border border-[var(--border-primary)] text-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            className="text-xs px-3 py-1.5 rounded-md border border-[var(--border-primary)] text-[var(--accent-text)] hover:bg-[var(--bg-tertiary)] transition-colors"
           >
             {labels.copyMondayToWeekdays}
           </button>
@@ -339,7 +339,7 @@ export function BusinessHoursForm({
                       onChange={(e) =>
                         updateHoliday(index, 'closed', e.target.checked)
                       }
-                      className="rounded border-[var(--border-primary)] text-[var(--accent-primary)] focus:ring-[var(--accent-primary)]"
+                      className="rounded border-[var(--border-primary)] text-[var(--accent-text)] focus:ring-[var(--accent-primary)]"
                     />
                     {labels.holidayClosed}
                   </label>
@@ -389,14 +389,14 @@ export function BusinessHoursForm({
           <button
             type="button"
             onClick={addCustomHoliday}
-            className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
+            className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)] transition-colors"
           >
             + {labels.addHoliday}
           </button>
           <button
             type="button"
             onClick={() => setShowPresets(!showPresets)}
-            className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)] transition-colors"
+            className="text-sm px-3 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--accent-text)] transition-colors"
           >
             + {labels.addFromPresets}
           </button>

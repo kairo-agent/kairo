@@ -256,7 +256,7 @@ export function Pagination({
                   className={cn(
                     'w-full px-4 py-2 text-sm text-left transition-colors duration-150',
                     size === pageSize
-                      ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+                      ? 'bg-[var(--accent-primary-light)] text-[var(--accent-text)]'
                       : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                   )}
                 >

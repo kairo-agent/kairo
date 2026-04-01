@@ -152,8 +152,8 @@ function CountrySelect({
           {FlagComponent && value ? (
             <FlagComponent title={value} />
           ) : (
-            <span className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center text-xs">
-              🌐
+            <span className="w-full h-full bg-[var(--bg-secondary)] flex items-center justify-center text-[9px] font-medium text-[var(--text-tertiary)]">
+              INT
             </span>
           )}
         </span>
@@ -248,7 +248,7 @@ function CountrySelect({
                     {/* Country Name */}
                     <span className={cn(
                       'flex-1 text-sm text-left truncate',
-                      isSelected ? 'text-[var(--accent-primary)] font-medium' : 'text-[var(--text-primary)]'
+                      isSelected ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
                     )}>
                       {country.name}
                     </span>
@@ -256,14 +256,14 @@ function CountrySelect({
                     {/* Calling Code */}
                     <span className={cn(
                       'text-sm font-mono',
-                      isSelected ? 'text-[var(--accent-primary)]' : 'text-[var(--text-secondary)]'
+                      isSelected ? 'text-[var(--accent-text)]' : 'text-[var(--text-secondary)]'
                     )}>
                       +{country.callingCode}
                     </span>
 
                     {/* Check Mark for Selected */}
                     {isSelected && (
-                      <svg className="w-4 h-4 text-[var(--accent-primary)]" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 h-4 text-[var(--accent-text)]" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     )}

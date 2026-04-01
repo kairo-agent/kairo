@@ -271,7 +271,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg relative',
                 'transition-all duration-200',
                 active
-                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-text)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
               )}
             >
@@ -296,7 +296,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg relative',
                 'transition-all duration-200',
                 isActive('/admin')
-                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-primary)]'
+                  ? 'bg-[var(--accent-primary-light)] text-[var(--accent-text)]'
                   : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
               )}
             >

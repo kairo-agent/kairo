@@ -603,7 +603,7 @@ export default function ProjectSettingsModal({
               className={cn(
                 'w-10 h-10 flex items-center justify-center rounded-lg border transition-colors',
                 agentIcon === iconName
-                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--kairo-cyan)]'
+                  ? 'border-[var(--kairo-cyan)] bg-[var(--kairo-cyan)]/10 text-[var(--accent-text)]'
                   : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
               )}
             >
@@ -767,7 +767,7 @@ export default function ProjectSettingsModal({
                 className={cn(
                   'flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors',
                   isActive
-                    ? 'border-[var(--kairo-cyan)] text-[var(--kairo-cyan)]'
+                    ? 'border-[var(--kairo-cyan)] text-[var(--accent-text)]'
                     : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                 )}
                 title={tab.label}
@@ -830,7 +830,7 @@ export default function ProjectSettingsModal({
             {!showAgentForm && (
               <button
                 onClick={() => setShowAgentForm(true)}
-                className="w-full py-3 rounded-lg border-2 border-dashed border-[var(--border-primary)] text-[var(--text-muted)] hover:border-[var(--kairo-cyan)] hover:text-[var(--kairo-cyan)] transition-colors flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-lg border-2 border-dashed border-[var(--border-primary)] text-[var(--text-muted)] hover:border-[var(--kairo-cyan)] hover:text-[var(--accent-text)] transition-colors flex items-center justify-center gap-2"
               >
                 <PlusIcon />
                 {t('agentSettings.newAgent')}
@@ -934,7 +934,7 @@ export default function ProjectSettingsModal({
                         className={cn(
                           'p-1 flex items-center gap-1 text-xs rounded transition-colors',
                           revealedSecrets.whatsapp_access_token
-                            ? 'text-[var(--kairo-cyan)]'
+                            ? 'text-[var(--accent-text)]'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                         )}
                         title={revealedSecrets.whatsapp_access_token ? t('settings.hideSecret') : t('settings.revealSecret')}
@@ -1006,7 +1006,7 @@ export default function ProjectSettingsModal({
                         className={cn(
                           'p-1 flex items-center gap-1 text-xs rounded transition-colors',
                           revealedSecrets.whatsapp_phone_number_id
-                            ? 'text-[var(--kairo-cyan)]'
+                            ? 'text-[var(--accent-text)]'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                         )}
                         title={revealedSecrets.whatsapp_phone_number_id ? t('settings.hideSecret') : t('settings.revealSecret')}
@@ -1078,7 +1078,7 @@ export default function ProjectSettingsModal({
                         className={cn(
                           'p-1 flex items-center gap-1 text-xs rounded transition-colors',
                           revealedSecrets.whatsapp_business_account_id
-                            ? 'text-[var(--kairo-cyan)]'
+                            ? 'text-[var(--accent-text)]'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                         )}
                         title={revealedSecrets.whatsapp_business_account_id ? t('settings.hideSecret') : t('settings.revealSecret')}
@@ -1151,7 +1151,7 @@ export default function ProjectSettingsModal({
                         className={cn(
                           'p-1 flex items-center gap-1 text-xs rounded transition-colors',
                           revealedSecrets.whatsapp_app_secret
-                            ? 'text-[var(--kairo-cyan)]'
+                            ? 'text-[var(--accent-text)]'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                         )}
                         title={revealedSecrets.whatsapp_app_secret ? t('settings.hideSecret') : t('settings.revealSecret')}
@@ -1237,7 +1237,7 @@ export default function ProjectSettingsModal({
                         className={cn(
                           'p-1 flex items-center gap-1 text-xs rounded transition-colors',
                           revealedSecrets.openai_api_key
-                            ? 'text-[var(--kairo-cyan)]'
+                            ? 'text-[var(--accent-text)]'
                             : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                         )}
                         title={revealedSecrets.openai_api_key ? t('settings.hideSecret') : t('settings.revealSecret')}

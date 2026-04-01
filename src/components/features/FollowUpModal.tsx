@@ -116,7 +116,7 @@ export function FollowUpModal({
               key={option.hours}
               type="button"
               onClick={() => handleQuickOption(option.hours)}
-              className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--accent-primary)]/10 hover:text-[var(--accent-primary)] hover:border-[var(--accent-primary)]/30 transition-colors"
+              className="px-3 py-1.5 text-xs rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--accent-primary)]/10 hover:text-[var(--accent-text)] hover:border-[var(--accent-primary)]/30 transition-colors"
             >
               {option.label}
             </button>

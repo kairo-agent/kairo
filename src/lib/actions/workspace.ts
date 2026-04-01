@@ -12,6 +12,7 @@ export interface WorkspaceOrganization {
   id: string;
   name: string;
   slug: string;
+  defaultTimezone: string;
 }
 
 export interface WorkspaceProject {
@@ -43,6 +44,7 @@ export async function getOrganizations(): Promise<WorkspaceOrganization[]> {
           id: true,
           name: true,
           slug: true,
+          defaultTimezone: true,
         },
       });
       // Serialize to plain objects for client components
@@ -50,6 +52,7 @@ export async function getOrganizations(): Promise<WorkspaceOrganization[]> {
         id: org.id,
         name: org.name,
         slug: org.slug,
+        defaultTimezone: org.defaultTimezone,
       }));
     }
 
@@ -63,6 +66,7 @@ export async function getOrganizations(): Promise<WorkspaceOrganization[]> {
             name: true,
             slug: true,
             isActive: true,
+            defaultTimezone: true,
           },
         },
       },
@@ -74,6 +78,7 @@ export async function getOrganizations(): Promise<WorkspaceOrganization[]> {
         id: m.organization.id,
         name: m.organization.name,
         slug: m.organization.slug,
+        defaultTimezone: m.organization.defaultTimezone,
       }));
   } catch (error) {
     console.error('Error fetching organizations:', error);

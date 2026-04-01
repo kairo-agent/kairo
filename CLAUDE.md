@@ -13,7 +13,7 @@
 
 ## REGLA CRITICA: Tamano de CLAUDE.md
 
-> **Este archivo debe mantenerse bajo 10 KB. Actualmente: ~8 KB.**
+> **Este archivo debe mantenerse bajo 10 KB. Actualmente: ~9.8 KB.**
 
 - **NUNCA agregar documentacion detallada aqui.** Usar archivos en `docs/` y referenciar con link.
 - Nueva feature/API/integracion: documentar en el `docs/*.md` correspondiente, agregar 1 linea en "Estado Actual" si aplica.
@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.18.0 (Lead statuses, WhatsApp 24h timer, per-service currency) |
+| **Version** | v0.20.1 (temperature guard, DnD criteria, admin contrast fix) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -78,20 +78,21 @@ src/
       cron/cleanup-media/          # Limpieza archivos >24h (excluye agent_media)
       cron/followup-notify/        # Email + Push para follow-ups (llamado por pg_net)
   components/
-    ui/                            # Button, Input, Modal, PhoneInput, ImageLightbox, etc.
+    ui/                            # Button, Input, Modal, PhoneInput, ImageLightbox, AudioPlayer, etc.
     layout/                        # Sidebar, Header, WorkspaceSelector
     admin/                         # Modales de admin
-    features/                      # LeadCard, LeadTable, LeadChat, ExportLeadsModal, etc.
+    features/                      # LeadCard, LeadTable, LeadChat, LeadAssignment, ExportLeadsModal, etc.
     knowledge/                     # MultimediaModal, FixedImageSlot, FixedVideoSlot (agent media management UI)
   contexts/                        # Theme, Modal, Workspace, Loading
   lib/
     ai/                            # AI Pipeline (process-ai-response, build-system-prompt, generate-reengagement, search-media)
     knowledge/                     # Structured knowledge (prompt-builder, business-hours, faqs, pricing, location-contact, policies)
     utils/                         # Utilities (image-compression.ts, video-upload.ts, video-thumbnail.ts)
-    whatsapp/                      # WhatsApp send helper (send.ts - shared by AI pipeline + cron)
+    whatsapp/                      # WhatsApp send helper (send.ts) + download-media.ts (incoming media)
     push/                          # Web Push (send-push.ts - VAPID + web-push delivery)
     types/                         # Shared types (reengagement.ts, agent-media.ts - extracted from 'use server')
     actions/                       # Server Actions (admin, agent-media, agents, auth, knowledge, leads, media, messages, notifications, profile, reengagement, secrets, workspace)
+    permissions.ts                 # RBAC module (role hierarchy, effective role, permission predicates)
     supabase/                      # Client/Server Supabase + Prisma
     auth-helpers.ts                # verifySuperAdmin, getCurrentUser
     rate-limit.ts                  # Rate limiting
@@ -113,7 +114,7 @@ src/
 6. Theme light por defecto
 7. **i18n**: Usar `Link` de `@/i18n/routing`, NUNCA de `next/link` (causa loop infinito)
 8. **PhoneInput**: SIEMPRE usar `@/components/ui/PhoneInput` para telefonos
-9. **NO eliminar leads**: Usar campo `archivedAt` (no status) en lugar de delete
+9. **NO eliminar leads**: Usar campo `archivedAt` ("Descartar/Recuperar") en lugar de delete
 10. **1 agente activo por proyecto**: Radio button, no toggle multiple
 11. **ExpandableTextarea**: Usar `@/components/ui/ExpandableTextarea` para textareas de contenido largo
 12. **'use server'**: Archivos con `'use server'` solo pueden exportar funciones async. Tipos y constantes van en `lib/types/`
@@ -125,9 +126,13 @@ src/
 
 ```css
 --kairo-midnight: #0B1220;   /* Primary dark */
---kairo-cyan: #00E5FF;       /* Primary accent */
+--kairo-cyan: #00E5FF;       /* Primary accent (backgrounds, borders, buttons) */
+--accent-text: #0E7490;      /* Light mode: cyan text (readable on white) */
+--accent-text: #00E5FF;      /* Dark mode: cyan text (bright on dark bg) */
 /* Light: bg #FFFFFF / #F8FAFC, text #0B1220 */
 /* Dark:  bg #0B1220 / #111827, text #FFFFFF */
+/* REGLA: Para texto/iconos cyan, usar var(--accent-text), NO var(--accent-primary) */
+/* REGLA: dark: prefix de Tailwind NO funciona (app usa data-theme, no class dark) */
 ```
 
 ---
@@ -142,11 +147,11 @@ npm run lint     # Verificar codigo
 
 ---
 
-## Estado Actual (Mar 2026)
+## Estado Actual (v0.20.1 - Mar 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno (n8n removido), RAG (4 fases), OWASP audit v2 + Audit v3, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, archivar/desarchivar leads, resumen IA, notificaciones (3 canales: bell + email + push), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada (5 secciones), dual-name system, Global Rules system, AI-initiated handoff ([HANDOFF] marker), KB free-text edit, deep-link post-login redirect, Web Push Notifications, Supabase Realtime (notifications + leads + chat), region co-location (gru1 + sa-east-1), auth chain optimization, RLS policies (16 tablas + agent_media), hot_lead notifications, distinct notification sounds, admin UserModal redesign, push prompt persistence, ReEngagement auto follow-up, cron jobs en Supabase pg_cron + pg_net, AI response instructions mejoradas, Agent Media (RAG semantico + fixed event images/videos, CRUD + compression + markers), chat media rendering (images + video cards), Excel export leads, ReEngagement media, debounce 3s webhook (Redis), fixed event images + videos, configurable send window, mobile lead panel buttons, Agent Video, cron cleanup-media protege agent_media, edit media con reemplazo de archivo, Dashboard charts (recharts: leads/dia, temperatura donut, status bar, conversion rate), Image lightbox + upload timestamps en agent media, cron cleanup-media failsafe, Lead source auto-detection (Meta referral + hashtags), Dashboard source chart (horizontal bar), fix login redirect locale prefix, follow-up email + push notifications (pg_net), videollamada Jitsi Meet (super_admin only), **Dashboard archived leads stat card (6 cards responsive)**, **nuevos lead statuses (unqualified, no_response, customer)**, **auto-tipify no_response post-reengagement 24h**, **WhatsApp 24h window countdown en chat**, **per-service currency en pricing KB**, **inline edit criterios de calificacion**, **Vercel CLI + MCP integrado**, **Dashboard 8 stat cards (total, activos, won, customer, close rate, conversion rate, human mode, archived)**, **all stats respect date range filter**.
+**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno, RAG (4 fases), OWASP audits, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, descartar/recuperar leads (ex-archivar), resumen IA, notificaciones (3 canales), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada, dual-name system, Global Rules, AI-initiated handoff, KB free-text edit, deep-link post-login redirect, Web Push, Supabase Realtime, region co-location, auth chain optimization, RLS policies, ReEngagement auto follow-up, cron jobs (pg_cron + pg_net), Agent Media (RAG + fixed), chat media rendering, Excel export (admin+), debounce 3s (Redis), Dashboard (8 stats + 4 charts + cost/lead calculator), Lead source auto-detection, Jitsi Meet, lead statuses (10), WhatsApp 24h timer, per-service currency, Vercel CLI + MCP, RBAC lead assignment, effective role display, "Assigned to" filter, Asesor/Advisor role (i18n), incoming lead media, GPT-4o-mini Vision, PWA, custom KAIRO favicon, --accent-text color system, Whisper for all modes, AudioPlayer, Archive→Discard, **temperature guard (2+ lead msgs before classification)**, **DnD reorder for temperature criteria**, **admin panel contrast fix**.
 
-**Pendiente:** Crear lead, paginas de reportes/agents, mostrar media entrante del lead en chat (requiere descargar de WhatsApp API → storage).
+**Pendiente:** Crear lead, paginas de reportes/agents. Meta Ads integration planificada (v0.21.0, plan guardado).
 
 **Perf completo:** Todas las optimizaciones implementadas. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 
@@ -155,10 +160,13 @@ npm run lint     # Verificar codigo
 ## Arquitectura (resumen)
 
 ```
-WhatsApp -> /api/webhooks/whatsapp -> Store msg + Create/Find lead (detect source: Meta referral or hashtags)
-  -> Si handoffMode='ai': debounce 3s (Redis) -> concatenar mensajes -> processAIResponse()
-  -> RAG search (pgvector) + Media search (pgvector) + OpenAI (GPT-4o-mini)
-  -> Store + Send WhatsApp (fixed image → text → fixed video → RAG images/videos)
+WhatsApp -> /api/webhooks/whatsapp -> Store msg + Create/Find lead (detect source)
+  -> Download incoming media (image/video/audio/doc) via waitUntil -> Supabase Storage
+  -> Whisper transcription for audio (all modes)
+  -> Si lead descartado: guarda msg, skip AI + notifications
+  -> Si handoffMode='ai': debounce 3s (Redis) -> concatenar msgs -> processAIResponse()
+  -> RAG + Media search + OpenAI GPT-4o-mini (+ Vision for images)
+  -> Store + Send WhatsApp (fixed image → text → fixed video → RAG media)
   -> Si handoffMode='human': solo guarda msg, usuario responde manual
 
 Supabase pg_cron -> /api/cron/reengagement (*/15 min) -> Auto-tipify new→no_response (24h) + AI follow-up leads silenciosos (con media search)
@@ -166,7 +174,8 @@ Supabase pg_cron -> /api/cron/cleanup-media (diario 3AM) -> Limpieza archivos >2
 
 Organization > Project > Lead > Conversation > Message
 Users: SUPER_ADMIN | USER
-Project roles: ADMIN | MANAGER | AGENT | VIEWER
+Project roles: ADMIN | MANAGER | AGENT (Asesor) | VIEWER
+Effective role: max(systemRole, orgOwnership, projectRole) via permissions.ts
 ```
 
 Ver [ARCHITECTURE.md](docs/ARCHITECTURE.md) para diagramas completos y [SECURITY.md](docs/SECURITY.md) para documentacion de APIs.

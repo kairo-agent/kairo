@@ -286,7 +286,7 @@ function SelectWorkspaceContent() {
                     orgDropdownOpen && 'border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20'
                   )}
                 >
-                  <span className="text-[var(--accent-primary)]">
+                  <span className="text-[var(--accent-text)]">
                     <BuildingIcon />
                   </span>
                   <span
@@ -326,7 +326,7 @@ function SelectWorkspaceContent() {
                             'w-full flex items-center gap-3 px-4 py-3',
                             'text-left transition-colors duration-150',
                             selectedOrg?.id === org.id
-                              ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                              ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-text)]'
                               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                           )}
                         >
@@ -360,7 +360,7 @@ function SelectWorkspaceContent() {
                     projectDropdownOpen && 'border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/20'
                   )}
                 >
-                  <span className="text-[var(--accent-primary)]">
+                  <span className="text-[var(--accent-text)]">
                     <FolderIcon />
                   </span>
                   <span
@@ -400,7 +400,7 @@ function SelectWorkspaceContent() {
                         'w-full flex items-center gap-3 px-4 py-3',
                         'text-left transition-colors duration-150',
                         allProjects
-                          ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                          ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-text)]'
                           : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                       )}
                     >
@@ -428,7 +428,7 @@ function SelectWorkspaceContent() {
                             'w-full flex items-center gap-3 px-4 py-3',
                             'text-left transition-colors duration-150',
                             selectedProject?.id === project.id
-                              ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                              ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-text)]'
                               : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]'
                           )}
                         >

@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/actions/auth';
 import { getOrganizations } from '@/lib/actions/workspace';
 import DashboardLayoutClient from './DashboardLayoutClient';
 import AuthRedirect from '@/components/layout/AuthRedirect';
+import PWAInstallBanner from '@/components/layout/PWAInstallBanner';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -26,8 +27,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   const organizations = await getOrganizations();
 
   return (
-    <DashboardLayoutClient user={user} initialOrganizations={organizations}>
-      {children}
-    </DashboardLayoutClient>
+    <>
+      <DashboardLayoutClient user={user} initialOrganizations={organizations}>
+        {children}
+      </DashboardLayoutClient>
+      <PWAInstallBanner />
+    </>
   );
 }

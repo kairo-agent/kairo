@@ -147,7 +147,7 @@ function SortableHeader({ label, field, currentSort, direction, onSort, classNam
       onClick={() => onSort(field)}
       className={cn(
         'flex items-center gap-1 text-left font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors',
-        isActive && 'text-[var(--accent-primary)]',
+        isActive && 'text-[var(--accent-text)]',
         className
       )}
     >

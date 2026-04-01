@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyAuth } from './auth';
 import { getAccessibleProjectIds, type PreVerifiedAuth } from './leads';
 import type { Prisma } from '@prisma/client';
+import { getEffectiveTimezone, getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfMonthInTimezone, getDateStringInTimezone, getYesterdayInTimezone } from '@/lib/timezone';
 
 // ============================================
 // Types
@@ -45,19 +46,18 @@ export type DashboardDateRange =
 
 function buildDateFilter(
   dateRange: DashboardDateRange,
-  customDateRange?: { start: string | null; end: string | null }
+  customDateRange?: { start: string | null; end: string | null },
+  timezone: string = 'America/Lima'
 ): Prisma.DateTimeFilter | undefined {
   const now = new Date();
 
   switch (dateRange) {
     case 'today': {
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      return { gte: startOfDay };
+      return { gte: getStartOfDayInTimezone(timezone) };
     }
     case 'yesterday': {
-      const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      return { gte: startOfYesterday, lt: startOfToday };
+      const yesterday = getYesterdayInTimezone(timezone);
+      return { gte: getStartOfDayInTimezone(timezone, yesterday), lt: getStartOfDayInTimezone(timezone) };
     }
     case 'last7days': {
       const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -68,14 +68,13 @@ function buildDateFilter(
       return { gte: start };
     }
     case 'thisMonth': {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { gte: startOfMonth };
+      return { gte: getStartOfMonthInTimezone(timezone) };
     }
     case 'custom': {
       if (customDateRange?.start || customDateRange?.end) {
         const filter: Prisma.DateTimeFilter = {};
-        if (customDateRange.start) filter.gte = new Date(customDateRange.start);
-        if (customDateRange.end) filter.lte = new Date(customDateRange.end);
+        if (customDateRange.start) filter.gte = getStartOfDayInTimezone(timezone, new Date(customDateRange.start));
+        if (customDateRange.end) filter.lt = getEndOfDayInTimezone(timezone, new Date(customDateRange.end));
         return filter;
       }
       return undefined;
@@ -141,16 +140,22 @@ export async function getDashboardStats(
     const user = await verifyAuth();
     if (!user) return emptyStats;
 
-    const accessibleProjects = await getAccessibleProjectIds(
-      user.id,
-      user.systemRole,
-      projectId,
+    const [accessibleProjects, orgData] = await Promise.all([
+      getAccessibleProjectIds(
+        user.id,
+        user.systemRole,
+        projectId,
+        organizationId
+      ),
       organizationId
-    );
+        ? prisma.organization.findUnique({ where: { id: organizationId }, select: { defaultTimezone: true } })
+        : Promise.resolve(null),
+    ]);
 
     if (!accessibleProjects) return emptyStats;
 
-    const dateFilter = buildDateFilter(dateRange, customDateRange);
+    const timezone = getEffectiveTimezone(orgData?.defaultTimezone);
+    const dateFilter = buildDateFilter(dateRange, customDateRange, timezone);
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
@@ -243,16 +248,22 @@ export async function getDashboardStatsSSR(
   };
 
   try {
-    const accessibleProjects = await getAccessibleProjectIds(
-      auth.id,
-      auth.systemRole,
-      projectId,
+    const [accessibleProjects, orgData] = await Promise.all([
+      getAccessibleProjectIds(
+        auth.id,
+        auth.systemRole,
+        projectId,
+        organizationId
+      ),
       organizationId
-    );
+        ? prisma.organization.findUnique({ where: { id: organizationId }, select: { defaultTimezone: true } })
+        : Promise.resolve(null),
+    ]);
 
     if (!accessibleProjects) return emptyStats;
 
-    const dateFilter = buildDateFilter(dateRange, customDateRange);
+    const timezone = getEffectiveTimezone(orgData?.defaultTimezone);
+    const dateFilter = buildDateFilter(dateRange, customDateRange, timezone);
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
@@ -338,16 +349,22 @@ export async function getDashboardCharts(
     const user = await verifyAuth();
     if (!user) return EMPTY_CHARTS;
 
-    const accessibleProjects = await getAccessibleProjectIds(
-      user.id,
-      user.systemRole,
-      projectId,
+    const [accessibleProjects, orgData] = await Promise.all([
+      getAccessibleProjectIds(
+        user.id,
+        user.systemRole,
+        projectId,
+        organizationId
+      ),
       organizationId
-    );
+        ? prisma.organization.findUnique({ where: { id: organizationId }, select: { defaultTimezone: true } })
+        : Promise.resolve(null),
+    ]);
 
     if (!accessibleProjects) return EMPTY_CHARTS;
 
-    const dateFilter = buildDateFilter(dateRange, customDateRange);
+    const timezone = getEffectiveTimezone(orgData?.defaultTimezone);
+    const dateFilter = buildDateFilter(dateRange, customDateRange, timezone);
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
 
     const baseWhere: Prisma.LeadWhereInput = {
@@ -389,7 +406,7 @@ export async function getDashboardCharts(
     // Group leads by date
     const dateMap = new Map<string, number>();
     for (const lead of leads) {
-      const day = lead.createdAt.toISOString().slice(0, 10);
+      const day = getDateStringInTimezone(lead.createdAt, timezone);
       dateMap.set(day, (dateMap.get(day) || 0) + 1);
     }
     const leadsPerDay = Array.from(dateMap.entries()).map(([date, count]) => ({ date, count }));

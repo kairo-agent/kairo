@@ -196,7 +196,7 @@ function SortIcon({ field, currentSortField, sortDirection }: SortIconProps) {
     return <span className="opacity-30 ml-1"><ChevronDownIcon /></span>;
   }
   return (
-    <span className="ml-1 text-[var(--accent-primary)]">
+    <span className="ml-1 text-[var(--accent-text)]">
       {sortDirection === 'asc' ? <ChevronUpIcon /> : <ChevronDownIcon />}
     </span>
   );
@@ -509,7 +509,7 @@ interface StatCardProps {
   colorClass?: string;
 }
 
-function StatCard({ label, value, icon, colorClass = 'text-[var(--accent-primary)]' }: StatCardProps) {
+function StatCard({ label, value, icon, colorClass = 'text-[var(--accent-text)]' }: StatCardProps) {
   return (
     <div className="flex items-center gap-3 p-3 bg-[var(--bg-tertiary)] rounded-xl">
       <div className={cn('p-2 rounded-lg bg-[var(--bg-card)]', colorClass)}>
@@ -1123,7 +1123,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
             label={t('stats.total')}
             value={stats.total}
             icon={<UsersIcon />}
-            colorClass="text-[var(--accent-primary)]"
+            colorClass="text-[var(--accent-text)]"
           />
           <StatCard
             label={t('stats.new')}

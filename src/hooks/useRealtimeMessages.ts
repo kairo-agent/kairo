@@ -53,6 +53,8 @@ export interface MessageStatusUpdate {
   isRead: boolean;
   readAt: string | null;
   whatsappMsgId: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  metadata?: any;
 }
 
 /**
@@ -225,9 +227,10 @@ export function useRealtimeMessages({
           const deliveryChanged = oldData.isDelivered !== newData.isDelivered;
           const readChanged = oldData.isRead !== newData.isRead;
           const whatsappIdChanged = oldData.whatsappMsgId !== newData.whatsappMsgId;
+          const metadataChanged = JSON.stringify(oldData.metadata) !== JSON.stringify(newData.metadata);
 
-          if (deliveryChanged || readChanged || whatsappIdChanged) {
-            console.log(`[Realtime] Status updated: ${newData.id} - delivered: ${newData.isDelivered}, read: ${newData.isRead}`);
+          if (deliveryChanged || readChanged || whatsappIdChanged || metadataChanged) {
+            console.log(`[Realtime] Message updated: ${newData.id}${metadataChanged ? ' (metadata)' : ''}`);
 
             const update: MessageStatusUpdate = {
               id: newData.id,
@@ -236,6 +239,7 @@ export function useRealtimeMessages({
               isRead: newData.isRead,
               readAt: newData.readAt,
               whatsappMsgId: newData.whatsappMsgId,
+              metadata: metadataChanged ? newData.metadata : undefined,
             };
 
             onMessageUpdateRef.current?.(update);
