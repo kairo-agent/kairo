@@ -153,6 +153,7 @@ model Lead {
   handoffUser     User?           @relation("HandoffUser", fields: [handoffUserId], references: [id])
   project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
   notes           Note[]
+  formData        LeadFormData[]
 
   @@index([projectId])
   @@index([status])
@@ -181,6 +182,7 @@ model AIAgent {
   systemInstructions String?     @db.Text
   promptStructure    Json?
   reEngagementConfig Json?
+  formConfig         Json?
   isActive           Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
@@ -188,6 +190,7 @@ model AIAgent {
   projectId     String
   project       Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   assignedLeads Lead[]
+  formData      LeadFormData[]
 
   @@index([projectId])
   @@index([type])
@@ -475,4 +478,22 @@ model PushSubscription {
   @@unique([userId, endpoint])
   @@index([userId, active])
   @@map("push_subscriptions")
+}
+
+model LeadFormData {
+  id          String    @id @default(cuid())
+  leadId      String
+  agentId     String
+  fieldData   Json      @default("{}")
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  lead  Lead    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  agent AIAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([leadId, agentId])
+  @@index([leadId])
+  @@index([agentId])
+  @@map("lead_form_data")
 }

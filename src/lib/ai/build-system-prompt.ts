@@ -29,6 +29,10 @@ export interface SystemPromptParams {
   currentTime: string;
   messageCount: number;
   summaryThreshold: number;
+  formFields?: {
+    pending: Array<{ key: string; label: string; type: string; required: boolean; options?: string[] }>;
+    collected: Record<string, string>;
+  };
 }
 
 // ============================================
@@ -104,6 +108,62 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
   // --- Lead summary (accumulated context from previous conversations) ---
   if (params.leadSummary) {
     parts.push(`=== CONTEXTO PREVIO DEL LEAD ===\n${params.leadSummary}\n=== FIN CONTEXTO ===`);
+  }
+
+  // --- Conversational form: data collection instructions ---
+  if (params.formFields) {
+    const { pending, collected } = params.formFields;
+    const hasCollected = Object.keys(collected).length > 0;
+    const hasPending = pending.length > 0;
+
+    if (hasCollected || hasPending) {
+      const formParts: string[] = ['=== DATOS A RECOPILAR (FORMULARIO) ==='];
+
+      if (hasCollected) {
+        formParts.push('Datos ya obtenidos:');
+        for (const [key, value] of Object.entries(collected)) {
+          formParts.push(`- ${key}: ${value}`);
+        }
+        formParts.push('');
+      }
+
+      const requiredPending = pending.filter(f => f.required);
+      const optionalPending = pending.filter(f => !f.required);
+
+      if (requiredPending.length > 0) {
+        formParts.push('Datos pendientes (REQUERIDOS):');
+        for (const f of requiredPending) {
+          const typeHint = f.options ? `opciones: ${f.options.join(', ')}` : f.type;
+          formParts.push(`- ${f.label} (${typeHint})`);
+        }
+        formParts.push('');
+      }
+
+      if (optionalPending.length > 0) {
+        formParts.push('Datos pendientes (opcionales):');
+        for (const f of optionalPending) {
+          const typeHint = f.options ? `opciones: ${f.options.join(', ')}` : f.type;
+          formParts.push(`- ${f.label} (${typeHint})`);
+        }
+        formParts.push('');
+      }
+
+      formParts.push(
+        'INSTRUCCIONES DE RECOPILACION:\n' +
+        '1. Recopila los datos faltantes de forma NATURAL durante la conversacion\n' +
+        '2. Pregunta MAXIMO 1-2 datos por mensaje\n' +
+        '3. SIEMPRE responde primero la pregunta del lead, luego introduce tu pregunta\n' +
+        '4. Si el lead no quiere responder algo, no insistas\n' +
+        '5. Cuando detectes un dato en la respuesta del lead, incluyelo en el marcador\n\n' +
+        'MARCADOR OBLIGATORIO (al final de tu respuesta):\n' +
+        '[FORM-DATA: key1=valor1 | key2=valor2]\n' +
+        'Solo incluye datos que el lead haya proporcionado en ESTE mensaje.\n' +
+        'Si no hay datos nuevos, NO incluyas el marcador.\n' +
+        '=== FIN DATOS A RECOPILAR ==='
+      );
+
+      parts.push(formParts.join('\n'));
+    }
   }
 
   // --- Conversation history (last 8 messages) ---

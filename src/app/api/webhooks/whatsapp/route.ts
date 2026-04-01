@@ -31,6 +31,7 @@ import { downloadAndStoreMedia } from '@/lib/whatsapp/download-media';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
 import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
+import type { FormConfig } from '@/lib/types/form-template';
 
 // ============================================
 // In-Memory Cache for phoneNumberId → Project
@@ -717,7 +718,7 @@ async function handleIncomingMessage(
       archivedAt: true,
       conversation: true,
       assignedAgent: {
-        select: { id: true, name: true, systemInstructions: true, promptStructure: true },
+        select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
       },
     },
   });
@@ -731,7 +732,7 @@ async function handleIncomingMessage(
     // Find default agent for the project (first active agent)
     const defaultAgent = await prisma.aIAgent.findFirst({
       where: { projectId, isActive: true },
-      select: { id: true, name: true, systemInstructions: true, promptStructure: true },
+      select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -778,7 +779,7 @@ async function handleIncomingMessage(
         archivedAt: true,
         conversation: true,
         assignedAgent: {
-          select: { id: true, name: true, systemInstructions: true, promptStructure: true },
+          select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
         },
       },
     });
@@ -835,7 +836,7 @@ async function handleIncomingMessage(
 
       const defaultAgent = await prisma.aIAgent.findFirst({
         where: { projectId, isActive: true },
-        select: { id: true, name: true, systemInstructions: true, promptStructure: true },
+        select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
         orderBy: { createdAt: 'asc' },
       });
 
@@ -1011,6 +1012,7 @@ async function handleIncomingMessage(
       const agentId = lead.assignedAgent?.id || null;
       const agentName = (lead.assignedAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() || DEFAULT_AGENT_NAME;
       const systemInstructions = lead.assignedAgent?.systemInstructions || null;
+      const agentFormConfig = lead.assignedAgent?.formConfig as FormConfig | null;
       const conversationId = lead.conversation?.id || '';
       const organizationId = project?.organizationId || '';
       const companyName = project?.name || 'KAIRO';
@@ -1104,6 +1106,7 @@ async function handleIncomingMessage(
               summaryThreshold: 5,
               leadSummary,
               timezone: orgTimezone || undefined,
+              formConfig: agentFormConfig,
             });
           } catch (err) {
             console.error('[WhatsApp Webhook] AI pipeline error:', err);

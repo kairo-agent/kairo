@@ -814,7 +814,47 @@
     "tabs": {
       "instructions": "Instructions",
       "knowledge": "Knowledge Base",
-      "reengagement": "ReEngagement"
+      "reengagement": "ReEngagement",
+      "form": "Form"
+    },
+    "form": {
+      "title": "Conversational Form",
+      "description": "Define the data the agent should collect from leads during conversation.",
+      "enabled": "Form enabled",
+      "enabledDesc": "The agent will collect this data during conversation.",
+      "triggerMode": "Activation trigger",
+      "triggerImmediate": "From the start",
+      "triggerImmediateDesc": "Start collecting data from the first message.",
+      "triggerOnInterest": "When showing interest",
+      "triggerOnInterestDesc": "Only collect data when the lead is Warm or Hot.",
+      "fields": "Fields to collect",
+      "fieldCount": "{count} / {max} fields",
+      "addField": "Add field",
+      "fieldLabel": "Field name",
+      "fieldType": "Type",
+      "fieldRequired": "Required",
+      "fieldOptional": "Optional",
+      "fieldOptions": "Options (comma-separated)",
+      "fieldMapping": "Auto-fill lead field",
+      "fieldMappingNone": "None",
+      "noFields": "No fields configured.",
+      "maxFieldsReached": "Maximum of {max} fields reached.",
+      "mapping": {
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email",
+        "phone": "Phone",
+        "businessName": "Business name",
+        "position": "Position",
+        "estimatedValue": "Estimated value"
+      },
+      "types": {
+        "text": "Text",
+        "email": "Email",
+        "number": "Number",
+        "phone": "Phone",
+        "options": "Options"
+      }
     },
     "reengagement": {
       "title": "Automatic ReEngagement",

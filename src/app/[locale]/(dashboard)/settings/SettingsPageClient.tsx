@@ -39,6 +39,8 @@ import { PoliciesForm } from '@/components/knowledge/PoliciesForm';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { getReEngagementConfig, saveReEngagementConfig } from '@/lib/actions/reengagement';
 import { DEFAULT_REENGAGEMENT_CONFIG, generateTimeOptions, getWindowDurationHours, type ReEngagementConfig } from '@/lib/types/reengagement';
+import { getFormConfig, saveFormConfig } from '@/lib/actions/form-template';
+import { DEFAULT_FORM_CONFIG, MAX_FORM_FIELDS, LEAD_FIELD_MAPPINGS, generateFieldKey, type FormConfig, type FormField, type FormFieldType } from '@/lib/types/form-template';
 import { listAgentMedia, addAgentMedia, updateAgentMedia, deleteAgentMedia, listAgentVideos, addAgentVideoByUrl } from '@/lib/actions/agent-media';
 import { uploadVideoToStorage } from '@/lib/utils/video-upload';
 import type { AgentMediaEntry } from '@/lib/types/agent-media';
@@ -212,7 +214,7 @@ const ImageIcon = ({ className }: { className?: string }) => (
 // Types
 // ============================================
 
-type SettingsTab = 'instructions' | 'knowledge' | 'reengagement';
+type SettingsTab = 'instructions' | 'knowledge' | 'reengagement' | 'form';
 type KnowledgeModal = 'business_hours' | 'faqs' | 'pricing' | 'location_contact' | 'policies' | 'multimedia' | 'add_knowledge' | null;
 
 interface StructuredKnowledgeMap {
@@ -280,6 +282,11 @@ export default function SettingsPageClient() {
   const [originalReEngagementConfig, setOriginalReEngagementConfig] = useState<ReEngagementConfig>({ ...DEFAULT_REENGAGEMENT_CONFIG });
   const [loadingReEngagement, setLoadingReEngagement] = useState(false);
   const [savingReEngagement, setSavingReEngagement] = useState(false);
+
+  // Form state
+  const [formConfig, setFormConfig] = useState<FormConfig>(DEFAULT_FORM_CONFIG);
+  const [originalFormConfig, setOriginalFormConfig] = useState<FormConfig>(DEFAULT_FORM_CONFIG);
+  const [savingForm, setSavingForm] = useState(false);
 
   // Confirm clear rules dialog
   const [showClearRulesConfirm, setShowClearRulesConfirm] = useState(false);
@@ -423,6 +430,12 @@ export default function SettingsPageClient() {
     }
   }, [selectedAgent, tCommon]);
 
+  const loadForm = useCallback(async (agentId: string) => {
+    const config = await getFormConfig(agentId);
+    setFormConfig(config);
+    setOriginalFormConfig(config);
+  }, []);
+
   // Tracks the agent ID whose data was prefetched during initial load,
   // so the agent-change useEffect skips the redundant fetch.
   const prefetchedAgentId = useRef<string | null>(null);
@@ -511,7 +524,7 @@ export default function SettingsPageClient() {
             // Silent fail - media is optional
           }
         };
-        await Promise.all([loadInstructionsForAgent(), loadKnowledgeForAgent(), loadMediaForAgent()]);
+        await Promise.all([loadInstructionsForAgent(), loadKnowledgeForAgent(), loadMediaForAgent(), loadForm(agent.id)]);
       }
     };
     loadAll();
@@ -532,6 +545,7 @@ export default function SettingsPageClient() {
       loadMedia();
       loadVideos();
       loadReEngagement();
+      loadForm(selectedAgent.id);
     } else {
       setInstructions({ ...EMPTY_PROMPT_STRUCTURE });
       setOriginalInstructions({ ...EMPTY_PROMPT_STRUCTURE });
@@ -541,8 +555,10 @@ export default function SettingsPageClient() {
       setVideoEntries([]);
       setReEngagementConfig({ ...DEFAULT_REENGAGEMENT_CONFIG });
       setOriginalReEngagementConfig({ ...DEFAULT_REENGAGEMENT_CONFIG });
+      setFormConfig(DEFAULT_FORM_CONFIG);
+      setOriginalFormConfig(DEFAULT_FORM_CONFIG);
     }
-  }, [selectedAgent, loadInstructions, loadKnowledge, loadMedia, loadVideos, loadReEngagement]);
+  }, [selectedAgent, loadInstructions, loadKnowledge, loadMedia, loadVideos, loadReEngagement, loadForm]);
 
   // ============================================
   // Instructions Handlers
@@ -636,6 +652,30 @@ export default function SettingsPageClient() {
       setSavingReEngagement(false);
     }
   };
+
+  // ============================================
+  // Form Handlers
+  // ============================================
+
+  const hasUnsavedForm = JSON.stringify(formConfig) !== JSON.stringify(originalFormConfig);
+
+  const handleSaveForm = useCallback(async () => {
+    if (!selectedAgent) return;
+    setSavingForm(true);
+    try {
+      const result = await saveFormConfig(selectedAgent.id, formConfig);
+      if (result.success) {
+        setOriginalFormConfig(formConfig);
+        toast.success(t('form.savedSuccessfully'));
+      } else {
+        toast.error(result.error || t('form.saveFailed'));
+      }
+    } catch {
+      toast.error(t('form.saveFailed'));
+    } finally {
+      setSavingForm(false);
+    }
+  }, [selectedAgent, formConfig, t]);
 
   // ============================================
   // Knowledge Handlers
@@ -869,6 +909,7 @@ export default function SettingsPageClient() {
             { key: 'instructions' as const, icon: SlidersIcon },
             { key: 'knowledge' as const, icon: BookIcon },
             { key: 'reengagement' as const, icon: RefreshIcon },
+            { key: 'form' as const, icon: DocumentTextIcon },
           ]).map(({ key, icon: Icon }) => {
             const isActive = activeTab === key;
             return (
@@ -954,6 +995,17 @@ export default function SettingsPageClient() {
             onSave={handleSaveReEngagement}
             agentId={selectedAgent?.id}
             projectId={selectedProject?.id}
+          />
+        )}
+
+        {activeTab === 'form' && (
+          <FormTab
+            t={t}
+            config={formConfig}
+            setConfig={setFormConfig}
+            saving={savingForm}
+            hasUnsavedChanges={hasUnsavedForm}
+            onSave={handleSaveForm}
           />
         )}
       </div>
@@ -2544,6 +2596,491 @@ function KnowledgeTab({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================
+// Sortable Form Field Item (for drag & drop)
+// ============================================
+
+function SortableFormFieldItem({
+  id,
+  field,
+  index,
+  onEdit,
+  onDelete,
+  t,
+}: {
+  id: string;
+  field: FormField;
+  index: number;
+  onEdit: (index: number) => void;
+  onDelete: (index: number) => void;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: transform ? `translate3d(${Math.round(transform.x)}px, ${Math.round(transform.y)}px, 0)` : undefined,
+    transition: isDragging ? transition : undefined,
+  };
+
+  const typeLabels: Record<FormFieldType, string> = {
+    text: 'Texto',
+    email: 'Email',
+    number: 'Numero',
+    phone: 'Telefono',
+    options: 'Opciones',
+  };
+
+  const mappingLabel = field.leadFieldMapping
+    ? LEAD_FIELD_MAPPINGS.find(m => m.value === field.leadFieldMapping)
+    : null;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-center gap-2 p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] group',
+        isDragging && 'opacity-50 shadow-lg z-10'
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 p-0.5 cursor-grab active:cursor-grabbing text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] touch-none"
+        tabIndex={-1}
+      >
+        <GripVerticalIcon className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-xs text-[var(--text-tertiary)] w-4 text-center">{index + 1}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium text-[var(--text-primary)] truncate">{field.label}</span>
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]">
+            {typeLabels[field.type]}
+          </span>
+          {field.required && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-red-500/10 text-red-500">
+              {t('form.required')}
+            </span>
+          )}
+          {mappingLabel && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-[var(--accent-primary)]/10 text-[var(--accent-text)]">
+              → {t(mappingLabel.labelKey)}
+            </span>
+          )}
+        </div>
+        {field.type === 'options' && field.options && field.options.length > 0 && (
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5 truncate">
+            {field.options.join(', ')}
+          </p>
+        )}
+      </div>
+      <div className="flex items-center gap-0.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
+        <button
+          onClick={() => onEdit(index)}
+          className="p-1 text-[var(--text-tertiary)] hover:text-[var(--accent-text)] hover:bg-[var(--bg-tertiary)] rounded transition-colors"
+        >
+          <PencilIcon />
+        </button>
+        <button
+          onClick={() => onDelete(index)}
+          className="p-1 text-[var(--text-tertiary)] hover:text-[var(--status-lost)] hover:bg-red-500/10 rounded transition-colors"
+        >
+          <TrashIcon />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Form Tab Component
+// ============================================
+
+function FormTab({
+  t,
+  config,
+  setConfig,
+  saving,
+  hasUnsavedChanges,
+  onSave,
+}: {
+  t: ReturnType<typeof useTranslations<'settings'>>;
+  config: FormConfig;
+  setConfig: React.Dispatch<React.SetStateAction<FormConfig>>;
+  saving: boolean;
+  hasUnsavedChanges: boolean;
+  onSave: () => void;
+}) {
+  const [showAddField, setShowAddField] = useState(false);
+  const [editingFieldIndex, setEditingFieldIndex] = useState<number | null>(null);
+  const [fieldLabel, setFieldLabel] = useState('');
+  const [fieldType, setFieldType] = useState<FormFieldType>('text');
+  const [fieldRequired, setFieldRequired] = useState(false);
+  const [fieldOptions, setFieldOptions] = useState('');
+  const [fieldMapping, setFieldMapping] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const fieldIds = useMemo(
+    () => config.fields.map((_, i) => `form-field-${i}`),
+    [config.fields]
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = fieldIds.indexOf(active.id as string);
+      const newIndex = fieldIds.indexOf(over.id as string);
+      const reordered = arrayMove(config.fields, oldIndex, newIndex).map((f, i) => ({ ...f, order: i }));
+      setConfig(prev => ({ ...prev, fields: reordered }));
+    }
+  }
+
+  const resetFieldForm = () => {
+    setFieldLabel('');
+    setFieldType('text');
+    setFieldRequired(false);
+    setFieldOptions('');
+    setFieldMapping(null);
+    setShowAddField(false);
+    setEditingFieldIndex(null);
+  };
+
+  const handleAddOrEditField = () => {
+    const trimmedLabel = fieldLabel.trim();
+    if (!trimmedLabel) return;
+
+    const field: FormField = {
+      key: generateFieldKey(trimmedLabel),
+      label: trimmedLabel,
+      type: fieldType,
+      required: fieldRequired,
+      options: fieldType === 'options' ? fieldOptions.split(',').map(o => o.trim()).filter(Boolean) : undefined,
+      leadFieldMapping: fieldMapping,
+      order: editingFieldIndex !== null ? editingFieldIndex : config.fields.length,
+    };
+
+    if (editingFieldIndex !== null) {
+      const updated = [...config.fields];
+      updated[editingFieldIndex] = field;
+      setConfig(prev => ({ ...prev, fields: updated }));
+    } else {
+      setConfig(prev => ({ ...prev, fields: [...prev.fields, field] }));
+    }
+    resetFieldForm();
+  };
+
+  const handleEditField = (index: number) => {
+    const field = config.fields[index];
+    setFieldLabel(field.label);
+    setFieldType(field.type);
+    setFieldRequired(field.required);
+    setFieldOptions(field.options?.join(', ') || '');
+    setFieldMapping(field.leadFieldMapping || null);
+    setEditingFieldIndex(index);
+    setShowAddField(true);
+  };
+
+  const handleDeleteField = (index: number) => {
+    const updated = config.fields.filter((_, i) => i !== index).map((f, i) => ({ ...f, order: i }));
+    setConfig(prev => ({ ...prev, fields: updated }));
+  };
+
+  const fieldTypeOptions: { value: FormFieldType; label: string }[] = [
+    { value: 'text', label: 'Texto' },
+    { value: 'email', label: 'Email' },
+    { value: 'number', label: 'Numero' },
+    { value: 'phone', label: 'Telefono' },
+    { value: 'options', label: 'Opciones' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h3 className="text-lg font-semibold text-[var(--text-primary)]">
+          {t('form.title')}
+        </h3>
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
+          {t('form.description')}
+        </p>
+      </div>
+
+      {/* Toggle isActive */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+        <div>
+          <p className="text-sm font-medium text-[var(--text-primary)]">
+            {t('form.enabled')}
+          </p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
+            {t('form.enabledHelp')}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={config.isActive}
+          onClick={() => setConfig(prev => ({ ...prev, isActive: !prev.isActive }))}
+          className={cn(
+            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors',
+            config.isActive ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'
+          )}
+        >
+          <span
+            className={cn(
+              'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+              config.isActive ? 'translate-x-6' : 'translate-x-1'
+            )}
+          />
+        </button>
+      </div>
+
+      {config.isActive && (
+        <div className="space-y-4">
+          {/* Trigger Mode */}
+          <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">
+              {t('form.triggerMode')}
+            </label>
+            <p className="text-xs text-[var(--text-tertiary)] mb-3">
+              {t('form.triggerModeHelp')}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <label className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-all',
+                config.triggerMode === 'immediate'
+                  ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                  : 'border-[var(--border-primary)] hover:border-[var(--accent-primary)]/50'
+              )}>
+                <input
+                  type="radio"
+                  name="triggerMode"
+                  value="immediate"
+                  checked={config.triggerMode === 'immediate'}
+                  onChange={() => setConfig(prev => ({ ...prev, triggerMode: 'immediate' }))}
+                  className="accent-[var(--accent-primary)]"
+                />
+                <span className="text-sm text-[var(--text-primary)]">{t('form.triggerImmediate')}</span>
+              </label>
+              <label className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-all',
+                config.triggerMode === 'on_interest'
+                  ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+                  : 'border-[var(--border-primary)] hover:border-[var(--accent-primary)]/50'
+              )}>
+                <input
+                  type="radio"
+                  name="triggerMode"
+                  value="on_interest"
+                  checked={config.triggerMode === 'on_interest'}
+                  onChange={() => setConfig(prev => ({ ...prev, triggerMode: 'on_interest' }))}
+                  className="accent-[var(--accent-primary)]"
+                />
+                <span className="text-sm text-[var(--text-primary)]">{t('form.triggerOnInterest')}</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Fields Section */}
+          <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-primary)]">
+                  {t('form.fields')}
+                </label>
+                <p className="text-xs text-[var(--text-tertiary)]">
+                  {config.fields.length} / {MAX_FORM_FIELDS} {t('form.fieldsCount')}
+                </p>
+              </div>
+              {config.fields.length < MAX_FORM_FIELDS && !showAddField && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { resetFieldForm(); setShowAddField(true); }}
+                >
+                  <PlusIcon className="w-4 h-4" />
+                  {t('form.addField')}
+                </Button>
+              )}
+            </div>
+
+            {/* Fields List (sortable) */}
+            {config.fields.length > 0 ? (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={fieldIds} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2 mb-3">
+                    {config.fields.map((field, index) => (
+                      <SortableFormFieldItem
+                        key={fieldIds[index]}
+                        id={fieldIds[index]}
+                        field={field}
+                        index={index}
+                        onEdit={handleEditField}
+                        onDelete={handleDeleteField}
+                        t={t}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            ) : !showAddField ? (
+              <p className="text-sm text-[var(--text-tertiary)] py-4 text-center border border-dashed border-[var(--border-primary)] rounded-lg">
+                {t('form.noFields')}
+              </p>
+            ) : null}
+
+            {/* Add/Edit Field Form */}
+            {showAddField && (
+              <div className="mt-3 p-4 rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/5 space-y-3">
+                <h4 className="text-sm font-medium text-[var(--text-primary)]">
+                  {editingFieldIndex !== null ? t('form.editField') : t('form.newField')}
+                </h4>
+
+                {/* Label */}
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    {t('form.fieldLabel')}
+                  </label>
+                  <input
+                    type="text"
+                    value={fieldLabel}
+                    onChange={(e) => setFieldLabel(e.target.value)}
+                    placeholder={t('form.fieldLabelPlaceholder')}
+                    maxLength={100}
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Type */}
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    {t('form.fieldType')}
+                  </label>
+                  <select
+                    value={fieldType}
+                    onChange={(e) => setFieldType(e.target.value as FormFieldType)}
+                    className="w-full sm:w-48 px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+                  >
+                    {fieldTypeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Options (only for type 'options') */}
+                {fieldType === 'options' && (
+                  <div>
+                    <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                      {t('form.fieldOptions')}
+                    </label>
+                    <input
+                      type="text"
+                      value={fieldOptions}
+                      onChange={(e) => setFieldOptions(e.target.value)}
+                      placeholder={t('form.fieldOptionsPlaceholder')}
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+                    />
+                  </div>
+                )}
+
+                {/* Required toggle */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={fieldRequired}
+                    onClick={() => setFieldRequired(!fieldRequired)}
+                    className={cn(
+                      'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                      fieldRequired ? 'bg-[var(--accent-primary)]' : 'bg-[var(--bg-tertiary)]'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform',
+                        fieldRequired ? 'translate-x-4.5' : 'translate-x-0.5'
+                      )}
+                    />
+                  </button>
+                  <span className="text-xs text-[var(--text-secondary)]">{t('form.fieldRequired')}</span>
+                </div>
+
+                {/* Lead field mapping */}
+                <div>
+                  <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
+                    {t('form.fieldMapping')}
+                  </label>
+                  <select
+                    value={fieldMapping || ''}
+                    onChange={(e) => setFieldMapping(e.target.value || null)}
+                    className="w-full sm:w-64 px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent"
+                  >
+                    <option value="">{t('form.noMapping')}</option>
+                    {LEAD_FIELD_MAPPINGS.map(m => (
+                      <option key={m.value} value={m.value}>{t(m.labelKey)}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Add/Cancel buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={handleAddOrEditField}
+                    disabled={!fieldLabel.trim()}
+                  >
+                    {editingFieldIndex !== null ? t('form.saveField') : t('form.addField')}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetFieldForm}
+                  >
+                    {t('form.cancel')}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Save Button */}
+      {hasUnsavedChanges && (
+        <div className="flex justify-end">
+          <Button
+            onClick={onSave}
+            disabled={saving}
+            className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)]"
+          >
+            {saving ? (
+              <span className="flex items-center gap-2">
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                {t('form.save')}
+              </span>
+            ) : (
+              t('form.save')
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

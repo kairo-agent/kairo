@@ -814,7 +814,47 @@
     "tabs": {
       "instructions": "Instrucciones",
       "knowledge": "Base de Conocimiento",
-      "reengagement": "ReEngagement"
+      "reengagement": "ReEngagement",
+      "form": "Formulario"
+    },
+    "form": {
+      "title": "Formulario Conversacional",
+      "description": "Define los datos que el agente debe recopilar del lead durante la conversacion.",
+      "enabled": "Formulario activo",
+      "enabledDesc": "El agente recopilara estos datos durante la conversacion.",
+      "triggerMode": "Momento de activacion",
+      "triggerImmediate": "Desde el inicio",
+      "triggerImmediateDesc": "Empieza a recopilar datos desde el primer mensaje.",
+      "triggerOnInterest": "Cuando muestre interes",
+      "triggerOnInterestDesc": "Solo recopila datos cuando el lead es Tibio o Caliente.",
+      "fields": "Campos a recopilar",
+      "fieldCount": "{count} / {max} campos",
+      "addField": "Agregar campo",
+      "fieldLabel": "Nombre del campo",
+      "fieldType": "Tipo",
+      "fieldRequired": "Requerido",
+      "fieldOptional": "Opcional",
+      "fieldOptions": "Opciones (separadas por coma)",
+      "fieldMapping": "Auto-llenar campo del lead",
+      "fieldMappingNone": "Ninguno",
+      "noFields": "No hay campos configurados.",
+      "maxFieldsReached": "Maximo de {max} campos alcanzado.",
+      "mapping": {
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "email": "Email",
+        "phone": "Telefono",
+        "businessName": "Nombre del negocio",
+        "position": "Cargo",
+        "estimatedValue": "Valor estimado"
+      },
+      "types": {
+        "text": "Texto",
+        "email": "Email",
+        "number": "Numero",
+        "phone": "Telefono",
+        "options": "Opciones"
+      }
     },
     "reengagement": {
       "title": "ReEngagement Automatico",

@@ -15,8 +15,10 @@ import { HandoffMode } from '@prisma/client';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateEmbedding, formatEmbeddingForPg } from '@/lib/openai/embeddings';
 import { createClient } from '@/lib/supabase/server';
-import { buildSystemPrompt } from './build-system-prompt';
+import { buildSystemPrompt, SystemPromptParams } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
+import type { FormConfig } from '@/lib/types/form-template';
+import { getLeadFormData, bulkUpdateLeadFormFields } from '@/lib/actions/lead-form-data';
 import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
 import { getEffectiveTimezone } from '@/lib/timezone';
 import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from './search-media';
@@ -48,6 +50,7 @@ export interface AIProcessParams {
   summaryThreshold: number;
   leadSummary: string | null;
   timezone?: string;
+  formConfig?: FormConfig | null;
 }
 
 interface PipelineStep {
@@ -184,6 +187,28 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       }
     }
 
+    // --- Step 2c: Load form data (if conversational form is active) ---
+    let formFields: SystemPromptParams['formFields'] = undefined;
+    if (params.formConfig?.isActive && params.agentId) {
+      let shouldInject = params.formConfig.triggerMode === 'immediate';
+
+      // For temperature-based trigger, check the lead's current temperature from DB
+      if (!shouldInject) {
+        const currentLead = await prisma.lead.findUnique({
+          where: { id: leadId },
+          select: { temperature: true },
+        });
+        const currentTemp = currentLead?.temperature ?? null;
+        shouldInject = ['hot', 'warm'].includes(currentTemp || '');
+      }
+
+      if (shouldInject) {
+        const collected = await getLeadFormData(leadId, params.agentId);
+        const pending = params.formConfig.fields.filter(f => !collected[f.key]);
+        formFields = { pending, collected };
+      }
+    }
+
     // --- Step 3: Build system prompt ---
     const effectiveTimezone = getEffectiveTimezone(params.timezone);
     const currentDate = new Date().toLocaleDateString('es-PE', {
@@ -210,6 +235,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       currentTime,
       messageCount: params.messageCount,
       summaryThreshold: params.summaryThreshold,
+      formFields,
     });
 
     // --- Step 4: Call OpenAI ---
@@ -257,6 +283,24 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     const shouldHandoff = /\[HANDOFF\]/i.test(rawResponse);
 
+    // Extract [FORM-DATA: key=value | key2=value2] marker
+    const formDataMatch = rawResponse.match(/\[FORM-DATA:\s*(.+?)\]/i);
+    if (formDataMatch && params.formConfig && params.agentId) {
+      const pairs = formDataMatch[1].split('|').map(p => p.trim());
+      const extracted: Record<string, string> = {};
+      for (const pair of pairs) {
+        const [key, ...valueParts] = pair.split('=');
+        if (key && valueParts.length) {
+          extracted[key.trim()] = valueParts.join('=').trim();
+        }
+      }
+      if (Object.keys(extracted).length > 0) {
+        bulkUpdateLeadFormFields(leadId, params.agentId, extracted, params.formConfig).catch(err =>
+          console.error('[AI Pipeline] Failed to save form data:', err)
+        );
+      }
+    }
+
     // Extract [MEDIA-X] and [VIDEO-X] markers before cleanup
     const mediaMarkers = rawResponse.match(/\[MEDIA-(\d+)\]/gi) || [];
     const requestedMediaIds: number[] = mediaMarkers
@@ -274,6 +318,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const cleanMessage = rawResponse
       .replace(/\[HANDOFF\]/gi, '')
       .replace(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/gi, '')
+      .replace(/\[FORM-DATA:[^\]]*\]/gi, '')
       .replace(/\[MEDIA-\d+\]/gi, '')
       .replace(/\[VIDEO-\d+\]/gi, '')
       .replace(/\n?\*{0,2}[Tt]emperatura\*{0,2}\s*:\s*.+$/gm, '')
