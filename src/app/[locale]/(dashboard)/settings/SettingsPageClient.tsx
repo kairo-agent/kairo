@@ -2894,6 +2894,11 @@ function FormTab({
                 <span className="text-sm text-[var(--text-primary)]">{t('form.triggerOnInterest')}</span>
               </label>
             </div>
+            <p className="text-xs text-[var(--text-tertiary)] mt-3 italic">
+              {config.triggerMode === 'immediate'
+                ? t('form.triggerImmediateDesc')
+                : t('form.triggerOnInterestDesc')}
+            </p>
           </div>
 
           {/* Fields Section */}
