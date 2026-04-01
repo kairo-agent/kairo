@@ -114,8 +114,8 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       steps.push({ name: 'audio_transcribe', duration: Date.now() - stepStart });
     }
 
-    // --- Step 1b: Image vision - get image URL for GPT ---
-    if (params.messageType === 'image' && params.mediaId) {
+    // --- Step 1b: Image/Sticker vision - get image URL for GPT ---
+    if ((params.messageType === 'image' || params.messageType === 'sticker') && params.mediaId) {
       // Try downloaded URL first (fastest)
       const imgMsg = await prisma.message.findFirst({
         where: { conversationId, metadata: { path: ['mediaId'], equals: params.mediaId } },

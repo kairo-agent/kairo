@@ -145,6 +145,7 @@ interface WhatsAppMessage {
   audio?: WhatsAppMedia;
   video?: WhatsAppMedia;
   document?: WhatsAppMedia & { filename?: string };
+  sticker?: WhatsAppMedia;
   referral?: WhatsAppReferral;
 }
 
@@ -690,6 +691,11 @@ async function handleIncomingMessage(
       metadata.mimeType = message.document?.mime_type;
       metadata.filename = message.document?.filename;
       break;
+    case 'sticker':
+      content = '[Sticker recibido]';
+      metadata.mediaId = message.sticker?.id;
+      metadata.mimeType = message.sticker?.mime_type;
+      break;
     default:
       content = `[Mensaje tipo: ${message.type}]`;
   }
@@ -1061,9 +1067,9 @@ async function handleIncomingMessage(
               for (let i = chronological.length - 1; i >= 0; i--) {
                 if (chronological[i].sender !== 'lead') break;
                 const meta = chronological[i].metadata as Record<string, unknown> | null;
-                if (meta?.messageType === 'image' && meta?.mediaId) {
+                if ((meta?.messageType === 'image' || meta?.messageType === 'sticker') && meta?.mediaId) {
                   freshMediaId = String(meta.mediaId);
-                  freshMessageType = 'image';
+                  freshMessageType = String(meta.messageType);
                   break;
                 }
               }
