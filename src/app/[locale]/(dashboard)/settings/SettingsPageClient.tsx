@@ -3077,11 +3077,11 @@ function FormTab({
 
       {/* Save Button */}
       {hasUnsavedChanges && (
-        <div className="flex justify-end">
+        <div className="sticky bottom-4 flex justify-end z-10">
           <Button
             onClick={onSave}
             disabled={saving}
-            className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)]"
+            className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)] shadow-lg"
           >
             {saving ? (
               <span className="flex items-center gap-2">
