@@ -2437,19 +2437,8 @@ function ReEngagementTab({
       {/* Save Button */}
       {hasUnsavedChanges && (
         <div className="flex justify-end">
-          <Button
-            onClick={onSave}
-            disabled={saving || isWindowTooSmall}
-            className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)]"
-          >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {t('reengagement.save')}
-              </span>
-            ) : (
-              t('reengagement.save')
-            )}
+          <Button variant="primary" onClick={onSave} disabled={saving || isWindowTooSmall} isLoading={saving}>
+            {t('reengagement.save')}
           </Button>
         </div>
       )}
@@ -3082,19 +3071,8 @@ function FormTab({
             <p className="text-xs text-amber-500 font-medium">{t('form.unsavedChanges')}</p>
           )}
         </div>
-        <Button
-          onClick={onSave}
-          disabled={!hasUnsavedChanges || saving}
-          className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)]"
-        >
-          {saving ? (
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              {t('form.save')}
-            </span>
-          ) : (
-            t('form.save')
-          )}
+        <Button variant="primary" onClick={onSave} disabled={!hasUnsavedChanges || saving} isLoading={saving}>
+          {t('form.save')}
         </Button>
       </div>
     </div>
