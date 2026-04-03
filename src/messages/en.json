@@ -847,6 +847,7 @@
       "saveField": "Save field",
       "cancel": "Cancel",
       "save": "Save form",
+      "unsavedChanges": "You have unsaved changes",
       "savedSuccessfully": "Form saved successfully",
       "saveFailed": "Error saving form",
       "fieldsCount": "fields",

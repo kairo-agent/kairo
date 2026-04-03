@@ -3076,24 +3076,27 @@ function FormTab({
       )}
 
       {/* Save Button */}
-      {hasUnsavedChanges && (
-        <div className="sticky bottom-4 flex justify-end z-10">
-          <Button
-            onClick={onSave}
-            disabled={saving}
-            className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)] shadow-lg"
-          >
-            {saving ? (
-              <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {t('form.save')}
-              </span>
-            ) : (
-              t('form.save')
-            )}
-          </Button>
+      <div className="flex items-center justify-between pt-4 border-t border-[var(--border-primary)]">
+        <div>
+          {hasUnsavedChanges && (
+            <p className="text-xs text-amber-500 font-medium">{t('form.unsavedChanges')}</p>
+          )}
         </div>
-      )}
+        <Button
+          onClick={onSave}
+          disabled={!hasUnsavedChanges || saving}
+          className="bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-[var(--kairo-midnight)]"
+        >
+          {saving ? (
+            <span className="flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              {t('form.save')}
+            </span>
+          ) : (
+            t('form.save')
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

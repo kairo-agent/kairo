@@ -847,6 +847,7 @@
       "saveField": "Guardar campo",
       "cancel": "Cancelar",
       "save": "Guardar formulario",
+      "unsavedChanges": "Tienes cambios sin guardar",
       "savedSuccessfully": "Formulario guardado correctamente",
       "saveFailed": "Error al guardar formulario",
       "fieldsCount": "campos",
