@@ -42,7 +42,7 @@ export const promptStructureSchema = z.object({
   rules: z.array(z.string().max(500)).max(50).default([]),
   temperatureCriteria: temperatureCriteriaSchema.default({ hot: [], warm: [], cold: [] }),
   personality: z.string().max(1000).default(''),
-  additionalInstructions: z.string().max(2000).default(''),
+  additionalInstructions: z.string().max(10000).default(''),
 });
 
 export const DEFAULT_AGENT_NAME = 'Kaira';

@@ -2082,14 +2082,14 @@ function InstructionsTab({
                 setInstructions((prev) => ({ ...prev, additionalInstructions: val }))
               }
               placeholder={t('instructions.additionalPlaceholder')}
-              maxLength={2000}
+              maxLength={10000}
               rows={5}
               modalTitle={t('instructions.additional')}
             />
             <div className="flex justify-between mt-1">
               <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.additionalHelp')}</p>
               <p className="text-xs text-[var(--text-tertiary)]">
-                {instructions.additionalInstructions.length}/2000
+                {instructions.additionalInstructions.length}/10000
               </p>
             </div>
           </div>
