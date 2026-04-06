@@ -4,13 +4,12 @@
  * Runs every 15 minutes via Supabase pg_cron.
  * Sends AI-generated follow-up messages within WhatsApp 24h window.
  *
- * Anti-spam flow:
- * - Initial ReEngagement: fires on lead silence (no prior reengagement unanswered)
- * - Follow-up 1: ONLY if lead responded to initial reengagement + went silent
- * - Follow-up 2: ONLY if lead responded to follow-up 1 + went silent
+ * Two models coexist:
+ * - Model A (response-based): lead responds to reengagement → goes silent → next attempt
+ * - Model B (time-based): lead never responds → attempts still fire sequentially with delayHours gap
  *
- * A "completed cycle" = reengagement sent AND lead responded to it.
- * completedCycles determines the attempt number (0=initial, 1=follow-up 1, 2=follow-up 2).
+ * In both cases, attemptNumber always advances (never repeats the same attempt).
+ * attemptNumber = total reengagements sent (0=initial, 1=follow-up 1, 2=follow-up 2).
  */
 
 import { NextResponse } from 'next/server';
@@ -135,7 +134,10 @@ export async function GET(request: Request) {
       const maxAttempts = config.maxAttempts ?? 2;
 
       // Find eligible leads for this agent's project
-      // Anti-spam: only sends follow-ups if lead responded to previous reengagement
+      // Supports both models:
+      // - Model A: lead responded to previous reengagement → went silent → next attempt
+      // - Model B: lead never responded → attempts fire sequentially with delayHours gap
+      // attemptNumber = total reengagements sent (always advances, never repeats)
       const eligibleLeads = await prisma.$queryRaw<Array<{
         id: string;
         firstName: string;
@@ -146,7 +148,7 @@ export async function GET(request: Request) {
         lastReEngagementAt: Date | null;
         reEngagementCount: number;
         summary: string | null;
-        completedCycles: number;
+        totalReengagements: number;
       }>>`
         SELECT
           l.id,
@@ -158,7 +160,7 @@ export async function GET(request: Request) {
           l."lastReEngagementAt",
           l."reEngagementCount",
           l.summary,
-          COALESCE(cycles.cnt, 0)::int as "completedCycles"
+          COALESCE(total_re.cnt, 0)::int as "totalReengagements"
         FROM leads l
         INNER JOIN conversations c ON c."leadId" = l.id
         -- Get the last message from the lead
@@ -177,46 +179,24 @@ export async function GET(request: Request) {
           ORDER BY m."createdAt" DESC
           LIMIT 1
         ) last_msg ON last_msg.sender = 'ai'
-        -- Get last reengagement message time
-        LEFT JOIN LATERAL (
-          SELECT m."createdAt" as last_re_at
-          FROM messages m
-          WHERE m."conversationId" = c.id
-            AND m.sender = 'ai'
-            AND (m.metadata->>'isReEngagement')::boolean = true
-          ORDER BY m."createdAt" DESC
-          LIMIT 1
-        ) last_re ON true
-        -- Count completed reengagement cycles (reengagement that got a lead response)
+        -- Count total reengagement messages sent (regardless of lead response)
         LEFT JOIN LATERAL (
           SELECT COUNT(*)::int as cnt
           FROM messages m_re
           WHERE m_re."conversationId" = c.id
             AND m_re.sender = 'ai'
             AND (m_re.metadata->>'isReEngagement')::boolean = true
-            AND EXISTS (
-              SELECT 1 FROM messages m_resp
-              WHERE m_resp."conversationId" = c.id
-                AND m_resp.sender = 'lead'
-                AND m_resp."createdAt" > m_re."createdAt"
-            )
-        ) cycles ON true
+        ) total_re ON true
         WHERE l."projectId" = ${agent.projectId}
           AND l."handoffMode" = 'ai'
           AND l."archivedAt" IS NULL
           AND l."whatsappId" IS NOT NULL
-          -- Lead's last message was > delayHours ago
+          -- Lead's last message was > delayHours ago (initial silence threshold)
           AND lead_msg."createdAt" < ${new Date(now.getTime() - delayMs)}
           -- Lead's last message was < 24h ago (within WhatsApp window)
           AND lead_msg."createdAt" > ${new Date(now.getTime() - windowMs)}
-          -- Anti-spam: lead must have responded to the last reengagement
-          -- (or no reengagement sent yet = initial)
-          AND (
-            last_re.last_re_at IS NULL
-            OR lead_msg."createdAt" > last_re.last_re_at
-          )
-          -- Within max attempts: 0 cycles = initial, N cycles = follow-up N
-          AND COALESCE(cycles.cnt, 0) <= ${maxAttempts}
+          -- Within max attempts (total sent must be less than max)
+          AND COALESCE(total_re.cnt, 0) < ${maxAttempts + 1}
           -- Enough time since last reengagement (delayHours gap between attempts)
           AND (
             l."lastReEngagementAt" IS NULL
@@ -264,8 +244,8 @@ export async function GET(request: Request) {
 
           const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(' ');
 
-          // Determine attempt number from completed cycles
-          const attemptNumber = lead.completedCycles; // 0=initial, 1=follow-up 1, 2=follow-up 2
+          // Determine attempt number from total reengagements sent
+          const attemptNumber = lead.totalReengagements; // 0=initial, 1=follow-up 1, 2=follow-up 2
 
           // Select the right instructions based on attempt
           let attemptInstructions: string | null = null;
