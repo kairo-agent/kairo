@@ -14,6 +14,7 @@ import {
   LeadChannel,
   LeadType,
   DateRangePreset,
+  DateFieldOption,
   LEAD_STATUS_CONFIG,
   LEAD_TEMPERATURE_CONFIG,
   LEAD_TYPE_CONFIG,
@@ -571,9 +572,12 @@ export function LeadFilters({
           : '';
         dateValue = end ? `${start} - ${end}` : start;
       }
+      const dateFieldLabel = filters.dateField === 'lastContactAt'
+        ? t('filters.dateFieldLastContact')
+        : t('filters.dateFieldCreatedAt');
       active.push({
         key: 'dateRange',
-        label: t('filters.dateRange'),
+        label: dateFieldLabel,
         value: dateValue,
         onRemove: () => onFiltersChange({
           ...filters,
@@ -614,6 +618,7 @@ export function LeadFilters({
       temperature: 'all',
       channel: 'all',
       type: 'all',
+      dateField: 'createdAt',
       dateRange: 'last30days',
       customDateRange: { start: null, end: null },
       archiveFilter: 'active',
@@ -646,6 +651,13 @@ export function LeadFilters({
   const handleTypeChange = useCallback(
     (type: LeadType | 'all') => {
       onFiltersChange({ ...filters, type });
+    },
+    [filters, onFiltersChange]
+  );
+
+  const handleDateFieldChange = useCallback(
+    (dateField: DateFieldOption) => {
+      onFiltersChange({ ...filters, dateField });
     },
     [filters, onFiltersChange]
   );
@@ -737,24 +749,48 @@ export function LeadFilters({
         )}
       >
         {/* Date Range Filter */}
-        <FilterSection title={t('filters.dateRange')}>
-          {DATE_RANGE_PRESETS.map((preset) => (
-            <FilterChip
-              key={preset}
-              label={t(`dateRange.${preset}`)}
-              isActive={filters.dateRange === preset}
-              onClick={() => handleDateRangeChange(preset)}
-              icon={preset === 'today' ? <CalendarIcon className="w-3.5 h-3.5" /> : undefined}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
+              {t('filters.dateRange')}
+            </span>
+            <div className="relative">
+              <select
+                value={filters.dateField || 'createdAt'}
+                onChange={(e) => handleDateFieldChange(e.target.value as DateFieldOption)}
+                className="text-xs font-medium text-[var(--accent-text)] bg-transparent border-none outline-none cursor-pointer appearance-none pr-4 py-0"
+              >
+                <option value="createdAt" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                  {t('filters.dateFieldCreatedAt')}
+                </option>
+                <option value="lastContactAt" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
+                  {t('filters.dateFieldLastContact')}
+                </option>
+              </select>
+              <svg className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--accent-text)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {DATE_RANGE_PRESETS.map((preset) => (
+              <FilterChip
+                key={preset}
+                label={t(`dateRange.${preset}`)}
+                isActive={filters.dateRange === preset}
+                onClick={() => handleDateRangeChange(preset)}
+                icon={preset === 'today' ? <CalendarIcon className="w-3.5 h-3.5" /> : undefined}
+              />
+            ))}
+            <DateRangeDropdown
+              value={filters.customDateRange}
+              onChange={handleCustomDateRangeChange}
+              isActive={filters.dateRange === 'custom'}
+              onClick={handleCustomDateClick}
+              locale={locale}
             />
-          ))}
-          <DateRangeDropdown
-            value={filters.customDateRange}
-            onChange={handleCustomDateRangeChange}
-            isActive={filters.dateRange === 'custom'}
-            onClick={handleCustomDateClick}
-            locale={locale}
-          />
-        </FilterSection>
+          </div>
+        </div>
 
         {/* Status Filter */}
         <FilterSection title={t('filters.status')}>

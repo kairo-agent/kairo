@@ -287,12 +287,15 @@ export interface ModalConfig {
 }
 
 // Filter Types
+export type DateFieldOption = 'createdAt' | 'lastContactAt';
+
 export interface LeadFilters {
   search: string;
   status: LeadStatus | 'all';
   temperature: LeadTemperature | 'all';
   channel: LeadChannel | 'all';
   type: LeadType | 'all';
+  dateField: DateFieldOption;
   dateRange: DateRangePreset | 'custom';
   customDateRange: {
     start: Date | null;

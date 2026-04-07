@@ -185,7 +185,12 @@ function getDateRangeFilter(
       if (customDateRange?.start || customDateRange?.end) {
         const filter: Prisma.DateTimeNullableFilter = {};
         if (customDateRange.start) filter.gte = customDateRange.start;
-        if (customDateRange.end) filter.lte = customDateRange.end;
+        if (customDateRange.end) {
+          // Include the full end day (set to 23:59:59.999)
+          const endOfDay = new Date(customDateRange.end);
+          endOfDay.setHours(23, 59, 59, 999);
+          filter.lte = endOfDay;
+        }
         return filter;
       }
       return undefined;
@@ -242,11 +247,16 @@ function buildLeadWhereClause(
     where.type = filters.type;
   }
 
-  // Date range filter
+  // Date range filter (applies to selected dateField: createdAt or lastContactAt)
   if (filters?.dateRange && filters.dateRange !== 'all') {
     const dateFilter = getDateRangeFilter(filters.dateRange, filters.customDateRange, timezone);
     if (dateFilter) {
-      where.lastContactAt = dateFilter;
+      const field = filters.dateField || 'createdAt';
+      if (field === 'createdAt') {
+        where.createdAt = dateFilter as Prisma.DateTimeFilter;
+      } else {
+        where.lastContactAt = dateFilter;
+      }
     }
   }
 

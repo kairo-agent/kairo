@@ -587,6 +587,7 @@ const DEFAULT_FILTERS: LeadFiltersType = {
   temperature: 'all',
   channel: 'all',
   type: 'all',
+  dateField: 'createdAt',
   dateRange: 'all', // Changed to 'all' since we have data from 1 year
   customDateRange: { start: null, end: null },
   archiveFilter: 'active',
