@@ -588,7 +588,7 @@ const DEFAULT_FILTERS: LeadFiltersType = {
   channel: 'all',
   type: 'all',
   dateField: 'createdAt',
-  dateRange: 'all', // Changed to 'all' since we have data from 1 year
+  dateRange: 'thisMonth',
   customDateRange: { start: null, end: null },
   archiveFilter: 'active',
   assignedTo: 'all',

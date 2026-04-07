@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { verifyAuth, verifyProjectAccess, getProjectRole } from './auth';
 import { getEffectiveRole, isViewerOnly, canActOnLead, canTakeUnassignedLead, canReassignLead } from '@/lib/permissions';
-import { getEffectiveTimezone, getStartOfDayInTimezone, getEndOfDayInTimezone } from '@/lib/timezone';
+import { getEffectiveTimezone, getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfMonthInTimezone } from '@/lib/timezone';
 import { validatePhone, normalizePhone } from '@/lib/utils';
 import { notifyProjectMembers } from './notifications';
 import type { Lead as PrismaLead, AIAgent, Prisma, Note, Activity, User, LeadStatus as PrismaLeadStatus } from '@prisma/client';
@@ -177,9 +177,10 @@ function getDateRangeFilter(
       const start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       return { gte: start };
     }
-    case 'last90days': {
-      const start = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-      return { gte: start };
+    case 'thisMonth': {
+      const tz = timezone || getEffectiveTimezone();
+      const startOfMonth = getStartOfMonthInTimezone(tz);
+      return { gte: startOfMonth };
     }
     case 'custom': {
       if (customDateRange?.start || customDateRange?.end) {

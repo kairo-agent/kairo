@@ -97,6 +97,74 @@ function FilterChip({
 }
 
 // ============================================
+// Date Field Selector (inline dropdown)
+// ============================================
+
+interface DateFieldSelectorProps {
+  value: DateFieldOption;
+  onChange: (value: DateFieldOption) => void;
+  label: string;
+  options: { value: DateFieldOption; label: string }[];
+}
+
+function DateFieldSelector({ value, onChange, label, options }: DateFieldSelectorProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const selectedLabel = options.find((o) => o.value === value)?.label || '';
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
+        {label}
+      </span>
+      <div ref={dropdownRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-text)] hover:text-[var(--accent-text)] transition-colors cursor-pointer"
+        >
+          <span>{selectedLabel}</span>
+          <ChevronIcon isOpen={isOpen} className="w-3 h-3" />
+        </button>
+        {isOpen && (
+          <div className="absolute top-full left-0 mt-1 z-50 min-w-[160px] bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg py-1">
+            {options.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => { onChange(option.value); setIsOpen(false); }}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-sm transition-colors',
+                  'hover:bg-[var(--bg-hover)]',
+                  value === option.value
+                    ? 'text-[var(--accent-text)] font-medium'
+                    : 'text-[var(--text-primary)]'
+                )}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // Filter Section Component
 // ============================================
 
@@ -195,7 +263,7 @@ function CalendarIcon({ className }: { className?: string }) {
 // Date Range Presets
 // ============================================
 
-const DATE_RANGE_PRESETS: DateRangePreset[] = ['today', 'last7days', 'last30days', 'last90days', 'all'];
+const DATE_RANGE_PRESETS: DateRangePreset[] = ['today', 'last7days', 'last30days', 'thisMonth', 'all'];
 
 // ============================================
 // Active Filter Badge Component
@@ -563,7 +631,7 @@ export function LeadFilters({
       });
     }
 
-    if (filters.dateRange !== 'last30days') {
+    if (filters.dateRange !== 'thisMonth') {
       let dateValue = t(`dateRange.${filters.dateRange}`);
       if (filters.dateRange === 'custom' && filters.customDateRange.start) {
         const start = format(filters.customDateRange.start, 'dd MMM', { locale: dateLocale });
@@ -581,7 +649,7 @@ export function LeadFilters({
         value: dateValue,
         onRemove: () => onFiltersChange({
           ...filters,
-          dateRange: 'last30days',
+          dateRange: 'thisMonth',
           customDateRange: { start: null, end: null }
         }),
       });
@@ -619,7 +687,7 @@ export function LeadFilters({
       channel: 'all',
       type: 'all',
       dateField: 'createdAt',
-      dateRange: 'last30days',
+      dateRange: 'thisMonth',
       customDateRange: { start: null, end: null },
       archiveFilter: 'active',
       assignedTo: 'all',
@@ -750,28 +818,15 @@ export function LeadFilters({
       >
         {/* Date Range Filter */}
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
-              {t('filters.dateRange')}
-            </span>
-            <div className="relative">
-              <select
-                value={filters.dateField || 'createdAt'}
-                onChange={(e) => handleDateFieldChange(e.target.value as DateFieldOption)}
-                className="text-xs font-medium text-[var(--accent-text)] bg-transparent border-none outline-none cursor-pointer appearance-none pr-4 py-0"
-              >
-                <option value="createdAt" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
-                  {t('filters.dateFieldCreatedAt')}
-                </option>
-                <option value="lastContactAt" className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">
-                  {t('filters.dateFieldLastContact')}
-                </option>
-              </select>
-              <svg className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--accent-text)] pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
+          <DateFieldSelector
+            value={filters.dateField || 'createdAt'}
+            onChange={handleDateFieldChange}
+            label={t('filters.dateRange')}
+            options={[
+              { value: 'createdAt', label: t('filters.dateFieldCreatedAt') },
+              { value: 'lastContactAt', label: t('filters.dateFieldLastContact') },
+            ]}
+          />
           <div className="flex flex-wrap gap-2">
             {DATE_RANGE_PRESETS.map((preset) => (
               <FilterChip

@@ -305,13 +305,13 @@ export interface LeadFilters {
   assignedTo: string[] | 'all' | 'unassigned' | 'mine';
 }
 
-export type DateRangePreset = 'today' | 'last7days' | 'last30days' | 'last90days' | 'all';
+export type DateRangePreset = 'today' | 'last7days' | 'last30days' | 'thisMonth' | 'all';
 
 export const DATE_RANGE_CONFIG: Record<DateRangePreset, { days: number | null }> = {
   today: { days: 0 },
   last7days: { days: 7 },
   last30days: { days: 30 },
-  last90days: { days: 90 },
+  thisMonth: { days: null },
   all: { days: null },
 };
 
