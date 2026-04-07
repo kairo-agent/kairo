@@ -32,6 +32,7 @@ import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
 import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
 import type { FormConfig } from '@/lib/types/form-template';
+import { getAutoAssignUserId } from '@/lib/auto-assign';
 
 // ============================================
 // In-Memory Cache for phoneNumberId → Project
@@ -739,6 +740,9 @@ async function handleIncomingMessage(
     // Detect lead source from Meta referral or hashtags in first message
     const detectedSource = detectLeadSource(message);
 
+    // Auto-assign lead to a team member based on project configuration
+    const autoAssignedUserId = await getAutoAssignUserId(projectId);
+
     // Create new lead with conversation and assigned agent
     lead = await prisma.lead.create({
       data: {
@@ -755,6 +759,7 @@ async function handleIncomingMessage(
         handoffMode: HandoffMode.ai,
         lastContactAt: new Date(),
         assignedAgentId: defaultAgent?.id || null,
+        assignedUserId: autoAssignedUserId,
         conversation: {
           create: {
             messages: {
@@ -794,7 +799,7 @@ async function handleIncomingMessage(
       },
     });
 
-    console.log(`[OK] New lead created: ${lead.id.substring(0, 8)}... (source: ${detectedSource})`);
+    console.log(`[OK] New lead created: ${lead.id.substring(0, 8)}... (source: ${detectedSource}${autoAssignedUserId ? `, auto-assigned: ${autoAssignedUserId.substring(0, 8)}...` : ''})`);
 
     // Download incoming media for new leads
     if (metadata.mediaId && lead.conversation?.id) {

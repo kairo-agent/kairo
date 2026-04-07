@@ -36,6 +36,8 @@ interface LeadFiltersProps {
   onToggleExpanded?: () => void;
   projectId?: string;
   currentUserId?: string;
+  effectiveRole?: string;
+  leadVisibilityMode?: string;
 }
 
 // Team member type from getProjectTeamMembers
@@ -323,9 +325,10 @@ interface AssignedToDropdownProps {
   projectId?: string;
   currentUserId?: string;
   locale?: 'es' | 'en';
+  restrictToOwnAndUnassigned?: boolean;
 }
 
-function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale = 'es' }: AssignedToDropdownProps) {
+function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale = 'es', restrictToOwnAndUnassigned = false }: AssignedToDropdownProps) {
   const t = useTranslations('leads');
   const tAdmin = useTranslations('admin');
   const [isOpen, setIsOpen] = useState(false);
@@ -456,67 +459,62 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
             {t('filters.unassignedLeads')}
           </button>
 
-          {/* Separator */}
-          <div className="border-t border-[var(--border-primary)] my-1" />
+          {/* Team members list - hidden when restricted to own + unassigned */}
+          {!restrictToOwnAndUnassigned && (
+            <>
+              <div className="border-t border-[var(--border-primary)] my-1" />
+              {isLoading ? (
+                <div className="flex items-center justify-center py-3">
+                  <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                members.map((member) => {
+                  const isChecked = Array.isArray(value) && value.includes(member.id);
+                  const initials = getInitials(member.firstName, member.lastName);
+                  const roleBadge = ROLE_BADGE_COLORS[member.role] || ROLE_BADGE_COLORS.viewer;
 
-          {/* Team members list */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-3">
-              <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            members.map((member) => {
-              const isChecked = Array.isArray(value) && value.includes(member.id);
-              const initials = getInitials(member.firstName, member.lastName);
-              const roleBadge = ROLE_BADGE_COLORS[member.role] || ROLE_BADGE_COLORS.viewer;
-
-              return (
-                <button
-                  key={member.id}
-                  type="button"
-                  onClick={() => handleToggleUser(member.id)}
-                  className={cn(
-                    'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors',
-                    'hover:bg-[var(--bg-hover)]',
-                    isChecked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
-                  )}
-                >
-                  {/* Checkbox */}
-                  <div
-                    className={cn(
-                      'w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors',
-                      isChecked
-                        ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]'
-                        : 'border-[var(--border-primary)]'
-                    )}
-                  >
-                    {isChecked && (
-                      <svg className="w-3 h-3 text-[var(--kairo-midnight)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-
-                  {/* Initials avatar */}
-                  <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
-                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">{initials}</span>
-                  </div>
-
-                  {/* Name */}
-                  <span className="flex-1 text-left truncate">
-                    {member.firstName} {member.lastName}
-                  </span>
-
-                  {/* Role badge */}
-                  <span
-                    className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
-                    style={{ color: roleBadge.color, backgroundColor: roleBadge.bgColor }}
-                  >
-                    {tAdmin(`roles.${member.role}`)}
-                  </span>
-                </button>
-              );
-            })
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      onClick={() => handleToggleUser(member.id)}
+                      className={cn(
+                        'w-full flex items-center gap-2.5 px-3 py-2 text-sm transition-colors',
+                        'hover:bg-[var(--bg-hover)]',
+                        isChecked ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors',
+                          isChecked
+                            ? 'bg-[var(--accent-primary)] border-[var(--accent-primary)]'
+                            : 'border-[var(--border-primary)]'
+                        )}
+                      >
+                        {isChecked && (
+                          <svg className="w-3 h-3 text-[var(--kairo-midnight)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">{initials}</span>
+                      </div>
+                      <span className="flex-1 text-left truncate">
+                        {member.firstName} {member.lastName}
+                      </span>
+                      <span
+                        className="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                        style={{ color: roleBadge.color, backgroundColor: roleBadge.bgColor }}
+                      >
+                        {tAdmin(`roles.${member.role}`)}
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </>
           )}
         </div>
       )}
@@ -536,11 +534,16 @@ export function LeadFilters({
   onToggleExpanded,
   projectId,
   currentUserId,
+  effectiveRole,
+  leadVisibilityMode = 'all_leads',
 }: LeadFiltersProps) {
   const t = useTranslations('leads');
   const tCommon = useTranslations('common');
   const [searchValue, setSearchValue] = useState(filters.search);
   const dateLocale = locale === 'es' ? es : enUS;
+
+  // Agent and viewer roles are subject to visibility restrictions
+  const isRestrictedRole = effectiveRole === 'agent' || effectiveRole === 'viewer';
 
   // Debounce search input
   useEffect(() => {
@@ -953,16 +956,19 @@ export function LeadFilters({
           />
         </FilterSection>
 
-        {/* Assigned To Filter */}
-        <FilterSection title={t('filters.assignedTo')}>
-          <AssignedToDropdown
-            value={filters.assignedTo}
-            onChange={(assignedTo) => onFiltersChange({ ...filters, assignedTo })}
-            projectId={projectId}
-            currentUserId={currentUserId}
-            locale={locale}
-          />
-        </FilterSection>
+        {/* Assigned To Filter - hidden when visibility restricts agent/viewer to only their leads */}
+        {!(isRestrictedRole && leadVisibilityMode === 'only_assigned') && (
+          <FilterSection title={t('filters.assignedTo')}>
+            <AssignedToDropdown
+              value={filters.assignedTo}
+              onChange={(assignedTo) => onFiltersChange({ ...filters, assignedTo })}
+              projectId={projectId}
+              currentUserId={currentUserId}
+              locale={locale}
+              restrictToOwnAndUnassigned={isRestrictedRole && leadVisibilityMode === 'assigned_and_unassigned'}
+            />
+          </FilterSection>
+        )}
       </div>
     </div>
   );

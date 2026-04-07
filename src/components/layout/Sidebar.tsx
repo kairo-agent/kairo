@@ -6,11 +6,12 @@ import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/routing';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCurrentUser } from '@/app/[locale]/(dashboard)/DashboardLayoutClient';
+import { useEffectiveRole } from '@/hooks/useEffectiveRole';
 import { cn } from '@/lib/utils';
 import { WorkspaceSelector } from './WorkspaceSelector';
 
 // Navigation item type - href must match pathnames defined in i18n/routing.ts
-type AppPathname = '/' | '/dashboard' | '/leads' | '/conversations' | '/agents' | '/reports' | '/settings' | '/admin';
+type AppPathname = '/' | '/dashboard' | '/leads' | '/conversations' | '/agents' | '/reports' | '/settings' | '/settings/team' | '/admin';
 
 interface NavItem {
   labelKey: string;
@@ -139,6 +140,42 @@ const AdminIcon = () => (
   </svg>
 );
 
+// AI Settings sub-icon
+const AISettingsIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z" />
+    <circle cx="9" cy="15" r="1" />
+    <circle cx="15" cy="15" r="1" />
+  </svg>
+);
+
+// Team Settings sub-icon
+const TeamSettingsIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
+// Chevron icon for collapsible sections
+const ChevronDownIcon = ({ isOpen }: { isOpen: boolean }) => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={cn('transition-transform duration-200', isOpen && 'rotate-180')}
+  >
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
+);
+
 // Navigation items configuration (labelKey maps to navigation.* in translations)
 const navigationItems: NavItem[] = [
   { labelKey: 'dashboard', href: '/dashboard', icon: <HomeIcon /> },
@@ -146,7 +183,6 @@ const navigationItems: NavItem[] = [
   { labelKey: 'conversations', href: '/conversations', icon: <MessageIcon />, disabled: true, hasBadge: true },
   { labelKey: 'agents', href: '/agents', icon: <BotIcon />, disabled: true, hasBadge: true },
   { labelKey: 'reports', href: '/reports', icon: <ChartIcon />, disabled: true, hasBadge: true },
-  { labelKey: 'settings', href: '/settings', icon: <SettingsIcon /> },
 ];
 
 interface SidebarProps {
@@ -162,9 +198,18 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const tDashboard = useTranslations('dashboard');
   const tLogin = useTranslations('login');
   const [isMounted, setIsMounted] = useState(false);
+  const isSettingsRoute = pathname.startsWith('/settings');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(isSettingsRoute);
+
+  // Keep settings open when navigating to a settings sub-route
+  useEffect(() => {
+    if (isSettingsRoute) setIsSettingsOpen(true);
+  }, [isSettingsRoute]);
 
   // Check if user is super_admin
   const isSuperAdmin = user.systemRole === 'super_admin';
+  const effectiveRole = useEffectiveRole();
+  const canSeeSettings = effectiveRole === 'super_admin' || effectiveRole === 'owner' || effectiveRole === 'admin' || effectiveRole === 'manager';
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -284,6 +329,66 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Settings section - Collapsible (admin+ only) */}
+        {canSeeSettings && <div>
+          <button
+            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+            className={cn(
+              'flex items-center gap-3 px-3 py-2.5 rounded-lg w-full relative',
+              'transition-all duration-200',
+              isSettingsRoute
+                ? 'bg-[var(--accent-primary-light)] text-[var(--accent-text)]'
+                : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+            )}
+          >
+            {isSettingsRoute && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-[var(--accent-primary)] rounded-r-full" />
+            )}
+            <span className="flex-shrink-0"><SettingsIcon /></span>
+            <span className="flex-1 text-left text-sm font-medium">{t('settings')}</span>
+            <ChevronDownIcon isOpen={isSettingsOpen} />
+          </button>
+
+          {/* Sub-items */}
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-200',
+              isSettingsOpen ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0'
+            )}
+          >
+            <div className="ml-4 pl-3 mt-1 space-y-0.5 border-l border-[var(--border-primary)]">
+              <Link
+                href="/settings"
+                onClick={onClose}
+                className={cn(
+                  'flex items-center gap-2.5 px-3 py-2 rounded-lg',
+                  'transition-all duration-200',
+                  pathname === '/settings'
+                    ? 'text-[var(--accent-text)] bg-[var(--accent-primary-light)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                )}
+              >
+                <span className="flex-shrink-0"><AISettingsIcon /></span>
+                <span className="text-sm">{t('settingsAI')}</span>
+              </Link>
+              <Link
+                href="/settings/team"
+                onClick={onClose}
+                className={cn(
+                  'flex items-center gap-2.5 px-3 py-2 rounded-lg',
+                  'transition-all duration-200',
+                  pathname === '/settings/team'
+                    ? 'text-[var(--accent-text)] bg-[var(--accent-primary-light)]'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                )}
+              >
+                <span className="flex-shrink-0"><TeamSettingsIcon /></span>
+                <span className="text-sm">{t('settingsTeam')}</span>
+              </Link>
+            </div>
+          </div>
+        </div>}
 
         {/* Admin section - Only visible for super_admin */}
         {isSuperAdmin && (

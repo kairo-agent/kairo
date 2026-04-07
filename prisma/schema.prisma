@@ -57,8 +57,10 @@ model Project {
   updatedAt           DateTime        @updatedAt
   n8nWebhookUrl       String?
   n8nApiKey           String?
-  whatsappPhoneNumber String?
-  aiAgents            AIAgent[]
+  whatsappPhoneNumber  String?
+  leadVisibilityMode   String          @default("all_leads") // all_leads | assigned_and_unassigned | only_assigned
+  leadAutoAssignment   Json?           // { enabled, members: [{ userId, percentage }] }
+  aiAgents             AIAgent[]
   leads               Lead[]
   members             ProjectMember[]
   secrets             ProjectSecret[]

@@ -30,6 +30,7 @@ import {
 } from '@/types';
 import { cn, formatRelativeTime, getInitials } from '@/lib/utils';
 import { updateLeadStatus, archiveLead, unarchiveLead, scheduleFollowUp, getLeadById } from '@/lib/actions/leads';
+import { getProjectLeadVisibility } from '@/lib/actions/team-settings';
 import { FollowUpModal } from '@/components/features/FollowUpModal';
 import { ExportLeadsModal } from '@/components/features/ExportLeadsModal';
 import { useEffectiveRole } from '@/hooks/useEffectiveRole';
@@ -620,6 +621,17 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const [archiveTarget, setArchiveTarget] = useState<TransformedLead | null>(null);
   const [followUpTarget, setFollowUpTarget] = useState<TransformedLead | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [leadVisibilityMode, setLeadVisibilityMode] = useState<string>('all_leads');
+
+  // Fetch project lead visibility setting
+  useEffect(() => {
+    if (!selectedProject?.id) return;
+    getProjectLeadVisibility(selectedProject.id).then((result) => {
+      if (result.success && result.mode) {
+        setLeadVisibilityMode(result.mode);
+      }
+    });
+  }, [selectedProject?.id]);
 
   // Refs for debouncing
   const filtersRef = useRef(filters);
@@ -1163,6 +1175,8 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
           onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
           projectId={selectedProject?.id}
           currentUserId={user.id}
+          effectiveRole={effectiveRole}
+          leadVisibilityMode={leadVisibilityMode}
         />
         <FloatingFilterToggle
           isExpanded={isFiltersExpanded}

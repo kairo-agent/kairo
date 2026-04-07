@@ -23,6 +23,7 @@ export const routing = defineRouting({
     '/agents': '/agents',
     '/reports': '/reports',
     '/settings': '/settings',
+    '/settings/team': '/settings/team',
     '/profile': '/profile',
     '/terms': '/terms',
     '/privacy': '/privacy',

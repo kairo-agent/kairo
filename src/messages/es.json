@@ -66,6 +66,8 @@
     "agents": "Sub-agentes",
     "reports": "Reportes",
     "settings": "Configuración",
+    "settingsAI": "AI Settings",
+    "settingsTeam": "Team Settings",
     "admin": "Gestionar",
     "comingSoon": "Pronto"
   },
@@ -1103,6 +1105,37 @@
       "pushDeniedHelp": "Haz clic en el icono de candado en la barra de tu navegador y activa las notificaciones.",
       "pushUnsupported": "Tu navegador no soporta notificaciones push.",
       "devicesActive": "{count} {count, plural, one {dispositivo activo} other {dispositivos activos}}"
+    }
+  },
+  "teamSettings": {
+    "title": "Team Settings",
+    "subtitle": "Configura la visibilidad y acceso de los miembros del equipo",
+    "noProject": "Selecciona un proyecto para configurar el equipo.",
+    "noProjectAction": "Ir al selector de workspace",
+    "visibility": {
+      "title": "Visibilidad de Leads para Asesores",
+      "description": "Controla qué leads pueden ver los usuarios con rol Asesor y Viewer en este proyecto. Los roles Manager, Admin y superiores siempre ven todos los leads.",
+      "allLeads": "Todos los leads",
+      "allLeadsDescription": "Los asesores ven todos los leads del proyecto",
+      "assignedAndUnassigned": "Sus leads + sin asignar",
+      "assignedAndUnassignedDescription": "Los asesores ven sus leads asignados y los que aún no tienen asignar",
+      "onlyAssigned": "Solo sus leads asignados",
+      "onlyAssignedDescription": "Los asesores solo ven los leads que les fueron asignados",
+      "warning": "Con esta opción, los leads nuevos sin asignar no serán visibles para los asesores hasta que un Manager o Admin los asigne."
+    },
+    "saved": "Configuración guardada",
+    "saveError": "Error al guardar",
+    "autoAssignment": {
+      "title": "Auto-Asignación de Leads",
+      "description": "Asigna automáticamente los leads nuevos a los asesores seleccionados del equipo según el porcentaje configurado.",
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "equalForAll": "Igual para todos",
+      "percentage": "%",
+      "total": "Total",
+      "mustSum100": "Los porcentajes deben sumar 100%",
+      "noMembers": "No hay miembros en este proyecto",
+      "selectAtLeast": "Selecciona al menos un miembro"
     }
   }
 }

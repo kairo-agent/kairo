@@ -66,6 +66,8 @@
     "agents": "Sub-agents",
     "reports": "Reports",
     "settings": "Settings",
+    "settingsAI": "AI Settings",
+    "settingsTeam": "Team Settings",
     "admin": "Manage",
     "comingSoon": "Coming Soon"
   },
@@ -1103,6 +1105,37 @@
       "pushDeniedHelp": "Click the lock icon in your browser's address bar and enable notifications.",
       "pushUnsupported": "Your browser does not support push notifications.",
       "devicesActive": "{count} active {count, plural, one {device} other {devices}}"
+    }
+  },
+  "teamSettings": {
+    "title": "Team Settings",
+    "subtitle": "Configure team member visibility and access",
+    "noProject": "Select a project to configure team settings.",
+    "noProjectAction": "Go to workspace selector",
+    "visibility": {
+      "title": "Lead Visibility for Advisors",
+      "description": "Control which leads users with Advisor and Viewer roles can see in this project. Manager, Admin, and higher roles always see all leads.",
+      "allLeads": "All leads",
+      "allLeadsDescription": "Advisors can see all leads in the project",
+      "assignedAndUnassigned": "Their leads + unassigned",
+      "assignedAndUnassignedDescription": "Advisors see their assigned leads and unassigned ones",
+      "onlyAssigned": "Only their assigned leads",
+      "onlyAssignedDescription": "Advisors only see leads assigned to them",
+      "warning": "With this option, new unassigned leads will not be visible to advisors until a Manager or Admin assigns them."
+    },
+    "saved": "Settings saved",
+    "saveError": "Error saving settings",
+    "autoAssignment": {
+      "title": "Lead Auto-Assignment",
+      "description": "Automatically assign new leads to selected team advisors based on configured percentage.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "equalForAll": "Equal for all",
+      "percentage": "%",
+      "total": "Total",
+      "mustSum100": "Percentages must add up to 100%",
+      "noMembers": "No members in this project",
+      "selectAtLeast": "Select at least one member"
     }
   }
 }

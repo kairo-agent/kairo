@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { verifyAuth, verifyProjectAccess, getProjectRole } from './auth';
 import { getEffectiveRole, isViewerOnly, canActOnLead, canTakeUnassignedLead, canReassignLead } from '@/lib/permissions';
+import { getVisibilityContext, buildVisibilityFilter, type VisibilityContext } from '@/lib/lead-visibility';
 import { getEffectiveTimezone, getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfMonthInTimezone } from '@/lib/timezone';
 import { validatePhone, normalizePhone } from '@/lib/utils';
 import { notifyProjectMembers } from './notifications';
@@ -207,7 +208,8 @@ function buildLeadWhereClause(
   organizationId?: string,
   filters?: Partial<LeadFilters>,
   currentUserId?: string,
-  timezone?: string
+  timezone?: string,
+  visibility?: VisibilityContext
 ): Prisma.LeadWhereInput {
   const where: Prisma.LeadWhereInput = {};
 
@@ -270,7 +272,7 @@ function buildLeadWhereClause(
   }
   // 'all' = no filter on archivedAt
 
-  // Assigned to filter
+  // Assigned to filter (user-selected filter in UI)
   if (filters?.assignedTo && filters.assignedTo !== 'all') {
     if (filters.assignedTo === 'unassigned') {
       where.assignedUserId = null;
@@ -279,6 +281,15 @@ function buildLeadWhereClause(
     } else if (Array.isArray(filters.assignedTo)) {
       where.assignedUserId = { in: filters.assignedTo };
     }
+  }
+
+  // Visibility filter (project-level setting for agent/viewer roles)
+  const visibilityFilter = buildVisibilityFilter(visibility);
+  if (visibilityFilter) {
+    where.AND = [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      visibilityFilter,
+    ];
   }
 
   return where;
@@ -326,7 +337,9 @@ export async function getLeadsPaginatedSSR(
     }
 
     const timezone = await getOrgTimezone(organizationId);
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id, timezone);
+    // Get visibility context for agent/viewer lead restrictions
+    const visibility = projectId ? await getVisibilityContext(auth.id, auth.systemRole, projectId) : undefined;
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id, timezone, visibility);
     const page = pagination?.page || 1;
     const limit = pagination?.limit || 25;
     const skip = (page - 1) * limit;
@@ -426,7 +439,8 @@ export async function getLeadsStatsFromDBSSR(
     }
 
     const timezone = await getOrgTimezone(organizationId);
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id, timezone);
+    const visibility = projectId ? await getVisibilityContext(auth.id, auth.systemRole, projectId) : undefined;
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, auth.id, timezone, visibility);
 
     const [total, statusCounts, temperatureCounts] = await Promise.all([
       prisma.lead.count({ where }),
@@ -505,7 +519,8 @@ export async function getLeadsPaginated(
 
     // Build where clause with filters
     const timezone = await getOrgTimezone(organizationId);
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id, timezone);
+    const visibility = projectId ? await getVisibilityContext(user.id, user.systemRole, projectId) : undefined;
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id, timezone, visibility);
 
     // Pagination params
     const page = pagination?.page || 1;
@@ -625,7 +640,8 @@ export async function getLeads(
     }
 
     const timezone = await getOrgTimezone(organizationId);
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, undefined, undefined, timezone);
+    const visibility = projectId ? await getVisibilityContext(user.id, user.systemRole, projectId) : undefined;
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, undefined, user.id, timezone, visibility);
 
     // OPTIMIZATION: Partial select for legacy function
     // Returns same fields as getLeadsPaginated for consistency
@@ -712,7 +728,8 @@ export async function getLeadsStatsFromDB(
     }
 
     const timezone = await getOrgTimezone(organizationId);
-    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id, timezone);
+    const visibility = projectId ? await getVisibilityContext(user.id, user.systemRole, projectId) : undefined;
+    const where = buildLeadWhereClause(accessibleProjects, organizationId, filters, user.id, timezone, visibility);
 
     // Get counts in parallel
     const [total, statusCounts, temperatureCounts] = await Promise.all([
@@ -1154,12 +1171,23 @@ export async function getLeadPanelData(leadId: string): Promise<{
 
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
-      select: { projectId: true },
+      select: { projectId: true, assignedUserId: true },
     });
     if (!lead) return null;
 
     const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
     if (!hasAccess) return null;
+
+    // Check visibility: agent/viewer may not see this lead
+    const visibility = await getVisibilityContext(user.id, user.systemRole, lead.projectId);
+    const visFilter = buildVisibilityFilter(visibility);
+    if (visFilter) {
+      if ('assignedUserId' in visFilter && visFilter.assignedUserId !== undefined) {
+        if (lead.assignedUserId !== user.id) return null;
+      } else if (visFilter.OR) {
+        if (lead.assignedUserId !== null && lead.assignedUserId !== user.id) return null;
+      }
+    }
 
     const [notes, activities] = await Promise.all([
       prisma.note.findMany({
@@ -1426,6 +1454,19 @@ export async function getLeadById(leadId: string): Promise<LeadGridItem | null> 
 
     const hasAccess = await verifyProjectAccess(user.id, user.systemRole, lead.projectId);
     if (!hasAccess) return null;
+
+    // Check visibility: agent/viewer may not see this lead based on project settings
+    const visibility = await getVisibilityContext(user.id, user.systemRole, lead.projectId);
+    const visFilter = buildVisibilityFilter(visibility);
+    if (visFilter) {
+      // Check if this specific lead matches the visibility filter
+      if ('assignedUserId' in visFilter && visFilter.assignedUserId !== undefined) {
+        if (lead.assignedUserId !== user.id) return null;
+      } else if (visFilter.OR) {
+        // assigned_and_unassigned: must be assigned to user OR unassigned
+        if (lead.assignedUserId !== null && lead.assignedUserId !== user.id) return null;
+      }
+    }
 
     return lead;
   } catch (error) {

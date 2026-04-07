@@ -12,6 +12,7 @@
 ### Seguridad
 | Documento | Contenido clave |
 |-----------|----------------|
+| [RBAC.md](RBAC.md) | Roles (super_admin/owner/admin/manager/agent/viewer), effective role, matriz de permisos, flujo tecnico |
 | [SECURITY.md](SECURITY.md) | OWASP audit, todos los endpoints API (protecciones, rate limits, env vars), fail-closed patterns, timing attacks |
 | [SECURITY-AUDIO-PROCESSING.md](SECURITY-AUDIO-PROCESSING.md) | Analisis de seguridad para procesamiento de audio Whisper |
 
@@ -63,7 +64,7 @@
 | Configuracion de agentes (Settings) | [CHANGELOG.md](CHANGELOG.md) seccion v0.9.0 |
 | Global Rules (reglas para todos los agentes) | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Global Rules" + [CHANGELOG.md](CHANGELOG.md) seccion v0.9.1 |
 | Knowledge Base estructurada | [RAG-AGENTS.md](RAG-AGENTS.md) + [COMPONENTS.md](COMPONENTS.md) seccion "Knowledge Base" |
-| Roles y permisos | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Multi-tenant" |
+| Roles y permisos | [RBAC.md](RBAC.md) |
 | Estado actual del MVP | [CHANGELOG.md](CHANGELOG.md) version mas reciente |
 | Reglas de desarrollo | [RULES.md](RULES.md) |
 | Colores y brand | [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) |

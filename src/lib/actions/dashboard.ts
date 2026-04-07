@@ -8,6 +8,7 @@
 import { prisma } from '@/lib/prisma';
 import { verifyAuth } from './auth';
 import { getAccessibleProjectIds, type PreVerifiedAuth } from './leads';
+import { getVisibilityContext, buildVisibilityFilter, type VisibilityContext } from '@/lib/lead-visibility';
 import type { Prisma } from '@prisma/client';
 import { getEffectiveTimezone, getStartOfDayInTimezone, getEndOfDayInTimezone, getStartOfMonthInTimezone, getDateStringInTimezone, getYesterdayInTimezone } from '@/lib/timezone';
 
@@ -117,6 +118,25 @@ function buildAgentProjectFilter(
 }
 
 // ============================================
+// HELPER: Apply visibility filter to a where clause
+// ============================================
+
+function applyVisibility(
+  where: Prisma.LeadWhereInput,
+  visibility?: VisibilityContext
+): Prisma.LeadWhereInput {
+  const visFilter = buildVisibilityFilter(visibility);
+  if (!visFilter) return where;
+  return {
+    ...where,
+    AND: [
+      ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+      visFilter,
+    ],
+  };
+}
+
+// ============================================
 // Main: getDashboardStats (client-callable)
 // ============================================
 
@@ -159,47 +179,46 @@ export async function getDashboardStats(
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
+    // Get visibility context for agent/viewer lead restrictions
+    const visibility = projectId ? await getVisibilityContext(user.id, user.systemRole, projectId) : undefined;
+
     const [activeLeads, leadsWon, leadsCustomer, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
-      // 1. Active leads created in date range (non-archived)
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           ...(dateFilter ? { createdAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
-      // 2. Leads won (status changed to 'won' in date range) - use updatedAt
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           status: 'won',
           ...(dateFilter ? { updatedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
-      // 3. Leads customer (status changed to 'customer' in date range)
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           status: 'customer',
           ...(dateFilter ? { updatedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
-      // 4. Leads in human mode (within date range by updatedAt)
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           handoffMode: 'human',
           ...(dateFilter ? { updatedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
-      // 5. Active agents (no date filter - current state)
+      // Active agents — not a lead query, no visibility filter
       prisma.aIAgent.count({
         where: {
           ...agentProjectFilter,
@@ -207,13 +226,12 @@ export async function getDashboardStats(
         },
       }),
 
-      // 6. Archived leads (archived within date range)
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: { not: null },
           ...(dateFilter ? { archivedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
     ]);
 
@@ -267,40 +285,43 @@ export async function getDashboardStatsSSR(
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
     const agentProjectFilter = buildAgentProjectFilter(accessibleProjects, organizationId);
 
+    // Get visibility context for agent/viewer lead restrictions
+    const visibility = projectId ? await getVisibilityContext(auth.id, auth.systemRole, projectId) : undefined;
+
     const [activeLeads, leadsWon, leadsCustomer, leadsInHumanMode, activeAgents, archivedLeads] = await Promise.all([
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           ...(dateFilter ? { createdAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           status: 'won',
           ...(dateFilter ? { updatedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           status: 'customer',
           ...(dateFilter ? { updatedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: null,
           handoffMode: 'human',
           ...(dateFilter ? { updatedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
 
       prisma.aIAgent.count({
@@ -311,11 +332,11 @@ export async function getDashboardStatsSSR(
       }),
 
       prisma.lead.count({
-        where: {
+        where: applyVisibility({
           ...projectFilter,
           archivedAt: { not: null },
           ...(dateFilter ? { archivedAt: dateFilter } : {}),
-        },
+        }, visibility),
       }),
     ]);
 
@@ -367,35 +388,39 @@ export async function getDashboardCharts(
     const dateFilter = buildDateFilter(dateRange, customDateRange, timezone);
     const projectFilter = buildProjectFilter(accessibleProjects, organizationId);
 
-    const baseWhere: Prisma.LeadWhereInput = {
+    // Get visibility context for agent/viewer lead restrictions
+    const visibility = projectId ? await getVisibilityContext(user.id, user.systemRole, projectId) : undefined;
+
+    const baseWhere = applyVisibility({
       ...projectFilter,
       archivedAt: null,
       ...(dateFilter ? { createdAt: dateFilter } : {}),
-    };
+    }, visibility);
+
+    const noDateWhere = applyVisibility({
+      ...projectFilter,
+      archivedAt: null,
+    }, visibility);
 
     const [leads, tempGroups, statusGroups, sourceGroups] = await Promise.all([
-      // Leads per day — fetch dates only, group client-side
       prisma.lead.findMany({
         where: baseWhere,
         select: { createdAt: true },
         orderBy: { createdAt: 'asc' },
       }),
 
-      // Temperature distribution
       prisma.lead.groupBy({
         by: ['temperature'],
-        where: { ...projectFilter, archivedAt: null },
+        where: noDateWhere,
         _count: true,
       }),
 
-      // Status distribution
       prisma.lead.groupBy({
         by: ['status'],
-        where: { ...projectFilter, archivedAt: null },
+        where: noDateWhere,
         _count: true,
       }),
 
-      // Source distribution
       prisma.lead.groupBy({
         by: ['source'],
         where: baseWhere,
