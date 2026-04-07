@@ -126,18 +126,18 @@ function DateFieldSelector({ value, onChange, label, options }: DateFieldSelecto
   const selectedLabel = options.find((o) => o.value === value)?.label || '';
 
   return (
-    <div className="flex items-baseline gap-1">
-      <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider leading-none">
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wider">
         {label}
       </span>
       <div ref={dropdownRef} className="relative">
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="inline-flex items-baseline gap-1 text-xs font-medium text-[var(--accent-text)] hover:text-[var(--accent-text)] transition-colors cursor-pointer leading-none"
+          className="inline-flex items-center gap-1 text-xs font-medium text-[var(--accent-text)] hover:text-[var(--accent-text)] transition-colors cursor-pointer"
         >
           <span>{selectedLabel}</span>
-          <ChevronIcon isOpen={isOpen} className="w-3 h-3 relative top-px" />
+          <ChevronIcon isOpen={isOpen} className="w-3 h-3" />
         </button>
         {isOpen && (
           <div className="absolute top-full left-0 mt-1 z-50 min-w-[160px] bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg py-1">
