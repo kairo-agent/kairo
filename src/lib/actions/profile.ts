@@ -25,6 +25,7 @@ export async function getProfile() {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
         avatarUrl: true,
         systemRole: true,
         timezone: true,
@@ -78,6 +79,7 @@ export async function getProfile() {
 export async function updateProfile(data: {
   firstName?: string;
   lastName?: string;
+  phone?: string;
   avatarUrl?: string;
   timezone?: string;
   locale?: string;
@@ -114,6 +116,7 @@ export async function updateProfile(data: {
       data: {
         firstName: data.firstName,
         lastName: data.lastName,
+        phone: data.phone,
         avatarUrl: data.avatarUrl,
         timezone: data.timezone,
         locale: data.locale,

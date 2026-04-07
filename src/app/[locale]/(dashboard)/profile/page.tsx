@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Card } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { getProfile, updateProfile, changePassword } from '@/lib/actions/profile';
 import { getPushStatus, toggleAllPushSubscriptions } from '@/lib/actions/push-subscriptions';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -181,6 +182,7 @@ interface Profile {
   email: string;
   firstName: string;
   lastName: string;
+  phone: string | null;
   avatarUrl: string | null;
   systemRole: string;
   timezone: string | null;
@@ -237,6 +239,7 @@ export default function ProfilePage() {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    phone: '' as string | undefined,
     avatarUrl: '',
     timezone: '',
     locale: '',
@@ -286,6 +289,7 @@ export default function ProfilePage() {
       setFormData({
         firstName: p.firstName,
         lastName: p.lastName,
+        phone: p.phone || '',
         avatarUrl: p.avatarUrl || '',
         timezone: p.timezone || '',
         locale: p.locale || '',
@@ -311,6 +315,7 @@ export default function ProfilePage() {
     const result = await updateProfile({
       firstName: formData.firstName,
       lastName: formData.lastName,
+      phone: formData.phone || undefined,
       avatarUrl: formData.avatarUrl || undefined,
       timezone: formData.timezone || undefined,
       locale: formData.locale || undefined,
@@ -520,6 +525,13 @@ export default function ProfilePage() {
                 required
               />
             </div>
+
+            <PhoneInput
+              label={t('fields.phone')}
+              value={formData.phone as any}
+              onChange={(value) => setFormData(prev => ({ ...prev, phone: value as string | undefined }))}
+              defaultCountry="PE"
+            />
 
             <Input
               label={t('fields.avatarUrl')}

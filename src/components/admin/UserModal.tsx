@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createUser, updateUser, updateOrganizationMemberOwnership, updateProjectMemberRole } from '@/lib/actions/admin';
 import { SystemRole, ProjectRole } from '@/types';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 
 interface OrganizationMembership {
   isOwner: boolean;
@@ -23,6 +24,7 @@ interface User {
   firstName: string;
   lastName: string;
   email: string;
+  phone?: string | null;
   systemRole: SystemRole;
   isActive: boolean;
   avatarUrl?: string | null;
@@ -171,7 +173,8 @@ export default function UserModal({
     email: '',
     firstName: '',
     lastName: '',
-    systemRole: 'user' as SystemRole,
+    phone: undefined as string | undefined,
+    systemRole: SystemRole.USER as SystemRole,
     isActive: true,
     avatarUrl: '',
     // Create-only fields
@@ -220,6 +223,7 @@ export default function UserModal({
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone || undefined,
         systemRole: user.systemRole,
         isActive: user.isActive,
         avatarUrl: user.avatarUrl || '',
@@ -234,7 +238,8 @@ export default function UserModal({
         email: '',
         firstName: '',
         lastName: '',
-        systemRole: 'user' as SystemRole,
+        phone: undefined,
+        systemRole: SystemRole.USER,
         isActive: true,
         avatarUrl: '',
         password: '',
@@ -275,6 +280,7 @@ export default function UserModal({
         const result = await updateUser(user.id, {
           firstName: formData.firstName,
           lastName: formData.lastName,
+          phone: formData.phone || undefined,
           systemRole: formData.systemRole,
           isActive: formData.isActive,
           avatarUrl: formData.avatarUrl || undefined,
@@ -349,6 +355,7 @@ export default function UserModal({
           email: formData.email,
           firstName: formData.firstName,
           lastName: formData.lastName,
+          phone: formData.phone || undefined,
           systemRole: formData.systemRole,
           generatePassword: false,
           password: formData.password,
@@ -465,6 +472,14 @@ export default function UserModal({
             autoComplete="off"
           />
         </div>
+
+        <PhoneInput
+          label={t('phone')}
+          value={formData.phone as any}
+          onChange={(value) => setFormData(prev => ({ ...prev, phone: value as string | undefined }))}
+          required={!isEdit}
+          defaultCountry="PE"
+        />
 
         {/* Password (only for create) */}
         {!isEdit && (

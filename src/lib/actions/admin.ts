@@ -335,6 +335,7 @@ export async function createUser(data: {
   email: string;
   firstName: string;
   lastName: string;
+  phone?: string;
   systemRole?: SystemRole;
   generatePassword?: boolean;
   password?: string;
@@ -380,6 +381,7 @@ export async function createUser(data: {
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
+        phone: data.phone || null,
         systemRole: data.systemRole || 'user',
       },
     });
@@ -423,6 +425,7 @@ export async function createUser(data: {
 export async function updateUser(id: string, data: {
   firstName?: string;
   lastName?: string;
+  phone?: string;
   avatarUrl?: string;
   systemRole?: SystemRole;
   isActive?: boolean;
