@@ -217,14 +217,14 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       (params.advisorName
         ? `El asesor comercial asignado a este lead es *${params.advisorName}*. ` +
           `Envía un mensaje de despedida natural mencionando al asesor por nombre (en negrita con *nombre*) ` +
-          `indicando que lo conectaras con su asesor o asesora comercial.\n\n`
+          `diciendo que sera su asesor comercial asignado y que se pondra en contacto.\n\n`
         : `Envía un mensaje de despedida natural indicando que lo conectaras con un asesor comercial.\n\n`) +
       `EJEMPLO de respuesta completa:\n` +
       `"Tu mensaje al usuario aqui..."\n` +
       `[TEMPERATURA: WARM]\n\n` +
       `EJEMPLO con handoff:\n` +
       (params.advisorName
-        ? `"Te conecto con *${params.advisorName}*, tu asesor(a) comercial, quien se pondra en contacto contigo..."\n`
+        ? `"Te conecto con *${params.advisorName}*, quien sera tu asesor comercial asignado, quien se pondra en contacto contigo..."\n`
         : `"Te conecto con un asesor comercial que podra ayudarte..."\n`) +
       `[HANDOFF]\n` +
       `[TEMPERATURA: HOT]\n` +
