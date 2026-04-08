@@ -60,6 +60,47 @@ Sistema de subida de foto de perfil reemplaza el input de URL de texto.
 
 Disponible en Admin UserModal y pagina de Perfil.
 
+### Debounce WhatsApp: 3s → 5s
+
+El debounce del webhook de WhatsApp se incremento de 3 a 5 segundos para reducir respuestas AI duplicadas cuando el lead envia varios mensajes seguidos.
+
+**Archivo:** `src/app/api/webhooks/whatsapp/route.ts`
+
+### Filtro de Usuarios Inactivos
+
+`getProjectTeamMembers()` ahora excluye usuarios con `isActive=false`. Previene que usuarios inactivos aparezcan en dropdowns de asignacion manual y en la configuracion de auto-asignacion.
+
+**Archivo:** `src/lib/actions/team-settings.ts`
+
+### Handoff Personalizado con Nombre del Asesor
+
+El AI menciona al asesor asignado por nombre durante el handoff: *"Te conecto con Karen, quien sera tu asesor comercial asignado..."*. Si no hay asesor asignado, usa el generico "asesor comercial".
+
+**Advisor card por WhatsApp:** Despues del handoff, se envia una tarjeta con foto (si existe) y nombre del asesor: `*Name*\nAsesor Comercial`. Si no hay foto, solo texto.
+
+- La tarjeta se guarda como mensaje en DB con `metadata.isAdvisorCard = true` y se renderiza en el chat panel.
+- Nueva funcion `sendTextToWhatsApp()`: envia texto a WhatsApp sin guardar en DB (fire-and-forget).
+- `build-system-prompt.ts`: `advisorName` inyectado en las instrucciones de handoff.
+
+**Archivos:** `src/lib/ai/process-ai-response.ts`, `src/lib/ai/build-system-prompt.ts`, `src/lib/whatsapp/send.ts`
+
+### Form Data Display en Lead Detail Panel
+
+Nuevo componente `LeadFormDataDisplay` que muestra todos los campos del formulario conversacional con sus valores o "Pendiente".
+
+- Badge de completitud (ej. `3/7`) con indicador verde (completo) o ambar (incompleto).
+- Cross-reference con datos del lead via `leadFieldMapping`: `phone` y `firstName` se auto-llenan desde el registro del lead.
+- `isValidPersonName()`: rechaza nombres invalidos (numeros de telefono, simbolos provenientes del perfil de WhatsApp).
+- El AI confirma nombres de perfil de WhatsApp con el lead en vez de confiar ciegamente. Nombres no confirmados se marcan en el system prompt para verificacion.
+
+**Archivos:** `src/components/features/LeadFormDataDisplay.tsx`, `src/lib/ai/build-system-prompt.ts`, `src/lib/actions/lead-form-data.ts`
+
+### Resumen IA Form-Aware
+
+Cuando el formulario conversacional esta activo, el resumen generado por IA usa formato estructurado: bullet point por cada campo del formulario + parrafo complementario corto. Sin formulario activo, el formato de resumen no cambia.
+
+**Archivo:** `src/lib/ai/process-ai-response.ts`
+
 ### RBAC Documentation
 
 Nuevo archivo `docs/RBAC.md` con documentacion completa de roles y permisos: 3 niveles (sistema/org/proyecto), jerarquia completa, matriz de permisos por accion, calculo de effective role, flujo tecnico con archivos clave.
