@@ -244,7 +244,9 @@
       "addNotePlaceholder": "Escribir una nota...",
       "aiSummary": "Resumen IA",
       "noSummary": "Sin resumen disponible. Se genera automaticamente despues de 5+ mensajes.",
-      "summaryUpdated": "Actualizado"
+      "summaryUpdated": "Actualizado",
+      "formData": "Datos del Formulario",
+      "formPending": "Pendiente"
     },
     "chat": {
       "aiMode": "Modo IA",

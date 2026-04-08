@@ -25,12 +25,15 @@ import {
   type NoteWithAuthor,
   type ActivityWithPerformer,
 } from '@/lib/actions/leads';
+import { getAgentFormConfig } from '@/lib/actions/lead-form-data';
 import { useEffectiveRole } from '@/hooks/useEffectiveRole';
 import { isViewerOnly, canActOnLead } from '@/lib/permissions';
 import LeadEditModal from './LeadEditModal';
 import { LeadAssignment } from './LeadAssignment';
 import LeadChat from './LeadChat';
+import { LeadFormDataDisplay } from './LeadFormDataDisplay';
 import { sendMessage } from '@/lib/actions/messages';
+import type { FormConfig } from '@/lib/types/form-template';
 
 // ============================================
 // Types
@@ -244,6 +247,9 @@ export function LeadDetailPanel({
   const [newNoteContent, setNewNoteContent] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
 
+  // Form config for form data display
+  const [formConfig, setFormConfig] = useState<FormConfig | null>(null);
+
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -274,8 +280,14 @@ export function LeadDetailPanel({
   useEffect(() => {
     if (isOpen && lead?.id) {
       loadNotesAndActivities();
+      // Load form config if agent is assigned
+      if (lead.assignedAgentId) {
+        getAgentFormConfig(lead.assignedAgentId).then(setFormConfig);
+      } else {
+        setFormConfig(null);
+      }
     }
-  }, [isOpen, lead?.id, loadNotesAndActivities]);
+  }, [isOpen, lead?.id, lead?.assignedAgentId, loadNotesAndActivities]);
 
   // Handle add note
   const handleAddNote = async () => {
@@ -659,6 +671,15 @@ export function LeadDetailPanel({
               </div>
             );
           })()}
+
+          {/* Form Data (if agent has active form) */}
+          {lead.assignedAgentId && formConfig?.isActive && (
+            <LeadFormDataDisplay
+              leadId={lead.id}
+              agentId={lead.assignedAgentId}
+              formConfig={formConfig}
+            />
+          )}
 
           {/* AI Summary */}
           {lead.summary ? (

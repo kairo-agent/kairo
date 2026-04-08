@@ -349,7 +349,13 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       // The summary generation was previously done by n8n as a separate step
       // Now we generate it with a quick dedicated call only when needed
       const summaryStart = Date.now();
-      suggestedSummary = await generateSummary(openai, params.conversationHistory, userMessage, cleanMessage, params.leadSummary);
+      // Build form status for form-aware summaries
+      const formStatus = params.formConfig?.isActive ? {
+        fields: params.formConfig.fields,
+        collected: formFields?.collected || {},
+        pendingLabels: (formFields?.pending || []).filter(f => f.required).map(f => f.label),
+      } : null;
+      suggestedSummary = await generateSummary(openai, params.conversationHistory, userMessage, cleanMessage, params.leadSummary, formStatus);
       steps.push({ name: 'summary_gen', duration: Date.now() - summaryStart });
     }
 
@@ -872,28 +878,51 @@ async function searchRAG(
 // Internal Helper: Generate Lead Summary
 // ============================================
 
+interface FormSummaryContext {
+  fields: Array<{ key: string; label: string; required: boolean }>;
+  collected: Record<string, string>;
+  pendingLabels: string[];
+}
+
 async function generateSummary(
   openai: OpenAI,
   conversationHistory: Array<{ role: string; content: string }>,
   latestUserMessage: string,
   latestAIResponse: string,
-  existingSummary: string | null
+  existingSummary: string | null,
+  formStatus?: FormSummaryContext | null
 ): Promise<string | null> {
   try {
     const historyText = conversationHistory
       .map(m => `${m.role === 'user' ? 'Lead' : 'Agent'}: ${m.content}`)
       .join('\n');
 
+    // Form-aware summary: structured with bullet points for collected data + short narrative
+    const formContext = formStatus ? (() => {
+      const collectedLines = formStatus.fields.map(f => {
+        const val = formStatus.collected[f.key]?.trim();
+        return val ? `- ${f.label}: ${val}` : `- ${f.label}: (pendiente)${f.required ? ' *' : ''}`;
+      }).join('\n');
+      const pendingNote = formStatus.pendingLabels.length > 0
+        ? `\nCampos requeridos pendientes: ${formStatus.pendingLabels.join(', ')}`
+        : '';
+      return `\nIMPORTANT: A conversational form is active. Structure the summary as follows:
+1. FIRST, list ALL form fields as bullet points with their values (or "pendiente" if empty). Use this exact format:
+${collectedLines}${pendingNote}
+
+2. THEN, write a very SHORT complementary paragraph (2-3 sentences max) with ONLY additional insights NOT covered by the form fields above (e.g. lead sentiment, objections, next steps). Do NOT repeat information that is already in the bullet points.`;
+    })() : '';
+
     const prompt = `You are a lead qualification analyst. Summarize this conversation into a complete, self-contained summary in Spanish.
 
 RULES:
 - Maximum 1000 characters. NEVER exceed this limit.
 - The summary MUST end in a complete sentence. Never cut mid-sentence.
-- Prioritize: (1) what the lead wants, (2) key decisions/commitments, (3) current status/next steps.
+${formStatus ? '- Follow the structured format described below (bullet points + short paragraph).' : '- Prioritize: (1) what the lead wants, (2) key decisions/commitments, (3) current status/next steps.'}
 - Omit greetings, filler, and repetitive exchanges.
 - If space is tight, keep only the most actionable information.
 - Write in third person (e.g. "El lead esta interesado en...").
-${existingSummary ? `\nPrevious summary (update with new info, don't repeat): ${existingSummary}` : ''}
+${existingSummary ? `\nPrevious summary (update with new info, don't repeat): ${existingSummary}` : ''}${formContext}
 
 Conversation:
 ${historyText}

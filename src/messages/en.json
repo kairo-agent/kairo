@@ -244,7 +244,9 @@
       "addNotePlaceholder": "Write a note...",
       "aiSummary": "AI Summary",
       "noSummary": "No summary available. Auto-generated after 5+ messages.",
-      "summaryUpdated": "Updated"
+      "summaryUpdated": "Updated",
+      "formData": "Form Data",
+      "formPending": "Pending"
     },
     "chat": {
       "aiMode": "AI Mode",

@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import type { FormConfig } from '@/lib/types/form-template';
+import { DEFAULT_FORM_CONFIG } from '@/lib/types/form-template';
 
 // ============================================
 // GET: Obtener datos de formulario de un lead
@@ -22,6 +23,26 @@ export async function getLeadFormData(
   } catch (error) {
     console.error('Error getting lead form data:', error);
     return {};
+  }
+}
+
+// ============================================
+// GET: Form config from agent
+// ============================================
+
+export async function getAgentFormConfig(
+  agentId: string
+): Promise<FormConfig> {
+  try {
+    const agent = await prisma.aIAgent.findUnique({
+      where: { id: agentId },
+      select: { formConfig: true },
+    });
+    if (!agent?.formConfig) return DEFAULT_FORM_CONFIG;
+    return agent.formConfig as unknown as FormConfig;
+  } catch (error) {
+    console.error('Error getting agent form config:', error);
+    return DEFAULT_FORM_CONFIG;
   }
 }
 
