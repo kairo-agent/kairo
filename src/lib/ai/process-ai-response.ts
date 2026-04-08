@@ -586,11 +586,29 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           const advisorName = `${params.assignedUser.firstName} ${params.assignedUser.lastName}`.trim();
           const caption = `*${advisorName}*\nAsesor Comercial`;
 
+          // Send to WhatsApp
           if (params.assignedUser.avatarUrl) {
             await sendImageToWhatsApp(projectId, phoneNumber, params.assignedUser.avatarUrl, caption);
           } else {
             await sendTextToWhatsApp(projectId, phoneNumber, caption);
           }
+
+          // Save as message in DB so it shows in the chat panel
+          await prisma.message.create({
+            data: {
+              conversationId,
+              sender: 'ai',
+              content: caption,
+              metadata: {
+                isAdvisorCard: true,
+                advisorId: params.assignedUser.id,
+                advisorName,
+                advisorAvatarUrl: params.assignedUser.avatarUrl || null,
+                source: 'handoff_card',
+              },
+            },
+          });
+
           console.log(`[AI Pipeline] Handoff advisor card sent: ${advisorName}`);
         } catch (err) {
           console.error('[AI Pipeline] Failed to send advisor card:', err);

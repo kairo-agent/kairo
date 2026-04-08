@@ -826,6 +826,39 @@ export function LeadChat({ leadId, leadName, isOpen = true, disabled = false }: 
           allMessages.map((message) => {
             const senderInfo = getSenderInfo(message);
             const isReEngagement = !!(message.metadata as Record<string, unknown>)?.isReEngagement;
+            const isAdvisorCard = !!(message.metadata as Record<string, unknown>)?.isAdvisorCard;
+
+            // Advisor card: special rendering
+            if (isAdvisorCard) {
+              const meta = message.metadata as Record<string, unknown>;
+              const advisorName = meta.advisorName as string || '';
+              const advisorAvatarUrl = meta.advisorAvatarUrl as string | null;
+              return (
+                <div key={message.id} className="flex justify-end">
+                  <div className="max-w-[85%] p-3 rounded-2xl bg-[#BFF7FF] text-[var(--kairo-midnight)] rounded-br-sm">
+                    <div className="flex items-center gap-3">
+                      {advisorAvatarUrl ? (
+                        <img src={advisorAvatarUrl} alt={advisorName} className="w-12 h-12 rounded-full object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-[var(--accent-primary)] text-[var(--kairo-midnight)] flex items-center justify-center text-lg font-bold flex-shrink-0">
+                          {advisorName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-bold">{advisorName}</p>
+                        <p className="text-xs opacity-70">Asesor Comercial</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-1.5 mt-2">
+                      <span className="text-[10px] opacity-50">
+                        {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={message.id}
