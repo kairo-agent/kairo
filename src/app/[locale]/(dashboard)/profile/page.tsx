@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { getProfile, updateProfile, changePassword } from '@/lib/actions/profile';
+import { uploadAvatar, removeAvatar } from '@/lib/actions/avatar';
 import { getPushStatus, toggleAllPushSubscriptions } from '@/lib/actions/push-subscriptions';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { cn } from '@/lib/utils';
@@ -247,6 +248,10 @@ export default function ProfilePage() {
     notifyCcEmails: [] as string[],
   });
 
+  // Avatar upload
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
   // CC email input
   const [newCcEmail, setNewCcEmail] = useState('');
   const [ccEmailError, setCcEmailError] = useState('');
@@ -306,6 +311,75 @@ export default function ProfilePage() {
     setLoading(false);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingAvatar(true);
+    setError('');
+
+    try {
+      // Client-side: resize to 400x400 square (center crop) + compress JPEG
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const i = new window.Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = URL.createObjectURL(file);
+      });
+
+      const size = 400;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+
+      // Center crop to square
+      const minSide = Math.min(img.naturalWidth, img.naturalHeight);
+      const sx = (img.naturalWidth - minSide) / 2;
+      const sy = (img.naturalHeight - minSide) / 2;
+      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+
+      URL.revokeObjectURL(img.src);
+
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (b) => (b ? resolve(b) : reject(new Error('Compression failed'))),
+          'image/jpeg',
+          0.85
+        );
+      });
+
+      const compressedFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+
+      const fd = new FormData();
+      fd.append('avatar', compressedFile);
+
+      const result = await uploadAvatar(fd);
+      if (result.success && result.url) {
+        setFormData(prev => ({ ...prev, avatarUrl: result.url! }));
+        loadProfile();
+      } else {
+        setError(result.error || 'Error al subir avatar');
+      }
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      setError('Error al procesar la imagen');
+    } finally {
+      setIsUploadingAvatar(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setIsUploadingAvatar(true);
+    const result = await removeAvatar();
+    if (result.success) {
+      setFormData(prev => ({ ...prev, avatarUrl: '' }));
+      loadProfile();
+    }
+    setIsUploadingAvatar(false);
+  };
+
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -316,7 +390,6 @@ export default function ProfilePage() {
       firstName: formData.firstName,
       lastName: formData.lastName,
       phone: formData.phone || undefined,
-      avatarUrl: formData.avatarUrl || undefined,
       timezone: formData.timezone || undefined,
       locale: formData.locale || undefined,
       notifyEmail: formData.notifyEmail,
@@ -492,10 +565,53 @@ export default function ProfilePage() {
           <form onSubmit={handleSaveProfile} className="space-y-6">
             {/* Avatar & Basic Info */}
             <div className="flex items-start gap-6">
-              <div className="flex-shrink-0">
-                <div className="w-20 h-20 rounded-full bg-[var(--kairo-cyan)] text-[var(--kairo-midnight)] flex items-center justify-center text-2xl font-bold">
-                  {formData.firstName?.[0]?.toUpperCase()}{formData.lastName?.[0]?.toUpperCase()}
-                </div>
+              <div className="flex-shrink-0 relative">
+                {/* Avatar circle */}
+                {profile?.avatarUrl ? (
+                  <img
+                    src={profile.avatarUrl}
+                    alt={`${profile.firstName} ${profile.lastName}`}
+                    className="w-20 h-20 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-[var(--kairo-cyan)] text-[var(--kairo-midnight)] flex items-center justify-center text-2xl font-bold">
+                    {formData.firstName?.[0]?.toUpperCase()}{formData.lastName?.[0]?.toUpperCase()}
+                  </div>
+                )}
+                {/* Upload button - positioned at bottom-right of avatar */}
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={isUploadingAvatar}
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-[var(--accent-primary)] text-[var(--kairo-midnight)] flex items-center justify-center shadow-lg border-2 border-[var(--bg-card)] hover:opacity-90 transition-opacity cursor-pointer"
+                >
+                  {isUploadingAvatar ? (
+                    <div className="w-3.5 h-3.5 border-2 border-[var(--kairo-midnight)] border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                    </svg>
+                  )}
+                </button>
+                {/* Hidden file input */}
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+                {/* Remove avatar link */}
+                {profile?.avatarUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    disabled={isUploadingAvatar}
+                    className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-[var(--text-tertiary)] hover:text-red-400 transition-colors whitespace-nowrap"
+                  >
+                    {t('fields.removeAvatar')}
+                  </button>
+                )}
               </div>
               <div className="flex-1 space-y-1">
                 <h3 className="text-lg font-semibold text-[var(--text-primary)]">
@@ -531,13 +647,6 @@ export default function ProfilePage() {
               value={formData.phone as any}
               onChange={(value) => setFormData(prev => ({ ...prev, phone: value as string | undefined }))}
               defaultCountry="PE"
-            />
-
-            <Input
-              label={t('fields.avatarUrl')}
-              value={formData.avatarUrl}
-              onChange={(e) => setFormData(prev => ({ ...prev, avatarUrl: e.target.value }))}
-              placeholder="https://example.com/avatar.png"
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

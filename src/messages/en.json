@@ -476,8 +476,7 @@
       "lastName": "Last Name",
       "email": "Email",
       "phone": "Phone",
-      "avatarUrl": "Avatar URL",
-      "avatarPlaceholder": "https://example.com/avatar.jpg",
+      "removeAvatar": "Remove photo",
       "timezone": "Timezone",
       "locale": "Language/Region",
       "useOrgDefault": "Use organization settings"

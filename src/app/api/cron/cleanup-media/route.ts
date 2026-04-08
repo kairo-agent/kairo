@@ -64,9 +64,11 @@ export async function GET(request: Request) {
     let skippedCount = 0;
     const errors: string[] = [];
 
-    // Iterate through project folders
+    // Iterate through project folders (skip protected prefixes)
+    const PROTECTED_PREFIXES = ['avatars', 'incoming'];
     for (const folder of folders || []) {
       if (!folder.name) continue;
+      if (PROTECTED_PREFIXES.includes(folder.name)) continue;
 
       // List files in each project folder recursively
       const oldFiles = await getOldFiles(supabase, folder.name, cutoffDate);
