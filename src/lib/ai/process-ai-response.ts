@@ -19,7 +19,7 @@ import { buildSystemPrompt, SystemPromptParams } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import type { FormConfig } from '@/lib/types/form-template';
 import { getLeadFormData, bulkUpdateLeadFormFields } from '@/lib/actions/lead-form-data';
-import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
+import { sendToWhatsApp, sendTextToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
 import { getEffectiveTimezone } from '@/lib/timezone';
 import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
@@ -51,6 +51,14 @@ export interface AIProcessParams {
   leadSummary: string | null;
   timezone?: string;
   formConfig?: FormConfig | null;
+  // Advisor info for personalized handoff
+  assignedUser?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    avatarUrl: string | null;
+  };
 }
 
 interface PipelineStep {
@@ -220,6 +228,11 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       timeZone: effectiveTimezone,
     });
 
+    // Build advisor name for handoff personalization
+    const advisorFullName = params.assignedUser
+      ? `${params.assignedUser.firstName} ${params.assignedUser.lastName}`.trim()
+      : null;
+
     const systemPrompt = buildSystemPrompt({
       agentName: params.agentName,
       companyName: params.companyName,
@@ -236,6 +249,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       messageCount: params.messageCount,
       summaryThreshold: params.summaryThreshold,
       formFields,
+      advisorName: advisorFullName,
     });
 
     // --- Step 4: Call OpenAI ---
@@ -460,6 +474,9 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       }).catch((err) =>
         console.error('[AI Pipeline] Failed to send handoff notification:', err)
       );
+
+      // Send personalized advisor card to the lead (after AI message is sent)
+      // This is deferred to after WhatsApp send (Step 8) — stored for later
     }
 
     // Notify project team about HOT lead (only on transition to HOT)
@@ -561,6 +578,22 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
               console.error(`[AI Pipeline] Video send failed idx=${idx}:`, err);
             }
           }
+        }
+      }
+      // Step 6: Send advisor card after handoff (image with caption, or text-only)
+      if (shouldHandoff && params.assignedUser) {
+        try {
+          const advisorName = `${params.assignedUser.firstName} ${params.assignedUser.lastName}`.trim();
+          const caption = `*${advisorName}*\nAsesor Comercial`;
+
+          if (params.assignedUser.avatarUrl) {
+            await sendImageToWhatsApp(projectId, phoneNumber, params.assignedUser.avatarUrl, caption);
+          } else {
+            await sendTextToWhatsApp(projectId, phoneNumber, caption);
+          }
+          console.log(`[AI Pipeline] Handoff advisor card sent: ${advisorName}`);
+        } catch (err) {
+          console.error('[AI Pipeline] Failed to send advisor card:', err);
         }
       }
     }

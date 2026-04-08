@@ -84,6 +84,46 @@ export async function sendToWhatsApp(
 }
 
 /**
+ * Send a text message via WhatsApp Cloud API (fire-and-forget, no DB record).
+ * Used for system messages like advisor cards during handoff.
+ */
+export async function sendTextToWhatsApp(
+  projectId: string,
+  phoneNumber: string,
+  message: string
+): Promise<{ success: boolean }> {
+  try {
+    const [accessToken, phoneNumberId] = await Promise.all([
+      getProjectSecret(projectId, 'whatsapp_access_token'),
+      getProjectSecret(projectId, 'whatsapp_phone_number_id'),
+    ]);
+
+    if (!accessToken || !phoneNumberId) return { success: false };
+
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    const response = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: cleanPhone,
+        type: 'text',
+        text: { body: message },
+      }),
+    });
+
+    return { success: response.ok };
+  } catch (error) {
+    console.error('[WhatsApp] Text send failed:', error);
+    return { success: false };
+  }
+}
+
+/**
  * Send an image message via WhatsApp Cloud API.
  * Used by AI pipeline to send media alongside text responses.
  *

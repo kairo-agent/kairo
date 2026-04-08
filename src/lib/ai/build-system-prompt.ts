@@ -33,6 +33,8 @@ export interface SystemPromptParams {
     pending: Array<{ key: string; label: string; type: string; required: boolean; options?: string[] }>;
     collected: Record<string, string>;
   };
+  // Advisor info for personalized handoff
+  advisorName?: string | null;
 }
 
 // ============================================
@@ -212,12 +214,18 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       `TRANSFERENCIA A HUMANO: Cuando determines que el lead debe ser atendido por un asesor humano ` +
       `(por ejemplo: solicita agendar una cita, quiere negociar precio, pide hablar con alguien, ` +
       `o cumple los criterios de derivacion en tus reglas), agrega tambien [HANDOFF] antes del marcador de temperatura. ` +
-      `Envía un mensaje de despedida natural indicando que lo conectaras con un asesor.\n\n` +
+      (params.advisorName
+        ? `El asesor comercial asignado a este lead es *${params.advisorName}*. ` +
+          `Envía un mensaje de despedida natural mencionando al asesor por nombre (en negrita con *nombre*) ` +
+          `indicando que lo conectaras con su asesor o asesora comercial.\n\n`
+        : `Envía un mensaje de despedida natural indicando que lo conectaras con un asesor comercial.\n\n`) +
       `EJEMPLO de respuesta completa:\n` +
       `"Tu mensaje al usuario aqui..."\n` +
       `[TEMPERATURA: WARM]\n\n` +
       `EJEMPLO con handoff:\n` +
-      `"Te conecto con un asesor..."\n` +
+      (params.advisorName
+        ? `"Te conecto con *${params.advisorName}*, tu asesor(a) comercial, quien se pondra en contacto contigo..."\n`
+        : `"Te conecto con un asesor comercial que podra ayudarte..."\n`) +
       `[HANDOFF]\n` +
       `[TEMPERATURA: HOT]\n` +
       `=== FIN MARCADORES INTERNOS ===\n\n` +

@@ -721,6 +721,9 @@ async function handleIncomingMessage(
       assignedAgent: {
         select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
       },
+      assignedUser: {
+        select: { id: true, firstName: true, lastName: true, phone: true, avatarUrl: true },
+      },
     },
   });
 
@@ -785,6 +788,9 @@ async function handleIncomingMessage(
         conversation: true,
         assignedAgent: {
           select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
+        },
+        assignedUser: {
+          select: { id: true, firstName: true, lastName: true, phone: true, avatarUrl: true },
         },
       },
     });
@@ -1112,6 +1118,8 @@ async function handleIncomingMessage(
               leadSummary,
               timezone: orgTimezone || undefined,
               formConfig: agentFormConfig,
+              // Advisor info for personalized handoff
+              assignedUser: lead.assignedUser || undefined,
             });
           } catch (err) {
             console.error('[WhatsApp Webhook] AI pipeline error:', err);
