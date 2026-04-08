@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { getProfile, updateProfile, changePassword } from '@/lib/actions/profile';
 import { uploadAvatar, removeAvatar } from '@/lib/actions/avatar';
+import { AvatarCropModal } from '@/components/ui/AvatarCropModal';
 import { getPushStatus, toggleAllPushSubscriptions } from '@/lib/actions/push-subscriptions';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { cn } from '@/lib/utils';
@@ -250,6 +251,7 @@ export default function ProfilePage() {
 
   // Avatar upload
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   // CC email input
@@ -311,46 +313,22 @@ export default function ProfilePage() {
     setLoading(false);
   };
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Show crop modal with selected image
+    const url = URL.createObjectURL(file);
+    setCropImageSrc(url);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  };
 
+  const handleCroppedAvatar = async (blob: Blob) => {
+    setCropImageSrc(null);
     setIsUploadingAvatar(true);
     setError('');
 
     try {
-      // Client-side: resize to 400x400 square (center crop) + compress JPEG
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new window.Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = URL.createObjectURL(file);
-      });
-
-      const size = 400;
-      const canvas = document.createElement('canvas');
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext('2d')!;
-
-      // Center crop to square
-      const minSide = Math.min(img.naturalWidth, img.naturalHeight);
-      const sx = (img.naturalWidth - minSide) / 2;
-      const sy = (img.naturalHeight - minSide) / 2;
-      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
-
-      URL.revokeObjectURL(img.src);
-
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(
-          (b) => (b ? resolve(b) : reject(new Error('Compression failed'))),
-          'image/jpeg',
-          0.85
-        );
-      });
-
       const compressedFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-
       const fd = new FormData();
       fd.append('avatar', compressedFile);
 
@@ -366,7 +344,6 @@ export default function ProfilePage() {
       setError('Error al procesar la imagen');
     } finally {
       setIsUploadingAvatar(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   };
 
@@ -599,7 +576,7 @@ export default function ProfilePage() {
                   type="file"
                   accept="image/*"
                   className="hidden"
-                  onChange={handleAvatarUpload}
+                  onChange={handleAvatarFileSelect}
                 />
                 {/* Remove avatar link */}
                 {profile?.avatarUrl && (
@@ -1159,6 +1136,23 @@ export default function ProfilePage() {
             )}
           </Card>
         </div>
+      )}
+
+      {/* Avatar Crop Modal */}
+      {cropImageSrc && (
+        <AvatarCropModal
+          imageSrc={cropImageSrc}
+          onCrop={handleCroppedAvatar}
+          onClose={() => {
+            URL.revokeObjectURL(cropImageSrc);
+            setCropImageSrc(null);
+          }}
+          labels={{
+            title: t('fields.adjustPhoto'),
+            save: t('fields.savePhoto'),
+            cancel: t('fields.cancel'),
+          }}
+        />
       )}
     </div>
   );

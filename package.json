@@ -39,6 +39,7 @@
     "react": "19.2.3",
     "react-day-picker": "^9.13.0",
     "react-dom": "19.2.3",
+    "react-easy-crop": "^5.5.7",
     "react-phone-number-input": "^3.4.14",
     "recharts": "^3.8.0",
     "resend": "^6.9.3",

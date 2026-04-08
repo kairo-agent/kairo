@@ -477,6 +477,9 @@
       "email": "Email",
       "phone": "Phone",
       "removeAvatar": "Remove photo",
+      "adjustPhoto": "Adjust photo",
+      "savePhoto": "Save",
+      "cancel": "Cancel",
       "timezone": "Timezone",
       "locale": "Language/Region",
       "useOrgDefault": "Use organization settings"
