@@ -36,10 +36,10 @@
 | [NOTIFICATIONS.md](NOTIFICATIONS.md) | Sistema de notificaciones: tabla, RLS, polling, NotificationDropdown, pg_cron, follow-up badges |
 | [FOLLOW-UP-SCHEDULING.md](FOLLOW-UP-SCHEDULING.md) | Alternativas evaluadas para seguimiento (implementado en v0.7.16) |
 
-### Features (Planes de implementacion)
+### Features
 | Documento | Contenido clave |
 |-----------|----------------|
-| [CONVERSATIONAL-FORM.md](CONVERSATIONAL-FORM.md) | Plan completo: formulario conversacional por agente, 7 fases, schema + pipeline + UI |
+| [CONVERSATIONAL-FORM.md](CONVERSATIONAL-FORM.md) | Formulario conversacional por agente, [FORM-DATA:] marker, 4 tabs Settings, lead_form_data table (v0.22.0) |
 
 ### Performance y Operaciones
 | Documento | Contenido clave |
@@ -65,9 +65,12 @@
 | Global Rules (reglas para todos los agentes) | [ARCHITECTURE.md](ARCHITECTURE.md) seccion "Global Rules" + [CHANGELOG.md](CHANGELOG.md) seccion v0.9.1 |
 | Knowledge Base estructurada | [RAG-AGENTS.md](RAG-AGENTS.md) + [COMPONENTS.md](COMPONENTS.md) seccion "Knowledge Base" |
 | Roles y permisos | [RBAC.md](RBAC.md) |
+| Lead visibility control (Team Settings) | [RBAC.md](RBAC.md) + [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
+| Auto-asignacion de leads | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
 | Estado actual del MVP | [CHANGELOG.md](CHANGELOG.md) version mas reciente |
 | Reglas de desarrollo | [RULES.md](RULES.md) |
 | Colores y brand | [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) |
 | Migraciones de BD | [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) |
 | Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |
 | Formulario conversacional | [CONVERSATIONAL-FORM.md](CONVERSATIONAL-FORM.md) |
+| Avatar upload (usuarios) | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |

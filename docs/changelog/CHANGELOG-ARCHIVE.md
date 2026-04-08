@@ -1,6 +1,30 @@
-# KAIRO - Changelog Archive (v0.16.1 y anteriores)
+# KAIRO - Changelog Archive (v0.17.0 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.16.2+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.20.0+).
+
+---
+
+## [0.19.0] - 2026-03-29
+
+Archivado desde CHANGELOG.md. Contenido: RBAC Lead Assignment System completo (`src/lib/permissions.ts`: role hierarchy super_admin>owner>admin>manager>agent>viewer, getEffectiveRole, permission predicates). Hooks useEffectiveRole + useEffectiveRoleSafe. Server actions assignLead/getProjectTeamMembers/getProjectRole. Role guards en updateLead/updateLeadStatus/sendMessage/toggleHandoffMode. LeadAssignment component (admin dropdown, agent tomar lead, viewer sin acciones). Effective role badge en header. Owner toggle en edit user modal (updateOrganizationMemberOwnership). Agent → Asesor/Advisor (i18n). "Assigned to" filter (mis leads/sin asignar/multi-select). Excel export restringido a admin+. Project role editing en UserModal. Jitsi desbloqueado para todos los roles. Security fix: cross-session workspace leakage (clear localStorage on login, workspace validation, auto-select single org/project).
+
+---
+
+## [0.18.0] - 2026-03-27
+
+Archivado desde CHANGELOG.md. Contenido: Dashboard 8 stat cards (total/activos/ganados/clientes/tasa cierre/tasa conversion/modo humano/archivados). 3 nuevos lead statuses: unqualified/no_response/customer (Prisma enum + UI + i18n). Auto-tipify new→no_response post-reengagement (cron 15min). WhatsApp 24h countdown en boton "Tomar control" (timer HH:MM:SS, reset via Realtime, getLeadHandoffStatus retorna channel+lastLeadMessageAt). Per-service currency en pricing KB (override o herencia global, PEN/USD/EUR/MXN). UX: dark text en accent buttons (9 archivos). Inline edit criterios HOT/WARM/COLD. Fix: sendMessage metadata merge (preserva mediaAttachments). Fix: todos los stats del dashboard respetan filtro de fecha. Source detection debug logging (Meta referral). Tooling: Vercel CLI + MCP.
+
+---
+
+## [0.17.0] - 2026-03-26
+
+Archivado desde CHANGELOG.md. Contenido: Follow-up notifications via email + push (pg_cron llama `/api/cron/followup-notify` via pg_net; template KAIRO dark; i18n es/en; scheduledAt con timezone del usuario). Videollamada Jitsi Meet (sala unica, envia link al lead por WhatsApp; solo super_admin).
+
+---
+
+## [0.16.2] - 2026-03-25
+
+Archivado desde CHANGELOG.md. Contenido: Fix post-login redirect sin locale prefix. `(dashboard)/page.tsx` usaba `redirect('/leads')` de `next/navigation`. Fix: `getLocale()` + redirect con locale explicito. Login page ignora `/` como destino de deep-link.
 
 ---
 
@@ -147,192 +171,19 @@ Pipeline IA migrado de n8n (Railway) a funciones internas Next.js. -400 a -1200m
 
 ## [0.7.16] - 2026-02-06
 
-### Enriched notifications + deep-link to lead panel (commit `36aef6a`)
-
-Notificaciones enriquecidas con datos del lead y navegacion directa al panel de detalle.
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/notifications.ts` | Batch-fetch de leads por `metadata.leadId` en `getNotifications()` - datos siempre frescos sin tocar pg-cron |
-| `src/hooks/useNotifications.ts` | Interface `NotificationLead` con firstName, lastName, temperature, nextFollowUpAt |
-| `src/components/layout/NotificationDropdown.tsx` | Nombre completo, badge de temperatura (Alto/Medio/Bajo), fecha de seguimiento, click navega a `/leads?leadId=xxx` |
-| `src/lib/actions/leads.ts` | Nueva `getLeadById()` server action para fetch individual con access check |
-| `LeadsPageClient.tsx` | Lee `searchParams.leadId`, busca en cache o fetch remoto, abre panel, limpia URL |
-| `es.json` / `en.json` | Key `notifications.scheduledFor` |
-
-### Notification System + Follow-up Scheduling (commit `c942341`)
-
-Sistema de notificaciones in-app con polling y programacion de seguimientos para leads.
-
-**Notificaciones:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `prisma/schema.prisma` | Modelo `Notification` + enum `NotificationType` (new_message, follow_up_due, lead_assigned) |
-| `prisma/migrations/20260206_add_notifications_table` | Tabla con RLS policies nativas PostgreSQL |
-| `src/lib/actions/notifications.ts` | Server actions: getNotifications, markAsRead, markAllAsRead, createNotification, notifyProjectMembers |
-| `src/hooks/useNotifications.ts` | Hook polling cada 15s con optimistic updates para markAsRead/markAllAsRead |
-| `src/components/layout/NotificationDropdown.tsx` | Dropdown con bell icon, badge de conteo, lista de notificaciones con iconos por tipo |
-| `src/components/layout/Header.tsx` | Reemplaza bell estatico con NotificationDropdown |
-| `src/app/api/webhooks/whatsapp/route.ts` | Crea notificacion fire-and-forget en inbound de WhatsApp |
-| `scripts/pg-cron-followup-notifications.sql` | SQL para pg_cron: genera notificaciones cuando follow-ups vencen |
-
-**Follow-up Scheduling:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/actions/leads.ts` | `scheduleFollowUp(leadId, date)` server action con activity log |
-| `src/components/features/FollowUpModal.tsx` | Modal con datetime-local + quick options (Manana, En 3 dias, Proxima semana) |
-| `src/components/features/LeadCard.tsx` | Badge follow-up: rojo=vencido, naranja=proximo (<24h), gris=programado |
-| `LeadsPageClient.tsx` | Badge en tabla inline + integracion FollowUpModal + estado followUpTarget |
-| `es.json` / `en.json` | Keys para notificaciones y follow-ups |
-
-**Seguridad:** RLS nativo, sanitizacion de inputs, ownership checks, rate limit en notifyProjectMembers (max 10), fallback project solo en dev.
-
-Ver [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) para arquitectura completa.
-
-### Follow-up badge in detail panel + optimistic updates (commits `517488d`, `1a3d2e7`)
-
-Badge de follow-up y card detallada con fecha/hora exacta en LeadDetailPanel. Optimistic update instantaneo al programar seguimientos.
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/features/LeadDetailPanel.tsx` | Badge coloreado en header (rojo/naranja/gris) + card con borde lateral, fecha exacta (date-fns PPPp), boton "Reprogramar" |
-| `src/hooks/useLeadsQuery.ts` | `optimisticFollowUpUpdate()` - actualiza `nextFollowUpAt` en cache React Query al instante |
-| `LeadsPageClient.tsx` | `handleScheduleFollowUp/handleClearFollowUp` usan optimistic update + rollback. Sync effect incluye `nextFollowUpAt` |
-| `es.json` / `en.json` | Key `followUp.reschedule` (Reprogramar/Reschedule) |
-
-### FollowUpModal rewrite: Calendar + same-day scheduling (commit `0623747`)
-
-Reemplazo de input `datetime-local` nativo por calendario visual con `react-day-picker` (single mode). Permite programar seguimientos el mismo dia (horas futuras solamente).
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/features/FollowUpModal.tsx` | DayPicker + selects hora/minuto + quick options "En 1 hora"/"En 3 horas" + validacion horas pasadas |
-| `src/components/features/LeadDetailPanel.tsx` | Prop `onScheduleFollowUp` + boton naranja en footer |
-| `LeadsPageClient.tsx` | Wire `onScheduleFollowUp` callback al panel |
-| `es.json` / `en.json` | Keys `in1Hour`, `in3Hours`, `dateLabel` actualizado |
-
-### Mobile notification dropdown fix (commit `21cb62b`)
-
-Dropdown de notificaciones se cortaba por la izquierda en mobile (390px). Fix: `fixed inset-x-3 top-14` en mobile, `sm:absolute sm:right-0 sm:w-96` en desktop.
+Archivado desde CHANGELOG.md. Contenido: Notificaciones enriquecidas con deep-link al panel de lead (batch-fetch por metadata.leadId, badge temperatura, navegacion a /leads?leadId=xxx). Sistema de notificaciones in-app con polling 15s (Notification model + NotificationType enum, getNotifications/markAsRead/notifyProjectMembers, NotificationDropdown). Follow-up Scheduling (scheduleFollowUp server action, FollowUpModal con DayPicker + react-day-picker, badges rojo/naranja/gris en cards, optimistic updates en React Query). FollowUpModal reescrito con calendario visual. Fix: mobile notification dropdown overflow.
 
 ---
 
 ## [0.7.15] - 2026-02-06
 
-### ExpandableTextarea + Modal Fullscreen (commits `d5c0f47`, `e0e8123`)
-
-Nuevo componente `ExpandableTextarea` con icono de expand (hover) que abre modal 3xl con textarea grande (~60vh). Aplicado a:
-- Textarea de contenido en Knowledge (tab Conocimiento)
-- Textarea de instrucciones del agente (tab Agente)
-
-Label "Instrucciones del Sistema" renombrado a "Instrucciones" (ES) / "Instructions" (EN).
-
-### Wider Project Settings Modal (commit `8bf8a92`)
-
-Modal de configuracion de proyecto ampliado a `max-w-5xl` (~1024px). Nuevos sizes `2xl` y `3xl` en `Modal.tsx`. Body con `overflow-y-auto max-h-[calc(100vh-8rem)]`.
-
-### Optimistic Status Updates + Sonner Toasts (commits `5b7484c`, `9dc2f38`, `1c5db17`)
-
-Cambio de status instantaneo sin spinner. Rollback + toast de error si el servidor falla.
-
-| Archivo | Cambio |
-|---------|--------|
-| `useLeadsQuery.ts` | `optimisticStatusUpdate()` actualiza cache React Query. `refetchStats()` silencioso. `isFetching` desacoplado de stats |
-| `LeadsPageClient.tsx` | `handleStatusChange` con optimistic update + `toast.error()` en rollback |
-| `DashboardLayoutClient.tsx` | `<Toaster />` de sonner (bottom-right, richColors, closeButton) |
-| `package.json` | Dependencia `sonner` agregada |
-| `es.json` / `en.json` | Key `errors.statusUpdateFailed` |
-
-### i18n Fix: Status badges in table view (commit `ae63119`)
-
-Los badges de status en la vista tabla usaban labels hardcodeados en espanol (`statusConfig.label`). Corregido a `t('status.${lead.status}')`.
-
-### AI Summary in Lead Detail Panel (commit `f1a9581`)
-
-Muestra el resumen de conversacion generado por IA en el panel de detalle del lead para toma de decisiones rapida.
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/types/index.ts` | `summary?: string`, `summaryUpdatedAt?: Date` en Lead |
-| `src/lib/actions/leads.ts` | `summary` y `summaryUpdatedAt` en LeadGridItem + ambos selects Prisma |
-| `src/hooks/useLeadsQuery.ts` | Campos en TransformedLead + transformLeads |
-| `LeadsPageClient.tsx` | `summary` y `summaryUpdatedAt` en selectedLeadForPanel transform |
-| `LeadDetailPanel.tsx` | Seccion resumen entre contacto y chat (con/sin resumen). Icono SummaryIcon |
-| `es.json` / `en.json` | Keys `aiSummary`, `noSummary`, `summaryUpdated` |
-
-Sin resumen: caja punteada indicando que se genera despues de 5+ mensajes. Con resumen: caja con titulo, timestamp relativo y texto.
-
-### WhatsApp Typing Indicator (commit `0727509`)
-
-El lead ahora ve "escribiendo..." en WhatsApp mientras el AI procesa su mensaje.
-
-| Archivo | Cambio |
-|---------|--------|
-| `webhooks/whatsapp/route.ts` | `typing_indicator: { type: 'text' }` agregado al request de read receipt |
-
-Se auto-dismissea a los 25s o cuando llega la respuesta del AI.
-
-### Performance: P1-5 + P1-1 + P2-4 (commit `4a13b2b`)
-
-Todos los items de performance cerrados (14/15, P1-3 rechazado).
-
-| ID | Cambio | Archivo |
-|----|--------|---------|
-| P1-5 | OpenAI key fetch en paralelo con descarga de audio | `audio/transcribe/route.ts` |
-| P1-1 | `maskPhone()` enmascara telefonos en logs (muestra ultimos 4 digitos) | `whatsapp/send/route.ts` |
-| P2-4 | Batch read receipts (ya implementado, solo doc update) | `messages.ts` |
+Archivado desde CHANGELOG.md. Contenido: ExpandableTextarea (expand hover, modal 3xl, aplicado a Knowledge + Instructions). Modal Project Settings a max-w-5xl. Optimistic status updates + Sonner toasts (rollback en error). Fix i18n status badges en tabla. AI Summary en LeadDetailPanel (muestra resumen IA, caja punteada si sin resumen, timestamp relativo). WhatsApp Typing Indicator (typing_indicator en read receipt, auto-dismiss 25s). Performance P1-5/P1-1/P2-4 completados.
 
 ---
 
 ## [0.7.14] - 2026-02-05
 
-### Archive Leads (commits `d7530c3`, `8fb8d3c`, `340c801`, `ea41ee6`, `a59dcaf`)
-
-Los leads ahora se pueden archivar sin perder su estado original. Usa campo separado `archivedAt` (Opcion B) en lugar de status, preservando datos historicos.
-
-**Cambios backend + schema (commit `d7530c3`):**
-
-| Archivo | Cambio |
-|---------|--------|
-| `prisma/schema.prisma` | Campo `archivedAt DateTime?` + indice compuesto `[projectId, archivedAt]` |
-| `prisma/migrations/20260205_add_lead_archived_at` | Migracion SQL aplicada a produccion |
-| `src/types/index.ts` | `archivedAt?: Date` en Lead, `archiveFilter: 'active' / 'archived' / 'all'` en LeadFilters |
-| `src/lib/actions/leads.ts` | Server actions `archiveLead()` / `unarchiveLead()` con transaccion. `buildLeadWhereClause()` soporta filtro 3 estados |
-| `src/hooks/useLeadsQuery.ts` | `archivedAt` en TransformedLead + transformLeads |
-
-**Cambios UX (commit `8fb8d3c`):**
-
-| Archivo | Cambio |
-|---------|--------|
-| `LeadsPageClient.tsx` | Modal custom de confirmacion (reemplaza `window.confirm`), icono rojo=archivar / azul=desarchivar |
-| `LeadCard.tsx` | Badge gris "Archivado" junto al badge de status cuando `isArchived` |
-| `LeadFilters.tsx` | Chips 3 estados: Activos (default), Archivados (chip rojo), Todos |
-| `es.json` / `en.json` | Keys para modal, filtros, badge |
-
-**Mejoras adicionales (commit `340c801`):**
-
-| Archivo | Cambio |
-|---------|--------|
-| `LeadDetailPanel.tsx` | Badge gris "Archivado" en panel lateral de detalle del lead |
-| `LeadTable.tsx` | Badge gris "Archivado" en columna Status de vista tabla |
-| `es.json` / `en.json` | Filtro "Mostrar todos" (antes "Mostrar archivados") |
-
-**Fixes y panel (commits `ea41ee6`, `a59dcaf`):**
-
-| Archivo | Cambio |
-|---------|--------|
-| `LeadsPageClient.tsx` | Badge "Archivado" en tabla inline (fix: se editaba componente equivocado). `archivedAt` en `selectedLeadForPanel` transform |
-| `LeadDetailPanel.tsx` | Boton Archivar/Desarchivar en footer (3er boton: Llamar, Editar, Archivar). Prop `onArchiveLead`, iconos ArchiveIcon/UnarchiveIcon |
-
-**Decisiones tecnicas:**
-- **Opcion B elegida** (sobre Opcion A): Campo `archivedAt` separado en vez de status `archived`, preserva el status original del lead (WON archivado sigue siendo WON)
-- Desarchivar = `archivedAt: null`, restaura lead a vista activa con status intacto
-- Server actions con transaccion: update + activity log atomico
-- Indice compuesto `[projectId, archivedAt]` para queries eficientes
-- Modal custom KAIRO en vez de `window.confirm()` para mejor UX
-- Filtro 3 estados (chips) en vez de checkbox para separar vistas activas/archivadas
+Archivado desde CHANGELOG.md. Contenido: Archive Leads con campo `archivedAt` separado (Opcion B, preserva status original). Server actions archiveLead/unarchiveLead con transaccion. Filtro 3 estados: activos/archivados/todos. Badge gris "Archivado" en cards, tabla, y panel detalle. Boton Archivar/Desarchivar en footer del panel. Modal custom KAIRO reemplaza window.confirm. Indice compuesto [projectId, archivedAt].
 
 ---
 

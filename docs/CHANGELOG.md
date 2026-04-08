@@ -1,6 +1,152 @@
 # KAIRO - Changelog
 
-> Solo se mantienen las ultimas 5 versiones (v0.16.2+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Solo se mantienen las ultimas 5 versiones (v0.20.0+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+
+---
+
+## [0.23.0] - 2026-04-07
+
+### Team Settings Page (NEW)
+
+Nueva pagina `/settings/team` con dos tabs accesible desde el sidebar. El sidebar de "Configuracion" es ahora colapsable con sub-items "AI Settings" y "Team Settings". Settings oculto para roles agent/viewer (solo Dashboard + Leads visible).
+
+**Tab 1: Lead Visibility Control**
+
+Controla que leads puede ver cada rol (agent/viewer). Manager+ siempre ve todos. Tres modos:
+
+| Modo | Descripcion |
+|------|-------------|
+| `all_leads` | Todos los leads del proyecto (default) |
+| `assigned_and_unassigned` | Solo leads asignados al usuario + sin asignar |
+| `only_assigned` | Solo leads asignados al usuario |
+
+Configuracion almacenada en `Project.leadVisibilityMode` (TEXT). Restriccion aplicada en: lista de leads, stats, charts del dashboard, `getLeadById`, `getLeadPanelData`, exportacion Excel.
+
+Filtro "Assigned To" se adapta: oculto para `only_assigned`, sin lista de usuarios para `assigned_and_unassigned`.
+
+**Nuevos archivos:**
+- `src/lib/lead-visibility.ts` — modulo puro y reutilizable para aplicar restricciones de visibilidad
+- `src/lib/actions/team-settings.ts` — server actions: `getTeamSettings()`, `saveLeadVisibilityMode()`, `saveLeadAutoAssignment()`
+
+**Tab 2: Lead Auto-Assignment**
+
+Distribucion porcentual de leads entrantes entre miembros del equipo. Shortcut "Equal for all" distribuye uniformemente. Validacion: debe sumar 100%. Lista de miembros con checkboxes, badges de rol e inputs de porcentaje.
+
+Configuracion almacenada como JSON en `Project.leadAutoAssignment` (JSONB). El webhook de WhatsApp auto-asigna nuevos leads basandose en distribucion diaria balanceada.
+
+**Nuevo archivo:** `src/lib/auto-assign.ts` — algoritmo de asignacion ponderada con balance diario.
+
+**Migraciones DB:**
+- `20260407_add_lead_visibility_mode`: `leadVisibilityMode TEXT DEFAULT 'all_leads'` en `Project`
+- `20260407_add_lead_auto_assignment`: `leadAutoAssignment JSONB` en `Project`
+
+### User Phone Field
+
+Campo `phone` (nullable) agregado al modelo `User`. `PhoneInput` (selector de bandera por pais) ahora aparece en:
+- Admin UserModal (crear/editar usuario)
+- Pagina de perfil (edicion self-service)
+
+i18n: "Celular" (es) / "Phone" (en). Migracion: `20260407_add_user_phone`: `phone TEXT` en `User`.
+
+### User Avatar Upload
+
+Sistema de subida de foto de perfil reemplaza el input de URL de texto.
+
+- **Modal de crop interactivo:** `react-easy-crop` con preview circular, drag, zoom slider.
+- **Compresion client-side:** 400x400 JPEG al 85% de calidad.
+- **Supabase Storage:** `avatars/{userId}/{uuid}.jpg`. Auto-eliminacion del avatar anterior al subir uno nuevo.
+- **"Remove photo":** Opcion para volver a las iniciales del usuario.
+- **Cron protection:** El prefix `avatars/` es excluido del cron de limpieza de media.
+
+Disponible en Admin UserModal y pagina de Perfil.
+
+### RBAC Documentation
+
+Nuevo archivo `docs/RBAC.md` con documentacion completa de roles y permisos: 3 niveles (sistema/org/proyecto), jerarquia completa, matriz de permisos por accion, calculo de effective role, flujo tecnico con archivos clave.
+
+---
+
+## [0.22.3] - 2026-04-07
+
+### Date Filter Improvements
+
+**dateField selector:** Nuevo selector que permite filtrar por "Fecha de creacion" (default) o "Ultimo contacto". UI con layout apilado: etiqueta "FECHA" + dropdown de campo.
+
+**Preset "Este mes":** Reemplaza el anterior "Ultimos 90 dias". Usa `getStartOfMonthInTimezone()` de `src/lib/timezone.ts` para respetar el timezone de la organizacion. El filtro por defecto cambia de "Ultimos 30 dias" a "Este mes".
+
+**Fix: rango personalizado excluia el ultimo dia.** El `endDate` ahora incluye el dia completo hasta las 23:59:59.999 en lugar de 00:00:00 del dia siguiente.
+
+**Archivos:** `src/types/index.ts` (campo `dateField` en `LeadFilters`), `src/lib/actions/leads.ts` (logica de filtro), `src/components/features/LeadFilters.tsx` (UI selector), `LeadsPageClient.tsx`, `es.json`, `en.json`.
+
+---
+
+## [0.22.2] - 2026-04-03
+
+### ReEngagement dual-model (Model A + Model B)
+
+Los seguimientos ahora se envian tanto si el lead responde y vuelve a hacer silencio (Model A, existente) como si nunca responde (Model B, nuevo). El contador de attempts siempre avanza, nunca repite el mismo intento.
+
+**Antes:** attempt 0 → lead debe responder → silencio → attempt 1 → lead debe responder → silencio → attempt 2.
+**Ahora:** attempt 0 → (delayHours) → attempt 1 → (delayHours) → attempt 2, sin importar si el lead respondio o no.
+
+**Cambio:** Query SQL en cron reengagement: eliminada condicion `lead_msg > last_re_at` que requeria respuesta. `completedCycles` reemplazado por `totalReengagements` (total enviados). UI descriptions actualizadas en es/en.
+
+**Archivo:** `src/app/api/cron/reengagement/route.ts`, `es.json`, `en.json`
+
+### Additional Instructions max length 2000 → 10000
+
+**Archivos:** `SettingsPageClient.tsx` (maxLength + counter), `prompt-builder.ts` (zod schema)
+
+### Fix: Save button disappears on hover (Form + ReEngagement tabs)
+
+Causa raiz: `hover:bg-[var(--accent-hover)]` — variable CSS no existe. Fix: usar `Button variant="primary"` con `isLoading` prop. Boton ahora siempre visible con `disabled={!hasUnsavedChanges}` + texto "Tienes cambios sin guardar".
+
+**Archivos:** `SettingsPageClient.tsx`, `es.json`, `en.json`
+
+---
+
+## [0.22.0] - 2026-04-01
+
+### Conversational Form (NEW MAJOR FEATURE)
+
+Los agentes IA ahora pueden recopilar datos estructurados de leads durante la conversacion de WhatsApp de forma natural.
+
+**Scope:** Por agente (igual que `reEngagementConfig`). Max 8 campos. Trigger modes: `immediate` (desde el primer mensaje) o `on_interest` (solo leads WARM/HOT).
+
+**Schema:** Campo `formConfig` (JSONB) en `AIAgent` + nueva tabla `lead_form_data`. Migracion: `prisma/migrations/20260401_add_conversational_form/`. RLS con `auth.uid()::text` cast (requerido para Supabase).
+
+**Nuevos archivos:**
+- `src/lib/types/form-template.ts` — `FormConfig`, `FormField`, `FormFieldType`, `FormTriggerMode`, `LEAD_FIELD_MAPPINGS`, `generateFieldKey`
+- `src/lib/actions/form-template.ts` — `getFormConfig()`, `saveFormConfig()`
+- `src/lib/actions/lead-form-data.ts` — `getLeadFormData()`, `bulkUpdateLeadFormFields()`
+
+**Pipeline:** `build-system-prompt.ts` inyecta seccion "DATOS A RECOPILAR" con campos pendientes/recopilados. `process-ai-response.ts` extrae marcador `[FORM-DATA: key=value | key2=value2]` de la respuesta GPT, guarda en `lead_form_data`, auto-llena campos del lead, limpia marcador antes de enviar.
+
+**UI:** 4to tab "Formulario" en Settings con toggle, radio buttons de trigger mode (descripcion dinamica), lista DnD de campos, add/edit inline, counter de campos. `loadingForm` state previene race condition con async toggle.
+
+**Fixes post-implementacion:** i18n key mismatch (`enabledHelp` → `enabledDesc`), ~15 keys faltantes, `LEAD_FIELD_MAPPINGS` labelKeys sin prefijo `settings.` (bug de doble-scope), race condition en toggle.
+
+---
+
+## [0.21.0] - 2026-04-01
+
+### Timezone-aware date handling (infraestructura critica)
+
+Toda la app ahora respeta el `defaultTimezone` de la organizacion en vez de usar UTC para filtros, agrupaciones y display. Principio: "Store UTC, Resolve on Read".
+
+**Nuevo archivo:** `src/lib/timezone.ts` — utilidades centralizadas con `Intl.DateTimeFormat`: `getEffectiveTimezone()`, `getStartOfDayInTimezone()`, `getEndOfDayInTimezone()`, `getStartOfMonthInTimezone()`, `getDateStringInTimezone()`, `getYesterdayInTimezone()`.
+
+**Archivos modificados:** `src/lib/actions/dashboard.ts` (chart grouping por timezone), `src/lib/actions/leads.ts` (date range filter + Excel export), `src/lib/actions/workspace.ts` + `src/contexts/WorkspaceContext.tsx` (interface con `defaultTimezone`), `src/lib/ai/process-ai-response.ts` (reemplaza hardcoded `'America/Lima'`), `src/app/api/webhooks/whatsapp/route.ts` (pasa org timezone al pipeline), `src/lib/utils.ts` (`formatDate/Time` acepta `timezone` param, backward-compatible), `src/components/layout/NotificationDropdown.tsx`, `src/components/features/LeadChat.tsx`.
+
+### Sticker support
+
+Mensajes de sticker de WhatsApp ahora siguen el mismo flujo que imagenes: descarga media, Vision pipeline incluye `'sticker'` junto a `'image'`.
+
+**Archivos:** `src/app/api/webhooks/whatsapp/route.ts` (interface + case + freshMediaId), `src/lib/ai/process-ai-response.ts` (Vision check).
+
+### Emoji cleanup
+
+Flags de idioma en Header (`ES`/`EN`) y globo en PhoneInput (`INT`) reemplazados con texto. Fix en pre-commit hook para ignorar archivos binarios por extension (PNG era falso positivo en Windows).
 
 ---
 
@@ -93,181 +239,7 @@ Nueva variable CSS `--accent-text`: Light=#0E7490 (cyan-700), Dark=#00E5FF. Reem
 
 ---
 
-## [0.19.0] - 2026-03-29
-
-### RBAC Lead Assignment System
-
-Sistema completo de asignacion de leads basado en roles con jerarquia de permisos.
-
-**Permissions module** (`src/lib/permissions.ts`):
-- Role hierarchy: `super_admin > owner > admin > manager > agent > viewer`
-- `getEffectiveRole()` resuelve maximo privilegio de systemRole + org ownership + project role
-- Permission predicates: `canTakeUnassignedLead` (>= agent), `canWorkOwnLead` (>= agent), `canReassignLead` (>= manager), `canWorkOtherLead` (>= admin), `isViewerOnly`
-
-**New hooks:** `useEffectiveRole()` + `useEffectiveRoleSafe()` (para componentes compartidos entre layouts)
-
-**Server actions:** `assignLead()`, `getProjectTeamMembers()`, `getProjectRole()`
-
-**Role guards en actions existentes:** `updateLead`, `updateLeadStatus`, `sendMessage`, `toggleHandoffMode` ahora verifican permisos RBAC. Auto-assign lead on Take Control cuando lead sin asignar.
-
-**UI - LeadAssignment component:**
-- Admin/Manager: dropdown selector para asignar cualquier miembro del equipo
-- Agent: boton "Tomar Lead" (solo cuando sin asignar)
-- Viewer: sin acciones
-- Assigned user visible en lead cards (grid) y tabla
-
-**Activity log:** "Lead asignado a: Name [role]"
-
-### Effective role in header
-
-Badge en dropdown del header muestra rol efectivo (Admin, Manager, Asesor, Viewer) en vez de generico "Usuario". Usa `useEffectiveRoleSafe()`.
-
-### Owner toggle in edit user modal
-
-Super_admin puede asignar/remover ownership de organizacion desde el modal de edicion de usuario (no solo al crear). Nueva server action: `updateOrganizationMemberOwnership()`.
-
-### Agent role renamed to Asesor/Advisor
-
-- ES: "Agente" → "Asesor" / EN: "Agent" → "Advisor"
-- Todos los labels hardcodeados eliminados, todo via i18n
-- Eliminados label/description de PROJECT_ROLE_CONFIG y SYSTEM_ROLE_CONFIG en types
-
-### "Assigned to" filter
-
-Nuevo filtro en "Mas filtros": dropdown con Todos, Mis leads, Sin asignar + multi-select team members con checkboxes. Server-side filtering via `buildLeadWhereClause` con parametro `assignedTo`. Agregado a `LeadFilters` type.
-
-### Excel export restricted
-
-Boton Excel + server action restringidos a super_admin, owner, y admin solamente.
-
-### Project role editing in UserModal
-
-Edicion de rol de proyecto en el modal de edicion de usuario (admin panel).
-
-### Jitsi video call unlocked for all roles
-
-Boton de videollamada ahora disponible para todos los roles (antes solo super_admin).
-
-### Security fix: Cross-session workspace leakage
-
-- Clear localStorage workspace on login (previene org/project stale de usuario anterior)
-- Validacion de workspace almacenado contra memberships del usuario en app init
-- Auto-select org/project cuando usuario tiene solo uno
-- Validacion de projectId en `getAccessibleProjectIds()` para non-super_admin
-
----
-
-## [0.18.0] - 2026-03-27
-
-### Dashboard: 8 stat cards + close rate + conversion rate
-
-Reestructuracion completa de stat cards: Total leads (active+archived), Leads activos, Leads ganados, Clientes, Tasa de cierre (won/active), Tasa de conversion (customer/active), En modo humano, Leads archivados. Agentes activos oculto del UI pero mantenido en API. Grid: 2 cols mobile, 4 cols desktop. Todos los stats respetan el filtro de rango de fecha (fix: human mode antes no filtraba). Renombrado chart "Estado de leads" a "Estado de leads (Tipificacion)" (es/en).
-
-### Nuevos lead statuses: unqualified, no_response, customer
-
-3 nuevos estados de tipificacion: "No Calificado" (gris piedra), "Sin Respuesta" (gris slate), "Cliente" (sky blue). Agregados a Prisma enum, TypeScript enum, LEAD_STATUS_CONFIG, dashboard charts, filtros, traducciones es/en, y mapStatus helper.
-
-### Auto-tipify: new → no_response post-reengagement
-
-Leads en status `new` que recibieron un reengagement hace >24h sin responder son automaticamente cambiados a `no_response`. Corre dentro del cron de reengagement existente (cada 15 min). Solo afecta leads en modo AI, no archivados. Non-fatal on error.
-
-### WhatsApp 24h window countdown en chat
-
-Timer HH:MM:SS en el boton "Tomar control" mostrando tiempo restante de la ventana 24h de WhatsApp. Cuando expira: boton deshabilitado (modo AI), chat input deshabilitado con notice "Ventana expirada" (modo humano). Timer se resetea via Realtime cuando el lead envia nuevo mensaje. Solo aplica a leads de canal WhatsApp. `getLeadHandoffStatus()` ahora retorna `channel` + `lastLeadMessageAt`.
-
-### Per-service currency en pricing KB
-
-Cada servicio puede tener su propia moneda (override) o heredar la global. Selector por servicio con opciones "Global" + PEN/USD/EUR/MXN. Label global renombrado a "Moneda (Global)". `composePricingText()` agrega codigo de moneda cuando difiere de la global. No requiere migracion DB (JSONB).
-
-### UX: Dark text on accent buttons
-
-Todos los botones con fondo cyan (`--accent-primary`) ahora usan texto oscuro (`--kairo-midnight`) para legibilidad. 9 archivos corregidos: KB forms, dashboard, settings, workspace.
-
-### Inline edit criterios de calificacion
-
-Criterios HOT/WARM/COLD ahora tienen iconos edit (lapiz), duplicate (copiar), delete (papelera) al hover, igual que las Reglas especificas. Edit inline con input + save/cancel.
-
-### Fix: human chat media metadata preserved
-
-sendMessage sobrescribia el metadata del mensaje al recibir respuesta de WhatsApp API, perdiendo los mediaAttachments (URL de imagen/video). Ahora hace merge con el metadata existente. Ademas, cleanup-media cron extendido de 24h a 5 dias para que media enviada por humanos permanezca visible en el historial.
-
-### Fix: all dashboard stats respect date range filter
-
-"En modo humano" ignoraba el rango de fecha seleccionado, siempre mostrando estado actual. Ahora filtra por updatedAt dentro del rango, consistente con Won, Customer y Archived.
-
-### Source detection debug logging
-
-Log temporal del `referral` de Meta en webhook para diagnosticar clasificacion FB vs IG ads. Hallazgo: Meta siempre envia `fb.me/` como source_url, no distingue Instagram.
-
-### Tooling: Vercel CLI + MCP
-
-Vercel CLI instalado y linkeado al proyecto. Token configurado. Vercel MCP (Public Beta) agregado para acceso directo a logs desde Claude Code.
-
----
-
-## [0.17.0] - 2026-03-26
-
-### Follow-up notifications: Email + Push
-
-Los seguimientos programados (`follow_up_due`) solo generaban notificacion de campana (bell). Ahora tambien envian **email** y **push** a los miembros del proyecto que tengan estas preferencias activadas.
-
-**Arquitectura:** El pg_cron sigue insertando bell notifications directo (para Realtime instantaneo). Adicionalmente, cuando encuentra follow-ups pendientes, llama al nuevo endpoint via `pg_net` para enviar email + push. Solo se invoca cuando hay follow-ups reales (no cada minuto), manteniendo el free tier.
-
-**Template email:** Mismo diseno KAIRO dark (fondo #0B1220, card #111827, boton cyan #00E5FF) con mensaje "Seguimiento pendiente" + nombre del lead + proyecto. Soporta i18n (es/en).
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/email.ts` | `sendFollowUpEmail()` + `buildFollowUpEmailHtml()` + i18n `followUpI18n` |
-| `src/app/api/cron/followup-notify/route.ts` | Nuevo endpoint: recibe leads de pg_net, envia email + push |
-| `scripts/pg-cron-followup-notifications.sql` | Agrega `pg_net` extension + `net.http_post()` condicional al endpoint |
-| `docs/NOTIFICATIONS.md` | Tabla de canales por tipo actualizada |
-
-**Deploy:** Despues de deploy a Vercel, ejecutar el SQL actualizado en Supabase SQL Editor. URL y CRON_SECRET hardcodeados en la funcion SECURITY DEFINER (Supabase free tier no permite ALTER DATABASE SET).
-
-### Follow-up email: timezone + fecha programada
-
-El email de follow-up ahora incluye la fecha/hora programada ("Programado: 26 mar. 2026, 12:15 p.m.") formateada en el timezone del usuario (preference `timezone`, default America/Lima).
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/lib/email.ts` | `formatFollowUpDate()` con timezone, campo `scheduledAt` en template |
-| `src/app/api/cron/followup-notify/route.ts` | Pasa `scheduledAt` + `timezone` del usuario |
-| `scripts/pg-cron-followup-notifications.sql` | Incluye `nextFollowUpAt` en payload pg_net |
-
-### Videollamada Jitsi Meet (super_admin only)
-
-Boton "Llamar" en el panel del lead ahora inicia una videollamada via Jitsi Meet (servidor publico, costo cero). Solo visible para super_admin.
-
-**Flujo:** Click → genera sala unica → envia link al lead por WhatsApp (mismo numero del agente) → abre sala en nueva pestana para el agente.
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/components/features/LeadDetailPanel.tsx` | `handleStartVideoCall()`, icono VideoCallIcon, import sendMessage |
-
-**Escalabilidad futura:** Migrar a **8x8 JaaS** (Jitsi as a Service) para embeber videollamada dentro de KAIRO con branding propio. Free tier: 10,000 min/mes. Evaluar cuando haya ingresos que justifiquen el salto.
-
----
-
-## [0.16.2] - 2026-03-25
-
-### Fix: Post-Login Redirect Missing Locale Prefix
-
-Usuarios reportaron que despues de login eran redirigidos a `/leads` en lugar de `/es/leads`, causando pagina rota sin locale.
-
-**Causa raiz:** `(dashboard)/page.tsx` usaba `redirect('/leads')` de `next/navigation` (sin locale). Cuando un usuario visitaba la raiz (`/`), el middleware guardaba `redirect=/` en la URL de login. Despues de autenticarse, el deep-link enviaba a `/es/` → `page.tsx` redirigía a `/leads` sin prefijo de locale.
-
-**Fixes:**
-
-| Archivo | Cambio |
-|---------|--------|
-| `src/app/[locale]/(dashboard)/page.tsx` | Usa `getLocale()` + redirect con locale explicito (`/${locale}/leads`) |
-| `src/app/[locale]/(auth)/login/page.tsx` | Deep-link ignora `/` como destino (no es un destino util, cae al flujo normal) |
-
-**Nota:** El sistema de deep-link post-login para notificaciones por email (`/es/leads?leadId=xxx`) no fue afectado — sigue funcionando correctamente.
-
----
-
-> Versiones v0.16.1 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.19.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 

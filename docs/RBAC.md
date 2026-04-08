@@ -88,6 +88,8 @@ effectiveRole = max(systemRole, orgOwnership, projectRole)
 | Editar settings/KB | No | No | No | Si | Si | Si |
 | Gestionar agentes IA | No | No | Si | Si | Si | Si |
 | Gestionar form templates | No | No | Si | Si | Si | Si |
+| Ver sidebar "Configuracion" | No | No | Si | Si | Si | Si |
+| Team Settings (visibilidad + auto-asignacion) | No | No | No | Si | Si | Si |
 
 ### Acciones de Plataforma
 
@@ -164,4 +166,4 @@ UI: show/hide buttons, enable/disable actions
 
 ---
 
-*Ultima actualizacion: 2026-04-07 (v0.22.2)*
+*Ultima actualizacion: 2026-04-07 (v0.23.0)*
