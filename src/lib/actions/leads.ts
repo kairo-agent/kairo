@@ -1766,7 +1766,10 @@ export async function getProjectTeamMembers(
     }
 
     const projectMembers = await prisma.projectMember.findMany({
-      where: { projectId },
+      where: {
+        projectId,
+        user: { isActive: true },
+      },
       select: {
         role: true,
         user: {
