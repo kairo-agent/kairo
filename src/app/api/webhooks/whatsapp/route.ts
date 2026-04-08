@@ -1001,7 +1001,7 @@ async function handleIncomingMessage(
       getActiveGlobalRules(),
     ]);
 
-    // Debounce: wait 3s to accumulate rapid messages before AI responds
+    // Debounce: wait 5s to accumulate rapid messages before AI responds
     // Prevents multiple AI responses when lead sends several messages quickly
     const redis = await getRedis();
     const debounceKey = `debounce:ai:${lead.id}`;
@@ -1011,7 +1011,7 @@ async function handleIncomingMessage(
       try {
         // SET NX EX = set only if not exists, expires in 3 seconds
         // First message in window wins; subsequent messages skip AI (already queued)
-        const result = await redis.set(debounceKey, '1', { nx: true, ex: 3 });
+        const result = await redis.set(debounceKey, '1', { nx: true, ex: 5 });
         shouldProcess = result === 'OK';
       } catch (err) {
         console.error('[Debounce] Redis error, processing immediately:', err);
@@ -1035,7 +1035,7 @@ async function handleIncomingMessage(
           try {
             // Wait for debounce window (typing indicator already showing)
             if (redis) {
-              await new Promise(resolve => setTimeout(resolve, 3000));
+              await new Promise(resolve => setTimeout(resolve, 5000));
             }
 
             // Re-fetch conversation to include ALL messages that arrived during debounce
