@@ -238,6 +238,8 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
         // Pre-fill collected with lead data for mapped fields
         const collected = { ...formCollected };
+        const unconfirmedKeys = new Set<string>(); // Fields from WhatsApp profile that need AI confirmation
+
         if (leadRecord) {
           for (const field of params.formConfig.fields) {
             if (collected[field.key]) continue; // Already collected by AI
@@ -247,17 +249,23 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
             const strVal = String(leadVal).trim();
             if (!strVal) continue;
 
-            // Validate: skip garbage names (phone numbers, symbols, emojis as names)
+            // Names from WhatsApp profile: always need AI confirmation
+            // (could be phone numbers, random text, business names, etc.)
             if (field.leadFieldMapping === 'firstName' || field.leadFieldMapping === 'lastName') {
+              // Obviously invalid (pure digits/symbols) → skip entirely
               if (!isValidPersonName(strVal)) continue;
+              // Looks like it could be a name → pre-fill but flag for confirmation
+              collected[field.key] = strVal;
+              unconfirmedKeys.add(field.key);
+            } else {
+              // Phone, email, etc. → reliable data, no confirmation needed
+              collected[field.key] = strVal;
             }
-
-            collected[field.key] = strVal;
           }
         }
 
         const pending = params.formConfig.fields.filter(f => !collected[f.key]);
-        formFields = { pending, collected };
+        formFields = { pending, collected, unconfirmedKeys: unconfirmedKeys.size > 0 ? unconfirmedKeys : undefined };
       }
     }
 

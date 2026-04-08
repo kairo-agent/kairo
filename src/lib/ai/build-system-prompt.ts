@@ -32,6 +32,7 @@ export interface SystemPromptParams {
   formFields?: {
     pending: Array<{ key: string; label: string; type: string; required: boolean; options?: string[] }>;
     collected: Record<string, string>;
+    unconfirmedKeys?: Set<string>;
   };
   // Advisor info for personalized handoff
   advisorName?: string | null;
@@ -124,7 +125,11 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
       if (hasCollected) {
         formParts.push('Datos ya obtenidos:');
         for (const [key, value] of Object.entries(collected)) {
-          formParts.push(`- ${key}: ${value}`);
+          if (params.formFields?.unconfirmedKeys?.has(key)) {
+            formParts.push(`- ${key}: ${value} (del perfil de WhatsApp - confirma con el lead si es su nombre real)`);
+          } else {
+            formParts.push(`- ${key}: ${value}`);
+          }
         }
         formParts.push('');
       }
