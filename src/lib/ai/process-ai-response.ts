@@ -69,6 +69,23 @@ interface PipelineStep {
 // Minimum messages required before saving a summary (defense in depth)
 const SUMMARY_MIN_MESSAGES = 5;
 
+/**
+ * Check if a string looks like a real person name (not a phone number, symbols, etc.)
+ * Returns false for: pure digits, phone-like strings, pure symbols/emojis, very short garbage
+ */
+function isValidPersonName(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed || trimmed.length < 2) return false;
+  // Reject if it's mostly digits (phone numbers used as names)
+  if (/^\+?\d[\d\s\-()]+$/.test(trimmed)) return false;
+  // Reject if it has no letters at all
+  if (!/[a-zA-ZáéíóúñÁÉÍÓÚÑàèìòùâêîôûäëïöü]/i.test(trimmed)) return false;
+  // Reject if more than 50% non-letter characters (symbols, emojis)
+  const letterCount = (trimmed.match(/[a-zA-ZáéíóúñÁÉÍÓÚÑàèìòùâêîôûäëïöü]/g) || []).length;
+  if (letterCount / trimmed.length < 0.5) return false;
+  return true;
+}
+
 // ============================================
 // OpenAI Client Cache (reuses pattern from embeddings.ts)
 // ============================================
@@ -211,7 +228,34 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       }
 
       if (shouldInject) {
-        const collected = await getLeadFormData(leadId, params.agentId);
+        const [formCollected, leadRecord] = await Promise.all([
+          getLeadFormData(leadId, params.agentId),
+          prisma.lead.findUnique({
+            where: { id: leadId },
+            select: { firstName: true, lastName: true, email: true, phone: true, businessName: true, position: true, estimatedValue: true },
+          }),
+        ]);
+
+        // Pre-fill collected with lead data for mapped fields
+        const collected = { ...formCollected };
+        if (leadRecord) {
+          for (const field of params.formConfig.fields) {
+            if (collected[field.key]) continue; // Already collected by AI
+            if (!field.leadFieldMapping) continue;
+            const leadVal = leadRecord[field.leadFieldMapping as keyof typeof leadRecord];
+            if (leadVal === null || leadVal === undefined) continue;
+            const strVal = String(leadVal).trim();
+            if (!strVal) continue;
+
+            // Validate: skip garbage names (phone numbers, symbols, emojis as names)
+            if (field.leadFieldMapping === 'firstName' || field.leadFieldMapping === 'lastName') {
+              if (!isValidPersonName(strVal)) continue;
+            }
+
+            collected[field.key] = strVal;
+          }
+        }
+
         const pending = params.formConfig.fields.filter(f => !collected[f.key]);
         formFields = { pending, collected };
       }
