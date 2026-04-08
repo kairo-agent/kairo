@@ -4,24 +4,44 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { getLeadFormData } from '@/lib/actions/lead-form-data';
-import type { FormConfig, FormField } from '@/lib/types/form-template';
+import type { FormConfig } from '@/lib/types/form-template';
+
+// Lead fields that can be mapped from form fields
+interface LeadData {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  businessName?: string;
+  position?: string;
+  estimatedValue?: number;
+}
 
 interface LeadFormDataDisplayProps {
   leadId: string;
   agentId: string;
   formConfig: FormConfig;
+  leadData?: LeadData;
 }
 
-export function LeadFormDataDisplay({ leadId, agentId, formConfig }: LeadFormDataDisplayProps) {
+// Map leadFieldMapping to lead property
+function getLeadFieldValue(mapping: string | null | undefined, lead?: LeadData): string | undefined {
+  if (!mapping || !lead) return undefined;
+  const val = lead[mapping as keyof LeadData];
+  if (val === undefined || val === null) return undefined;
+  return String(val).trim() || undefined;
+}
+
+export function LeadFormDataDisplay({ leadId, agentId, formConfig, leadData }: LeadFormDataDisplayProps) {
   const t = useTranslations('leads');
-  const [data, setData] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!leadId || !agentId) return;
     setIsLoading(true);
     getLeadFormData(leadId, agentId).then((result) => {
-      setData(result);
+      setFormData(result);
       setIsLoading(false);
     });
   }, [leadId, agentId]);
@@ -29,7 +49,15 @@ export function LeadFormDataDisplay({ leadId, agentId, formConfig }: LeadFormDat
   if (!formConfig?.isActive || !formConfig.fields?.length) return null;
 
   const fields = [...formConfig.fields].sort((a, b) => a.order - b.order);
-  const filledCount = fields.filter(f => data[f.key]?.trim()).length;
+
+  // Resolve value: form data first, then fall back to lead data via mapping
+  const resolveValue = (field: typeof fields[0]): string | undefined => {
+    const fromForm = formData[field.key]?.trim();
+    if (fromForm) return fromForm;
+    return getLeadFieldValue(field.leadFieldMapping, leadData);
+  };
+
+  const filledCount = fields.filter(f => resolveValue(f)).length;
   const totalCount = fields.length;
 
   return (
@@ -62,7 +90,7 @@ export function LeadFormDataDisplay({ leadId, agentId, formConfig }: LeadFormDat
       ) : (
         <div className="space-y-1.5">
           {fields.map((field) => {
-            const value = data[field.key]?.trim();
+            const value = resolveValue(field);
             return (
               <div key={field.key} className="flex items-baseline gap-2">
                 <span className={cn(

@@ -678,6 +678,15 @@ export function LeadDetailPanel({
               leadId={lead.id}
               agentId={lead.assignedAgentId}
               formConfig={formConfig}
+              leadData={{
+                firstName: lead.firstName,
+                lastName: lead.lastName,
+                email: lead.email,
+                phone: lead.phone,
+                businessName: lead.businessName,
+                position: lead.position,
+                estimatedValue: lead.estimatedValue,
+              }}
             />
           )}
 
