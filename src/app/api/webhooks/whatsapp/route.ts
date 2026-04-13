@@ -621,9 +621,9 @@ function detectLeadSource(message: WhatsAppMessage): LeadSource {
     return detected;
   }
 
-  // 2. Hashtag detection in first message text
+  // 2. Hashtag or keyword detection in first message text
   const text = (message.text?.body || '').toLowerCase();
-  if (text.includes('#tiktokads')) return LeadSource.tiktok_ads;
+  if (text.includes('#tiktokads') || text.includes('tiktokads')) return LeadSource.tiktok_ads;
   if (text.includes('#tiktok')) return LeadSource.tiktok_organic;
   if (text.includes('#googleads')) return LeadSource.google_ads;
   if (text.includes('#facebookads')) return LeadSource.facebook_ads;
