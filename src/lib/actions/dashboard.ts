@@ -397,11 +397,6 @@ export async function getDashboardCharts(
       ...(dateFilter ? { createdAt: dateFilter } : {}),
     }, visibility);
 
-    const noDateWhere = applyVisibility({
-      ...projectFilter,
-      archivedAt: null,
-    }, visibility);
-
     const [leads, tempGroups, statusGroups, sourceGroups] = await Promise.all([
       prisma.lead.findMany({
         where: baseWhere,
@@ -411,13 +406,13 @@ export async function getDashboardCharts(
 
       prisma.lead.groupBy({
         by: ['temperature'],
-        where: noDateWhere,
+        where: baseWhere,
         _count: true,
       }),
 
       prisma.lead.groupBy({
         by: ['status'],
-        where: noDateWhere,
+        where: baseWhere,
         _count: true,
       }),
 
