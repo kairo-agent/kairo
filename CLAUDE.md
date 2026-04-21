@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.20.1 (temperature guard, DnD criteria, admin contrast fix) |
+| **Version** | v0.23.1 (dynamic Origen filter + mobile UX) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -90,8 +90,9 @@ src/
     utils/                         # Utilities (image-compression.ts, video-upload.ts, video-thumbnail.ts)
     whatsapp/                      # WhatsApp send helper (send.ts) + download-media.ts (incoming media)
     push/                          # Web Push (send-push.ts - VAPID + web-push delivery)
-    types/                         # Shared types (reengagement.ts, agent-media.ts - extracted from 'use server')
-    actions/                       # Server Actions (admin, agent-media, agents, auth, knowledge, leads, media, messages, notifications, profile, reengagement, secrets, workspace)
+    types/                         # Shared types (reengagement.ts, agent-media.ts, form-template.ts - extracted from 'use server')
+    actions/                       # Server Actions (admin, agent-media, agents, auth, form-template, knowledge, lead-form-data, leads, media, messages, notifications, profile, reengagement, secrets, workspace)
+    timezone.ts                    # Timezone utilities (getEffectiveTimezone, getStartOfDay/EndOfDay/Month, etc.)
     permissions.ts                 # RBAC module (role hierarchy, effective role, permission predicates)
     supabase/                      # Client/Server Supabase + Prisma
     auth-helpers.ts                # verifySuperAdmin, getCurrentUser
@@ -147,11 +148,11 @@ npm run lint     # Verificar codigo
 
 ---
 
-## Estado Actual (v0.20.1 - Mar 2026)
+## Estado Actual (v0.23.1 - Abr 2026)
 
-**Completado:** Auth, CRUD leads (R/U), WhatsApp webhook + multimedia + typing indicator, paginacion server-side, filtros, i18n, multi-tenant RBAC, admin panel, chat/conversaciones, AI pipeline interno, RAG (4 fases), OWASP audits, lead temperature scoring, audio transcription (Whisper), media upload/cleanup, descartar/recuperar leads (ex-archivar), resumen IA, notificaciones (3 canales), follow-up scheduling, anti-prompt-injection, per-project App Secret (HMAC), Settings con KB estructurada, dual-name system, Global Rules, AI-initiated handoff, KB free-text edit, deep-link post-login redirect, Web Push, Supabase Realtime, region co-location, auth chain optimization, RLS policies, ReEngagement auto follow-up, cron jobs (pg_cron + pg_net), Agent Media (RAG + fixed), chat media rendering, Excel export (admin+), debounce 3s (Redis), Dashboard (8 stats + 4 charts + cost/lead calculator), Lead source auto-detection, Jitsi Meet, lead statuses (10), WhatsApp 24h timer, per-service currency, Vercel CLI + MCP, RBAC lead assignment, effective role display, "Assigned to" filter, Asesor/Advisor role (i18n), incoming lead media, GPT-4o-mini Vision, PWA, custom KAIRO favicon, --accent-text color system, Whisper for all modes, AudioPlayer, Archive→Discard, **temperature guard (2+ lead msgs before classification)**, **DnD reorder for temperature criteria**, **admin panel contrast fix**.
+**Completado:** Stack multi-tenant completo (Auth + RBAC org/proyecto, multi-locale es/en, OWASP audits, RLS). AI pipeline interno (RAG, handoff, reengagement, form conversacional, anti-prompt-injection). WhatsApp bidireccional (incoming + outgoing media, Whisper, Vision, 24h timer, sticker). Dashboard + Leads (10 statuses, filtros incluyendo **Origen dinamico v0.23.1**, temperatura, asignado a, descartar/recuperar, Excel export). Team Settings (visibility + auto-assignment). Notificaciones 3 canales (bell + email + push). Cron jobs pg_cron. PWA. Historico detallado en [CHANGELOG.md](docs/CHANGELOG.md).
 
-**Pendiente:** Crear lead, paginas de reportes/agents. Meta Ads integration planificada (v0.21.0, plan guardado).
+**Pendiente:** Crear lead, paginas de reportes/agents. Meta Ads integration ([plan](docs/META-ADS-PLAN.md) guardado). **Scheduled Calls v0.24.0** (plan en [SCHEDULED-CALLS-PLAN.md](docs/SCHEDULED-CALLS-PLAN.md)).
 
 **Perf completo:** Todas las optimizaciones implementadas. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 

@@ -4,6 +4,32 @@
 
 ---
 
+## [0.23.1] - 2026-04-20
+
+### Filtro "Origen" en /leads (NEW)
+
+Nuevo filtro por `LeadSource` en la pagina de leads. Dropdown dinamico que muestra **solo los orígenes con al menos 1 lead en el scope del usuario** (paridad con el chart del dashboard). Los 9 valores del enum sin uso quedan ocultos automaticamente; aparecen solos cuando llegue el primer lead con ese source.
+
+**Server action `getAvailableSources(projectId?, organizationId?)`** en `src/lib/actions/leads.ts`: reusa `verifyAuth() + getAccessibleProjectIds() + getVisibilityContext() + buildLeadWhereClause()` para garantizar RBAC y visibility correctos. `Prisma.groupBy({ by: ['source'] })` tipado (sin SQL raw). Devuelve solo las keys del enum.
+
+**SourceDropdown** (`src/components/features/LeadFilters.tsx`): lazy-load al abrir (mismo patron que `AssignedToDropdown`), refetch al cambiar de proyecto/org, ordenado por prioridad (Ads → Organico → Otro), spinner + empty state.
+
+**Backend:** `buildLeadWhereClause` ahora tambien filtra por `source`, y `sourceLabels` del Excel export cubre los 13 valores del enum (antes solo 6).
+
+**i18n:** Nueva seccion `leads.sources.*` con los 13 valores en snake_case (es/en).
+
+**Archivos:** `src/types/index.ts` (LeadFilters.source), `src/lib/actions/leads.ts`, `src/components/features/LeadFilters.tsx`, `src/app/[locale]/(dashboard)/leads/LeadsPageClient.tsx`, `src/messages/es.json`, `src/messages/en.json`.
+
+### Mobile UX Fixes — Dropdowns inline + max-height por breakpoint
+
+**Dropdowns flotantes ahora inline en mobile.** Tanto `SourceDropdown` como `AssignedToDropdown` usan `static + w-full` en mobile y `absolute + min-w-[220px]` en `sm+`. En mobile los dropdowns empujan el contenido (FilterSections + cards de leads) hacia abajo en vez de taparlo — patron consistente con iOS/Android.
+
+**Fix preexistente:** El contenedor de filtros tenia `max-h-[600px]` que en mobile (grid-cols-1 con 7 filtros apilados) cortaba ORIGEN / DESCARTADOS / ASIGNADO A. Ahora: `max-h-[2400px]` mobile / `1200px` tablet / `600px` desktop.
+
+**Archivos:** `src/components/features/LeadFilters.tsx`
+
+---
+
 ## [0.23.0] - 2026-04-07
 
 ### Team Settings Page (NEW)
@@ -100,6 +126,12 @@ Nuevo componente `LeadFormDataDisplay` que muestra todos los campos del formular
 Cuando el formulario conversacional esta activo, el resumen generado por IA usa formato estructurado: bullet point por cada campo del formulario + parrafo complementario corto. Sin formulario activo, el formato de resumen no cambia.
 
 **Archivo:** `src/lib/ai/process-ai-response.ts`
+
+### Lead Source: TikTokAds keyword detection
+
+La deteccion de fuente de leads ahora reconoce `TikTokAds` como palabra clave (sin `#`) ademas del hashtag `#tiktokads`. Case-insensitive. Corrige 31 leads historicos de abril que llegaban como "other" a pesar de venir desde TikTok Ads.
+
+**Archivo:** `src/app/api/webhooks/whatsapp/route.ts` (funcion `detectLeadSource`)
 
 ### RBAC Documentation
 
