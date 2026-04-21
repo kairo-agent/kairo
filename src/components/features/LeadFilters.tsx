@@ -962,7 +962,7 @@ export function LeadFilters({
           'grid gap-4 transition-all duration-300 ease-out',
           'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4',
           isExpanded
-            ? 'opacity-100 max-h-[600px] pb-4 overflow-visible'
+            ? 'opacity-100 max-h-[2400px] sm:max-h-[1200px] lg:max-h-[600px] pb-4 overflow-visible'
             : 'opacity-0 max-h-0 pointer-events-none overflow-hidden'
         )}
       >
