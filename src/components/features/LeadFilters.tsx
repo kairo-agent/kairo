@@ -393,12 +393,13 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
   };
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative w-full sm:w-auto">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
+          'w-full sm:w-auto justify-between sm:justify-start',
           'transition-all duration-200 ease-out',
           'border',
           'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]',
@@ -407,18 +408,21 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
             : 'border-transparent bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         )}
       >
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-        <span>{displayLabel}</span>
-        <ChevronIcon isOpen={isOpen} className="w-3 h-3" />
+        <span className="flex items-center gap-1.5 min-w-0">
+          <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          <span className="truncate">{displayLabel}</span>
+        </span>
+        <ChevronIcon isOpen={isOpen} className="w-3 h-3 flex-shrink-0" />
       </button>
 
       {isOpen && (
         <div
           className={cn(
-            'absolute top-full left-0 mt-1 z-50',
-            'min-w-[220px] max-h-[300px] overflow-y-auto',
+            'mt-2 sm:mt-1',
+            'static sm:absolute sm:top-full sm:left-0 sm:z-50',
+            'w-full sm:w-auto sm:min-w-[220px] max-h-[300px] overflow-y-auto',
             'bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg',
             'py-1'
           )}
