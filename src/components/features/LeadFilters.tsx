@@ -23,7 +23,7 @@ import {
 import { ChannelIcon, CHANNEL_ICON_COLORS } from '@/components/icons/ChannelIcons';
 import { TemperatureIcon, LeadTypeIcon } from '@/components/icons/LeadIcons';
 import { DateRangeDropdown } from '@/components/ui/DateRangePicker';
-import { getProjectTeamMembers } from '@/lib/actions/leads';
+import { getProjectTeamMembers, getAvailableSources } from '@/lib/actions/leads';
 
 // ============================================
 // Types
@@ -36,6 +36,7 @@ interface LeadFiltersProps {
   isExpanded?: boolean;
   onToggleExpanded?: () => void;
   projectId?: string;
+  organizationId?: string;
   currentUserId?: string;
   effectiveRole?: string;
   leadVisibilityMode?: string;
@@ -531,7 +532,8 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
 // Source Dropdown Component
 // ============================================
 
-const SOURCE_OPTIONS: LeadSource[] = [
+// Preferred display order when sources are available
+const SOURCE_ORDER: LeadSource[] = [
   LeadSource.FACEBOOK_ADS,
   LeadSource.INSTAGRAM_ADS,
   LeadSource.TIKTOK_ADS,
@@ -550,6 +552,8 @@ const SOURCE_OPTIONS: LeadSource[] = [
 interface SourceDropdownProps {
   value: LeadSource | 'all';
   onChange: (value: LeadSource | 'all') => void;
+  projectId?: string;
+  organizationId?: string;
 }
 
 function SourceIcon({ className }: { className?: string }) {
@@ -571,9 +575,12 @@ function SourceIcon({ className }: { className?: string }) {
   );
 }
 
-function SourceDropdown({ value, onChange }: SourceDropdownProps) {
+function SourceDropdown({ value, onChange, projectId, organizationId }: SourceDropdownProps) {
   const t = useTranslations('leads');
   const [isOpen, setIsOpen] = useState(false);
+  const [availableSources, setAvailableSources] = useState<LeadSource[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -588,8 +595,39 @@ function SourceDropdown({ value, onChange }: SourceDropdownProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
+  // Reset cache when workspace changes so we refetch for the new scope
+  useEffect(() => {
+    setHasLoaded(false);
+    setAvailableSources(null);
+  }, [projectId, organizationId]);
+
+  // Lazy load available sources when dropdown opens
+  useEffect(() => {
+    if (!isOpen || hasLoaded) return;
+    setIsLoading(true);
+    getAvailableSources(projectId, organizationId).then((result) => {
+      if (result.success && result.sources) {
+        setAvailableSources(result.sources as LeadSource[]);
+      } else {
+        setAvailableSources([]);
+      }
+      setHasLoaded(true);
+      setIsLoading(false);
+    });
+  }, [isOpen, hasLoaded, projectId, organizationId]);
+
   const displayLabel = value === 'all' ? t('filters.allSources') : t(`sources.${value}`);
   const isActive = value !== 'all';
+
+  // Sort available sources by preferred order, fallback to alphabetical for unknown
+  const sortedSources = (availableSources ?? []).slice().sort((a, b) => {
+    const idxA = SOURCE_ORDER.indexOf(a);
+    const idxB = SOURCE_ORDER.indexOf(b);
+    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+    if (idxA === -1) return 1;
+    if (idxB === -1) return -1;
+    return idxA - idxB;
+  });
 
   return (
     <div ref={dropdownRef} className="relative w-full sm:w-auto">
@@ -636,20 +674,30 @@ function SourceDropdown({ value, onChange }: SourceDropdownProps) {
             {t('filters.allSources')}
           </button>
           <div className="border-t border-[var(--border-primary)] my-1" />
-          {SOURCE_OPTIONS.map((source) => (
-            <button
-              key={source}
-              type="button"
-              onClick={() => { onChange(source); setIsOpen(false); }}
-              className={cn(
-                'w-full text-left px-3 py-2 text-sm transition-colors',
-                'hover:bg-[var(--bg-hover)]',
-                value === source ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
-              )}
-            >
-              {t(`sources.${source}`)}
-            </button>
-          ))}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-3">
+              <div className="w-4 h-4 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : sortedSources.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-[var(--text-tertiary)]">
+              {t('filters.allSources')}
+            </div>
+          ) : (
+            sortedSources.map((source) => (
+              <button
+                key={source}
+                type="button"
+                onClick={() => { onChange(source); setIsOpen(false); }}
+                className={cn(
+                  'w-full text-left px-3 py-2 text-sm transition-colors',
+                  'hover:bg-[var(--bg-hover)]',
+                  value === source ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
+                )}
+              >
+                {t(`sources.${source}`)}
+              </button>
+            ))
+          )}
         </div>
       )}
     </div>
@@ -667,6 +715,7 @@ export function LeadFilters({
   isExpanded = false,
   onToggleExpanded,
   projectId,
+  organizationId,
   currentUserId,
   effectiveRole,
   leadVisibilityMode = 'all_leads',
@@ -1091,6 +1140,8 @@ export function LeadFilters({
           <SourceDropdown
             value={filters.source || 'all'}
             onChange={handleSourceChange}
+            projectId={projectId}
+            organizationId={organizationId}
           />
         </FilterSection>
 

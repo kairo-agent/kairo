@@ -1178,6 +1178,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
           isExpanded={isFiltersExpanded}
           onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
           projectId={selectedProject?.id}
+          organizationId={organizationId}
           currentUserId={user.id}
           effectiveRole={effectiveRole}
           leadVisibilityMode={leadVisibilityMode}

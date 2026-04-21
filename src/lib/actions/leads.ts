@@ -1839,3 +1839,54 @@ export async function getProjectTeamMembers(
     return { success: false, error: 'Error al obtener miembros del equipo' };
   }
 }
+
+// ============================================
+// Available Sources — returns only sources with at least 1 lead in scope
+// Respects RBAC (accessibleProjects) and visibility context (agent restrictions)
+// ============================================
+export async function getAvailableSources(
+  projectId?: string,
+  organizationId?: string
+): Promise<{ success: boolean; sources?: string[]; error?: string }> {
+  try {
+    const user = await verifyAuth();
+    if (!user) {
+      return { success: false, error: 'No autorizado' };
+    }
+
+    const accessibleProjects = await getAccessibleProjectIds(
+      user.id,
+      user.systemRole,
+      projectId,
+      organizationId
+    );
+    if (!accessibleProjects) {
+      return { success: true, sources: [] };
+    }
+
+    const visibility = projectId
+      ? await getVisibilityContext(user.id, user.systemRole, projectId)
+      : undefined;
+
+    const where = buildLeadWhereClause(
+      accessibleProjects,
+      organizationId,
+      undefined,
+      user.id,
+      undefined,
+      visibility
+    );
+
+    const grouped = await prisma.lead.groupBy({
+      by: ['source'],
+      where,
+      _count: true,
+    });
+
+    const sources = grouped.map((g) => g.source);
+    return { success: true, sources };
+  } catch (error) {
+    console.error('Error getting available sources:', error);
+    return { success: false, error: 'Error al obtener orígenes' };
+  }
+}
