@@ -588,12 +588,13 @@ function SourceDropdown({ value, onChange }: SourceDropdownProps) {
   const isActive = value !== 'all';
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative w-full sm:w-auto">
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
+          'w-full sm:w-auto justify-between sm:justify-start',
           'transition-all duration-200 ease-out',
           'border',
           'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]',
@@ -602,16 +603,19 @@ function SourceDropdown({ value, onChange }: SourceDropdownProps) {
             : 'border-transparent bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
         )}
       >
-        <SourceIcon />
-        <span className="truncate max-w-[140px]">{displayLabel}</span>
+        <span className="flex items-center gap-1.5 min-w-0">
+          <SourceIcon />
+          <span className="truncate sm:max-w-[140px]">{displayLabel}</span>
+        </span>
         <ChevronIcon isOpen={isOpen} className="w-3 h-3 flex-shrink-0" />
       </button>
 
       {isOpen && (
         <div
           className={cn(
-            'absolute top-full left-0 mt-1 z-50',
-            'min-w-[220px] max-h-[320px] overflow-y-auto',
+            'mt-2 sm:mt-1',
+            'static sm:absolute sm:top-full sm:left-0 sm:z-50',
+            'w-full sm:w-auto sm:min-w-[220px] max-h-[320px] overflow-y-auto',
             'bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg',
             'py-1'
           )}
