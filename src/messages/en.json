@@ -141,6 +141,8 @@
       "potential": "Commercial Potential",
       "channel": "Channel",
       "type": "Type",
+      "source": "Source",
+      "allSources": "All sources",
       "dateRange": "Date",
       "dateFieldCreatedAt": "Creation date",
       "dateFieldLastContact": "Last contact",
@@ -155,6 +157,21 @@
       "allUsers": "All",
       "myLeads": "My leads",
       "unassignedLeads": "Unassigned"
+    },
+    "sources": {
+      "website": "Website",
+      "referral": "Referral",
+      "social_media": "Social Media",
+      "advertising": "Advertising",
+      "event": "Event",
+      "facebook_ads": "Facebook Ads",
+      "facebook_organic": "Facebook Organic",
+      "instagram_ads": "Instagram Ads",
+      "instagram_organic": "Instagram Organic",
+      "tiktok_ads": "TikTok Ads",
+      "tiktok_organic": "TikTok Organic",
+      "google_ads": "Google Ads",
+      "other": "Other"
     },
     "type": {
       "ai_agent": "AI Agent",

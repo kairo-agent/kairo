@@ -293,6 +293,7 @@ export interface LeadFilters {
   search: string;
   status: LeadStatus | 'all';
   temperature: LeadTemperature | 'all';
+  source: LeadSource | 'all';
   channel: LeadChannel | 'all';
   type: LeadType | 'all';
   dateField: DateFieldOption;

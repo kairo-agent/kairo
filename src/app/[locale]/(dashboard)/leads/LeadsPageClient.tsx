@@ -586,6 +586,7 @@ const DEFAULT_FILTERS: LeadFiltersType = {
   search: '',
   status: 'all',
   temperature: 'all',
+  source: 'all',
   channel: 'all',
   type: 'all',
   dateField: 'createdAt',
@@ -715,6 +716,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
       filters.search !== filtersRef.current.search &&
       filters.status === filtersRef.current.status &&
       filters.temperature === filtersRef.current.temperature &&
+      filters.source === filtersRef.current.source &&
       filters.channel === filtersRef.current.channel &&
       filters.type === filtersRef.current.type &&
       filters.dateRange === filtersRef.current.dateRange;
@@ -970,6 +972,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
   const hasActiveFilters = filters.search !== '' ||
     filters.status !== 'all' ||
     filters.temperature !== 'all' ||
+    filters.source !== 'all' ||
     filters.channel !== 'all' ||
     filters.type !== 'all' ||
     filters.dateRange !== 'all';
@@ -979,6 +982,7 @@ export default function LeadsPageClient({ initialLeads, initialPagination, initi
     let count = 0;
     if (filters.status !== 'all') count++;
     if (filters.temperature !== 'all') count++;
+    if (filters.source !== 'all') count++;
     // Channel filter oculto para MVP (solo WhatsApp)
     // if (filters.channel !== 'all') count++;
     if (filters.type !== 'all') count++;

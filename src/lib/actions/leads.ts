@@ -243,6 +243,9 @@ function buildLeadWhereClause(
   if (filters?.temperature && filters.temperature !== 'all') {
     where.temperature = filters.temperature;
   }
+  if (filters?.source && filters.source !== 'all') {
+    where.source = filters.source;
+  }
   if (filters?.channel && filters.channel !== 'all') {
     where.channel = filters.channel;
   }
@@ -1578,8 +1581,36 @@ export async function exportLeadsToExcel(
       : { cold: 'Cold', warm: 'Warm', hot: 'Hot' };
 
     const sourceLabels: Record<string, string> = isEs
-      ? { website: 'Sitio Web', referral: 'Referido', social_media: 'Redes Sociales', advertising: 'Publicidad', event: 'Evento', other: 'Otro' }
-      : { website: 'Website', referral: 'Referral', social_media: 'Social Media', advertising: 'Advertising', event: 'Event', other: 'Other' };
+      ? {
+          website: 'Sitio Web',
+          referral: 'Referido',
+          social_media: 'Redes Sociales',
+          advertising: 'Publicidad',
+          event: 'Evento',
+          facebook_ads: 'Facebook Ads',
+          facebook_organic: 'Facebook Orgánico',
+          instagram_ads: 'Instagram Ads',
+          instagram_organic: 'Instagram Orgánico',
+          tiktok_ads: 'TikTok Ads',
+          tiktok_organic: 'TikTok Orgánico',
+          google_ads: 'Google Ads',
+          other: 'Otro',
+        }
+      : {
+          website: 'Website',
+          referral: 'Referral',
+          social_media: 'Social Media',
+          advertising: 'Advertising',
+          event: 'Event',
+          facebook_ads: 'Facebook Ads',
+          facebook_organic: 'Facebook Organic',
+          instagram_ads: 'Instagram Ads',
+          instagram_organic: 'Instagram Organic',
+          tiktok_ads: 'TikTok Ads',
+          tiktok_organic: 'TikTok Organic',
+          google_ads: 'Google Ads',
+          other: 'Other',
+        };
 
     const typeLabels: Record<string, string> = isEs
       ? { ai_agent: 'Agente IA', manual: 'Manual' }

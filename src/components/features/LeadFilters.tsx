@@ -13,6 +13,7 @@ import {
   LeadTemperature,
   LeadChannel,
   LeadType,
+  LeadSource,
   DateRangePreset,
   DateFieldOption,
   LEAD_STATUS_CONFIG,
@@ -523,6 +524,131 @@ function AssignedToDropdown({ value, onChange, projectId, currentUserId, locale 
 }
 
 // ============================================
+// Source Dropdown Component
+// ============================================
+
+const SOURCE_OPTIONS: LeadSource[] = [
+  LeadSource.FACEBOOK_ADS,
+  LeadSource.INSTAGRAM_ADS,
+  LeadSource.TIKTOK_ADS,
+  LeadSource.GOOGLE_ADS,
+  LeadSource.FACEBOOK_ORGANIC,
+  LeadSource.INSTAGRAM_ORGANIC,
+  LeadSource.TIKTOK_ORGANIC,
+  LeadSource.WEBSITE,
+  LeadSource.REFERRAL,
+  LeadSource.SOCIAL_MEDIA,
+  LeadSource.ADVERTISING,
+  LeadSource.EVENT,
+  LeadSource.OTHER,
+];
+
+interface SourceDropdownProps {
+  value: LeadSource | 'all';
+  onChange: (value: LeadSource | 'all') => void;
+}
+
+function SourceIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={cn('w-3.5 h-3.5', className)}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13 10V3L4 14h7v7l9-11h-7z"
+      />
+    </svg>
+  );
+}
+
+function SourceDropdown({ value, onChange }: SourceDropdownProps) {
+  const t = useTranslations('leads');
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const displayLabel = value === 'all' ? t('filters.allSources') : t(`sources.${value}`);
+  const isActive = value !== 'all';
+
+  return (
+    <div ref={dropdownRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium',
+          'transition-all duration-200 ease-out',
+          'border',
+          'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)]',
+          isActive
+            ? 'border-[var(--accent-primary)] text-[var(--accent-text)] bg-[rgba(0,229,255,0.15)] scale-[1.02] shadow-sm'
+            : 'border-transparent bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]'
+        )}
+      >
+        <SourceIcon />
+        <span className="truncate max-w-[140px]">{displayLabel}</span>
+        <ChevronIcon isOpen={isOpen} className="w-3 h-3 flex-shrink-0" />
+      </button>
+
+      {isOpen && (
+        <div
+          className={cn(
+            'absolute top-full left-0 mt-1 z-50',
+            'min-w-[220px] max-h-[320px] overflow-y-auto',
+            'bg-[var(--bg-card)] border border-[var(--border-primary)] rounded-lg shadow-lg',
+            'py-1'
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => { onChange('all'); setIsOpen(false); }}
+            className={cn(
+              'w-full text-left px-3 py-2 text-sm transition-colors',
+              'hover:bg-[var(--bg-hover)]',
+              value === 'all' ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
+            )}
+          >
+            {t('filters.allSources')}
+          </button>
+          <div className="border-t border-[var(--border-primary)] my-1" />
+          {SOURCE_OPTIONS.map((source) => (
+            <button
+              key={source}
+              type="button"
+              onClick={() => { onChange(source); setIsOpen(false); }}
+              className={cn(
+                'w-full text-left px-3 py-2 text-sm transition-colors',
+                'hover:bg-[var(--bg-hover)]',
+                value === source ? 'text-[var(--accent-text)] font-medium' : 'text-[var(--text-primary)]'
+              )}
+            >
+              {t(`sources.${source}`)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
 // Main Component
 // ============================================
 
@@ -625,6 +751,15 @@ export function LeadFilters({
       });
     }
 
+    if (filters.source && filters.source !== 'all') {
+      active.push({
+        key: 'source',
+        label: t('filters.source'),
+        value: t(`sources.${filters.source}`),
+        onRemove: () => onFiltersChange({ ...filters, source: 'all' }),
+      });
+    }
+
     if (filters.archiveFilter && filters.archiveFilter !== 'active') {
       active.push({
         key: 'archiveFilter',
@@ -687,6 +822,7 @@ export function LeadFilters({
       search: '',
       status: 'all',
       temperature: 'all',
+      source: 'all',
       channel: 'all',
       type: 'all',
       dateField: 'createdAt',
@@ -722,6 +858,13 @@ export function LeadFilters({
   const handleTypeChange = useCallback(
     (type: LeadType | 'all') => {
       onFiltersChange({ ...filters, type });
+    },
+    [filters, onFiltersChange]
+  );
+
+  const handleSourceChange = useCallback(
+    (source: LeadSource | 'all') => {
+      onFiltersChange({ ...filters, source });
     },
     [filters, onFiltersChange]
   );
@@ -933,6 +1076,14 @@ export function LeadFilters({
               icon={<LeadTypeIcon type={type} className="w-3.5 h-3.5" />}
             />
           ))}
+        </FilterSection>
+
+        {/* Source Filter */}
+        <FilterSection title={t('filters.source')}>
+          <SourceDropdown
+            value={filters.source || 'all'}
+            onChange={handleSourceChange}
+          />
         </FilterSection>
 
         {/* Archive Filter */}
