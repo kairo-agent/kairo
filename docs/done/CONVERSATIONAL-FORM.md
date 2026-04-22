@@ -1,8 +1,14 @@
 # Formulario Conversacional - Plan de Implementacion
 
-> **Status:** Planificado (no iniciado)
-> **Version objetivo:** v0.17.0
+> **Status:** Implementado (2026-04-01)
+> **Version:** v0.22.0
 > **Fecha de planificacion:** 2026-03-23
+
+**Notas de implementacion:**
+- RLS requirio `auth.uid()::text` cast (Supabase espera text, no uuid por defecto)
+- Varios fixes i18n post-deploy: key `enabledHelp` → `enabledDesc`, ~15 keys faltantes, `LEAD_FIELD_MAPPINGS` labelKeys sin prefijo `settings.` (bug de doble-scope)
+- Toggle race condition resuelta con `loadingForm` state para prevenir async overwrite
+- Ver **[Hallazgos post-implementacion](#hallazgos-post-implementacion)** al final para mejoras no contempladas en el plan original (pre-fill desde Lead profile + confirmacion de nombres de WhatsApp).
 
 ---
 
@@ -513,3 +519,86 @@ formConfig: lead.assignedAgent?.formConfig as FormConfig | null,
 | Modificar | `src/messages/es.json` |
 | Modificar | `src/messages/en.json` |
 | SQL | RLS policy para `lead_form_data` en Supabase |
+
+---
+
+## Hallazgos post-implementacion
+
+Durante implementacion y testing se agregaron mejoras no contempladas en el plan original.
+
+### 1. Pre-fill desde Lead profile (no solo lead_form_data)
+
+**Ubicacion:** [process-ai-response.ts:215-270](../src/lib/ai/process-ai-response.ts#L215-L270) (Step 2c)
+
+El plan original asumia que el `collected` del formulario venia unicamente de `lead_form_data` (datos que el AI ya extrajo en conversaciones previas). En la implementacion real, ademas se pre-rellenan campos con `leadFieldMapping` desde los datos existentes del Lead (`firstName`, `lastName`, `email`, `phone`, `businessName`, `position`, `estimatedValue`).
+
+**Por que:** Si el formulario pide "email" y el lead ya tiene email registrado (por ejemplo desde un form externo previo), no tiene sentido que el agente vuelva a preguntar. Se pre-llena y se considera "ya recopilado".
+
+```typescript
+const [formCollected, leadRecord] = await Promise.all([
+  getLeadFormData(leadId, params.agentId),
+  prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { firstName: true, lastName: true, email: true, phone: true, businessName: true, position: true, estimatedValue: true },
+  }),
+]);
+const collected = { ...formCollected };
+for (const field of params.formConfig.fields) {
+  if (collected[field.key]) continue;                 // AI ya lo recopilo
+  if (!field.leadFieldMapping) continue;              // campo sin mapping
+  const leadVal = leadRecord?.[field.leadFieldMapping];
+  if (leadVal) collected[field.key] = String(leadVal);
+}
+```
+
+### 2. `unconfirmedKeys`: confirmacion de nombres del perfil de WhatsApp
+
+**Ubicacion:** [process-ai-response.ts:241-265](../src/lib/ai/process-ai-response.ts#L241-L265) + [build-system-prompt.ts:128-133](../src/lib/ai/build-system-prompt.ts#L128-L133)
+
+**Problema detectado:** WhatsApp permite al usuario poner **cualquier texto** en su nombre de perfil (nombre de negocio, telefono, apodo, emojis). Si pre-llenamos `firstName` desde ese campo sin confirmar, el agente tratara al lead con un nombre posiblemente incorrecto.
+
+**Solucion:** Cuando un campo mapeado a `firstName` o `lastName` se pre-rellena desde el perfil de WhatsApp, se agrega su `key` a un `Set<string>` llamado `unconfirmedKeys`. El system prompt recibe este set y modifica la lista de "datos ya obtenidos":
+
+```
+Datos ya obtenidos:
+- nombre: Juan Perez (del perfil de WhatsApp - confirma con el lead si es su nombre real)
+- email: juan@example.com
+```
+
+El agente asi sabe que debe confirmar ese valor en la conversacion antes de darlo por bueno. Para otros campos (`email`, `phone`, `businessName`, etc.) NO se flagea: son datos mas confiables.
+
+### 3. Validacion `isValidPersonName` para descartar valores invalidos
+
+**Ubicacion:** [process-ai-response.ts:256](../src/lib/ai/process-ai-response.ts#L256)
+
+Antes de pre-llenar un campo `firstName`/`lastName` desde el perfil de WhatsApp, se valida con `isValidPersonName(strVal)`. Si falla (pure digits, solo simbolos, etc.) se **omite** el pre-fill por completo — el formulario sigue pidiendo ese campo normalmente.
+
+Esto evita casos como `firstName = "+51999888777"` o `firstName = "🔥🔥🔥"`.
+
+### 4. Temperatura en lowercase, no uppercase
+
+**Ubicacion:** [process-ai-response.ts:227](../src/lib/ai/process-ai-response.ts#L227)
+
+El plan FASE 4.2 asumia `['HOT', 'WARM']` para el check de `triggerMode === 'on_interest'`. La implementacion real usa lowercase porque el campo `Lead.temperature` en BD se guarda en minusculas:
+
+```typescript
+shouldInject = ['hot', 'warm'].includes(currentTemp || '');
+```
+
+### 5. `on_interest` consulta temperatura actual desde BD
+
+**Ubicacion:** [process-ai-response.ts:221-228](../src/lib/ai/process-ai-response.ts#L221-L228)
+
+El plan original sugeria usar la temperatura del contexto del pipeline. La implementacion hace un `prisma.lead.findUnique` adicional para leer la temperatura **persistida** — asi se respeta la ultima clasificacion guardada, no la que el pipeline podria estar calculando en el mismo turno.
+
+```typescript
+if (!shouldInject) {
+  const currentLead = await prisma.lead.findUnique({
+    where: { id: leadId },
+    select: { temperature: true },
+  });
+  shouldInject = ['hot', 'warm'].includes(currentLead?.temperature || '');
+}
+```
+
+**Costo:** 1 query Prisma extra (~5ms) solo cuando `triggerMode === 'on_interest'`.

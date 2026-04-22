@@ -34,12 +34,25 @@
 | Documento | Contenido clave |
 |-----------|----------------|
 | [NOTIFICATIONS.md](NOTIFICATIONS.md) | Sistema de notificaciones: tabla, RLS, polling, NotificationDropdown, pg_cron, follow-up badges |
-| [FOLLOW-UP-SCHEDULING.md](FOLLOW-UP-SCHEDULING.md) | Alternativas evaluadas para seguimiento (implementado en v0.7.16) |
 
-### Features
+### Features planificadas (`docs/plans/`)
+
+> Planes NO implementados aun. Al implementar una feature, mover su doc a `docs/done/`.
+
 | Documento | Contenido clave |
 |-----------|----------------|
-| [CONVERSATIONAL-FORM.md](CONVERSATIONAL-FORM.md) | Formulario conversacional por agente, [FORM-DATA:] marker, 4 tabs Settings, lead_form_data table (v0.22.0) |
+| [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) | Plan completo: llamadas agendadas via IA, Jitsi, horarios configurables, anti-doble-booking, recordatorios (v0.24.0 planificado) |
+| [plans/IMPERSONATION.md](plans/IMPERSONATION.md) | Super_admin impersonate users, cookie-based, 6 fases, testing checklist, security model |
+
+### Features realizadas (`docs/done/`)
+
+> Planes ya implementados + sesiones historicas. Se conservan como referencia de decisiones de diseno; la fuente de verdad operativa vive en los docs vivos + el codigo.
+
+| Documento | Contenido clave |
+|-----------|----------------|
+| [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) | Formulario conversacional por agente, [FORM-DATA:] marker, 4 tabs Settings, lead_form_data table + hallazgos post-implementacion (v0.22.0) |
+| [done/FOLLOW-UP-SCHEDULING.md](done/FOLLOW-UP-SCHEDULING.md) | Alternativas evaluadas para seguimiento (implementado en v0.7.16) |
+| [done/RAG-DEBUG-SESSION-2026-02-03.md](done/RAG-DEBUG-SESSION-2026-02-03.md) | Sesion de debug RAG (2026-02-03), hallazgos y fixes historicos |
 
 ### Performance y Operaciones
 | Documento | Contenido clave |
@@ -72,5 +85,7 @@
 | Colores y brand | [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) |
 | Migraciones de BD | [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) |
 | Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |
-| Formulario conversacional | [CONVERSATIONAL-FORM.md](CONVERSATIONAL-FORM.md) |
+| Formulario conversacional | [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) |
 | Avatar upload (usuarios) | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
+| Llamadas agendadas (plan) | [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) |
+| Impersonation super_admin (plan) | [plans/IMPERSONATION.md](plans/IMPERSONATION.md) |
