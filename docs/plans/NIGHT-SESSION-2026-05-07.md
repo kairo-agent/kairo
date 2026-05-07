@@ -19,6 +19,9 @@ Fase 1 multi-canal completa (8 subfases pusheadas y validadas con E&Z).
 ### Pusheados (en producción)
 
 ```
+c3d01d5 chore: drop Project.whatsappPhoneNumber legacy column (Fase 2.4)
+8a71152 feat: tab Canales en ProjectSettingsModal admin (Fase 2.1)
+79026f5 docs: update NIGHT-SESSION with Fase 2.2a + 2.2b commits
 25b8336 feat: sidebar shows channel subitems conditionally (Fase 2.2b)
 872a887 feat: move reengagement tab from AI Settings to /settings/whatsapp (Fase 2.2a)
 4b63573 docs: NIGHT-SESSION-2026-05-07 trazabilidad
@@ -30,11 +33,22 @@ c270ee3 chore: clean n8n references from i18n strings + comments (Fase 1.7b)
 3274df7 chore: remove 5 n8n legacy endpoints (Fase 1.7b cleanup)
 ```
 
-### SQL ya ejecutado por Leo (con autorización)
+### SQL ya ejecutado (autorizado y verificado)
 
-- DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "n8nWebhookUrl";`
-- DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "n8nApiKey";`
+- DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "n8nWebhookUrl";` (Fase 1.7b — Leo)
+- DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "n8nApiKey";` (Fase 1.7b — Leo)
 - DONE: `prisma migrate resolve --applied 20260507_drop_project_n8n_columns`
+- DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "whatsappPhoneNumber";` (Fase 2.4 — yo via prisma db execute)
+- DONE: `prisma migrate resolve --applied 20260507_drop_project_whatsapp_phone_number`
+
+## Fase 2 multi-canal — STATUS
+
+- [x] 2.1 Tab Canales en ProjectSettingsModal admin (super_admin activa/desactiva/elimina)
+- [x] 2.2a Mover reengagement de AI Settings a /settings/whatsapp
+- [x] 2.2b Sidebar render condicional de subitems segun ProjectChannel
+- [x] 2.4 Drop Project.whatsappPhoneNumber (data migrada a ProjectChannel.config)
+- [ ] 2.3 Permisos por rol (parcial — provision/unprovision/delete tienen super_admin gate;
+  setChannelEnabled aun acepta cualquier user autenticado; falta gate owner/admin)
 
 ---
 
