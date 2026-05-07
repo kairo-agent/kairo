@@ -3,9 +3,14 @@
  *
  * Plan multi-canal: docs/plans/MULTI-CHANNEL-IMPL.md Fase 1.4
  *
- * Estado actual (Fase 1.4b1): handler funcional para send(). receive() y
- * validateWebhookSignature() son placeholders — su logica sigue viviendo en
- * src/app/api/webhooks/whatsapp/route.ts. La extraccion completa es Fase 1.4b2.
+ * - send(): delega a sendImageToWhatsApp / sendVideoToWhatsApp / sendTextToWhatsApp
+ *   segun el shape del ChannelMessageOutbound.
+ * - receive(): orquesta el procesamiento del webhook (Fase 1.4b2 — logica
+ *   movida desde route.ts a ./receive).
+ * - validateWebhookSignature(): HMAC con per-project app_secret + global fallback.
+ * - downloadMedia(): NO implementado (la firma generica no encaja con
+ *   downloadAndStoreMedia que necesita conversationId/whatsappMsgId; el flujo
+ *   de download corre dentro de processWhatsAppWebhookPayload via waitUntil).
  */
 
 import type { Lead } from '@prisma/client';
@@ -20,41 +25,49 @@ import {
   sendVideoToWhatsApp,
   sendTextToWhatsApp,
 } from './send';
+import {
+  processWhatsAppWebhookPayload,
+  validateWhatsAppWebhookSignature,
+  type WhatsAppWebhookPayload,
+} from './receive';
 
 export class WhatsAppChannelHandler implements IChannelHandler {
   readonly channel = LeadChannel.whatsapp;
 
   /**
-   * TODO Fase 1.4b2: extraer la logica de
-   * src/app/api/webhooks/whatsapp/route.ts (POST handler + processMessagesChange
-   * + handleIncomingMessage + handleStatusUpdate) a este metodo.
+   * Procesa un payload de webhook de WhatsApp Cloud API ya verificado.
+   * El endpoint /api/webhooks/whatsapp/route.ts es responsable de:
+   *  1. Rate limiting por IP
+   *  2. Leer rawBody y parsear JSON
+   *  3. Validar `payload.object === 'whatsapp_business_account'`
+   *  4. Llamar a validateWebhookSignature() ANTES de invocar receive()
    *
-   * Hasta entonces, el endpoint /api/webhooks/whatsapp/route.ts maneja la
-   * recepcion directamente sin pasar por este handler.
+   * El parametro `_projectId` se ignora porque WhatsApp determina el proyecto
+   * a partir del `phone_number_id` en cada `entry.change.value.metadata`.
+   * Se mantiene en la firma por compatibilidad con la interfaz IChannelHandler
+   * (otros canales como webchat si lo usan).
    */
-  async receive(_projectId: string, _payload: unknown): Promise<void> {
-    throw new Error(
-      '[WhatsAppChannelHandler.receive] Not implemented yet (Fase 1.4b2). ' +
-        'Webhook handler in src/app/api/webhooks/whatsapp/route.ts processes ' +
-        'incoming messages directly until the refactor is complete.'
-    );
+  async receive(_projectId: string, payload: unknown): Promise<void> {
+    if (!isWhatsAppWebhookPayload(payload)) {
+      console.warn('[WhatsAppChannelHandler.receive] Invalid payload shape');
+      return;
+    }
+    await processWhatsAppWebhookPayload(payload);
   }
 
   /**
    * Envia un mensaje saliente al lead via WhatsApp Cloud API.
-   * Delega a las funciones existentes en ./send segun el shape del mensaje.
-   *
    * Mapping de ChannelMessageOutbound a la API:
    * - mediaUrl + mediaType='image' -> sendImageToWhatsApp (caption opcional)
    * - mediaUrl + mediaType='video' -> sendVideoToWhatsApp (caption opcional)
-   * - mediaUrl + mediaType='document' -> NO soportado todavia (returns error)
+   * - mediaUrl + mediaType='document' -> NO soportado todavia
    * - text solo -> sendTextToWhatsApp (fire-and-forget, sin DB record update)
    *
    * Notas:
-   * - WhatsApp espera el numero en formato sin '+' (las funciones helper lo limpian).
+   * - WhatsApp espera el numero sin '+' (las funciones helper lo limpian).
    * - sendToWhatsApp con messageId+DB update sigue disponible para callers que
-   *   necesiten persistir whatsappMsgId/isDelivered en el Message record. Este
-   *   handler NO toca BD; el caller es responsable de la persistencia.
+   *   necesiten persistir whatsappMsgId/isDelivered. Este handler NO toca BD;
+   *   el caller es responsable de la persistencia.
    */
   async send(
     projectId: string,
@@ -67,7 +80,6 @@ export class WhatsAppChannelHandler implements IChannelHandler {
 
     const phone = lead.phone;
 
-    // Media first (con caption opcional, fallback a text si caption no se setea)
     if (message.mediaUrl && message.mediaType) {
       const caption = message.caption ?? message.text;
 
@@ -93,8 +105,6 @@ export class WhatsAppChannelHandler implements IChannelHandler {
       }
     }
 
-    // Text only (fire-and-forget). Caller debe persistir whatsappMsgId si lo necesita,
-    // usando sendToWhatsApp directamente o adaptando este handler en el futuro.
     if (message.text) {
       const result = await sendTextToWhatsApp(projectId, phone, message.text);
       return result.success
@@ -105,16 +115,21 @@ export class WhatsAppChannelHandler implements IChannelHandler {
     return { success: false, error: 'Empty message: neither text nor media provided' };
   }
 
-  // downloadMedia: NO implementado en este handler porque la firma de la
-  // interfaz (mediaId solo) no encaja con downloadAndStoreMedia que necesita
-  // conversationId + whatsappMsgId + mimeType + messageType para persistir
-  // en BD y disparar Whisper. El webhook llama directamente a
-  // downloadAndStoreMedia desde ./download-media. Si en el futuro un caller
-  // generico necesita descargar media de WhatsApp, agregamos un metodo aqui.
+  /**
+   * Valida la firma HMAC del webhook (X-Hub-Signature-256).
+   * Logica delegada a ./receive: per-project app_secret first, fallback a
+   * WHATSAPP_APP_SECRET global solo si no hay per-project secret configurado.
+   */
+  async validateWebhookSignature(rawBody: string, headers: Headers): Promise<boolean> {
+    return validateWhatsAppWebhookSignature(rawBody, headers);
+  }
+}
 
-  // validateWebhookSignature: NO implementado en 1.4b1. La logica HMAC con
-  // per-project secret + global fallback vive en route.ts y se mueve aqui en
-  // Fase 1.4b2 cuando extraigamos la logica de receive().
+// Type guard for incoming payload
+function isWhatsAppWebhookPayload(payload: unknown): payload is WhatsAppWebhookPayload {
+  if (typeof payload !== 'object' || payload === null) return false;
+  const p = payload as Record<string, unknown>;
+  return p.object === 'whatsapp_business_account' && Array.isArray(p.entry);
 }
 
 /**
