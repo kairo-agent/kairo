@@ -942,6 +942,23 @@ async function processMessagesChange(value: WhatsAppValue, _businessAccountId: s
     return;
   }
 
+  // Fase 1.8: validar que el canal whatsapp esta provisioned + enabled
+  // para este proyecto. Si super_admin desactivo o nunca provisiono, skip.
+  // (Defensive — el pre-check confirmo que todos los proyectos activos
+  // tienen ProjectChannel OK al momento del rollout.)
+  const projectChannel = await prisma.projectChannel.findUnique({
+    where: { projectId_channel: { projectId: project.id, channel: 'whatsapp' } },
+    select: { provisioned: true, enabled: true },
+  });
+
+  if (!projectChannel?.provisioned || !projectChannel?.enabled) {
+    console.warn(
+      `[WhatsApp] Channel not available for project ${project.id.slice(0, 8)}... ` +
+      `(provisioned=${projectChannel?.provisioned ?? 'null'}, enabled=${projectChannel?.enabled ?? 'null'}) — skipping`
+    );
+    return;
+  }
+
   if (messages && contacts) {
     for (const message of messages) {
       const contact = contacts.find((c) => c.wa_id === message.from);
