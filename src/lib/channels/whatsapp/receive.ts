@@ -475,8 +475,12 @@ async function handleIncomingMessage(
   }
 
   // Find or create lead
+  // Fase 1.7: lookup canal-agnostico via (projectId, channel, externalId).
+  // Activa el indice compuesto leads_projectId_channel_externalId_idx.
+  // El dual-write (Fase 1.5) + backfill SQL (Fase 1.6) garantizan que
+  // todos los leads WhatsApp tienen externalId === whatsappId.
   let lead = await prisma.lead.findFirst({
-    where: { projectId, whatsappId },
+    where: { projectId, channel: LeadChannel.whatsapp, externalId: whatsappId },
     select: {
       id: true,
       firstName: true,
