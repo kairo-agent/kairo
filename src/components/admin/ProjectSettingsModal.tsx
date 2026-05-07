@@ -41,7 +41,6 @@ interface Project {
   id: string;
   name: string;
   slug: string;
-  whatsappPhoneNumber?: string | null;
 }
 
 interface ProjectSettingsModalProps {

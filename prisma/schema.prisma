@@ -55,7 +55,6 @@ model Project {
   isActive            Boolean         @default(true)
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
-  whatsappPhoneNumber  String?
   leadVisibilityMode   String          @default("all_leads") // all_leads | assigned_and_unassigned | only_assigned
   leadAutoAssignment   Json?           // { enabled, members: [{ userId, percentage }] }
   aiAgents             AIAgent[]
