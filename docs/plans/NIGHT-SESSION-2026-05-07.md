@@ -41,14 +41,13 @@ c270ee3 chore: clean n8n references from i18n strings + comments (Fase 1.7b)
 - DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "whatsappPhoneNumber";` (Fase 2.4 — yo via prisma db execute)
 - DONE: `prisma migrate resolve --applied 20260507_drop_project_whatsapp_phone_number`
 
-## Fase 2 multi-canal — STATUS
+## Fase 2 multi-canal — STATUS COMPLETO
 
 - [x] 2.1 Tab Canales en ProjectSettingsModal admin (super_admin activa/desactiva/elimina)
 - [x] 2.2a Mover reengagement de AI Settings a /settings/whatsapp
 - [x] 2.2b Sidebar render condicional de subitems segun ProjectChannel
+- [x] 2.3 RBAC: setChannelEnabled ahora requiere effectiveRole >= admin (commit f064dc8)
 - [x] 2.4 Drop Project.whatsappPhoneNumber (data migrada a ProjectChannel.config)
-- [ ] 2.3 Permisos por rol (parcial — provision/unprovision/delete tienen super_admin gate;
-  setChannelEnabled aun acepta cualquier user autenticado; falta gate owner/admin)
 
 ---
 
