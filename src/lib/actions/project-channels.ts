@@ -67,6 +67,33 @@ export async function getProjectChannelInfo(
 }
 
 /**
+ * Lista compacta de canales provisionados para un proyecto.
+ * Usado por el Sidebar para mostrar subitems condicionalmente.
+ *
+ * Retorna solo canales con `provisioned=true` (no importa `enabled`, porque
+ * incluso si owner ocultó el widget, el subitem en sidebar debe permanecer
+ * para que pueda volver a activarlo).
+ */
+export async function getProvisionedChannels(
+  projectId: string
+): Promise<{ success: true; channels: LeadChannel[] } | { success: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) {
+    return { success: false, error: 'No autorizado' };
+  }
+
+  const rows = await prisma.projectChannel.findMany({
+    where: { projectId, provisioned: true },
+    select: { channel: true },
+  });
+
+  return {
+    success: true,
+    channels: rows.map((r) => r.channel),
+  };
+}
+
+/**
  * Toggle "Mostrar / Ocultar" del canal (solo aplica a webchat por ahora).
  * Cambia `ProjectChannel.enabled`. NO toca `provisioned` (control super_admin).
  *

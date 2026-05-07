@@ -24,6 +24,8 @@ export const routing = defineRouting({
     '/reports': '/reports',
     '/settings': '/settings',
     '/settings/team': '/settings/team',
+    '/settings/whatsapp': '/settings/whatsapp',
+    '/settings/webchat': '/settings/webchat',
     '/profile': '/profile',
     '/terms': '/terms',
     '/privacy': '/privacy',
