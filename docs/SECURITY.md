@@ -129,43 +129,15 @@ try {
 ### 4. Timing Attack Prevention
 
 **APIs con timingSafeEqual:**
-- `/api/ai/respond` - Header X-N8N-Secret
-- `/api/rag/search` - Header X-N8N-Secret
-- `/api/messages/confirm` - Header X-N8N-Secret (legacy)
-
-**Implementación:**
-```typescript
-import { timingSafeEqual } from 'crypto';
-
-const expectedSecret = process.env.N8N_CALLBACK_SECRET;
-const providedSecret = req.headers.get('X-N8N-Secret');
-
-if (!timingSafeEqual(
-  Buffer.from(expectedSecret, 'utf8'),
-  Buffer.from(providedSecret, 'utf8')
-)) {
-  return unauthorized();
-}
-```
+- `/api/webhooks/whatsapp` - HMAC SHA256 con per-project app_secret + global fallback (ver `validateWhatsAppWebhookSignature` en `src/lib/channels/whatsapp/receive.ts`)
 
 ### 5. Fail-Closed Patterns
 
 **Regla:** Si una variable de entorno crítica no está configurada en producción, **rechazar el request** (no fallback inseguro).
 
 **Implementado en:**
-- `/api/ai/respond` - Falla si N8N_CALLBACK_SECRET no configurado
-- `/api/rag/search` - Falla si N8N_CALLBACK_SECRET no configurado
 - `/api/webhooks/whatsapp` - Usa App Secret per-project si configurado, fallback a global `WHATSAPP_APP_SECRET`. Si proyecto tiene per-project secret, NO fallback a global (previene bypass)
-
-**Bypass solo en desarrollo:**
-```typescript
-if (process.env.NODE_ENV === 'production' && !process.env.N8N_CALLBACK_SECRET) {
-  return NextResponse.json(
-    { success: false, error: 'Server misconfigured' },
-    { status: 500 }
-  );
-}
-```
+- `/api/cron/*` - Falla si CRON_SECRET no configurado
 
 ### 6. Per-Project HMAC Verification (v0.8.2)
 
@@ -310,10 +282,6 @@ RLS habilitado y policies creadas para las 16 tablas del proyecto. Critico para 
 # === Secrets Encriptados ===
 SECRETS_ENCRYPTION_KEY=<64_hex_chars_32_bytes>
 # Generar: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-
-# === n8n Callbacks ===
-N8N_CALLBACK_SECRET=<shared_secret_con_n8n>
-# Mínimo 32 caracteres, alfanumérico + símbolos
 
 # === WhatsApp Webhook Verification ===
 WHATSAPP_WEBHOOK_VERIFY_TOKEN=<verify_token_de_meta>
