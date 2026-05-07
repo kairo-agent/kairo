@@ -219,7 +219,6 @@ export async function updateProject(id: string, data: {
   logoUrl?: string;
   isActive?: boolean;
   plan?: 'free' | 'starter' | 'professional' | 'enterprise';
-  n8nWebhookUrl?: string | null;
 }) {
   if (!await verifySuperAdmin()) {
     return { error: 'No autorizado' };
@@ -235,7 +234,6 @@ export async function updateProject(id: string, data: {
         logoUrl: data.logoUrl,
         isActive: data.isActive,
         plan: data.plan,
-        n8nWebhookUrl: data.n8nWebhookUrl,
       },
     });
 
