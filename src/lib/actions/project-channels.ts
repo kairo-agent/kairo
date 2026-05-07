@@ -3,17 +3,23 @@
 /**
  * Server actions para ProjectChannel — Fase 2.
  *
- * - getProjectChannelInfo: lectura del estado del canal (cualquier rol del proyecto).
- * - setChannelEnabled: cambia `enabled` (toggle "Mostrar/Ocultar" para owner/admin
- *   en webchat). En whatsapp este toggle no existe (decision #18 del plan).
+ * Lectura/Toggle (cualquier rol del proyecto):
+ * - getProjectChannelInfo: lectura del estado del canal.
+ * - getProvisionedChannels: lista compacta para Sidebar.
+ * - setChannelEnabled: toggle "Mostrar/Ocultar" para owner/admin en webchat.
  *
- * Acciones de super_admin (provisionProjectChannel, unprovisionProjectChannel,
- * deleteProjectChannel) se agregaran cuando se extienda ProjectSettingsModal.
+ * Provisioning (super_admin only — decision #15, #16):
+ * - provisionProjectChannel: crear/reactivar fila (provisioned=true, enabled=true).
+ *   Auto-genera publicKey si channel='webchat'.
+ * - unprovisionProjectChannel: pausa (provisioned=false, conserva config).
+ * - deleteProjectChannel: hard delete de la fila (decision #23, leads no se tocan).
  */
 
 import { prisma } from '@/lib/prisma';
 import type { LeadChannel } from '@prisma/client';
+import { randomUUID } from 'crypto';
 import { getCurrentUser } from '@/lib/auth-helpers';
+import { verifySuperAdmin } from '@/lib/auth-helpers';
 import { revalidatePath } from 'next/cache';
 import type { ProjectChannelInfo } from '@/lib/types/project-channel';
 
@@ -127,5 +133,109 @@ export async function setChannelEnabled(
   } catch (error) {
     console.error('[setChannelEnabled] Error:', error);
     return { success: false, error: 'Error al actualizar el canal' };
+  }
+}
+
+/**
+ * super_admin: provisiona el canal para un proyecto.
+ * Si la fila no existe, la crea con provisioned=true, enabled=true.
+ * Si existe (estaba unprovisioned), la reactiva preservando config.
+ * Para webchat, genera publicKey si no tiene.
+ */
+export async function provisionProjectChannel(
+  projectId: string,
+  channel: LeadChannel
+): Promise<{ success: true; publicKey: string | null } | { success: false; error: string }> {
+  if (!(await verifySuperAdmin()).isAdmin) {
+    return { success: false, error: 'Solo super_admin puede provisionar canales' };
+  }
+
+  try {
+    const existing = await prisma.projectChannel.findUnique({
+      where: { projectId_channel: { projectId, channel } },
+      select: { publicKey: true },
+    });
+
+    // Generar publicKey solo para webchat y si no existe
+    const needsPublicKey = channel === 'webchat' && !existing?.publicKey;
+    const publicKey = needsPublicKey ? randomUUID().replace(/-/g, '').substring(0, 24) : (existing?.publicKey ?? null);
+
+    await prisma.projectChannel.upsert({
+      where: { projectId_channel: { projectId, channel } },
+      create: {
+        projectId,
+        channel,
+        provisioned: true,
+        enabled: true,
+        publicKey,
+        config: {},
+      },
+      update: {
+        provisioned: true,
+        enabled: true,
+        ...(needsPublicKey ? { publicKey } : {}),
+      },
+    });
+
+    revalidatePath('/admin');
+    revalidatePath('/settings');
+    return { success: true, publicKey };
+  } catch (error) {
+    console.error('[provisionProjectChannel] Error:', error);
+    return { success: false, error: 'Error al provisionar el canal' };
+  }
+}
+
+/**
+ * super_admin: pausa el canal (provisioned=false). Preserva config para reactivar.
+ * El subitem desaparece del sidebar del owner.
+ */
+export async function unprovisionProjectChannel(
+  projectId: string,
+  channel: LeadChannel
+): Promise<{ success: true } | { success: false; error: string }> {
+  if (!(await verifySuperAdmin()).isAdmin) {
+    return { success: false, error: 'Solo super_admin puede pausar canales' };
+  }
+
+  try {
+    await prisma.projectChannel.update({
+      where: { projectId_channel: { projectId, channel } },
+      data: { provisioned: false },
+    });
+
+    revalidatePath('/admin');
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (error) {
+    console.error('[unprovisionProjectChannel] Error:', error);
+    return { success: false, error: 'Error al pausar el canal' };
+  }
+}
+
+/**
+ * super_admin: elimina por completo la fila ProjectChannel (decision #23).
+ * Leads/Conversations/Messages NO se tocan (data del proyecto persiste).
+ * Si super_admin reactiva el canal despues, se genera nueva publicKey.
+ */
+export async function deleteProjectChannel(
+  projectId: string,
+  channel: LeadChannel
+): Promise<{ success: true } | { success: false; error: string }> {
+  if (!(await verifySuperAdmin()).isAdmin) {
+    return { success: false, error: 'Solo super_admin puede eliminar canales' };
+  }
+
+  try {
+    await prisma.projectChannel.delete({
+      where: { projectId_channel: { projectId, channel } },
+    });
+
+    revalidatePath('/admin');
+    revalidatePath('/settings');
+    return { success: true };
+  } catch (error) {
+    console.error('[deleteProjectChannel] Error:', error);
+    return { success: false, error: 'Error al eliminar el canal' };
   }
 }
