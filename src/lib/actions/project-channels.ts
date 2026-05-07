@@ -20,6 +20,8 @@ import type { LeadChannel } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { getCurrentUser } from '@/lib/auth-helpers';
 import { verifySuperAdmin } from '@/lib/auth-helpers';
+import { verifyAuth, getProjectRole } from '@/lib/actions/auth';
+import { getEffectiveRole } from '@/lib/permissions';
 import { revalidatePath } from 'next/cache';
 import type { ProjectChannelInfo } from '@/lib/types/project-channel';
 
@@ -111,15 +113,24 @@ export async function setChannelEnabled(
   channel: LeadChannel,
   enabled: boolean
 ): Promise<{ success: true } | { success: false; error: string }> {
-  const user = await getCurrentUser();
-  if (!user) {
-    return { success: false, error: 'No autorizado' };
-  }
+  // Fase 2.3: gate owner/admin/super_admin (decision #16/#17/permisos).
+  // El toggle "Mostrar/Ocultar" es accion del owner del proyecto, no de cualquier
+  // miembro autenticado. Uses el mismo patron que team-settings.ts.
+  const user = await verifyAuth();
+  if (!user) return { success: false, error: 'No autorizado' };
 
-  // TODO Fase 2.3: chequear permisos owner/admin del proyecto via permissions.ts.
-  // Por ahora, RLS solo valida lectura; este action corre con prisma client server-side
-  // que bypassa RLS, asi que cualquier usuario autenticado podria llamarlo. Restringir
-  // antes de exponer en UI.
+  const roleInfo = await getProjectRole(user.id, user.systemRole, projectId);
+  if (!roleInfo.hasAccess) return { success: false, error: 'Sin acceso al proyecto' };
+
+  const effectiveRole = getEffectiveRole(
+    user.systemRole,
+    roleInfo.isOrgOwner ?? false,
+    roleInfo.projectRole
+  );
+
+  if (effectiveRole !== 'super_admin' && effectiveRole !== 'owner' && effectiveRole !== 'admin') {
+    return { success: false, error: 'Permisos insuficientes' };
+  }
 
   try {
     await prisma.projectChannel.update({
