@@ -41,6 +41,9 @@
 
 | Documento | Contenido clave |
 |-----------|----------------|
+| [plans/MULTI-CHANNEL-WEBCHAT.md](plans/MULTI-CHANNEL-WEBCHAT.md) | Decisiones + arquitectura del refactor multi-canal + WebChat (23 decisiones, sidebar final, ProjectChannel con `provisioned`+`enabled`). v0.24.0+v0.25.0 |
+| [plans/MULTI-CHANNEL-IMPL.md](plans/MULTI-CHANNEL-IMPL.md) | Implementacion tecnica del plan multi-canal por fase (1-5): SQL, schema, endpoints, componentes, validacion |
+| [plans/COMPLIANCE-GDPR.md](plans/COMPLIANCE-GDPR.md) | Plan futuro de borrado de datos del cliente (GDPR/CCPA/Ley 29733). Fuera de scope multi-canal. Sin priorizar |
 | [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) | Plan completo: llamadas agendadas via IA, Jitsi, horarios configurables, anti-doble-booking, recordatorios (v0.24.0 planificado) |
 | [plans/IMPERSONATION.md](plans/IMPERSONATION.md) | Super_admin impersonate users, cookie-based, 6 fases, testing checklist, security model |
 
@@ -87,5 +90,6 @@
 | Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |
 | Formulario conversacional | [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) |
 | Avatar upload (usuarios) | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
+| Multi-canal + WebChat (plan) | [plans/MULTI-CHANNEL-WEBCHAT.md](plans/MULTI-CHANNEL-WEBCHAT.md) |
 | Llamadas agendadas (plan) | [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) |
 | Impersonation super_admin (plan) | [plans/IMPERSONATION.md](plans/IMPERSONATION.md) |

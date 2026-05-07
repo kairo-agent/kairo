@@ -152,7 +152,7 @@ npm run lint     # Verificar codigo
 
 **Completado:** Stack multi-tenant completo (Auth + RBAC org/proyecto, multi-locale es/en, OWASP audits, RLS). AI pipeline interno (RAG, handoff, reengagement, form conversacional, anti-prompt-injection). WhatsApp bidireccional (incoming + outgoing media, Whisper, Vision, 24h timer, sticker). Dashboard + Leads (10 statuses, filtros incluyendo **Origen dinamico v0.23.1**, temperatura, asignado a, descartar/recuperar, Excel export). Team Settings (visibility + auto-assignment). Notificaciones 3 canales (bell + email + push). Cron jobs pg_cron. PWA. Historico detallado en [CHANGELOG.md](docs/CHANGELOG.md).
 
-**Pendiente:** Crear lead, paginas de reportes/agents. Meta Ads integration (plan conceptual en memoria global, sin doc aun). **Scheduled Calls v0.24.0** (plan en [plans/SCHEDULED-CALLS.md](docs/plans/SCHEDULED-CALLS.md)). Ver tambien [plans/IMPERSONATION.md](docs/plans/IMPERSONATION.md).
+**Pendiente:** Crear lead, paginas de reportes/agents. Meta Ads integration (plan conceptual en memoria global, sin doc aun). **Multi-Canal + WebChat v0.24.0/v0.25.0** (plan en [plans/MULTI-CHANNEL-WEBCHAT.md](docs/plans/MULTI-CHANNEL-WEBCHAT.md)). **Scheduled Calls v0.24.0** (plan en [plans/SCHEDULED-CALLS.md](docs/plans/SCHEDULED-CALLS.md)). Ver tambien [plans/IMPERSONATION.md](docs/plans/IMPERSONATION.md).
 
 **Perf completo:** Todas las optimizaciones implementadas. Ver [CHANGELOG.md](docs/CHANGELOG.md).
 
