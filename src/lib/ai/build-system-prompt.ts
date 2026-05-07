@@ -1,13 +1,13 @@
 /**
  * KAIRO - System Prompt Builder
  *
- * Replicates the system prompt that was previously assembled in n8n.
- * Combines: agent identity, systemInstructions, RAG knowledge,
- * conversation history, lead summary, and date/time context.
+ * Ensambla el system prompt para el LLM combinando: agent identity,
+ * systemInstructions, RAG knowledge, conversation history, lead summary,
+ * y date/time context.
  *
  * Security: Includes anti-prompt-injection delimiters and preamble.
  *
- * @see docs/RAG-AGENTS.md section "System Prompt n8n (Actualizado)"
+ * @see docs/RAG-AGENTS.md section "System Prompt"
  */
 
 // ============================================

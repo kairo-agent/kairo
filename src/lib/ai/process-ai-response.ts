@@ -1,8 +1,8 @@
 /**
  * KAIRO - Internal AI Pipeline
  *
- * Replaces n8n workflow: processes incoming lead messages with RAG + OpenAI
- * and sends responses via WhatsApp. Runs entirely within KAIRO (no external orchestrator).
+ * Procesa mensajes entrantes de leads con RAG + OpenAI y envia respuestas
+ * via WhatsApp. Todo corre dentro de KAIRO (sin orquestador externo).
  *
  * Pipeline: Audio Transcription (if needed) → RAG Search → OpenAI Chat → Save + Send
  *
@@ -397,9 +397,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     // --- Step 6: Generate summary if threshold met ---
     let suggestedSummary: string | null = null;
     if (params.messageCount >= params.summaryThreshold) {
-      // Include instruction in the same response to avoid extra API call
-      // The summary generation was previously done by n8n as a separate step
-      // Now we generate it with a quick dedicated call only when needed
+      // Quick dedicated call to generate the summary only when needed
       const summaryStart = Date.now();
       // Build form status for form-aware summaries
       const formStatus = params.formConfig?.isActive ? {
@@ -702,8 +700,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 }
 
 // ============================================
-// Internal Helper: Audio Transcription
-// Extracted from /api/audio/transcribe logic
+// Internal Helper: Audio Transcription (Whisper)
 // ============================================
 
 async function transcribeAudio(
@@ -886,8 +883,7 @@ function buildRAGQuery(
 }
 
 // ============================================
-// Internal Helper: RAG Search
-// Extracted from /api/rag/search logic
+// Internal Helper: RAG Search (pgvector + OpenAI embeddings)
 // ============================================
 
 async function searchRAG(

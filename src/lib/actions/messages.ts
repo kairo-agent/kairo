@@ -275,7 +275,7 @@ export async function getLeadProjectId(
 }
 
 // ============================================
-// SEND MESSAGE (Human → Lead via n8n)
+// SEND MESSAGE (Asesor humano → Lead via WhatsApp Cloud API)
 // ============================================
 
 export async function sendMessage(
@@ -352,7 +352,7 @@ export async function sendMessage(
       },
     });
 
-    // Send directly via WhatsApp Cloud API (no n8n dependency)
+    // Send directly via WhatsApp Cloud API
     if (lead.whatsappId) {
       try {
         const [accessToken, phoneNumberId] = await Promise.all([
