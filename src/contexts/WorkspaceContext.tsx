@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 
 // Types for organization and project selection
 export interface WorkspaceOrganization {
@@ -35,6 +35,14 @@ interface WorkspaceContextType {
   // Loading state
   isLoading: boolean;
   setIsLoading: (loading: boolean) => void;
+
+  /**
+   * `true` cuando el provider ya monto en cliente y leyo localStorage.
+   * Componentes que ramifican entre empty-state y contenido segun
+   * `selectedProject` deben esperar `mounted` para evitar mostrar el
+   * empty-state durante el flash inicial post-hidratacion.
+   */
+  mounted: boolean;
 }
 
 const WorkspaceContext = createContext<WorkspaceContextType | undefined>(undefined);
@@ -69,15 +77,22 @@ export function WorkspaceProvider({
   initialOrganizations = [],
   initialProjects = [],
 }: WorkspaceProviderProps) {
-  const storedRef = useRef<{ org: WorkspaceOrganization | null; project: WorkspaceProject | null } | null>(null);
-  if (storedRef.current === null) {
-    storedRef.current = typeof window === 'undefined' ? { org: null, project: null } : readStoredWorkspace();
-  }
-  const [selectedOrganization, setSelectedOrganizationState] = useState<WorkspaceOrganization | null>(storedRef.current.org);
-  const [selectedProject, setSelectedProjectState] = useState<WorkspaceProject | null>(storedRef.current.project);
+  // Server y primer render cliente arrancan en null para evitar hydration mismatch.
+  // Lectura de localStorage diferida a useEffect post-mount.
+  const [selectedOrganization, setSelectedOrganizationState] = useState<WorkspaceOrganization | null>(null);
+  const [selectedProject, setSelectedProjectState] = useState<WorkspaceProject | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [organizations, setOrganizations] = useState<WorkspaceOrganization[]>(initialOrganizations);
   const [projects, setProjects] = useState<WorkspaceProject[]>(initialProjects);
   const [isLoading, setIsLoading] = useState(initialOrganizations.length === 0);
+
+  // Mount: lee localStorage y aplica si existe valor guardado
+  useEffect(() => {
+    const stored = readStoredWorkspace();
+    if (stored.org) setSelectedOrganizationState(stored.org);
+    if (stored.project) setSelectedProjectState(stored.project);
+    setMounted(true);
+  }, []);
 
   const setSelectedOrganization = useCallback((org: WorkspaceOrganization | null) => {
     setSelectedOrganizationState(org);
@@ -115,6 +130,7 @@ export function WorkspaceProvider({
     setProjects,
     isLoading,
     setIsLoading,
+    mounted,
   };
 
   return (

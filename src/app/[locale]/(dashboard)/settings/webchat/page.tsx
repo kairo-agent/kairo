@@ -16,7 +16,7 @@ import type { ProjectChannelInfo } from '@/lib/types/project-channel';
  * code, preview) se construye en Fase 3 cuando habilitemos el widget MVP.
  */
 export default function WebChatSettingsPage() {
-  const { selectedProject } = useWorkspace();
+  const { selectedProject, mounted } = useWorkspace();
   const [info, setInfo] = useState<ProjectChannelInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,6 +56,16 @@ export default function WebChatSettingsPage() {
     setSaving(false);
     setTimeout(() => setToast(null), 3000);
   }, [selectedProject?.id, info, saving]);
+
+  // Pre-mount: evitar mostrar empty state durante flash inicial (selectedProject
+  // se popula post-mount desde localStorage; ver WorkspaceContext.mounted).
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="w-6 h-6 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!selectedProject) {
     return (
