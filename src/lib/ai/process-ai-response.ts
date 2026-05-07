@@ -19,7 +19,7 @@ import { buildSystemPrompt, SystemPromptParams } from './build-system-prompt';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import type { FormConfig } from '@/lib/types/form-template';
 import { getLeadFormData, bulkUpdateLeadFormFields } from '@/lib/actions/lead-form-data';
-import { sendToWhatsApp, sendTextToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
+import { sendToWhatsApp, sendTextToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/channels/whatsapp/send';
 import { getEffectiveTimezone } from '@/lib/timezone';
 import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';

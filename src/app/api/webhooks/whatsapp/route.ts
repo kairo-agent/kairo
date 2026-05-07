@@ -27,7 +27,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { getRedis } from '@/lib/redis';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { processAIResponse } from '@/lib/ai/process-ai-response';
-import { downloadAndStoreMedia } from '@/lib/whatsapp/download-media';
+import { downloadAndStoreMedia } from '@/lib/channels/whatsapp/download-media';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
 import type { PromptStructure } from '@/lib/knowledge/prompt-builder';

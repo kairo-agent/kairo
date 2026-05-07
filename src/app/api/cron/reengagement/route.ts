@@ -17,7 +17,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getProjectSecret } from '@/lib/actions/secrets';
 import { generateReEngagementMessage } from '@/lib/ai/generate-reengagement';
-import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/whatsapp/send';
+import { sendToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/channels/whatsapp/send';
 import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from '@/lib/ai/search-media';
 import type { MediaSearchResult, FixedEventMedia } from '@/lib/types/agent-media';
 import type { FixedEventType } from '@/lib/types/agent-media';
