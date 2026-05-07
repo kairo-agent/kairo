@@ -149,6 +149,9 @@ model Lead {
   handoffAt       DateTime?
   handoffUserId   String?
   whatsappId      String?
+  // Multi-channel: identifier agnostic to channel (wa_id, visitorId, psid, etc.)
+  // Dual-written with whatsappId during migration (v0.24.0). whatsappId removed in v0.26+
+  externalId      String?
   activities      Activity[]
   conversation    Conversation?
   assignedAgent   AIAgent?        @relation(fields: [assignedAgentId], references: [id])
@@ -171,6 +174,8 @@ model Lead {
   @@index([projectId, temperature])
   // PERFORMANCE (P2-7): Webhook lead lookup by project + whatsappId
   @@index([projectId, whatsappId])
+  // Multi-channel webhook lookup: project + channel + externalId (v0.24.0)
+  @@index([projectId, channel, externalId])
   // Archive filtering: quickly find non-archived leads per project
   @@index([projectId, archivedAt])
   @@map("leads")
