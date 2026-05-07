@@ -14,17 +14,27 @@
 Fase 1 multi-canal completa (8 subfases pusheadas y validadas con E&Z).
 Último commit en origin/main: `660d229` (Fase 1.8 — registry + ProjectChannel validation).
 
-## Resumen de commits hechos en local (sin push)
+## Resumen de commits
+
+### Pusheados (en producción)
 
 ```
+25b8336 feat: sidebar shows channel subitems conditionally (Fase 2.2b)
+872a887 feat: move reengagement tab from AI Settings to /settings/whatsapp (Fase 2.2a)
+4b63573 docs: NIGHT-SESSION-2026-05-07 trazabilidad
 8837540 feat: scaffold /settings/whatsapp + /settings/webchat routes (Fase 2 inicio)
 e4534cc docs: drop n8n references from SECURITY.md (Fase 1.7b)
 f127192 chore: schema drops n8n columns + migration ready (Fase 1.7b)
 c270ee3 chore: clean n8n references from i18n strings + comments (Fase 1.7b)
 9543d02 chore: remove n8n webhook UI from admin modal (Fase 1.7b cleanup)
 3274df7 chore: remove 5 n8n legacy endpoints (Fase 1.7b cleanup)
-[origin/main: 660d229]
 ```
+
+### SQL ya ejecutado por Leo (con autorización)
+
+- DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "n8nWebhookUrl";`
+- DONE: `ALTER TABLE "projects" DROP COLUMN IF EXISTS "n8nApiKey";`
+- DONE: `prisma migrate resolve --applied 20260507_drop_project_n8n_columns`
 
 ---
 
