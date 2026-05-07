@@ -483,6 +483,7 @@ async function handleIncomingMessage(
       lastName: true,
       phone: true,
       whatsappId: true,
+      externalId: true,
       summary: true,
       handoffMode: true,
       archivedAt: true,
@@ -517,6 +518,7 @@ async function handleIncomingMessage(
         lastName,
         phone: `+${whatsappId}`,
         whatsappId,
+        externalId: whatsappId, // Fase 1.5: dual-write whatsappId -> externalId
         channel: LeadChannel.whatsapp,
         source: detectedSource,
         type: LeadType.ai_agent,
@@ -545,6 +547,7 @@ async function handleIncomingMessage(
         lastName: true,
         phone: true,
         whatsappId: true,
+        externalId: true,
         summary: true,
         handoffMode: true,
         archivedAt: true,
@@ -608,12 +611,15 @@ async function handleIncomingMessage(
         orderBy: { createdAt: 'asc' },
       });
 
+      // Fase 1.5: backfill externalId on read si todavia es null
+      const externalIdBackfill = lead.externalId ? {} : { externalId: whatsappId };
+
       if (defaultAgent) {
         await Promise.all([
           messageCreatePromise,
           prisma.lead.update({
             where: { id: lead.id },
-            data: { lastContactAt: new Date(), assignedAgentId: defaultAgent.id },
+            data: { lastContactAt: new Date(), assignedAgentId: defaultAgent.id, ...externalIdBackfill },
           }),
         ]);
         lead.assignedAgent = defaultAgent;
@@ -623,11 +629,14 @@ async function handleIncomingMessage(
           messageCreatePromise,
           prisma.lead.update({
             where: { id: lead.id },
-            data: { lastContactAt: new Date() },
+            data: { lastContactAt: new Date(), ...externalIdBackfill },
           }),
         ]);
       }
     } else {
+      // Fase 1.5: backfill externalId on read si todavia es null
+      const externalIdBackfill = lead.externalId ? {} : { externalId: whatsappId };
+
       await Promise.all([
         prisma.message.create({
           data: {
@@ -640,7 +649,7 @@ async function handleIncomingMessage(
         }),
         prisma.lead.update({
           where: { id: lead.id },
-          data: { lastContactAt: new Date() },
+          data: { lastContactAt: new Date(), ...externalIdBackfill },
         }),
       ]);
     }
