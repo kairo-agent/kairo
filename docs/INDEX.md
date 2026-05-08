@@ -41,7 +41,6 @@
 
 | Documento | Contenido clave |
 |-----------|----------------|
-| [plans/MULTI-CHANNEL-FASE4.md](plans/MULTI-CHANNEL-FASE4.md) | **NUEVO** Realtime via Supabase WebSocket + handoff humano webchat + media upload Vision/Whisper. v0.26.0 (post v0.25.0) |
 | [plans/LEADS-UNICOS.md](plans/LEADS-UNICOS.md) | **NUEVO** Vista CRM "Leads Unicos" con merge lazy por email/telefono. NUEVA tabla `unique_leads` (NO renombrar `leads`). v0.27+ |
 | [plans/COMPLIANCE-GDPR.md](plans/COMPLIANCE-GDPR.md) | Plan futuro de borrado de datos del cliente (GDPR/CCPA/Ley 29733). Fuera de scope multi-canal. Sin priorizar |
 | [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) | Plan completo: llamadas agendadas via IA, Jitsi, horarios configurables, anti-doble-booking, recordatorios |
@@ -58,6 +57,7 @@
 | [done/RAG-DEBUG-SESSION-2026-02-03.md](done/RAG-DEBUG-SESSION-2026-02-03.md) | Sesion de debug RAG (2026-02-03), hallazgos y fixes historicos |
 | [done/MULTI-CHANNEL-WEBCHAT-V0.25.md](done/MULTI-CHANNEL-WEBCHAT-V0.25.md) | Decisiones + arquitectura del multi-canal v0.24+v0.25 (23 decisiones cerradas con Leo) — fuente historica |
 | [done/MULTI-CHANNEL-IMPL-V0.25.md](done/MULTI-CHANNEL-IMPL-V0.25.md) | Implementacion tecnica de Fases 0-3 del multi-canal — fuente historica |
+| [done/MULTI-CHANNEL-FASE4-V0.26.md](done/MULTI-CHANNEL-FASE4-V0.26.md) | Fase 4 v0.26.0 (Realtime broadcast + handoff UI + media imagen/audio/doc + CORS strict + HTTPS-only). 10 commits. Plan ejecutado al 100% — fuente historica |
 | [done/NIGHT-SESSION-2026-05-07.md](done/NIGHT-SESSION-2026-05-07.md) | Sesion nocturna 2026-05-07 con autonomia: cleanup n8n + scaffolding Fase 2 + commits ejecutados (auditable) |
 
 ### Performance y Operaciones
@@ -94,7 +94,7 @@
 | Formulario conversacional | [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) |
 | Avatar upload (usuarios) | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
 | Multi-canal + WebChat (Fase 3 historica) | [done/MULTI-CHANNEL-WEBCHAT-V0.25.md](done/MULTI-CHANNEL-WEBCHAT-V0.25.md) |
-| Multi-canal Fase 4 Realtime (plan) | [plans/MULTI-CHANNEL-FASE4.md](plans/MULTI-CHANNEL-FASE4.md) |
+| Multi-canal Fase 4 Realtime + media (historica) | [done/MULTI-CHANNEL-FASE4-V0.26.md](done/MULTI-CHANNEL-FASE4-V0.26.md) |
 | Leads Unicos vista CRM (plan) | [plans/LEADS-UNICOS.md](plans/LEADS-UNICOS.md) |
 | Llamadas agendadas (plan) | [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) |
 | Impersonation super_admin (plan) | [plans/IMPERSONATION.md](plans/IMPERSONATION.md) |

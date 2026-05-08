@@ -1,9 +1,13 @@
-# Plan Fase 4 Multi-Canal — Realtime + Paridad de Features
+# Fase 4 Multi-Canal — Realtime + Paridad de Features (HISTORICO)
 
-> **Version objetivo:** v0.26.0
-> **Estado:** Pendiente — arrancar despues de v0.25.0 estable en prod
-> **Estimado:** 1-2 semanas single dev
-> **Pre-requisito:** Fase 3 completa (v0.25.0 — WebChat MVP funcional con polling)
+> **Version:** v0.26.0
+> **Estado:** ✅ COMPLETADA — deployed 2026-05-08, validada en prod (Leon33/Disruptivo)
+> **Commits:** `e599f7f → ceb6fa3 → fffee0a → d1c0104 → 9813908 → bbd0594 → 780068c → 313bddd → 328d6d9 → 9827d89` (10 commits, 1 sesion)
+> **Resultado real:** plan ejecutado al 100% + bug critico encontrado/arreglado en QA (sendMessage server action no emitia broadcast) + mejora extra HTTPS-only para domains.
+
+Detalle ejecutivo en [docs/CHANGELOG.md](../CHANGELOG.md#0260---2026-05-08). El plan original se mantiene a continuacion como referencia de lo que se planeo vs lo que se entrego.
+
+---
 
 ## Resumen
 
