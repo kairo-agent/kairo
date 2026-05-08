@@ -695,12 +695,22 @@ function persistLastMsgTs(ctx: Ctx): void {
   });
 }
 
+/**
+ * Start the polling tick. Always fires an immediate `pollOnce` to catch up
+ * on any messages that landed while the widget was offline/closed, then
+ * arms a setInterval at DEFAULT_POLL_MS (or config override).
+ *
+ * Idempotent: callers can safely invoke this from multiple places (window
+ * mount, WS disconnect, reset) without stacking timers.
+ */
 function startPolling(ctx: Ctx): void {
   if (ctx.opts.preview) return;
   if (!ctx.state.conversationId) return;
+  // Always fire an immediate catch-up poll, even if the timer is already
+  // armed — the `fetchInflight` flag in pollOnce coalesces concurrent calls.
+  void pollOnce(ctx);
   if (ctx.pollTimer) return;
   const interval = ctx.state.config?.behavior.pollingIntervalMs || DEFAULT_POLL_MS;
-  void pollOnce(ctx);
   ctx.pollTimer = setInterval(() => void pollOnce(ctx), interval);
 }
 
@@ -713,9 +723,13 @@ function stopPolling(ctx: Ctx): void {
 
 /**
  * Fase 4.A — start the Realtime broadcast subscription when both the topic
- * secret and the Realtime config (URL + anon key) are available. Failures
- * are silent: the polling timer is the single source of truth, Realtime
- * just makes message arrival ~instant when it works.
+ * secret and the Realtime config (URL + anon key) are available.
+ *
+ * Fase 4.B — when the channel joins successfully we PAUSE the polling timer
+ * (saving ~120 redundant fetches/h while WS is healthy) and rely on broadcast
+ * signals. If the WS later closes/heartbeat-times-out, `onDisconnect` re-arms
+ * polling automatically — the widget never falls into a state where it
+ * can't receive messages.
  */
 function startRealtimeIfPossible(ctx: Ctx): void {
   if (ctx.opts.preview) return;
@@ -733,6 +747,20 @@ function startRealtimeIfPossible(ctx: Ctx): void {
       // a no-op (the in-flight fetch will see the new message). Otherwise
       // trigger an immediate poll.
       void pollOnce(ctx);
+    },
+    onConnect: () => {
+      // WS healthy → we're done depending on the polling timer.
+      // Catch-up fetch first (covers any messages emitted between the last
+      // polling tick and the WS join), then suspend the interval.
+      void pollOnce(ctx);
+      stopPolling(ctx);
+    },
+    onDisconnect: () => {
+      // WS lost → re-arm polling so the widget keeps receiving messages.
+      // `startPolling` is idempotent and fires an immediate catch-up poll.
+      // Only re-arm if the widget is still open (otherwise the renderAll
+      // path already stopped the timer intentionally).
+      if (ctx.state.open) startPolling(ctx);
     },
   });
 }
