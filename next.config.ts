@@ -79,6 +79,18 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.npm_package_version || '0.0.0',
   },
+  // Legacy redirects: /leads -> /conversations (Fase 3.7)
+  // Status 307 (temporal) — en v0.26+ se creara una NUEVA pagina /leads para
+  // la vista CRM "Leads Unicos". Cuando eso suceda, se elimina este redirect.
+  // Browsers no cachean 307 permanentemente.
+  async redirects() {
+    return [
+      { source: '/leads', destination: '/conversations', permanent: false },
+      { source: '/leads/:path*', destination: '/conversations/:path*', permanent: false },
+      { source: '/:locale(es|en)/leads', destination: '/:locale/conversations', permanent: false },
+      { source: '/:locale(es|en)/leads/:path*', destination: '/:locale/conversations/:path*', permanent: false },
+    ];
+  },
   // Apply security headers to all routes
   async headers() {
     return [
