@@ -9,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { verifyAuth, verifyProjectAccess, getProjectRole } from './auth';
 import { getProjectSecret } from './secrets';
 import { getEffectiveRole, isViewerOnly, canActOnLead } from '@/lib/permissions';
+import { emitWebChatSignal } from '@/lib/channels/webchat/realtime-emit';
 import type { Message, Conversation, Prisma } from '@prisma/client';
 import { MessageSender, HandoffMode } from '@prisma/client';
 
@@ -93,6 +94,7 @@ const leadSelectForAccessCheck = {
 const leadSelectForSendMessage = {
   id: true,
   projectId: true,
+  channel: true,
   firstName: true,
   lastName: true,
   phone: true,
@@ -104,7 +106,7 @@ const leadSelectForSendMessage = {
     },
   },
   conversation: {
-    select: { id: true },
+    select: { id: true, realtimeTopicSecret: true },
   },
 } as const;
 
@@ -115,8 +117,12 @@ const leadSelectForSendMessage = {
 const leadSelectForHandoffToggle = {
   id: true,
   projectId: true,
+  channel: true,
   whatsappId: true,
   assignedUserId: true,
+  conversation: {
+    select: { realtimeTopicSecret: true },
+  },
 } as const;
 
 /**
@@ -357,6 +363,14 @@ export async function sendMessage(
       },
     });
 
+    // Fase 4.A/C: emit Realtime broadcast for webchat conversations so the
+    // visitor's widget refreshes immediately. Best-effort, fire-and-forget —
+    // the widget's polling fallback covers any failure. Skipped for WhatsApp
+    // (the visitor doesn't see Realtime; WhatsApp Cloud API is the transport).
+    if (lead.channel === 'webchat' && lead.conversation?.realtimeTopicSecret) {
+      void emitWebChatSignal(lead.conversation.realtimeTopicSecret);
+    }
+
     // Send directly via WhatsApp Cloud API
     if (lead.whatsappId) {
       try {
@@ -569,6 +583,13 @@ export async function toggleHandoffMode(
           },
         },
       });
+    }
+
+    // Fase 4.C: emit Realtime signal so the visitor's widget refreshes its
+    // handoff banner the moment the advisor toggles control — without waiting
+    // for the next polling tick (which 4.B pauses while WS is healthy).
+    if (lead.channel === 'webchat' && lead.conversation?.realtimeTopicSecret) {
+      void emitWebChatSignal(lead.conversation.realtimeTopicSecret);
     }
 
     return { success: true };
