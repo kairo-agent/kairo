@@ -45,6 +45,9 @@ interface WebChatInboundPayload {
     type: WebChatMessageType;
     text?: string;
     mediaUrl?: string;
+    /** Fase 4.D.3 — visitor's original filename for document uploads. Stored in
+     *  metadata so asesor sees the human-friendly name in the dashboard chat. */
+    filename?: string;
   };
 }
 
@@ -135,6 +138,14 @@ export async function POST(request: NextRequest) {
 
     const text = typeof payload.message.text === 'string' ? payload.message.text : '';
     const mediaUrl = typeof payload.message.mediaUrl === 'string' ? payload.message.mediaUrl : null;
+    // Fase 4.D.3 — visitor's filename, sanitised. Cap to 100 chars; strip
+    // path separators and control bytes so the rendered name can never be
+    // misread as a path or break console renderers.
+    const rawFilename = typeof payload.message.filename === 'string' ? payload.message.filename : '';
+    const filename = rawFilename
+      .replace(/[\x00-\x1f\\\/]/g, '')
+      .trim()
+      .slice(0, 100) || null;
     if (text.length > MAX_TEXT_LENGTH) {
       return NextResponse.json(
         { error: 'text_too_long' },
@@ -268,6 +279,8 @@ export async function POST(request: NextRequest) {
           channel: 'webchat',
           type: messageType,
           mediaUrl: mediaUrl ?? undefined,
+          // Fase 4.D.3 — visitor's filename for documents (asesor renders this).
+          ...(filename ? { filename } : {}),
           visitorId,
           sessionId: sessionId ?? undefined,
         },

@@ -18,8 +18,12 @@ interface SendMessageInput {
   sessionId: string;
   conversationId: string | null;
   message: string;
-  /** Fase 4.D.1: optional media payload — when set, the message type flips to image|audio|document. */
-  media?: { kind: 'image' | 'audio' | 'document'; mediaUrl: string } | null;
+  /** Fase 4.D.1+: optional media payload. `filename` only used for documents. */
+  media?: {
+    kind: 'image' | 'audio' | 'document';
+    mediaUrl: string;
+    filename?: string;
+  } | null;
   meta?: {
     referrer?: string;
     queryString?: string;
@@ -70,6 +74,7 @@ export async function sendMessage(
     ? {
         type: input.media.kind,
         mediaUrl: input.media.mediaUrl,
+        ...(input.media.filename ? { filename: input.media.filename } : {}),
         ...(input.message ? { text: input.message } : {}),
       }
     : { type: 'text', text: input.message };

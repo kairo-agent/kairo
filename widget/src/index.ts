@@ -415,8 +415,20 @@ function buildWindow(ctx: Ctx): HTMLDivElement {
   attachBtn.title = labels.attachFile;
   const fileInput = el('input') as HTMLInputElement;
   fileInput.type = 'file';
-  // 4.D.1 image MIME + 4.D.2 audio MIME. Document arrives in 4.D.3.
-  fileInput.accept = 'image/jpeg,image/png,image/webp,image/gif,audio/mpeg,audio/mp4,audio/wav,audio/webm,audio/ogg';
+  // 4.D.1 image, 4.D.2 audio, 4.D.3 document MIMEs.
+  fileInput.accept = [
+    // images
+    'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+    // audio
+    'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/webm', 'audio/ogg',
+    // documents
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain', 'text/csv',
+  ].join(',');
   fileInput.style.display = 'none';
   attachBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
@@ -591,6 +603,29 @@ function renderMsgNode(msg: WidgetMessage, agentBadge: string): HTMLDivElement {
     audio.preload = 'metadata';
     wrap.appendChild(audio);
     if (msg.content && msg.content.trim() && msg.content.trim() !== '[audio]') {
+      const bubble = el('div', 'k-msg-bubble');
+      bubble.textContent = msg.content;
+      wrap.appendChild(bubble);
+    }
+    return wrap;
+  }
+  // Fase 4.D.3 — document card: filename + "Descargar" affordance. We do NOT
+  // try to render PDFs/Office inline (CSP + bundle cost). Click opens in a
+  // new tab; the browser will download or preview based on its own policy.
+  if (msg.mediaKind === 'document' && msg.mediaUrl) {
+    const card = el('a', 'k-msg-doc') as HTMLAnchorElement;
+    card.href = msg.mediaUrl;
+    card.target = '_blank';
+    card.rel = 'noopener noreferrer';
+    card.setAttribute('download', msg.filename || '');
+    const filenameLine = el('div', 'k-msg-doc-name');
+    filenameLine.textContent = msg.filename || msg.content.replace(/^\[document\]\s*/, '') || 'Archivo';
+    const hint = el('div', 'k-msg-doc-hint');
+    hint.textContent = '⤓'; // download arrow glyph (small, neutral)
+    card.appendChild(filenameLine);
+    card.appendChild(hint);
+    wrap.appendChild(card);
+    if (msg.content && msg.content.trim() && !msg.content.startsWith('[document]')) {
       const bubble = el('div', 'k-msg-bubble');
       bubble.textContent = msg.content;
       wrap.appendChild(bubble);
@@ -856,10 +891,15 @@ async function doUploadFile(ctx: Ctx, file: File): Promise<void> {
       createdAt: new Date().toISOString(),
       mediaUrl: result.publicUrl,
       mediaKind: result.kind,
+      ...(result.kind === 'document' ? { filename: result.filename } : {}),
     };
     ctx.state.messages.push(localMsg);
     renderMessages(ctx);
-    if (ctx.state.handoffMode !== 'human') appendTyping(ctx);
+    // Documents trigger no AI response (4.D.3 — no parsing). Skip typing dots
+    // unless we know an AI/human will respond (image/audio do).
+    if (ctx.state.handoffMode !== 'human' && result.kind !== 'document') {
+      appendTyping(ctx);
+    }
 
     // POST the message linking the uploaded URL.
     const sendRes = await sendMessage(ctx.opts, {
@@ -868,7 +908,11 @@ async function doUploadFile(ctx: Ctx, file: File): Promise<void> {
       sessionId: ctx.state.sessionId,
       conversationId: ctx.state.conversationId,
       message: '',
-      media: { kind: result.kind as UploadKind, mediaUrl: result.publicUrl },
+      media: {
+        kind: result.kind as UploadKind,
+        mediaUrl: result.publicUrl,
+        ...(result.kind === 'document' ? { filename: result.filename } : {}),
+      },
     });
     if (!sendRes.ok) throw new Error(sendRes.error || 'send_failed');
 

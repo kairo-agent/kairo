@@ -65,27 +65,31 @@ function deriveSenderType(msg: MessageRow): WidgetSenderType {
  * the widget pick a renderer (image thumb, audio player) without re-parsing
  * MIME types client-side.
  */
-function deriveMedia(msg: MessageRow): { url: string; kind: 'image' | 'audio' | 'document' } | null {
+function deriveMedia(
+  msg: MessageRow
+): { url: string; kind: 'image' | 'audio' | 'document'; filename?: string } | null {
   if (!msg.metadata || typeof msg.metadata !== 'object') return null;
   const meta = msg.metadata as Record<string, unknown>;
 
-  // Shape A: visitor upload — { mediaUrl, type: 'image'|... }
+  // Shape A: visitor upload — { mediaUrl, type: 'image'|... , filename? }
   const directUrl = typeof meta.mediaUrl === 'string' ? meta.mediaUrl : null;
   if (directUrl) {
     const t = typeof meta.type === 'string' ? (meta.type as string) : 'image';
     if (t === 'image' || t === 'audio' || t === 'document') {
-      return { url: directUrl, kind: t };
+      const filename = typeof meta.filename === 'string' ? meta.filename : undefined;
+      return { url: directUrl, kind: t, ...(filename ? { filename } : {}) };
     }
   }
 
-  // Shape B: asesor outbound — { mediaAttachments: [{ url, ... }], mediaType }
+  // Shape B: asesor outbound — { mediaAttachments: [{ url, title }], mediaType }
   if (Array.isArray(meta.mediaAttachments) && meta.mediaAttachments.length > 0) {
     const att = meta.mediaAttachments[0] as Record<string, unknown>;
     const u = typeof att?.url === 'string' ? att.url : null;
     if (u) {
       const mt = typeof meta.mediaType === 'string' ? (meta.mediaType as string) : 'image';
       const kind = mt === 'video' ? 'document' : mt === 'audio' ? 'audio' : 'image';
-      return { url: u, kind };
+      const title = typeof att.title === 'string' ? att.title : undefined;
+      return { url: u, kind, ...(title ? { filename: title } : {}) };
     }
   }
 
@@ -213,7 +217,14 @@ export async function GET(request: NextRequest) {
         createdAt: m.createdAt.toISOString(),
         // Fase 4.D.1: media URL + kind for the widget renderer. Null when
         // text-only. The bucket is public so no signed URLs needed here.
-        ...(media ? { mediaUrl: media.url, mediaKind: media.kind } : {}),
+        // Fase 4.D.3: filename when available (visitor's original name for documents).
+        ...(media
+          ? {
+              mediaUrl: media.url,
+              mediaKind: media.kind,
+              ...(media.filename ? { filename: media.filename } : {}),
+            }
+          : {}),
       };
     });
 

@@ -10,7 +10,7 @@
 
 import type { EmbedOptions } from './types';
 
-export type UploadKind = 'image' | 'audio';
+export type UploadKind = 'image' | 'audio' | 'document';
 
 const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 const ALLOWED_AUDIO_MIMES = new Set([
@@ -21,6 +21,15 @@ const ALLOWED_AUDIO_MIMES = new Set([
   'audio/webm',
   'audio/ogg',
   'audio/opus',
+]);
+const ALLOWED_DOCUMENT_MIMES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/plain',
+  'text/csv',
 ]);
 const MAX_BYTES = 10 * 1024 * 1024;
 
@@ -36,6 +45,8 @@ export interface UploadResult {
   publicUrl: string;
   mime: string;
   kind: UploadKind;
+  /** Original filename — preserved so the asesor sees a human-readable name. */
+  filename: string;
 }
 
 export interface UploadFailure {
@@ -60,6 +71,7 @@ interface TokenResponse {
 export function detectKind(file: File): UploadKind | null {
   if (ALLOWED_IMAGE_MIMES.has(file.type)) return 'image';
   if (ALLOWED_AUDIO_MIMES.has(file.type)) return 'audio';
+  if (ALLOWED_DOCUMENT_MIMES.has(file.type)) return 'document';
   return null;
 }
 
@@ -118,5 +130,5 @@ export async function uploadFile(
     return { ok: false, error: 'network' };
   }
 
-  return { ok: true, publicUrl: tokenData.publicUrl, mime: file.type, kind };
+  return { ok: true, publicUrl: tokenData.publicUrl, mime: file.type, kind, filename: file.name };
 }

@@ -44,6 +44,7 @@ export const runtime = 'nodejs';
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10 MB — same ceiling Whisper enforces internally
+const MAX_DOCUMENT_SIZE = 10 * 1024 * 1024; // 10 MB
 
 const IMAGE_MIME_WHITELIST: ReadonlyMap<string, string> = new Map([
   ['image/jpeg', 'jpg'],
@@ -64,7 +65,22 @@ const AUDIO_MIME_WHITELIST: ReadonlyMap<string, string> = new Map([
   ['audio/opus', 'opus'],
 ]);
 
-const ALLOWED_KINDS = new Set(['image', 'audio']); // 4.D.3 will add 'document'
+// Documents — visitor uploads them for the asesor's reference. NO AI
+// processing in 4.D.3 (no PDF/Office parsing). The whitelist is conservative:
+// formats that are widely shared in B2B sales (PDF, Word/Excel, plain text/csv).
+// Notably absent: archives (zip/tar) and executables — they expand attack
+// surface without meaningful UX gain for a sales chat.
+const DOCUMENT_MIME_WHITELIST: ReadonlyMap<string, string> = new Map([
+  ['application/pdf', 'pdf'],
+  ['application/msword', 'doc'],
+  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'docx'],
+  ['application/vnd.ms-excel', 'xls'],
+  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'xlsx'],
+  ['text/plain', 'txt'],
+  ['text/csv', 'csv'],
+]);
+
+const ALLOWED_KINDS = new Set(['image', 'audio', 'document']);
 
 const SIGNED_URL_TTL_SECONDS = 300; // 5 min — visitor uploads quickly; expired tokens are refused by Supabase
 
@@ -85,7 +101,7 @@ interface UploadTokenBody {
   publicKey: string;
   sessionId?: string;
   conversationId: string;
-  kind: 'image' | 'audio'; // 4.D.3 will add 'document'
+  kind: 'image' | 'audio' | 'document';
   mime: string;
   size: number;
 }
@@ -136,6 +152,9 @@ export async function POST(request: NextRequest) {
     } else if (kind === 'audio') {
       extension = AUDIO_MIME_WHITELIST.get(mime);
       maxBytes = MAX_AUDIO_SIZE;
+    } else if (kind === 'document') {
+      extension = DOCUMENT_MIME_WHITELIST.get(mime);
+      maxBytes = MAX_DOCUMENT_SIZE;
     } else {
       return NextResponse.json(
         { error: 'kind_not_supported_yet' },

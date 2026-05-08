@@ -389,6 +389,46 @@ button { font: inherit; cursor: pointer; }
   background: ${v.aiBg};
   display: block;
 }
+/* Fase 4.D.3 — document card. Visually distinct from text bubbles so it
+   reads as "this is a file you can open". */
+.k-msg-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: ${v.aiText};
+  background: ${v.aiBg};
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  padding: 10px 14px;
+  max-width: 260px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.k-msg-doc:hover {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: ${v.sendBtnColor};
+}
+.k-msg-visitor .k-msg-doc {
+  background: ${v.visitorBg};
+  color: ${v.visitorText};
+  border-bottom-right-radius: 4px;
+  border-bottom-left-radius: 14px;
+}
+.k-msg-doc-name {
+  font-size: 13px;
+  font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
+}
+.k-msg-doc-hint {
+  font-size: 16px;
+  opacity: 0.7;
+  flex-shrink: 0;
+  line-height: 1;
+}
 .k-upload-status {
   font-size: 11.5px;
   color: #94A3B8;

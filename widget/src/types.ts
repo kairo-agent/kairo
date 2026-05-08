@@ -85,6 +85,8 @@ export interface WidgetMessage {
   /** Fase 4.D.1: optional media URL — drives thumbnail/audio/file rendering. */
   mediaUrl?: string;
   mediaKind?: MediaKind;
+  /** Fase 4.D.3: original filename for documents (rendered in the file card). */
+  filename?: string;
 }
 
 // ─── Backend responses ───────────────────────────────────────────────────────
