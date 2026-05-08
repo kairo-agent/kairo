@@ -129,9 +129,14 @@ export async function GET(request: NextRequest) {
 
     // Tenant check: conversation must belong to a Lead in this projectId.
     // Single query that joins Lead → projectId, avoiding cross-tenant leak.
+    // Also pull `handoffMode` so the widget can render the "agent took over"
+    // banner without a separate API call (Fase 4.C).
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { id: true, lead: { select: { projectId: true } } },
+      select: {
+        id: true,
+        lead: { select: { projectId: true, handoffMode: true } },
+      },
     });
 
     if (!conversation || conversation.lead.projectId !== lookup.projectId) {
@@ -168,7 +173,14 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json(
-      { messages: out },
+      {
+        messages: out,
+        // Fase 4.C: 'ai' = bot active; 'human' = an advisor took over the
+        // conversation. The widget renders a "agent joined" banner when
+        // 'human'. Not sensitive — the visitor can already infer this from
+        // who's replying — but keeps UX explicit.
+        handoffMode: conversation.lead.handoffMode,
+      },
       {
         status: 200,
         headers: {

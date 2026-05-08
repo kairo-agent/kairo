@@ -92,9 +92,14 @@ export interface SendMessageResponse {
   realtimeTopicSecret?: string;
 }
 
+/** Fase 4.C: handoff state shared with the widget per poll response. */
+export type HandoffMode = 'ai' | 'human';
+
 export interface PollMessagesResponse {
   ok: boolean;
   messages: WidgetMessage[];
+  /** Fase 4.C: 'human' triggers the "advisor joined" banner in the widget. */
+  handoffMode?: HandoffMode;
 }
 
 // ─── Widget runtime state ────────────────────────────────────────────────────
@@ -114,6 +119,8 @@ export interface WidgetState {
   starterUsed: boolean;
   /** Fase 4.A: secret topic name for the Realtime broadcast (per conversation). */
   realtimeTopicSecret: string | null;
+  /** Fase 4.C: tracked from polling responses; drives the "advisor joined" banner. */
+  handoffMode: HandoffMode;
 }
 
 // ─── Embed-time options (parsed from <script> attributes) ────────────────────

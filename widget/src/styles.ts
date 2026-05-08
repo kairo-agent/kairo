@@ -388,6 +388,19 @@ button { font: inherit; cursor: pointer; }
   font-weight: 600;
 }
 
+/* Fase 4.C — sticky banner shown when an advisor takes over the chat. */
+.k-handoff-banner {
+  background: ${v.agentBadgeBg};
+  color: ${v.agentBadgeText};
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  padding: 8px 12px;
+  margin: 0 0 8px 0;
+  border-radius: 6px;
+  letter-spacing: 0.01em;
+}
+
 /* ── Hidden util ──────────────────────────────────── */
 .k-hidden { display: none !important; }
 `;

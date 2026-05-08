@@ -133,6 +133,10 @@ function bootInstance(opts: EmbedOptions): void {
     teaserDismissed: false,
     starterUsed: false,
     realtimeTopicSecret: null,
+    // Fase 4.C: starts optimistic ('ai'); flips to 'human' only after a polling
+    // response confirms an advisor took over. Never trust local heuristics —
+    // the server is the source of truth.
+    handoffMode: 'ai',
   };
 
   if (!opts.preview) {
@@ -447,6 +451,17 @@ function renderMessages(ctx: Ctx): void {
   const lang = ctx.opts.lang;
   const labels = t(lang);
 
+  // Fase 4.C — when an advisor takes over, show a sticky banner so the
+  // visitor knows they're no longer talking to the AI. Stays at the top of
+  // the messages list for the rest of the session.
+  if (ctx.state.handoffMode === 'human') {
+    const banner = el('div', 'k-handoff-banner');
+    banner.setAttribute('role', 'status');
+    banner.setAttribute('aria-live', 'polite');
+    banner.textContent = labels.handoffBanner;
+    list.appendChild(banner);
+  }
+
   // Welcome panel only if no messages yet
   if (ctx.state.messages.length === 0) {
     const wrap = el('div', 'k-welcome');
@@ -602,7 +617,10 @@ async function doSend(ctx: Ctx, text: string): Promise<void> {
   };
   ctx.state.messages.push(visitorMsg);
   renderMessages(ctx);
-  appendTyping(ctx);
+  // Fase 4.C: only show the AI "typing" indicator when the bot is actually
+  // active. In handoff mode the human advisor may take seconds-to-minutes to
+  // reply — showing a never-resolving typing animation would be misleading.
+  if (ctx.state.handoffMode !== 'human') appendTyping(ctx);
 
   if (ctx.opts.preview) {
     setTimeout(() => {
@@ -780,7 +798,21 @@ async function pollOnce(ctx: Ctx): Promise<void> {
   if (ctx.fetchInflight) return;
   ctx.fetchInflight = true;
   try {
-    const msgs = await pollMessages(ctx.opts, ctx.state.conversationId, ctx.state.lastMessageAt);
+    const result = await pollMessages(ctx.opts, ctx.state.conversationId, ctx.state.lastMessageAt);
+    const msgs = result.messages;
+
+    // Fase 4.C: track handoff transitions on every poll, even if there are
+    // no new messages. This way the banner updates the moment an advisor
+    // takes over from the dashboard, before they've sent their first reply.
+    if (result.handoffMode !== ctx.state.handoffMode) {
+      ctx.state.handoffMode = result.handoffMode;
+      // If we transitioned into 'human', clear the AI typing indicator —
+      // the bot is no longer processing the conversation.
+      if (result.handoffMode === 'human') removeTyping(ctx);
+      // Re-render so the banner appears/disappears.
+      renderMessages(ctx);
+    }
+
     if (!msgs.length) return;
 
     const known = new Set(ctx.state.messages.map((m) => m.id));

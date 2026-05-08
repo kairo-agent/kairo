@@ -19,6 +19,8 @@ interface Strings {
   poweredBy: string;
   reconnect: string;
   preview: string;
+  /** Fase 4.C — banner shown when an advisor takes over the conversation */
+  handoffBanner: string;
 }
 
 const en: Strings = {
@@ -40,6 +42,7 @@ const en: Strings = {
   poweredBy: 'Powered by KAIRO',
   reconnect: 'Reconnecting...',
   preview: 'Preview mode',
+  handoffBanner: 'An advisor has joined the chat',
 };
 
 const es: Strings = {
@@ -61,6 +64,7 @@ const es: Strings = {
   poweredBy: 'Con tecnologia KAIRO',
   reconnect: 'Reconectando...',
   preview: 'Modo vista previa',
+  handoffBanner: 'Un asesor se ha unido al chat',
 };
 
 const dict: Record<Lang, Strings> = { en, es };

@@ -1,10 +1,16 @@
 import type {
   EmbedOptions,
+  HandoffMode,
   PollMessagesResponse,
   SendMessageResponse,
   WidgetConfig,
   WidgetMessage,
 } from './types';
+
+export interface PollResult {
+  messages: WidgetMessage[];
+  handoffMode: HandoffMode;
+}
 
 interface SendMessageInput {
   publicKey: string;
@@ -76,7 +82,7 @@ export async function pollMessages(
   opts: EmbedOptions,
   conversationId: string,
   since: string | null
-): Promise<WidgetMessage[]> {
+): Promise<PollResult> {
   const params = new URLSearchParams({
     key: opts.publicKey,
     conversationId,
@@ -84,5 +90,9 @@ export async function pollMessages(
   if (since) params.set('since', since);
   const url = `${opts.apiBase}/api/webchat/messages?${params.toString()}`;
   const res = await jsonFetch<PollMessagesResponse>(url, { method: 'GET' });
-  return res.messages || [];
+  return {
+    messages: res.messages || [],
+    // Default 'ai' for older backends that may not include the field.
+    handoffMode: res.handoffMode ?? 'ai',
+  };
 }
