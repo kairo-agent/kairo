@@ -24,6 +24,7 @@ import {
   resolveCorsOrigin,
   extractClientIp,
 } from '@/lib/channels/webchat/public-helpers';
+import { getChannelHandler } from '@/lib/channels/registry';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -269,32 +270,48 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    // TODO Fase 3.6: invocar el pipeline AI completo via WebChatChannelHandler.
-    //   Aqui debe llamarse algo como:
-    //
-    //     const handler = await getChannelHandler('webchat', projectId);
-    //     await handler?.receive(projectId, {
-    //       externalUserId: visitorId,
-    //       sessionId,
-    //       type: messageType,
-    //       text,
-    //       mediaPayload: mediaUrl ? { url: mediaUrl, type: messageType } : undefined,
-    //       metadata: { conversationId: conversation.id, messageId: message.id },
-    //     });
-    //
-    //   El handler debe encargarse de: debounce Redis, processAIResponse(),
-    //   guardar respuestas AI, y emitir Realtime cuando este disponible (Fase 4).
+    // Fase 3.6: invocar pipeline AI via WebChatChannelHandler.
+    // El handler aplica debounce Redis 5s + concatena mensajes pendientes y llama
+    // processAIResponse(). El AI message se persiste en BD por el pipeline; el
+    // widget lo recibe via polling (/api/webchat/messages). Realtime broadcast
+    // se agrega en Fase 4.
+    const handler = await getChannelHandler('webchat', projectId);
+    if (handler) {
+      // Fire-and-forget: el handler maneja waitUntil internamente para no
+      // bloquear la respuesta al widget.
+      await handler.receive(projectId, {
+        leadId: lead.id,
+        conversationId: conversation.id,
+        messageId: message.id,
+        visitorId,
+        sessionId,
+        type: messageType,
+        text,
+        mediaUrl,
+      });
+    } else {
+      console.warn('[Webchat webhook] handler not available', {
+        projectId,
+        publicKey: lookup.channel.publicKey,
+      });
+    }
 
-    console.log('[Webchat webhook] stub stored', {
+    console.log('[Webchat webhook] processed', {
       projectId,
       leadId: lead.id,
       conversationId: conversation.id,
       messageId: message.id,
       type: messageType,
+      handlerAvailable: !!handler,
     });
 
     return NextResponse.json(
-      { received: true, messageId: message.id },
+      {
+        ok: true,
+        received: true,
+        messageId: message.id,
+        conversationId: conversation.id,
+      },
       { status: 200, headers: buildCorsHeaders(corsOrigin) }
     );
   } catch (error) {

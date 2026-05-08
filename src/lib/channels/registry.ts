@@ -24,7 +24,8 @@ import type { IChannelHandler } from './IChannelHandler';
 const handlerFactories: Partial<Record<LeadChannel, () => Promise<IChannelHandler>>> = {
   whatsapp: async () =>
     (await import('./whatsapp/WhatsAppChannelHandler')).whatsappChannelHandler,
-  // webchat: lazy-loaded en Fase 3
+  webchat: async () =>
+    (await import('./webchat/WebChatChannelHandler')).webchatChannelHandler,
   // instagram, facebook, tiktok: lazy-loaded en futuras versiones
 };
 
