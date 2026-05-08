@@ -54,6 +54,8 @@ export async function sendMessage(
   input: SendMessageInput
 ): Promise<SendMessageResponse> {
   const url = `${opts.apiBase}/api/webhooks/webchat`;
+  // Shape acordado con /api/webhooks/webchat (Fase 3.2): message es objeto
+  // tipado para extensibilidad a image/audio/document (Fase 4).
   return jsonFetch<SendMessageResponse>(url, {
     method: 'POST',
     body: JSON.stringify({
@@ -61,7 +63,10 @@ export async function sendMessage(
       visitorId: input.visitorId,
       sessionId: input.sessionId,
       conversationId: input.conversationId,
-      message: input.message,
+      message: {
+        type: 'text',
+        text: input.message,
+      },
       meta: input.meta || null,
     }),
   });

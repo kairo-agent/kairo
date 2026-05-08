@@ -6,6 +6,8 @@ interface Strings {
   defaultWelcomeTitle: string;
   defaultWelcomeSubtitle: string;
   defaultTeaser: string;
+  teaserDefault: string;
+  teaserCta: string;
   composerPlaceholder: string;
   send: string;
   close: string;
@@ -25,6 +27,8 @@ const en: Strings = {
   defaultWelcomeTitle: 'Hi there!',
   defaultWelcomeSubtitle: 'How can we help you today?',
   defaultTeaser: 'Have a question?',
+  teaserDefault: 'Have questions?',
+  teaserCta: "Let's chat!",
   composerPlaceholder: 'Type a message...',
   send: 'Send',
   close: 'Close',
@@ -44,6 +48,8 @@ const es: Strings = {
   defaultWelcomeTitle: 'Hola!',
   defaultWelcomeSubtitle: 'En que podemos ayudarte hoy?',
   defaultTeaser: 'Tienes alguna pregunta?',
+  teaserDefault: 'Tienes preguntas?',
+  teaserCta: 'Conversemos!',
   composerPlaceholder: 'Escribe un mensaje...',
   send: 'Enviar',
   close: 'Cerrar',

@@ -254,9 +254,7 @@ function renderAll(ctx: Ctx): void {
   // Clean previous tree
   ctx.rootNode.innerHTML = '';
 
-  ctx.rootNode.appendChild(buildBubble(ctx));
-  const teaser = buildTeaser(ctx);
-  if (teaser) ctx.rootNode.appendChild(teaser);
+  ctx.rootNode.appendChild(buildLauncher(ctx));
 
   // Window only when open (saves DOM/render cost)
   if (ctx.state.open) {
@@ -268,60 +266,48 @@ function renderAll(ctx: Ctx): void {
   }
 }
 
-function buildBubble(ctx: Ctx): HTMLButtonElement {
+/**
+ * Construye el launcher completo: wrapper clickeable con teaser inline (visible
+ * en hover) + bubble dentro. Click en cualquier parte alterna el chat (open/close).
+ * Hover expande mostrando el teaser; cuando el chat esta abierto, se reduce a
+ * solo el bubble con icono X (rotacion via CSS).
+ */
+function buildLauncher(ctx: Ctx): HTMLButtonElement {
   const cfg = ctx.state.config!;
   const lang = ctx.opts.lang;
   const labels = t(lang);
-  const btn = el('button', 'k-bubble');
-  btn.setAttribute('aria-label', ctx.state.open ? labels.close : labels.open);
-  btn.type = 'button';
+  const a = cfg.appearance;
 
-  if (cfg.appearance.bubbleLogoUrl) {
-    btn.classList.add('k-bubble--logo');
-    btn.innerHTML = `<img src="${escapeHtml(cfg.appearance.bubbleLogoUrl)}" alt="" />`;
+  const launcher = el('button', 'k-launcher');
+  launcher.type = 'button';
+  launcher.setAttribute('aria-label', ctx.state.open ? labels.close : labels.open);
+  if (ctx.state.open) launcher.classList.add('k-launcher--open');
+
+  // Contenido del teaser (visible en hover)
+  const content = el('div', 'k-launcher-content');
+  const teaserText = (lang === 'es' ? a.teaserTextEs : a.teaserTextEn) || labels.teaserDefault;
+  const teaserCta = (lang === 'es' ? a.teaserCtaEs : a.teaserCtaEn) || labels.teaserCta;
+  const textEl = el('p', 'k-launcher-text');
+  textEl.textContent = teaserText;
+  const ctaEl = el('span', 'k-launcher-cta');
+  ctaEl.textContent = teaserCta;
+  content.appendChild(textEl);
+  content.appendChild(ctaEl);
+  launcher.appendChild(content);
+
+  // Bubble (siempre visible) — cambia entre icono chat y close via CSS rotation
+  const bubble = el('div', 'k-bubble');
+  if (a.bubbleLogoUrl) {
+    bubble.classList.add('k-bubble--logo');
+    bubble.innerHTML = `<img src="${escapeHtml(a.bubbleLogoUrl)}" alt="" />`;
   } else {
-    const span = el('span');
-    span.innerHTML = ctx.state.open ? ICON_CLOSE : ICON_CHAT;
-    btn.appendChild(span);
-    ctx.refs.bubbleIcon = span;
+    bubble.innerHTML = `<span class="k-icon-chat">${ICON_CHAT}</span><span class="k-icon-close">${ICON_CLOSE}</span>`;
   }
+  launcher.appendChild(bubble);
 
-  btn.addEventListener('click', () => toggleWindow(ctx));
-  ctx.refs.bubble = btn;
-  return btn;
-}
-
-function buildTeaser(ctx: Ctx): HTMLDivElement | null {
-  if (ctx.state.open || ctx.state.teaserDismissed) return null;
-  const cfg = ctx.state.config!;
-  const lang = ctx.opts.lang;
-  const text =
-    (lang === 'es' ? cfg.appearance.teaserTextEs : cfg.appearance.teaserTextEn) || '';
-  if (!text.trim()) return null;
-  const wrap = el('div', 'k-teaser');
-  wrap.setAttribute('role', 'button');
-  wrap.tabIndex = 0;
-  wrap.textContent = text;
-  const close = el('button', 'k-teaser-close');
-  close.type = 'button';
-  close.setAttribute('aria-label', t(lang).close);
-  close.innerHTML = ICON_CLOSE;
-  close.addEventListener('click', (e) => {
-    e.stopPropagation();
-    ctx.state.teaserDismissed = true;
-    if (ctx.refs.teaser) ctx.refs.teaser.remove();
-    ctx.refs.teaser = null;
-  });
-  wrap.appendChild(close);
-  wrap.addEventListener('click', () => openWindow(ctx));
-  wrap.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      openWindow(ctx);
-    }
-  });
-  ctx.refs.teaser = wrap;
-  return wrap;
+  launcher.addEventListener('click', () => toggleWindow(ctx));
+  ctx.refs.bubble = launcher;
+  return launcher;
 }
 
 function buildWindow(ctx: Ctx): HTMLDivElement {
@@ -341,6 +327,9 @@ function buildWindow(ctx: Ctx): HTMLDivElement {
   } else {
     logo.innerHTML = ICON_LOGO;
   }
+  // Online dot (estilo chatflow — indica que la conversacion esta activa)
+  const onlineDot = el('span', 'k-online-dot');
+  logo.appendChild(onlineDot);
   header.appendChild(logo);
   const headerText = el('div', 'k-header-text');
   const title = el('div', 'k-header-title');
@@ -692,6 +681,20 @@ async function pollOnce(ctx: Ctx): Promise<void> {
     removeTyping(ctx);
     let gotIncoming = false;
     for (const m of fresh) {
+      // Dedup: si el mensaje visitor que llega del polling matchea un local-*
+      // optimista, reemplazarlo en lugar de duplicar (mismo content + sender).
+      if (m.senderType === 'visitor') {
+        const localIdx = ctx.state.messages.findIndex(
+          (x) =>
+            x.id.startsWith('local-') &&
+            x.senderType === 'visitor' &&
+            x.content === m.content
+        );
+        if (localIdx !== -1) {
+          ctx.state.messages[localIdx] = m;
+          continue;
+        }
+      }
       ctx.state.messages.push(m);
       if (m.senderType !== 'visitor') gotIncoming = true;
     }

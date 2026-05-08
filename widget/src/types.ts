@@ -24,6 +24,8 @@ export interface AppearanceConfig {
   welcomeSubtitleEn?: string;
   teaserTextEs?: string;
   teaserTextEn?: string;
+  teaserCtaEs?: string;
+  teaserCtaEn?: string;
 
   // Messages
   visitorBubbleBg?: string;

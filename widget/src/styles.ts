@@ -49,125 +49,205 @@ export function buildStyles(v: StyleVars): string {
 }
 button { font: inherit; cursor: pointer; }
 
-/* ── Bubble (FAB) ─────────────────────────────────── */
-.k-bubble {
+/* ── Launcher wrapper (estilo chatflow360) ───────────
+   El wrapper esta pegado al borde derecho (right:0).
+   Collapsed: solo bubble visible (max-width 80px).
+   Hover: expande hacia la izquierda mostrando teaser + CTA.
+   Open: solo bubble con icono X.
+   Click en cualquier parte del wrapper: alterna chat.
+*/
+.k-launcher {
   position: fixed;
-  bottom: 20px;
-  ${sideProp}: 20px;
+  bottom: 24px;
+  ${sideProp}: 0;
+  display: flex;
+  align-items: center;
+  flex-direction: ${v.position === 'left' ? 'row' : 'row-reverse'};
+  background: transparent;
+  border-radius: ${v.position === 'left' ? '0 40px 40px 0' : '40px 0 0 40px'};
+  overflow: hidden;
+  max-width: 80px;
+  cursor: pointer;
+  transition: max-width 320ms cubic-bezier(0.16, 1, 0.3, 1),
+              background 240ms ease,
+              padding 240ms ease,
+              box-shadow 240ms ease;
+  z-index: 2147483645;
+  border: none;
+  padding: 12px;
+  font-family: inherit;
+}
+.k-launcher:hover:not(.k-launcher--open),
+.k-launcher--expanded:not(.k-launcher--open) {
+  max-width: 340px;
+  background: #FFFFFF;
+  box-shadow: 0 10px 28px rgba(11,18,32,0.18), 0 2px 6px rgba(11,18,32,0.10);
+  padding: 8px;
+  gap: 14px;
+}
+.k-launcher-content {
+  display: none;
+  flex-direction: column;
+  align-items: ${v.position === 'left' ? 'flex-start' : 'flex-end'};
+  justify-content: center;
+  gap: 2px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 0 6px;
+}
+.k-launcher:hover:not(.k-launcher--open) .k-launcher-content,
+.k-launcher--expanded:not(.k-launcher--open) .k-launcher-content {
+  display: flex;
+}
+.k-launcher-text {
+  font-size: 12.5px;
+  color: #64748B;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+.k-launcher-cta {
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: ${v.headerBg};
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: inherit;
+  font-family: inherit;
+}
+.k-bubble {
   width: 56px; height: 56px;
+  min-width: 56px;
   border-radius: 50%;
   background: ${v.bubbleColor};
   color: ${v.bubbleIconColor};
-  border: none;
-  box-shadow: 0 8px 24px rgba(11,18,32,0.18), 0 2px 6px rgba(11,18,32,0.12);
   display: flex; align-items: center; justify-content: center;
-  z-index: 2147483645;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 4px 14px rgba(11,18,32,0.22);
+  animation: k-pulse 2.4s ease-in-out infinite;
 }
-.k-bubble:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 12px 28px rgba(11,18,32,0.22); }
-.k-bubble:focus-visible { outline: 2px solid ${KAIRO_CYAN}; outline-offset: 3px; }
-.k-bubble svg { width: 28px; height: 28px; fill: currentColor; }
-.k-bubble--logo { background: transparent; box-shadow: none; }
+.k-launcher:hover .k-bubble,
+.k-launcher--open .k-bubble {
+  animation: none;
+}
+.k-bubble svg { width: 26px; height: 26px; fill: currentColor; transition: transform 240ms ease, opacity 200ms ease; }
+.k-icon-chat, .k-icon-close {
+  display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  transition: transform 240ms ease, opacity 200ms ease;
+}
+.k-icon-close {
+  transform: translate(-50%, -50%) rotate(-90deg) scale(0);
+  opacity: 0;
+}
+.k-launcher--open .k-icon-chat {
+  transform: translate(-50%, -50%) rotate(90deg) scale(0);
+  opacity: 0;
+}
+.k-launcher--open .k-icon-close {
+  transform: translate(-50%, -50%) rotate(0) scale(1);
+  opacity: 1;
+}
+.k-bubble--logo { background: transparent; }
 .k-bubble--logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
 
-/* ── Teaser ───────────────────────────────────────── */
-.k-teaser {
-  position: fixed;
-  bottom: 88px;
-  ${sideProp}: 20px;
-  max-width: 240px;
-  background: #FFFFFF;
-  color: #0B1220;
-  padding: 10px 32px 10px 14px;
-  border-radius: 14px;
-  box-shadow: 0 8px 20px rgba(11,18,32,0.16);
-  font-size: 13.5px;
-  z-index: 2147483644;
-  cursor: pointer;
-  animation: k-pop 240ms ease-out;
-}
-.k-teaser-close {
-  position: absolute;
-  top: 6px; right: 6px;
-  width: 20px; height: 20px;
-  border: none;
-  background: transparent;
-  color: #64748B;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  padding: 0;
-}
-.k-teaser-close:hover { background: #F1F5F9; }
-.k-teaser-close svg { width: 12px; height: 12px; fill: currentColor; }
-@keyframes k-pop {
-  from { opacity: 0; transform: translateY(8px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+@keyframes k-pulse {
+  0%, 100% { box-shadow: 0 4px 14px rgba(11,18,32,0.22), 0 0 0 0 ${v.bubbleColor}66; }
+  50% { box-shadow: 0 6px 18px rgba(11,18,32,0.26), 0 0 0 12px ${v.bubbleColor}00; }
 }
 
-/* ── Window ───────────────────────────────────────── */
+/* ── Window — side panel pegado al borde, full-height ─ */
 .k-window {
   position: fixed;
-  bottom: 88px;
-  ${sideProp}: 20px;
-  width: 360px; height: 600px; max-height: calc(100vh - 110px);
+  top: 0;
+  ${sideProp}: 0;
+  bottom: 0;
+  width: 420px;
+  height: 100vh;
+  height: 100dvh;
   background: #FFFFFF;
-  border-radius: 16px;
-  box-shadow: 0 24px 48px rgba(11,18,32,0.22), 0 4px 12px rgba(11,18,32,0.12);
+  box-shadow: ${v.position === 'left' ? '4px' : '-4px'} 0 24px rgba(11,18,32,0.16);
+  border-radius: 0;
   display: flex; flex-direction: column;
   overflow: hidden;
   z-index: 2147483646;
-  animation: k-slide-up 220ms ease-out;
+  animation: k-slide-side 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-@keyframes k-slide-up {
-  from { opacity: 0; transform: translateY(12px); }
-  to { opacity: 1; transform: translateY(0); }
+@keyframes k-slide-side {
+  from { opacity: 0; transform: translateX(${v.position === 'left' ? '-' : ''}32px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 @media (max-width: 480px) {
   .k-window {
-    inset: 0; width: 100vw; height: 100dvh; max-height: 100dvh;
-    border-radius: 0;
+    width: 100vw;
+    inset: 0;
   }
 }
 
-/* ── Header ───────────────────────────────────────── */
+/* ── Header — gradient + avatar prominente + curva overlap ─ */
 .k-header {
-  background: ${v.headerBg};
+  background: linear-gradient(135deg, ${v.headerBg} 0%, ${v.headerBg}EE 100%);
   color: ${v.headerText};
-  padding: 14px 16px;
-  display: flex; align-items: center; gap: 12px;
+  padding: 18px 20px 30px;
+  display: flex; align-items: center; gap: 14px;
   flex-shrink: 0;
+  position: relative;
 }
 .k-header-logo {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: rgba(255,255,255,0.1);
+  width: 42px; height: 42px; border-radius: 50%;
+  background: rgba(255,255,255,0.15);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  position: relative;
 }
 .k-header-logo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.k-header-logo svg { width: 20px; height: 20px; fill: currentColor; }
+.k-header-logo svg { width: 22px; height: 22px; fill: currentColor; }
+.k-online-dot {
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 11px; height: 11px;
+  border-radius: 50%;
+  background: #10B981;
+  border: 2px solid ${v.headerBg};
+}
 .k-header-text { flex: 1; min-width: 0; }
-.k-header-title { font-weight: 600; font-size: 15px; line-height: 1.2; }
-.k-header-subtitle { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+.k-header-title { font-weight: 600; font-size: 16px; line-height: 1.2; letter-spacing: -0.01em; }
+.k-header-subtitle { font-size: 12px; opacity: 0.75; margin-top: 3px; }
 .k-header-close {
   width: 32px; height: 32px; border: none; padding: 0;
   background: transparent; color: inherit; border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
+  opacity: 0.75;
+  transition: opacity 120ms ease, background 120ms ease;
 }
-.k-header-close:hover { background: rgba(255,255,255,0.12); }
+.k-header-close:hover { background: rgba(255,255,255,0.12); opacity: 1; }
 .k-header-close svg { width: 18px; height: 18px; fill: currentColor; }
 
-/* ── Messages list ────────────────────────────────── */
+/* ── Messages list — overlap header con curva top ─── */
 .k-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 20px 16px;
   display: flex; flex-direction: column; gap: 10px;
   background: #F8FAFC;
+  border-radius: 16px 16px 0 0;
+  margin-top: -16px;
+  position: relative;
+  z-index: 1;
   scroll-behavior: smooth;
 }
 .k-messages::-webkit-scrollbar { width: 6px; }
 .k-messages::-webkit-scrollbar-thumb { background: rgba(11,18,32,0.12); border-radius: 3px; }
+.k-messages::-webkit-scrollbar-thumb:hover { background: rgba(11,18,32,0.22); }
 
 .k-welcome {
   text-align: center;
