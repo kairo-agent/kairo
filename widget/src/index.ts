@@ -626,11 +626,17 @@ async function doSend(ctx: Ctx, text: string): Promise<void> {
       setConversation(ctx.opts.publicKey, {
         conversationId: res.conversationId,
         sessionId: ctx.state.sessionId,
-        lastMessageAt: visitorMsg.createdAt,
+        lastMessageAt: ctx.state.lastMessageAt,
       });
     }
-    ctx.state.lastMessageAt = visitorMsg.createdAt;
-    persistLastMsgTs(ctx);
+    // NOTA: NO actualizamos lastMessageAt con visitorMsg.createdAt aqui.
+    // Razon: visitorMsg.createdAt es client-time (Date.now() del browser),
+    // mientras que el server persiste el message con su propio clock. Si hay
+    // clock drift entre client y server (Vercel runs UTC, browser local time),
+    // un since=client_time futurista hace que el polling EXCLUYA mensajes que
+    // el server creo entremedio (visitor BD + AI response).
+    // El polling se encarga de mantener lastMessageAt sincronizado con timestamps
+    // del backend (linea ~688).
     startPolling(ctx);
   } catch (err) {
     console.warn('[KAIRO] send failed', err);
