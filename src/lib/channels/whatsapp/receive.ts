@@ -850,7 +850,7 @@ async function handleIncomingMessage(
               leadId: lead.id,
               leadName: leadFullName,
               leadPhone: lead.phone,
-              whatsappId: lead.whatsappId || null,
+              externalUserId: lead.whatsappId || null,
               message: concatenatedMessage,
               messageType: freshMessageType,
               mediaId: freshMediaId,

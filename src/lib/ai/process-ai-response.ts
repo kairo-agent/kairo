@@ -35,7 +35,17 @@ export interface AIProcessParams {
   leadId: string;
   leadName: string;
   leadPhone: string | null;
-  whatsappId: string | null;
+  /**
+   * Identificador externo del usuario en el canal de origen.
+   * - WhatsApp: numero de telefono (igual a Lead.whatsappId / Lead.externalId)
+   * - WebChat: visitorId del browser (Fase 3)
+   * - Otros canales: ID en la plataforma origen
+   *
+   * Usado para enviar mensajes salientes en canales WhatsApp (line 562).
+   * En canales que NO necesitan transporte aqui (webchat, future), el handler
+   * del canal hace su propio delivery despues de processAIResponse.
+   */
+  externalUserId: string | null;
   message: string;
   messageType: string;
   mediaId: string | null;
@@ -559,7 +569,7 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     // --- Step 8: Send to WhatsApp (text + media) ---
     // Order: fixed image → fixed video → text → RAG images → RAG videos
     const stepWA = Date.now();
-    const phoneNumber = params.whatsappId || params.leadPhone;
+    const phoneNumber = params.externalUserId || params.leadPhone;
     if (phoneNumber) {
       // Send order: fixed image → text → fixed video → RAG images → RAG videos
       // This matches WhatsApp delivery order (video takes longer to process)
