@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 import { WorkspaceSelector } from './WorkspaceSelector';
 
 // Navigation item type - href must match pathnames defined in i18n/routing.ts
-type AppPathname = '/' | '/dashboard' | '/leads' | '/conversations' | '/agents' | '/reports' | '/settings' | '/settings/team' | '/settings/whatsapp' | '/settings/webchat' | '/admin';
+type AppPathname = '/' | '/dashboard' | '/conversations' | '/agents' | '/reports' | '/settings' | '/settings/team' | '/settings/whatsapp' | '/settings/webchat' | '/admin';
 
 interface NavItem {
   labelKey: string;

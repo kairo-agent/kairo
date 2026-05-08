@@ -18,7 +18,9 @@ export const routing = defineRouting({
     '/register': '/register',
     '/forgot-password': '/forgot-password',
     '/dashboard': '/dashboard',
-    '/leads': '/leads',
+    // '/leads' ELIMINADO de pathnames (Fase 3.7) — el middleware intercepta
+    // y redirige a /conversations con 302. Si lo dejamos aqui, next-intl
+    // intenta servir la ruta y devuelve 404 antes de que el middleware corra.
     '/conversations': '/conversations',
     '/agents': '/agents',
     '/reports': '/reports',
