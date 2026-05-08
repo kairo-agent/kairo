@@ -41,10 +41,10 @@
 
 | Documento | Contenido clave |
 |-----------|----------------|
-| [plans/MULTI-CHANNEL-WEBCHAT.md](plans/MULTI-CHANNEL-WEBCHAT.md) | Decisiones + arquitectura del refactor multi-canal + WebChat (23 decisiones, sidebar final, ProjectChannel con `provisioned`+`enabled`). v0.24.0+v0.25.0 |
-| [plans/MULTI-CHANNEL-IMPL.md](plans/MULTI-CHANNEL-IMPL.md) | Implementacion tecnica del plan multi-canal por fase (1-5): SQL, schema, endpoints, componentes, validacion |
+| [plans/MULTI-CHANNEL-FASE4.md](plans/MULTI-CHANNEL-FASE4.md) | **NUEVO** Realtime via Supabase WebSocket + handoff humano webchat + media upload Vision/Whisper. v0.26.0 (post v0.25.0) |
+| [plans/LEADS-UNICOS.md](plans/LEADS-UNICOS.md) | **NUEVO** Vista CRM "Leads Unicos" con merge lazy por email/telefono. NUEVA tabla `unique_leads` (NO renombrar `leads`). v0.27+ |
 | [plans/COMPLIANCE-GDPR.md](plans/COMPLIANCE-GDPR.md) | Plan futuro de borrado de datos del cliente (GDPR/CCPA/Ley 29733). Fuera de scope multi-canal. Sin priorizar |
-| [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) | Plan completo: llamadas agendadas via IA, Jitsi, horarios configurables, anti-doble-booking, recordatorios (v0.24.0 planificado) |
+| [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) | Plan completo: llamadas agendadas via IA, Jitsi, horarios configurables, anti-doble-booking, recordatorios |
 | [plans/IMPERSONATION.md](plans/IMPERSONATION.md) | Super_admin impersonate users, cookie-based, 6 fases, testing checklist, security model |
 
 ### Features realizadas (`docs/done/`)
@@ -56,6 +56,9 @@
 | [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) | Formulario conversacional por agente, [FORM-DATA:] marker, 4 tabs Settings, lead_form_data table + hallazgos post-implementacion (v0.22.0) |
 | [done/FOLLOW-UP-SCHEDULING.md](done/FOLLOW-UP-SCHEDULING.md) | Alternativas evaluadas para seguimiento (implementado en v0.7.16) |
 | [done/RAG-DEBUG-SESSION-2026-02-03.md](done/RAG-DEBUG-SESSION-2026-02-03.md) | Sesion de debug RAG (2026-02-03), hallazgos y fixes historicos |
+| [done/MULTI-CHANNEL-WEBCHAT-V0.25.md](done/MULTI-CHANNEL-WEBCHAT-V0.25.md) | Decisiones + arquitectura del multi-canal v0.24+v0.25 (23 decisiones cerradas con Leo) — fuente historica |
+| [done/MULTI-CHANNEL-IMPL-V0.25.md](done/MULTI-CHANNEL-IMPL-V0.25.md) | Implementacion tecnica de Fases 0-3 del multi-canal — fuente historica |
+| [done/NIGHT-SESSION-2026-05-07.md](done/NIGHT-SESSION-2026-05-07.md) | Sesion nocturna 2026-05-07 con autonomia: cleanup n8n + scaffolding Fase 2 + commits ejecutados (auditable) |
 
 ### Performance y Operaciones
 | Documento | Contenido clave |
@@ -90,6 +93,8 @@
 | Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |
 | Formulario conversacional | [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) |
 | Avatar upload (usuarios) | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
-| Multi-canal + WebChat (plan) | [plans/MULTI-CHANNEL-WEBCHAT.md](plans/MULTI-CHANNEL-WEBCHAT.md) |
+| Multi-canal + WebChat (Fase 3 historica) | [done/MULTI-CHANNEL-WEBCHAT-V0.25.md](done/MULTI-CHANNEL-WEBCHAT-V0.25.md) |
+| Multi-canal Fase 4 Realtime (plan) | [plans/MULTI-CHANNEL-FASE4.md](plans/MULTI-CHANNEL-FASE4.md) |
+| Leads Unicos vista CRM (plan) | [plans/LEADS-UNICOS.md](plans/LEADS-UNICOS.md) |
 | Llamadas agendadas (plan) | [plans/SCHEDULED-CALLS.md](plans/SCHEDULED-CALLS.md) |
 | Impersonation super_admin (plan) | [plans/IMPERSONATION.md](plans/IMPERSONATION.md) |
