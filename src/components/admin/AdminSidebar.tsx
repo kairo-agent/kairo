@@ -113,7 +113,7 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
         {/* Back to dashboard */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[var(--border-primary)]">
           <Link
-            href="/leads"
+            href="/conversations"
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
           >
             <BackIcon />

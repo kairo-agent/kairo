@@ -120,7 +120,7 @@
     }
   },
   "leads": {
-    "title": "Leads",
+    "title": "Conversations",
     "newLead": "New Lead",
     "refreshLeads": "Refresh incoming leads",
     "export": {

@@ -80,7 +80,6 @@ function DashboardLayoutContent({ children, user }: DashboardLayoutClientProps) 
     const titles: Record<string, string> = {
       '/': t('dashboard'),
       '/dashboard': t('dashboard'),
-      '/leads': t('leads'),
       '/conversations': t('conversations'),
       '/agents': t('agents'),
       '/reports': t('reports'),

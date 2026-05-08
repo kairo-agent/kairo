@@ -180,10 +180,11 @@ const ChevronDownIcon = ({ isOpen }: { isOpen: boolean }) => (
 );
 
 // Navigation items configuration (labelKey maps to navigation.* in translations)
+// Fase 3.7: /leads renombrado a /conversations. La nueva pagina /leads
+// (vista CRM "Leads Unicos") viene en v0.26+.
 const navigationItems: NavItem[] = [
   { labelKey: 'dashboard', href: '/dashboard', icon: <HomeIcon /> },
-  { labelKey: 'leads', href: '/leads', icon: <UsersIcon /> },
-  { labelKey: 'conversations', href: '/conversations', icon: <MessageIcon />, disabled: true, hasBadge: true },
+  { labelKey: 'conversations', href: '/conversations', icon: <MessageIcon /> },
   { labelKey: 'agents', href: '/agents', icon: <BotIcon />, disabled: true, hasBadge: true },
   { labelKey: 'reports', href: '/reports', icon: <ChartIcon />, disabled: true, hasBadge: true },
 ];
@@ -287,7 +288,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="flex items-center h-16 px-6 border-b border-[var(--border-primary)]">
-        <Link href="/leads" className="flex items-center" onClick={onClose}>
+        <Link href="/conversations" className="flex items-center" onClick={onClose}>
           <div className="relative h-8 w-28">
             <Image
               src={theme === 'dark' ? '/images/logo-main.png' : '/images/logo-oscuro.png'}

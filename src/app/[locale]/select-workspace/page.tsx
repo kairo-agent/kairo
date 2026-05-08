@@ -227,7 +227,7 @@ function SelectWorkspaceContent() {
     }
 
     // Navigate to dashboard
-    router.push('/leads');
+    router.push('/conversations');
   };
 
   const canContinue = selectedOrg && (selectedProject || allProjects);

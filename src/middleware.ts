@@ -59,13 +59,27 @@ export async function middleware(request: NextRequest) {
   const locale = pathname.match(/^\/(es|en)/)?.[1] || 'es';
 
   // Helper: copy Supabase session cookies to a redirect response
-  const redirectWithCookies = (url: URL) => {
-    const redirectResponse = NextResponse.redirect(url);
+  const redirectWithCookies = (url: URL, status?: 301 | 302 | 307 | 308) => {
+    const redirectResponse = status
+      ? NextResponse.redirect(url, status)
+      : NextResponse.redirect(url);
     intlResponse.cookies.getAll().forEach(cookie => {
       redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
     });
     return redirectResponse;
   };
+
+  // Legacy redirect: /leads -> /conversations (Fase 3.7).
+  // Status 302 (temporal) — en v0.26+ se creara una NUEVA pagina /leads para
+  // la vista CRM "Leads Unicos" (deduplicacion por email/telefono). En ese
+  // momento se elimina este redirect y la nueva ruta sirve directo.
+  // Browsers no cachean 302 permanentemente, asi que la transicion es segura.
+  const pathWithoutLocale = pathname.replace(/^\/(es|en)/, '');
+  if (pathWithoutLocale === '/leads' || pathWithoutLocale.startsWith('/leads/')) {
+    const newPath = pathWithoutLocale.replace(/^\/leads/, '/conversations');
+    const newUrl = new URL(`/${locale}${newPath}${request.nextUrl.search}`, request.url);
+    return redirectWithCookies(newUrl, 302);
+  }
 
   // Redirect unauthenticated users from protected routes to login
   if (!user && !isPublicRoute(pathname)) {
