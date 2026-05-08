@@ -173,14 +173,8 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     // Supabase Storage (bucket=media, prefix=webchat/...) and the widget then
     // sent us the public URL via the webhook. We don't need WhatsApp media API
     // calls; the URL is already directly fetchable by GPT-4o.
-    console.log('[AI Pipeline] webchat-vision-check', {
-      messageType: params.messageType,
-      hasWebchatMediaUrl: !!params.webchatMediaUrl,
-      hasMediaId: !!params.mediaId,
-    });
     if (params.messageType === 'image' && params.webchatMediaUrl && !params.mediaId) {
       imageUrl = params.webchatMediaUrl;
-      console.log('[AI Pipeline] webchat Vision activated, imageUrl set');
     }
 
     // --- Step 1b: Image/Sticker vision - get image URL for GPT ---
