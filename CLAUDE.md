@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.25.0 (Fase 3 Multi-Canal: WebChat MVP + rename /leads→/conversations) |
+| **Version** | v0.26.0 (Fase 4 Multi-Canal: Realtime + handoff + media upload + CORS strict) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -148,11 +148,11 @@ npm run lint     # Verificar codigo
 
 ---
 
-## Estado Actual (v0.25.0 - May 2026)
+## Estado Actual (v0.26.0 - May 2026)
 
-**Completado:** Stack multi-tenant completo (Auth + RBAC org/proyecto, multi-locale es/en, OWASP audits, RLS). AI pipeline interno (RAG, handoff, reengagement, form conversacional, anti-prompt-injection). WhatsApp bidireccional (incoming + outgoing media, Whisper, Vision, 24h timer, sticker). Dashboard + Conversaciones (10 statuses, filtros incluyendo Origen dinamico, temperatura, asignado a, descartar/recuperar, Excel export). Team Settings (visibility + auto-assignment). Notificaciones 3 canales (bell + email + push). Cron jobs pg_cron. PWA. **Multi-canal v0.24+v0.25:** abstraccion `IChannelHandler`, `ProjectChannel` model, **WebChat MVP funcional en widget.kairoagent.com** (Vercel project #2 separado), tab Canales en /admin (super_admin), pagina /settings/webchat completa, pagina renombrada /leads→/conversations con redirect 307. Historico detallado en [CHANGELOG.md](docs/CHANGELOG.md).
+**Completado:** Stack multi-tenant (Auth + RBAC, multi-locale es/en, RLS, OWASP). AI pipeline interno (RAG + Vision + Whisper + handoff + reengagement + form conversacional). WhatsApp bidireccional (incoming/outgoing media, sticker, 24h timer). Dashboard + Conversaciones (10 statuses, filtros, Excel export). Team Settings, Notificaciones 3 canales, Cron pg_cron, PWA. **Multi-canal v0.24-v0.26:** `IChannelHandler`, `ProjectChannel`, WebChat en widget.kairoagent.com (Vercel project #2). **Fase 4 v0.26.0:** Realtime broadcast signal-only (polling 30s fallback), polling pause/resume con WS, banner handoff UI, media upload visitor (imagen Vision + audio Whisper + documento), CORS strict. Historico en [CHANGELOG.md](docs/CHANGELOG.md).
 
-**Pendiente:** Crear lead, paginas de reportes/agents. Meta Ads integration (plan conceptual en memoria global, sin doc aun). **Fase 4 Multi-Canal v0.26.0:** Realtime via Supabase WebSocket (en lugar de polling) + handoff humano webchat + media upload con Vision/Whisper para webchat. **Leads Unicos v0.26+** (vista CRM con merge lazy por email/telefono — nueva tabla `unique_leads`, NO renombrar `leads` table). **Scheduled Calls** (plan en [plans/SCHEDULED-CALLS.md](docs/plans/SCHEDULED-CALLS.md)). Ver tambien [plans/IMPERSONATION.md](docs/plans/IMPERSONATION.md).
+**Pendiente:** Crear lead form, reports/agents pages. Meta Ads integration. **Leads Unicos v0.27+** (vista CRM merge lazy email/telefono — nueva tabla `unique_leads`, NUNCA renombrar `leads`). **Scheduled Calls** ([plans/SCHEDULED-CALLS.md](docs/plans/SCHEDULED-CALLS.md)). Ver [plans/IMPERSONATION.md](docs/plans/IMPERSONATION.md).
 
 **Vercel projects activos:** `kairo` → app.kairoagent.com (dashboard) + `kairo-widget` → widget.kairoagent.com (bundle WebChat IIFE). Ambos buildean del mismo monorepo, root distinto (`./` vs `widget/`).
 

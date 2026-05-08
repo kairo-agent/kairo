@@ -4,6 +4,55 @@
 
 ---
 
+## [0.26.0] - 2026-05-08
+
+### Fase 4 Multi-Canal: Realtime + paridad con WhatsApp (NEW)
+
+Cierra el loop multi-canal: el widget WebChat ahora tiene latencia ~instantanea (Realtime broadcast), handoff humano funcional, soporte completo de media (imagen + audio + documento) y CORS strict por defecto. Total: 8 commits productivos en 1 sesion (`e599f7f` → `313bddd` → `<este>`).
+
+#### Sub-fase 4.A — Realtime broadcast como senal (commit `e599f7f`)
+
+Patron "broadcast como senal" rechaza el approach JWT+RLS original (4 issues criticos en security audit) y el broadcast simple (anon key permite spoof). Solucion: server emite broadcast SIN payload sensible, widget IGNORA payload y refetchea via endpoint autenticado. Modelo de amenaza identico al polling — solo gana latencia.
+
+- Nueva columna `Conversation.realtimeTopicSecret` (UUID v4 unique, default `gen_random_uuid()`). Desacoplada de `Conversation.id` — leak de id NO compromete el canal.
+- Helper `emitWebChatSignal(topicSecret)` via REST `/realtime/v1/api/broadcast` con SUPABASE_SERVICE_ROLE_KEY. Timeout 2.5s, sanitiza topic UUID en logs.
+- Widget: `widget/src/realtime.ts` — cliente Phoenix WS vanilla (sin SDK = -15KB), heartbeat 25s, reconnect exponential bounded.
+- `processAIResponse` + `WebChatChannelHandler.send` + `/webhooks/webchat` emiten signal. Widget al recibir → `pollOnce()` (que ya valida publicKey + tenant).
+- Polling DEFAULT_POLL_MS sube de 3s a 30s (fallback duro).
+- Validado en prod: phx_join 131ms, signal latency 276ms (visitor) / 10.9s (AI con debounce 5s + processing).
+
+#### Sub-fase 4.B — Polling pause/resume con WS (commit `ceb6fa3`)
+
+WS healthy → onConnect dispara catch-up poll + `stopPolling`. Reduce ~120 fetches/h innecesarios. WS cae → onDisconnect rearma polling con catch-up. `startPolling` idempotente. Validado: 0 polls en 35s con WS sano, 6 polls + 5 reintentos WS con WS bloqueado por stub.
+
+#### Sub-fase 4.C — Handoff humano UI banner (commits `fffee0a` + `d1c0104`)
+
+Banner sticky "Un asesor se ha unido al chat" cuando `Lead.handoffMode='human'`. AI typing skipped en human mode. `/api/webchat/messages` retorna `handoffMode` por poll.
+
+**Bug critico encontrado y arreglado en `d1c0104`:** dashboard no usa `WebChatChannelHandler.send()`, sino `sendMessage()` server action que persiste directo. Por eso los mensajes del asesor jamas emitian broadcast en 4.A. Fix: emitter agregado en `sendMessage` y `toggleHandoffMode` actions, condicionado a `lead.channel='webchat'`. Validado: 3 broadcasts capturados en orden (take control + asesor msg + return to AI).
+
+#### Sub-fase 4.D — Media upload visitor
+
+Paperclip btn unico acepta imagen + audio + documento. Bucket `media` reusado con prefix `webchat/{projectId}/{YYYY}/{MM}/{conversationId}-{uuid}.{ext}`. Bucket es publico → URL fetcheable directo (sin signed URL para read).
+
+- **4.D.1 imagen** (`9813908` + `bbd0594`): GPT-4o-mini Vision describe contenido. Validado: AI identifico "imagen relacionada con Google" sobre logo subido.
+- **4.D.2 audio** (`780068c`): Whisper-1 transcribe desde URL publica. Hostname guard critico contra SSRF (URL debe matchear `NEXT_PUBLIC_SUPABASE_URL` host + prefix `/storage/v1/object/public/media/webchat/`). Validado: TTS "cuanto cuestan sus servicios de marketing digital" → AI respondio sobre precios.
+- **4.D.3 documento** (`313bddd`): PDF/DOC/DOCX/XLS/XLSX/TXT/CSV. NO AI processing — entrega directa al asesor. Filename sanitizado.
+
+Endpoint `POST /api/widget/upload-token`: signed PUT URL con TTL 5min, rate limit 5/min IP + 30/min publicKey, MIME whitelist por tipo, max 10MB. Cron `cleanup-media` extendido a `webchat/{projectId}/...` (5 dias retention).
+
+#### Sub-fase 4.E — CORS strict + bump v0.26.0 (este commit)
+
+`resolveCorsOrigin`: lista vacia ahora **bloquea** todos los cross-origin requests (Fase 3 era permisiva). Mismo cambio aplicado a las 4 rutas publicas. Same-origin (sin Origin header) sigue funcionando.
+
+UI `/settings/webchat` Domains form actualizada: warning rojo cuando lista vacia advirtiendo "el widget NO funcionara en ningun sitio externo" (antes decia "permisivo" — era enganoso post-fase4).
+
+**Migracion:** los proyectos webchat existentes con `allowedOrigins=[]` deben agregar sus dominios antes de embeber. Disruptivo (unico proyecto webchat hoy) NO esta embebido en ningun sitio externo aun, por lo que el cambio NO rompe nada en produccion real.
+
+Bundle widget total: 37.23 KB / 11.66 KB gzip (vs 7.8 KB en v0.25.0).
+
+---
+
 ## [0.25.0] - 2026-05-07
 
 ### Fase 3 Multi-Canal: WebChat MVP completo (NEW)
@@ -244,166 +293,7 @@ Nuevo archivo `docs/RBAC.md` con documentacion completa de roles y permisos: 3 n
 
 ---
 
-## [0.22.2] - 2026-04-03
-
-### ReEngagement dual-model (Model A + Model B)
-
-Los seguimientos ahora se envian tanto si el lead responde y vuelve a hacer silencio (Model A, existente) como si nunca responde (Model B, nuevo). El contador de attempts siempre avanza, nunca repite el mismo intento.
-
-**Antes:** attempt 0 → lead debe responder → silencio → attempt 1 → lead debe responder → silencio → attempt 2.
-**Ahora:** attempt 0 → (delayHours) → attempt 1 → (delayHours) → attempt 2, sin importar si el lead respondio o no.
-
-**Cambio:** Query SQL en cron reengagement: eliminada condicion `lead_msg > last_re_at` que requeria respuesta. `completedCycles` reemplazado por `totalReengagements` (total enviados). UI descriptions actualizadas en es/en.
-
-**Archivo:** `src/app/api/cron/reengagement/route.ts`, `es.json`, `en.json`
-
-### Additional Instructions max length 2000 → 10000
-
-**Archivos:** `SettingsPageClient.tsx` (maxLength + counter), `prompt-builder.ts` (zod schema)
-
-### Fix: Save button disappears on hover (Form + ReEngagement tabs)
-
-Causa raiz: `hover:bg-[var(--accent-hover)]` — variable CSS no existe. Fix: usar `Button variant="primary"` con `isLoading` prop. Boton ahora siempre visible con `disabled={!hasUnsavedChanges}` + texto "Tienes cambios sin guardar".
-
-**Archivos:** `SettingsPageClient.tsx`, `es.json`, `en.json`
-
----
-
-## [0.22.0] - 2026-04-01
-
-### Conversational Form (NEW MAJOR FEATURE)
-
-Los agentes IA ahora pueden recopilar datos estructurados de leads durante la conversacion de WhatsApp de forma natural.
-
-**Scope:** Por agente (igual que `reEngagementConfig`). Max 8 campos. Trigger modes: `immediate` (desde el primer mensaje) o `on_interest` (solo leads WARM/HOT).
-
-**Schema:** Campo `formConfig` (JSONB) en `AIAgent` + nueva tabla `lead_form_data`. Migracion: `prisma/migrations/20260401_add_conversational_form/`. RLS con `auth.uid()::text` cast (requerido para Supabase).
-
-**Nuevos archivos:**
-- `src/lib/types/form-template.ts` — `FormConfig`, `FormField`, `FormFieldType`, `FormTriggerMode`, `LEAD_FIELD_MAPPINGS`, `generateFieldKey`
-- `src/lib/actions/form-template.ts` — `getFormConfig()`, `saveFormConfig()`
-- `src/lib/actions/lead-form-data.ts` — `getLeadFormData()`, `bulkUpdateLeadFormFields()`
-
-**Pipeline:** `build-system-prompt.ts` inyecta seccion "DATOS A RECOPILAR" con campos pendientes/recopilados. `process-ai-response.ts` extrae marcador `[FORM-DATA: key=value | key2=value2]` de la respuesta GPT, guarda en `lead_form_data`, auto-llena campos del lead, limpia marcador antes de enviar.
-
-**UI:** 4to tab "Formulario" en Settings con toggle, radio buttons de trigger mode (descripcion dinamica), lista DnD de campos, add/edit inline, counter de campos. `loadingForm` state previene race condition con async toggle.
-
-**Fixes post-implementacion:** i18n key mismatch (`enabledHelp` → `enabledDesc`), ~15 keys faltantes, `LEAD_FIELD_MAPPINGS` labelKeys sin prefijo `settings.` (bug de doble-scope), race condition en toggle.
-
----
-
-## [0.21.0] - 2026-04-01
-
-### Timezone-aware date handling (infraestructura critica)
-
-Toda la app ahora respeta el `defaultTimezone` de la organizacion en vez de usar UTC para filtros, agrupaciones y display. Principio: "Store UTC, Resolve on Read".
-
-**Nuevo archivo:** `src/lib/timezone.ts` — utilidades centralizadas con `Intl.DateTimeFormat`: `getEffectiveTimezone()`, `getStartOfDayInTimezone()`, `getEndOfDayInTimezone()`, `getStartOfMonthInTimezone()`, `getDateStringInTimezone()`, `getYesterdayInTimezone()`.
-
-**Archivos modificados:** `src/lib/actions/dashboard.ts` (chart grouping por timezone), `src/lib/actions/leads.ts` (date range filter + Excel export), `src/lib/actions/workspace.ts` + `src/contexts/WorkspaceContext.tsx` (interface con `defaultTimezone`), `src/lib/ai/process-ai-response.ts` (reemplaza hardcoded `'America/Lima'`), `src/app/api/webhooks/whatsapp/route.ts` (pasa org timezone al pipeline), `src/lib/utils.ts` (`formatDate/Time` acepta `timezone` param, backward-compatible), `src/components/layout/NotificationDropdown.tsx`, `src/components/features/LeadChat.tsx`.
-
-### Sticker support
-
-Mensajes de sticker de WhatsApp ahora siguen el mismo flujo que imagenes: descarga media, Vision pipeline incluye `'sticker'` junto a `'image'`.
-
-**Archivos:** `src/app/api/webhooks/whatsapp/route.ts` (interface + case + freshMediaId), `src/lib/ai/process-ai-response.ts` (Vision check).
-
-### Emoji cleanup
-
-Flags de idioma en Header (`ES`/`EN`) y globo en PhoneInput (`INT`) reemplazados con texto. Fix en pre-commit hook para ignorar archivos binarios por extension (PNG era falso positivo en Windows).
-
----
-
-## [0.20.1] - 2026-03-31
-
-### Temperature Classification Guard
-
-Guard en el pipeline AI que impide clasificar la temperatura del lead hasta que haya enviado al menos 2 mensajes. Primer contacto siempre queda COLD, evitando falsos WARM en la primera interaccion.
-
-**Archivo:** `src/lib/ai/process-ai-response.ts` — cuenta mensajes con `sender: 'lead'` antes de aplicar `[TEMPERATURA: X]`.
-
-### Drag & Drop en Criterios de Calificacion de Leads
-
-Los criterios de temperatura (HOT/WARM/COLD) en Settings > Instrucciones ahora soportan drag & drop para reordenar, igual que las reglas especificas.
-
-**Componente:** `SortableCriteriaItem` con `@dnd-kit/sortable`. Fix de animacion: solo `translate3d` (sin scale) y sin snap-back al soltar.
-
-### UI Fix: Contraste en tabs del Admin Panel
-
-Tabs "Organizaciones/Proyectos/Usuarios" cambiados de `text-white` a `text-[var(--kairo-midnight)]` sobre fondo cyan para mejor contraste.
-
----
-
-## [0.20.0] - 2026-03-30
-
-### Incoming Lead Media (NEW FEATURE)
-
-Descarga y renderizado de media entrante de leads en el chat (imagen, video, audio, documento).
-
-**Nuevo archivo:** `src/lib/whatsapp/download-media.ts` — descarga media desde WhatsApp API → Supabase Storage via `waitUntil` (async, non-blocking). Storage path: `incoming/{projectId}/{year}/{month}/{uuid}.{ext}`. Max: 50MB (Supabase free tier).
-
-**Chat UI:** Imagenes (clickable, lightbox), video (player nativo), audio (AudioPlayer custom), documentos (download link). Badge "Disponible hasta {date}" en media activa. "Imagen expirada" / "Audio expirado" en media vencida. Spinner mientras se descarga.
-
-**Expiracion:** Archivos eliminados por cron existente (5 dias). `storageExpiry` en metadata del mensaje.
-
-**CSP:** `media-src` actualizado para dominio Supabase. Bucket MIME types: agregados `audio/*`.
-
-**Realtime:** Actualizaciones de metadata se propagan al chat sin refresh manual.
-
-### GPT-4o-mini Vision (NEW FEATURE)
-
-Analisis de imagenes entrantes via GPT Vision en modo AI. `detail: 'low'` para minimizar costo de tokens.
-
-**Fallback:** Si `downloadedUrl` no esta lista post-debounce, obtiene imagen directamente de WhatsApp API como base64.
-
-**freshMediaId pattern:** Despues del debounce 3s, busca en mensajes pendientes del lead el ultimo `mediaId` de imagen (no el del trigger de debounce, que puede estar desactualizado).
-
-### AudioPlayer + Whisper para todos los modos
-
-**Nuevo componente:** `src/components/ui/AudioPlayer.tsx` — reproductor custom con estilo KAIRO.
-
-**Whisper transcription:** Ahora corre para TODOS los modos (AI + human), no solo AI. Integrado en `download-media.ts` despues del upload. Transcripcion mostrada debajo del reproductor de audio.
-
-### PWA (Progressive Web App)
-
-- `manifest.json` actualizado con iconos maskable (192, 512, apple-touch, badge-72)
-- Meta tags iOS: `apple-mobile-web-app-capable`, `apple-mobile-web-app-status-bar-style`, `apple-touch-icon`
-- Viewport con `viewport-fit: cover`
-- Banner de instalacion PWA: deteccion Android/iOS, cooldown 10 dias, tema amber
-- Usa `createPortal` a `document.body` + inline styles (evita conflictos CSS)
-
-### Custom KAIRO Favicon
-
-`favicon.svg` disenado por Leo + iconos PNG generados: `icon-192.png`, `icon-512.png`, `apple-touch-icon.png`, `badge-72.png`.
-
-### Color system: --accent-text
-
-Nueva variable CSS `--accent-text`: Light=#0E7490 (cyan-700), Dark=#00E5FF. Reemplaza `--accent-primary` y `--kairo-cyan` para TODOS los textos e iconos cyan en ~40 archivos. Nota: Tailwind `dark:` prefix NO funciona (app usa `data-theme`, no `class dark`).
-
-### Terminologia: Archive → Discard
-
-- ES: "Archivar/Desarchivar" → "Descartar/Recuperar"
-- EN: "Archive/Unarchive" → "Discard/Recover"
-- Leads descartados: webhook guarda mensajes pero omite notificaciones y respuestas AI
-- Cron de reengagement ya excluia leads archivados
-
-### Dashboard improvements
-
-- Chart labels visibles por defecto (LabelList en los 4 charts)
-- Widget calculadora de costo por lead (input S/, calculo automatico)
-- Fix margen de barras en charts (top: 20px para label de barra mas alta)
-
-### Mobile improvements
-
-- Header: titulo oculto en mobile (previene overflow horizontal)
-- Admin stats: grid 2 columnas, padding compacto
-- Admin create buttons: icon-only en mobile (org/project/user)
-- Admin tabs: abreviacion "Orgs." en mobile
-- Settings rules: botones de accion siempre visibles en mobile (no solo hover), alineados a derecha
-
----
-
-> Versiones v0.19.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.22.2 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 

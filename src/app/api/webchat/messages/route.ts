@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
     // CORS gate
     const allowedOrigins = getAllowedOrigins(lookup.config);
     const corsOrigin = resolveCorsOrigin(origin, allowedOrigins);
-    if (origin && allowedOrigins.length > 0 && !corsOrigin) {
+    if (origin && !corsOrigin) {
       return NextResponse.json(
         { error: 'origin_not_allowed' },
         { status: 403, headers: buildCorsHeaders(null) }

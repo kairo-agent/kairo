@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
     const allowedOrigins = getAllowedOrigins(lookup.config);
     const corsOrigin = resolveCorsOrigin(origin, allowedOrigins);
 
-    if (origin && allowedOrigins.length > 0 && !corsOrigin) {
+    if (origin && !corsOrigin) {
       console.warn('[Widget config] origin not allowed', {
         origin,
         allowedOrigins,

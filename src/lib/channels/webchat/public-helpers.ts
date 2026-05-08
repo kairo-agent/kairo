@@ -93,19 +93,26 @@ export const DEFAULT_BEHAVIOR: Required<Omit<WebChatBehaviorConfig, 'allowedOrig
 
 /**
  * Decide which Origin to echo back in CORS headers.
- * Phase 3 policy: if allowedOrigins is empty, allow any origin (echo back).
- * Phase 4: an empty list will block all cross-origin requests.
+ *
+ * Sub-fase 4.E policy (strict): an empty `allowedOrigins` list blocks every
+ * cross-origin request. The widget's /settings/webchat surface MUST surface
+ * a warning to the project owner so they configure the list before pasting
+ * the embed snippet on a real site.
+ *
+ * Why strict-by-default: the public widget endpoints accept anonymous traffic
+ * (publicKey is in the embed snippet, world-readable). Exact-match origin
+ * checking is the only line preventing a hostile site from instantiating a
+ * KAIRO widget under another tenant's publicKey and harvesting visitors.
+ *
+ * Same-origin requests (no Origin header) are unaffected — those go through
+ * the `null` short-circuit at the top.
  */
 export function resolveCorsOrigin(
   requestOrigin: string | null,
   allowedOrigins: string[] | undefined
 ): string | null {
   if (!requestOrigin) return null;
-
-  // Phase 3: empty list = permissive
-  if (!allowedOrigins || allowedOrigins.length === 0) {
-    return requestOrigin;
-  }
+  if (!allowedOrigins || allowedOrigins.length === 0) return null;
 
   // Exact-match list (case-insensitive)
   const lowered = requestOrigin.toLowerCase();

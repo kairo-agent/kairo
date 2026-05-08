@@ -55,8 +55,8 @@ export function DomainsForm({ value, onChange }: DomainsFormProps) {
       </p>
 
       {isEmpty && (
-        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 text-xs text-yellow-700 dark:text-yellow-400">
-          <strong>Aviso:</strong> Lista vacia significa que cualquier dominio puede embeber el widget. Para produccion se recomienda restringir.
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-400">
+          <strong>Atencion:</strong> Sin dominios autorizados, el widget NO funcionara en ningun sitio externo. Agrega aqui el dominio donde instalaras el snippet (ej: https://misitio.com) antes de pegar el codigo en tu web.
         </div>
       )}
 

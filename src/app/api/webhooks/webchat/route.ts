@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
     const corsOrigin = resolveCorsOrigin(origin, allowedOrigins);
 
     // Origin gate — only enforced when allowedOrigins is non-empty (Phase 3 permissive)
-    if (origin && allowedOrigins.length > 0 && !corsOrigin) {
+    if (origin && !corsOrigin) {
       console.warn('[Webchat webhook] origin not allowed', {
         origin,
         allowedOrigins,

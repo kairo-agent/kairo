@@ -1,6 +1,75 @@
-# KAIRO - Changelog Archive (v0.17.0 y anteriores)
+# KAIRO - Changelog Archive (v0.22.2 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.20.0+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.22.3+).
+
+---
+
+## [0.22.2] - 2026-04-03
+
+### ReEngagement dual-model (Model A + Model B)
+
+Los seguimientos ahora se envian tanto si el lead responde y vuelve a hacer silencio (Model A, existente) como si nunca responde (Model B, nuevo). El contador de attempts siempre avanza, nunca repite el mismo intento.
+
+**Antes:** attempt 0 → lead debe responder → silencio → attempt 1 → lead debe responder → silencio → attempt 2.
+**Ahora:** attempt 0 → (delayHours) → attempt 1 → (delayHours) → attempt 2, sin importar si el lead respondio o no.
+
+**Cambio:** Query SQL en cron reengagement: eliminada condicion `lead_msg > last_re_at` que requeria respuesta. `completedCycles` reemplazado por `totalReengagements` (total enviados). UI descriptions actualizadas en es/en.
+
+**Archivo:** `src/app/api/cron/reengagement/route.ts`, `es.json`, `en.json`
+
+### Additional Instructions max length 2000 → 10000
+
+**Archivos:** `SettingsPageClient.tsx` (maxLength + counter), `prompt-builder.ts` (zod schema)
+
+### Fix: Save button disappears on hover (Form + ReEngagement tabs)
+
+Causa raiz: `hover:bg-[var(--accent-hover)]` — variable CSS no existe. Fix: usar `Button variant="primary"` con `isLoading` prop. Boton ahora siempre visible con `disabled={!hasUnsavedChanges}` + texto "Tienes cambios sin guardar".
+
+**Archivos:** `SettingsPageClient.tsx`, `es.json`, `en.json`
+
+---
+
+## [0.22.0] - 2026-04-01
+
+### Conversational Form (NEW MAJOR FEATURE)
+
+Los agentes IA ahora pueden recopilar datos estructurados de leads durante la conversacion de WhatsApp de forma natural. Por agente. Max 8 campos. Trigger modes: `immediate` o `on_interest` (WARM/HOT). Campo `formConfig` (JSONB) en `AIAgent` + tabla `lead_form_data`. Pipeline extrae marcador `[FORM-DATA: key=value]` de la respuesta GPT, guarda en `lead_form_data`, auto-llena campos del lead. UI: 4to tab "Formulario" en Settings.
+
+---
+
+## [0.21.0] - 2026-04-01
+
+### Timezone-aware date handling
+
+Toda la app respeta el `defaultTimezone` de la organizacion en vez de UTC. Principio: "Store UTC, Resolve on Read". Nuevo `src/lib/timezone.ts` con `Intl.DateTimeFormat`. Modificados: `dashboard.ts` (chart grouping), `leads.ts` (date filter + Excel), `WorkspaceContext`, `process-ai-response.ts`, webhooks, `utils.ts` (formatDate/Time acepta timezone). Sticker support agregado al pipeline Vision. Emoji cleanup (flags ES/EN reemplazados con texto).
+
+---
+
+## [0.20.1] - 2026-03-31
+
+### Temperature Classification Guard
+
+Guard en pipeline AI que impide clasificar temperatura hasta que lead haya enviado >=2 mensajes. Primer contacto siempre COLD. Drag & Drop en Criterios de Calificacion en Settings (con `@dnd-kit/sortable`). Fix contraste tabs Admin Panel (text-[var(--kairo-midnight)] sobre fondo cyan).
+
+---
+
+## [0.20.0] - 2026-03-30
+
+### Incoming Lead Media (NEW FEATURE)
+
+Descarga y renderizado de media entrante (imagen, video, audio, documento). `src/lib/whatsapp/download-media.ts` baja media WhatsApp API → Supabase Storage via `waitUntil`. Path: `incoming/{projectId}/{year}/{month}/{uuid}.{ext}`. Max 50MB. Chat UI: imagenes lightbox, video player nativo, AudioPlayer custom, documentos download link. Badge "Disponible hasta {date}". Expiracion: cron 5 dias.
+
+### GPT-4o-mini Vision (NEW FEATURE)
+
+Analisis imagenes entrantes via GPT Vision en modo AI. `detail: 'low'`. Fallback: si `downloadedUrl` no esta lista post-debounce, fetch directo de WhatsApp como base64. freshMediaId pattern para mediaId actualizado post-debounce.
+
+### AudioPlayer + Whisper para todos los modos
+
+Nuevo `src/components/ui/AudioPlayer.tsx`. Whisper transcription corre para TODOS los modos (AI + human). Integrado en download-media.ts post-upload.
+
+### PWA + custom favicon + --accent-text + Discard terminology + Dashboard charts + Mobile fixes
+
+PWA: `manifest.json` con maskable icons, meta tags iOS, viewport-fit cover, install banner createPortal. Favicon KAIRO custom. Variable CSS `--accent-text` reemplaza `--accent-primary` para textos cyan en ~40 archivos. "Archivar"→"Descartar" / "Archive"→"Discard". Chart labels visibles + cost-per-lead widget. Mobile: header titulo oculto, admin stats grid 2 cols, icon-only buttons.
 
 ---
 
