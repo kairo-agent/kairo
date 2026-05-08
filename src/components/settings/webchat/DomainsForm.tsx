@@ -12,14 +12,24 @@ interface DomainsFormProps {
 
 const URL_REGEX = /^https?:\/\/[^\s]+$/i;
 
-function normalizeOrigin(input: string): string | null {
+// HTTP solo se permite para hostnames de desarrollo local. Todo lo demas
+// debe ser HTTPS — un widget embebido en HTTP expone los mensajes en
+// transito y los browsers marcan el sitio como inseguro.
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]']);
+
+type NormalizeError = 'invalid_url' | 'http_not_allowed';
+
+function normalizeOrigin(input: string): { ok: true; value: string } | { ok: false; error: NormalizeError } {
   const trimmed = input.trim().replace(/\/+$/, '');
-  if (!URL_REGEX.test(trimmed)) return null;
+  if (!URL_REGEX.test(trimmed)) return { ok: false, error: 'invalid_url' };
   try {
     const u = new URL(trimmed);
-    return `${u.protocol}//${u.host}`;
+    if (u.protocol === 'http:' && !LOCAL_HOSTS.has(u.hostname.toLowerCase())) {
+      return { ok: false, error: 'http_not_allowed' };
+    }
+    return { ok: true, value: `${u.protocol}//${u.host}` };
   } catch {
-    return null;
+    return { ok: false, error: 'invalid_url' };
   }
 }
 
@@ -28,16 +38,20 @@ export function DomainsForm({ value, onChange }: DomainsFormProps) {
   const [error, setError] = useState<string | null>(null);
 
   const addOrigin = () => {
-    const normalized = normalizeOrigin(draft);
-    if (!normalized) {
-      setError('URL invalida (ej: https://miempresa.com)');
+    const result = normalizeOrigin(draft);
+    if (!result.ok) {
+      setError(
+        result.error === 'http_not_allowed'
+          ? 'HTTP no permitido por seguridad. Usa HTTPS (http solo se acepta para localhost en desarrollo).'
+          : 'URL invalida (ej: https://miempresa.com)'
+      );
       return;
     }
-    if (value.includes(normalized)) {
+    if (value.includes(result.value)) {
       setError('Este origen ya esta en la lista');
       return;
     }
-    onChange([...value, normalized]);
+    onChange([...value, result.value]);
     setDraft('');
     setError(null);
   };

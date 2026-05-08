@@ -197,7 +197,30 @@ const webChatConfigSchema = z.object({
     soundEnabled: z.boolean(),
     sessionTimeoutHours: z.number().int().min(1).max(24),
   }),
-  allowedOrigins: z.array(z.string().regex(URL_REGEX, 'URL invalida')),
+  allowedOrigins: z.array(
+    z
+      .string()
+      .regex(URL_REGEX, 'URL invalida')
+      .refine(
+        (raw) => {
+          // Server-side mirror of DomainsForm validation: reject http:// for
+          // non-local hosts. Defense in depth — bypass via direct Server Action
+          // call would otherwise let an owner whitelist a non-TLS site.
+          try {
+            const u = new URL(raw);
+            if (u.protocol === 'https:') return true;
+            if (u.protocol === 'http:') {
+              const host = u.hostname.toLowerCase();
+              return host === 'localhost' || host === '127.0.0.1' || host === '0.0.0.0' || host === '[::1]';
+            }
+            return false;
+          } catch {
+            return false;
+          }
+        },
+        { message: 'HTTP solo permitido para localhost; usa HTTPS' }
+      )
+  ),
 });
 
 /**
