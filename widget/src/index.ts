@@ -23,7 +23,7 @@ import {
   el,
   escapeHtml,
 } from './dom';
-import { uploadImage, type UploadErrorCode } from './upload';
+import { uploadFile, type UploadErrorCode, type UploadKind } from './upload';
 import { detectLang, t } from './i18n';
 import { playBeep } from './sound';
 import { startRealtime, type RealtimeClient } from './realtime';
@@ -411,16 +411,17 @@ function buildWindow(ctx: Ctx): HTMLDivElement {
   const attachBtn = el('button', 'k-attach');
   attachBtn.type = 'button';
   attachBtn.innerHTML = ICON_ATTACH;
-  attachBtn.setAttribute('aria-label', labels.attachImage);
-  attachBtn.title = labels.attachImage;
+  attachBtn.setAttribute('aria-label', labels.attachFile);
+  attachBtn.title = labels.attachFile;
   const fileInput = el('input') as HTMLInputElement;
   fileInput.type = 'file';
-  fileInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
+  // 4.D.1 image MIME + 4.D.2 audio MIME. Document arrives in 4.D.3.
+  fileInput.accept = 'image/jpeg,image/png,image/webp,image/gif,audio/mpeg,audio/mp4,audio/wav,audio/webm,audio/ogg';
   fileInput.style.display = 'none';
   attachBtn.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', () => {
     const file = fileInput.files?.[0];
-    if (file) void doUploadImage(ctx, file);
+    if (file) void doUploadFile(ctx, file);
     // Reset so selecting the same file twice still triggers `change`.
     fileInput.value = '';
   });
@@ -575,6 +576,21 @@ function renderMsgNode(msg: WidgetMessage, agentBadge: string): HTMLDivElement {
     });
     wrap.appendChild(img);
     if (msg.content && msg.content.trim() && msg.content.trim() !== '[image]') {
+      const bubble = el('div', 'k-msg-bubble');
+      bubble.textContent = msg.content;
+      wrap.appendChild(bubble);
+    }
+    return wrap;
+  }
+  // Fase 4.D.2 — audio bubble: native <audio controls>. The transcription
+  // becomes the AI's user-facing input; the visitor sees the player here.
+  if (msg.mediaKind === 'audio' && msg.mediaUrl) {
+    const audio = el('audio', 'k-msg-audio') as HTMLAudioElement;
+    audio.src = msg.mediaUrl;
+    audio.controls = true;
+    audio.preload = 'metadata';
+    wrap.appendChild(audio);
+    if (msg.content && msg.content.trim() && msg.content.trim() !== '[audio]') {
       const bubble = el('div', 'k-msg-bubble');
       bubble.textContent = msg.content;
       wrap.appendChild(bubble);
@@ -799,7 +815,7 @@ function uploadErrorLabel(ctx: Ctx, code: UploadErrorCode): string {
   }
 }
 
-async function doUploadImage(ctx: Ctx, file: File): Promise<void> {
+async function doUploadFile(ctx: Ctx, file: File): Promise<void> {
   if (ctx.state.sending) return;
   if (ctx.opts.preview) {
     // Preview mode never hits the network — show a friendly mock and stop.
@@ -825,21 +841,21 @@ async function doUploadImage(ctx: Ctx, file: File): Promise<void> {
   ctx.state.error = null;
 
   try {
-    const result = await uploadImage(ctx.opts, ctx.state.conversationId, ctx.state.sessionId, file);
+    const result = await uploadFile(ctx.opts, ctx.state.conversationId, ctx.state.sessionId, file);
     if (!result.ok) {
       ctx.state.error = uploadErrorLabel(ctx, result.error);
       renderMessages(ctx);
       return;
     }
 
-    // Optimistic local message so the visitor sees their image immediately.
+    // Optimistic local message so the visitor sees their attachment immediately.
     const localMsg: WidgetMessage = {
-      id: `local-img-${Date.now()}`,
+      id: `local-${result.kind}-${Date.now()}`,
       content: '',
       senderType: 'visitor',
       createdAt: new Date().toISOString(),
       mediaUrl: result.publicUrl,
-      mediaKind: 'image',
+      mediaKind: result.kind,
     };
     ctx.state.messages.push(localMsg);
     renderMessages(ctx);
@@ -852,15 +868,15 @@ async function doUploadImage(ctx: Ctx, file: File): Promise<void> {
       sessionId: ctx.state.sessionId,
       conversationId: ctx.state.conversationId,
       message: '',
-      media: { kind: 'image', mediaUrl: result.publicUrl },
+      media: { kind: result.kind as UploadKind, mediaUrl: result.publicUrl },
     });
     if (!sendRes.ok) throw new Error(sendRes.error || 'send_failed');
 
-    // Trigger polling so the AI Vision response arrives via the normal path.
+    // Trigger polling so the AI Vision/Whisper response arrives via the normal path.
     startPolling(ctx);
     startRealtimeIfPossible(ctx);
   } catch (err) {
-    console.warn('[KAIRO] image upload failed', err);
+    console.warn('[KAIRO] file upload failed', err);
     removeTyping(ctx);
     ctx.state.error = t(ctx.opts.lang).uploadFailed;
     renderMessages(ctx);

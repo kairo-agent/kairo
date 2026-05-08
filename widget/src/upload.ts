@@ -1,20 +1,28 @@
 // ============================================
-// KAIRO WebChat Widget — Image upload (Sub-fase 4.D.1)
+// KAIRO WebChat Widget — File upload (Sub-fase 4.D.1 image, 4.D.2 audio)
 //
-// Two-step flow that mirrors `incoming` (WhatsApp) media handling but on
-// the visitor side:
-//   1. POST /api/widget/upload-token → server validates publicKey + tenant
-//      + MIME + size and returns a signed Supabase Storage upload URL.
+// Two-step flow:
+//   1. POST /api/widget/upload-token → server validates publicKey + tenant +
+//      MIME + size and returns a signed Supabase Storage upload URL.
 //   2. PUT the file directly to that signed URL. Bucket is public, so the
 //      `publicUrl` returned in step 1 is what we ship in /webhooks/webchat.
-//
-// Every error path is enumerated so the widget can show actionable copy.
 // ============================================
 
 import type { EmbedOptions } from './types';
 
+export type UploadKind = 'image' | 'audio';
+
 const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_AUDIO_MIMES = new Set([
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/webm',
+  'audio/ogg',
+  'audio/opus',
+]);
+const MAX_BYTES = 10 * 1024 * 1024;
 
 export type UploadErrorCode =
   | 'too_large'
@@ -27,6 +35,7 @@ export interface UploadResult {
   ok: true;
   publicUrl: string;
   mime: string;
+  kind: UploadKind;
 }
 
 export interface UploadFailure {
@@ -44,20 +53,29 @@ interface TokenResponse {
 }
 
 /**
- * Upload a single image. Validates client-side first to avoid a server roundtrip
- * for obviously bad files (size > 10MB, wrong MIME).
+ * Detect the upload kind from a File's MIME type. Returns null when the file
+ * is not in any whitelist — caller should surface an `unsupported_format`
+ * error to the user.
  */
-export async function uploadImage(
+export function detectKind(file: File): UploadKind | null {
+  if (ALLOWED_IMAGE_MIMES.has(file.type)) return 'image';
+  if (ALLOWED_AUDIO_MIMES.has(file.type)) return 'audio';
+  return null;
+}
+
+/**
+ * Upload a single file (image or audio). Validates client-side first to avoid
+ * a server roundtrip for obviously bad files. Server enforces the same rules.
+ */
+export async function uploadFile(
   opts: EmbedOptions,
   conversationId: string,
   sessionId: string,
   file: File
 ): Promise<UploadResult | UploadFailure> {
-  // Client-side guards (server enforces these too — defense in depth)
-  if (!ALLOWED_IMAGE_MIMES.has(file.type)) {
-    return { ok: false, error: 'unsupported_format' };
-  }
-  if (file.size <= 0 || file.size > MAX_IMAGE_BYTES) {
+  const kind = detectKind(file);
+  if (!kind) return { ok: false, error: 'unsupported_format' };
+  if (file.size <= 0 || file.size > MAX_BYTES) {
     return { ok: false, error: 'too_large' };
   }
 
@@ -73,7 +91,7 @@ export async function uploadImage(
         publicKey: opts.publicKey,
         sessionId,
         conversationId,
-        kind: 'image',
+        kind,
         mime: file.type,
         size: file.size,
       }),
@@ -89,12 +107,6 @@ export async function uploadImage(
   }
 
   // Step 2: PUT to Supabase signed URL.
-  // Supabase signed upload URLs accept either of:
-  //   - PUT with Authorization: Bearer <token>
-  //   - PUT to URL with `?token=<token>` query param (which createSignedUploadUrl
-  //     already includes in `uploadUrl`).
-  // We use the URL-as-issued (token already embedded). Setting Content-Type
-  // matters — Supabase enforces it against the signed MIME at validation time.
   try {
     const putRes = await fetch(tokenData.uploadUrl, {
       method: 'PUT',
@@ -106,5 +118,5 @@ export async function uploadImage(
     return { ok: false, error: 'network' };
   }
 
-  return { ok: true, publicUrl: tokenData.publicUrl, mime: file.type };
+  return { ok: true, publicUrl: tokenData.publicUrl, mime: file.type, kind };
 }

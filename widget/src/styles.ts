@@ -380,6 +380,15 @@ button { font: inherit; cursor: pointer; }
   cursor: pointer;
   object-fit: cover;
 }
+/* Fase 4.D.2 — native audio player. Width matches typical bubble copy. */
+.k-msg-audio {
+  width: 240px;
+  max-width: 100%;
+  height: 36px;
+  border-radius: 18px;
+  background: ${v.aiBg};
+  display: block;
+}
 .k-upload-status {
   font-size: 11.5px;
   color: #94A3B8;

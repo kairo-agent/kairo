@@ -43,6 +43,7 @@ export const runtime = 'nodejs';
 // --------------------------------------------
 
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10 MB — same ceiling Whisper enforces internally
 
 const IMAGE_MIME_WHITELIST: ReadonlyMap<string, string> = new Map([
   ['image/jpeg', 'jpg'],
@@ -51,7 +52,19 @@ const IMAGE_MIME_WHITELIST: ReadonlyMap<string, string> = new Map([
   ['image/gif', 'gif'],
 ]);
 
-const ALLOWED_KINDS = new Set(['image']); // 4.D.2 will add 'audio', 4.D.3 'document'
+// Whisper accepts these container/codec combos. We mirror the WhatsApp pipeline
+// (transcribeAudio in process-ai-response.ts) so behaviour is consistent.
+const AUDIO_MIME_WHITELIST: ReadonlyMap<string, string> = new Map([
+  ['audio/mpeg', 'mp3'],
+  ['audio/mp4', 'm4a'],
+  ['audio/wav', 'wav'],
+  ['audio/x-wav', 'wav'],
+  ['audio/webm', 'webm'],
+  ['audio/ogg', 'ogg'],
+  ['audio/opus', 'opus'],
+]);
+
+const ALLOWED_KINDS = new Set(['image', 'audio']); // 4.D.3 will add 'document'
 
 const SIGNED_URL_TTL_SECONDS = 300; // 5 min — visitor uploads quickly; expired tokens are refused by Supabase
 
@@ -72,7 +85,7 @@ interface UploadTokenBody {
   publicKey: string;
   sessionId?: string;
   conversationId: string;
-  kind: 'image'; // future: 'audio' | 'document'
+  kind: 'image' | 'audio'; // 4.D.3 will add 'document'
   mime: string;
   size: number;
 }
@@ -114,26 +127,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Per-kind validation (only `image` accepted in 4.D.1)
+    // Per-kind validation
     let extension: string | undefined;
+    let maxBytes: number;
     if (kind === 'image') {
       extension = IMAGE_MIME_WHITELIST.get(mime);
-      if (!extension) {
-        return NextResponse.json(
-          { error: 'unsupported_mime' },
-          { status: 400, headers: buildCorsHeaders(origin) }
-        );
-      }
-      if (size <= 0 || size > MAX_IMAGE_SIZE) {
-        return NextResponse.json(
-          { error: 'size_out_of_range', maxBytes: MAX_IMAGE_SIZE },
-          { status: 413, headers: buildCorsHeaders(origin) }
-        );
-      }
+      maxBytes = MAX_IMAGE_SIZE;
+    } else if (kind === 'audio') {
+      extension = AUDIO_MIME_WHITELIST.get(mime);
+      maxBytes = MAX_AUDIO_SIZE;
     } else {
       return NextResponse.json(
         { error: 'kind_not_supported_yet' },
         { status: 400, headers: buildCorsHeaders(origin) }
+      );
+    }
+    if (!extension) {
+      return NextResponse.json(
+        { error: 'unsupported_mime' },
+        { status: 400, headers: buildCorsHeaders(origin) }
+      );
+    }
+    if (size <= 0 || size > maxBytes) {
+      return NextResponse.json(
+        { error: 'size_out_of_range', maxBytes },
+        { status: 413, headers: buildCorsHeaders(origin) }
       );
     }
 

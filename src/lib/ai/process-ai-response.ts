@@ -168,6 +168,21 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       steps.push({ name: 'audio_transcribe', duration: Date.now() - stepStart });
     }
 
+    // --- Step 1a (webchat 4.D.2): Audio already at public URL — Whisper from URL ---
+    // The visitor uploaded the audio to bucket=media, prefix=webchat/... via the
+    // signed PUT flow. Whisper accepts raw audio bytes, so we just fetch the
+    // public URL and forward to /v1/audio/transcriptions. No WhatsApp Cloud API
+    // detour. Errors are silently swallowed — userMessage stays as the placeholder
+    // text so the AI still has something to respond to.
+    if (params.messageType === 'audio' && params.webchatMediaUrl && !params.mediaId) {
+      const stepStart = Date.now();
+      const transcription = await transcribeAudioFromUrl(params.webchatMediaUrl, projectId);
+      if (transcription) {
+        userMessage = transcription;
+      }
+      steps.push({ name: 'audio_transcribe_webchat', duration: Date.now() - stepStart });
+    }
+
     // --- Step 1b (webchat 4.D.1): Image already at public URL — feed straight to Vision ---
     // This branch handles webchat uploads where the visitor PUT the file to
     // Supabase Storage (bucket=media, prefix=webchat/...) and the widget then
@@ -851,6 +866,105 @@ async function transcribeAudio(
     return transcription;
   } catch (error) {
     console.error('[AI Pipeline] Audio transcription error:', error);
+    return null;
+  }
+}
+
+// ============================================
+// Internal Helper: Audio Transcription from public URL (webchat 4.D.2)
+// ============================================
+//
+// Same Whisper flow as `transcribeAudio` but bypasses the WhatsApp Cloud API.
+// The visitor uploaded the audio to bucket=media (public) via signed PUT URL,
+// so we can GET it directly. We still validate size + MIME defensively because
+// the visitor controls the upload.
+async function transcribeAudioFromUrl(
+  audioUrl: string,
+  projectId: string
+): Promise<string | null> {
+  try {
+    // Hostname guard: must be the project's Supabase public storage URL.
+    // Prevents an attacker from posting a webhook with `mediaUrl=https://evil.com`
+    // and getting our backend to fetch arbitrary content into Whisper.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) {
+      console.error('[AI Pipeline] NEXT_PUBLIC_SUPABASE_URL missing — refusing transcribe');
+      return null;
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(audioUrl);
+    } catch {
+      console.warn('[AI Pipeline] Invalid audio URL');
+      return null;
+    }
+    const expectedHost = new URL(supabaseUrl).host;
+    if (parsed.host !== expectedHost) {
+      console.warn(`[AI Pipeline] Audio URL host mismatch: ${parsed.host} != ${expectedHost}`);
+      return null;
+    }
+    // Path must live under the public webchat prefix we control.
+    if (!parsed.pathname.includes('/storage/v1/object/public/media/webchat/')) {
+      console.warn('[AI Pipeline] Audio URL outside expected webchat prefix');
+      return null;
+    }
+
+    const [audioResponse, openaiKey] = await Promise.all([
+      fetch(audioUrl),
+      getProjectSecret(projectId, 'openai_api_key'),
+    ]);
+
+    if (!audioResponse.ok || !openaiKey) {
+      console.error('[AI Pipeline] Failed to download audio or missing OpenAI key');
+      return null;
+    }
+
+    const audioBuffer = await audioResponse.arrayBuffer();
+    const MAX_AUDIO_SIZE = 10 * 1024 * 1024;
+    if (audioBuffer.byteLength > MAX_AUDIO_SIZE) {
+      console.warn(`[AI Pipeline] Webchat audio too large: ${audioBuffer.byteLength} bytes, skipping`);
+      return null;
+    }
+
+    const mimeType = audioResponse.headers.get('content-type') || 'audio/webm';
+    const ALLOWED_AUDIO_TYPES = new Set([
+      'audio/mpeg', 'audio/mp4', 'audio/wav', 'audio/x-wav',
+      'audio/webm', 'audio/ogg', 'audio/opus',
+    ]);
+    // Some Supabase responses include parameters like `audio/webm;codecs=opus`
+    const baseMime = mimeType.split(';')[0].trim().toLowerCase();
+    if (!ALLOWED_AUDIO_TYPES.has(baseMime)) {
+      console.warn(`[AI Pipeline] Unsupported webchat audio MIME: ${baseMime}`);
+      return null;
+    }
+
+    const audioBlob = new Blob([audioBuffer], { type: baseMime });
+    const extMap: Record<string, string> = {
+      'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/wav': 'wav', 'audio/x-wav': 'wav',
+      'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/opus': 'opus',
+    };
+    const ext = extMap[baseMime] || 'webm';
+
+    const formData = new FormData();
+    formData.append('file', audioBlob, `audio.${ext}`);
+    formData.append('model', 'whisper-1');
+
+    const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openaiKey}` },
+      body: formData,
+    });
+
+    if (!whisperResponse.ok) {
+      const errBody = await whisperResponse.text().catch(() => '');
+      console.error('[AI Pipeline] Whisper webchat transcription failed:', whisperResponse.status, errBody.slice(0, 200));
+      return null;
+    }
+
+    const result = await whisperResponse.json();
+    return typeof result.text === 'string' ? result.text : null;
+  } catch (error) {
+    console.error('[AI Pipeline] Webchat audio transcription error:', error);
     return null;
   }
 }
