@@ -24,6 +24,7 @@ import {
 } from './dom';
 import { detectLang, t } from './i18n';
 import { playBeep } from './sound';
+import { startRealtime, type RealtimeClient } from './realtime';
 import {
   clearConversation,
   getConversation,
@@ -44,8 +45,17 @@ import type {
 } from './types';
 
 const DEFAULT_API_BASE = 'https://app.kairoagent.com';
-const DEFAULT_POLL_MS = 3000;
+// Fase 4.A: polling becomes a fallback. With Realtime active, we still poll
+// at 30s as a safety net (catches dropped WS frames, NAT timeouts, corp WS blocks).
+const DEFAULT_POLL_MS = 30000;
 const PREVIEW_AI_REPLY_MS = 900;
+
+/**
+ * Live widget contexts keyed by publicKey. Lets `Kairo.reset()` reach into a
+ * running instance to tear down Realtime + timers cleanly before removing the
+ * host element.
+ */
+const liveContexts = new Map<string, Ctx>();
 
 /** Find every kairo.js <script> on the page and boot a widget per one. */
 function bootAll(): void {
@@ -122,6 +132,7 @@ function bootInstance(opts: EmbedOptions): void {
     config: null,
     teaserDismissed: false,
     starterUsed: false,
+    realtimeTopicSecret: null,
   };
 
   if (!opts.preview) {
@@ -130,6 +141,7 @@ function bootInstance(opts: EmbedOptions): void {
       state.conversationId = snap.conversationId;
       state.sessionId = snap.sessionId;
       state.lastMessageAt = snap.lastMessageAt;
+      state.realtimeTopicSecret = snap.realtimeTopicSecret ?? null;
     } else {
       state.sessionId = newSessionId();
     }
@@ -139,6 +151,7 @@ function bootInstance(opts: EmbedOptions): void {
   }
 
   const ctx = createContext(opts, state, shadow);
+  liveContexts.set(opts.publicKey, ctx);
   shadow.appendChild(ctx.styleNode);
   shadow.appendChild(ctx.rootNode);
 
@@ -170,6 +183,10 @@ interface Ctx {
   };
   pollTimer: ReturnType<typeof setInterval> | null;
   autoOpenTimer: ReturnType<typeof setTimeout> | null;
+  /** Fase 4.A: live Realtime client (null when polling-only). */
+  realtime: RealtimeClient | null;
+  /** Coalesces Realtime signals + polling timer ticks into a single fetch. */
+  fetchInflight: boolean;
 }
 
 function createContext(opts: EmbedOptions, state: WidgetState, shadow: ShadowRoot): Ctx {
@@ -196,6 +213,8 @@ function createContext(opts: EmbedOptions, state: WidgetState, shadow: ShadowRoo
     },
     pollTimer: null,
     autoOpenTimer: null,
+    realtime: null,
+    fetchInflight: false,
   };
 }
 
@@ -238,6 +257,7 @@ function previewConfig(): WidgetConfig {
     orgName: 'KAIRO',
     appearance: {},
     behavior: { autoOpenDelay: 0, soundEnabled: true, showBranding: true, pollingIntervalMs: DEFAULT_POLL_MS },
+    realtime: null,
   };
 }
 
@@ -263,6 +283,7 @@ function renderAll(ctx: Ctx): void {
     afterWindowMounted(ctx);
   } else {
     stopPolling(ctx);
+    stopRealtime(ctx);
   }
 }
 
@@ -405,6 +426,7 @@ function afterWindowMounted(ctx: Ctx): void {
   // Focus input after slide-in animation
   setTimeout(() => ctx.refs.input?.focus(), 220);
   startPolling(ctx);
+  startRealtimeIfPossible(ctx);
 }
 
 function autoGrow(ta: HTMLTextAreaElement): void {
@@ -539,6 +561,7 @@ function closeWindow(ctx: Ctx): void {
   ctx.state.open = false;
   if (!ctx.opts.preview) setOpen(ctx.opts.publicKey, false);
   stopPolling(ctx);
+  stopRealtime(ctx);
   renderAll(ctx);
 }
 
@@ -621,12 +644,22 @@ async function doSend(ctx: Ctx, text: string): Promise<void> {
     });
     if (!res.ok) throw new Error(res.error || 'send_failed');
 
-    if (!ctx.state.conversationId) {
+    // Persist conversationId + topicSecret from the first response. The
+    // topicSecret is shipped only on this initial POST (and refreshed if the
+    // visitor clears localStorage). It enables Realtime broadcast subscription.
+    const newConversationId = !ctx.state.conversationId;
+    if (newConversationId) {
       ctx.state.conversationId = res.conversationId;
+    }
+    if (res.realtimeTopicSecret && !ctx.state.realtimeTopicSecret) {
+      ctx.state.realtimeTopicSecret = res.realtimeTopicSecret;
+    }
+    if (newConversationId || res.realtimeTopicSecret) {
       setConversation(ctx.opts.publicKey, {
-        conversationId: res.conversationId,
+        conversationId: ctx.state.conversationId!,
         sessionId: ctx.state.sessionId,
         lastMessageAt: ctx.state.lastMessageAt,
+        realtimeTopicSecret: ctx.state.realtimeTopicSecret,
       });
     }
     // NOTA: NO actualizamos lastMessageAt con visitorMsg.createdAt aqui.
@@ -638,6 +671,7 @@ async function doSend(ctx: Ctx, text: string): Promise<void> {
     // El polling se encarga de mantener lastMessageAt sincronizado con timestamps
     // del backend (linea ~688).
     startPolling(ctx);
+    startRealtimeIfPossible(ctx);
   } catch (err) {
     console.warn('[KAIRO] send failed', err);
     removeTyping(ctx);
@@ -655,6 +689,9 @@ function persistLastMsgTs(ctx: Ctx): void {
     conversationId: ctx.state.conversationId,
     sessionId: ctx.state.sessionId,
     lastMessageAt: ctx.state.lastMessageAt,
+    // Preserve topicSecret across persists — without this, Realtime is lost
+    // on the next reload after polling updates lastMessageAt.
+    realtimeTopicSecret: ctx.state.realtimeTopicSecret,
   });
 }
 
@@ -674,8 +711,46 @@ function stopPolling(ctx: Ctx): void {
   }
 }
 
+/**
+ * Fase 4.A — start the Realtime broadcast subscription when both the topic
+ * secret and the Realtime config (URL + anon key) are available. Failures
+ * are silent: the polling timer is the single source of truth, Realtime
+ * just makes message arrival ~instant when it works.
+ */
+function startRealtimeIfPossible(ctx: Ctx): void {
+  if (ctx.opts.preview) return;
+  if (ctx.realtime) return; // already running
+  if (!ctx.state.conversationId || !ctx.state.realtimeTopicSecret) return;
+  const rtCfg = ctx.state.config?.realtime;
+  if (!rtCfg || !rtCfg.url || !rtCfg.key) return;
+
+  ctx.realtime = startRealtime({
+    supabaseUrl: rtCfg.url,
+    anonKey: rtCfg.key,
+    topicSecret: ctx.state.realtimeTopicSecret,
+    onSignal: () => {
+      // Coalesce: if a fetch is already in flight, the broadcast signal is
+      // a no-op (the in-flight fetch will see the new message). Otherwise
+      // trigger an immediate poll.
+      void pollOnce(ctx);
+    },
+  });
+}
+
+function stopRealtime(ctx: Ctx): void {
+  if (ctx.realtime) {
+    ctx.realtime.close();
+    ctx.realtime = null;
+  }
+}
+
 async function pollOnce(ctx: Ctx): Promise<void> {
   if (!ctx.state.conversationId) return;
+  // Coalesce concurrent fetches (broadcast signal + polling tick): only one
+  // in-flight at a time. The latest signal will hit the next tick or be
+  // covered by the in-flight response.
+  if (ctx.fetchInflight) return;
+  ctx.fetchInflight = true;
   try {
     const msgs = await pollMessages(ctx.opts, ctx.state.conversationId, ctx.state.lastMessageAt);
     if (!msgs.length) return;
@@ -715,6 +790,8 @@ async function pollOnce(ctx: Ctx): Promise<void> {
   } catch (err) {
     // Network blips happen — keep polling, don't surface to the user.
     console.debug('[KAIRO] poll error', err);
+  } finally {
+    ctx.fetchInflight = false;
   }
 }
 
@@ -729,6 +806,14 @@ interface KairoGlobal {
 
 const api: KairoGlobal = {
   reset(publicKey: string) {
+    // Tear down Realtime + polling cleanly BEFORE removing the host so we
+    // don't leak a WS connection or a setInterval against a vanished DOM.
+    const ctx = liveContexts.get(publicKey);
+    if (ctx) {
+      stopRealtime(ctx);
+      stopPolling(ctx);
+      liveContexts.delete(publicKey);
+    }
     clearConversation(publicKey);
     setOpen(publicKey, false);
     const host = document.getElementById(`kairo-widget-${publicKey}`);

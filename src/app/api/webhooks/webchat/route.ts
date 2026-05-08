@@ -15,6 +15,7 @@
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { prisma } from '@/lib/prisma';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
@@ -25,6 +26,7 @@ import {
   extractClientIp,
 } from '@/lib/channels/webchat/public-helpers';
 import { getChannelHandler } from '@/lib/channels/registry';
+import { emitWebChatSignal } from '@/lib/channels/webchat/realtime-emit';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -243,11 +245,14 @@ export async function POST(request: NextRequest) {
           select: { id: true },
         });
 
-    // Ensure Conversation exists
+    // Ensure Conversation exists. Pull realtimeTopicSecret so we can
+    // (a) emit the Realtime signal after persisting the inbound message and
+    // (b) return it to the widget so it can subscribe.
     const conversation = await prisma.conversation.upsert({
       where: { leadId: lead.id },
       create: { leadId: lead.id },
       update: {},
+      select: { id: true, realtimeTopicSecret: true },
     });
 
     // Persist inbound message stub
@@ -305,12 +310,20 @@ export async function POST(request: NextRequest) {
       handlerAvailable: !!handler,
     });
 
+    // Fase 4.A: emit Realtime signal so any open widget tab refreshes
+    // immediately. Wrapped in waitUntil so the 2.5s emit timeout can NEVER
+    // block the response path — polling fallback covers any failure.
+    waitUntil(emitWebChatSignal(conversation.realtimeTopicSecret));
+
     return NextResponse.json(
       {
         ok: true,
         received: true,
         messageId: message.id,
         conversationId: conversation.id,
+        // Widget needs the topic secret to subscribe to the broadcast channel.
+        // Treated as a session secret on the widget side (localStorage).
+        realtimeTopicSecret: conversation.realtimeTopicSecret,
       },
       { status: 200, headers: buildCorsHeaders(corsOrigin) }
     );

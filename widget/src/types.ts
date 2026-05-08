@@ -51,7 +51,13 @@ export interface BehaviorConfig {
   autoOpenDelay?: number; // seconds; 0 = disabled
   soundEnabled?: boolean;
   showBranding?: boolean; // "Powered by KAIRO"
-  pollingIntervalMs?: number; // default 3000
+  pollingIntervalMs?: number; // Fase 4.A: fallback polling interval (default 30s)
+}
+
+/** Fase 4.A: Realtime broadcast endpoint shipped by /api/widget/config. */
+export interface RealtimeConfig {
+  url: string; // Supabase project URL (https://xxx.supabase.co)
+  key: string; // anon key (already public in dashboard clients)
 }
 
 export interface WidgetConfig {
@@ -59,6 +65,8 @@ export interface WidgetConfig {
   orgName: string;
   appearance: AppearanceConfig;
   behavior: BehaviorConfig;
+  /** Fase 4.A: optional. If absent, widget falls back to polling-only. */
+  realtime?: RealtimeConfig | null;
 }
 
 // ─── Messages ────────────────────────────────────────────────────────────────
@@ -80,6 +88,8 @@ export interface SendMessageResponse {
   conversationId: string;
   messageId?: string;
   error?: string;
+  /** Fase 4.A: per-conversation Realtime topic secret (UUID v4). */
+  realtimeTopicSecret?: string;
 }
 
 export interface PollMessagesResponse {
@@ -102,6 +112,8 @@ export interface WidgetState {
   config: WidgetConfig | null;
   teaserDismissed: boolean;
   starterUsed: boolean;
+  /** Fase 4.A: secret topic name for the Realtime broadcast (per conversation). */
+  realtimeTopicSecret: string | null;
 }
 
 // ─── Embed-time options (parsed from <script> attributes) ────────────────────

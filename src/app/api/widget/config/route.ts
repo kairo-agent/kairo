@@ -131,12 +131,25 @@ export async function GET(request: NextRequest) {
     const appearance = resolveAppearance(lookup.config);
     const behavior = resolveBehavior(lookup.config);
 
+    // Fase 4.A: ship Realtime endpoint + ANON KEY (already public by design)
+    // to the widget so it can open a Phoenix WS to Supabase Realtime. The
+    // anon key is the same NEXT_PUBLIC_SUPABASE_ANON_KEY already exposed to
+    // dashboard clients — no new secret material is being leaked. If env is
+    // missing we ship `null` and the widget falls back to polling-only.
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? null;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? null;
+    const realtime =
+      supabaseUrl && supabaseAnonKey
+        ? { url: supabaseUrl, key: supabaseAnonKey }
+        : null;
+
     const body = {
       enabled: true,
       publicKey: lookup.channel.publicKey,
       appearance,
       behavior,
       orgName: project?.organization?.name ?? null,
+      realtime,
     };
 
     return NextResponse.json(body, {

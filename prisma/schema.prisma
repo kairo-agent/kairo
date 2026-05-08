@@ -260,12 +260,17 @@ model Activity {
 }
 
 model Conversation {
-  id        String    @id @default(cuid())
-  leadId    String    @unique
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  lead      Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  messages  Message[]
+  id                  String    @id @default(cuid())
+  leadId              String    @unique
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  // Per-conversation secret used as Realtime broadcast topic name (Fase 4.A).
+  // UUID v4 (high entropy) — NOT exposed in URLs/logs; rotated by clearing the
+  // visitor's localStorage. Decoupled from `id` so the topic is unguessable
+  // even if `Conversation.id` (cuid) is leaked.
+  realtimeTopicSecret String    @unique @default(uuid())
+  lead                Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  messages            Message[]
 
   @@index([leadId])
   @@map("conversations")

@@ -33,6 +33,7 @@ import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
 import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
 import type { FormConfig } from '@/lib/types/form-template';
+import { emitWebChatSignal } from './realtime-emit';
 
 // ============================================================
 // Payload type — lo que el webhook /api/webhooks/webchat envia al handler
@@ -79,6 +80,11 @@ export class WebChatChannelHandler implements IChannelHandler {
             promptStructure: true,
             formConfig: true,
           },
+        },
+        // Conversation -> realtimeTopicSecret needed by processAIResponse
+        // to emit a Realtime "new message" signal after persisting the AI reply.
+        conversation: {
+          select: { realtimeTopicSecret: true },
         },
       },
     });
@@ -137,6 +143,7 @@ export class WebChatChannelHandler implements IChannelHandler {
     const companyName = project?.name || 'KAIRO';
     const orgTimezone = project?.organization?.defaultTimezone || null;
     const leadSummary = lead.summary || null;
+    const realtimeTopicSecret = lead.conversation?.realtimeTopicSecret ?? null;
 
     // Fire-and-forget: esperar el debounce + concatenar pendientes + correr pipeline.
     waitUntil(
@@ -217,6 +224,10 @@ export class WebChatChannelHandler implements IChannelHandler {
             leadSummary,
             timezone: orgTimezone || undefined,
             formConfig: agentFormConfig,
+            // Fase 4.A: webchat-only Realtime signal. Pipeline emits broadcast
+            // after persisting AI message so the widget refreshes via polling
+            // endpoint (signal-only model). No-op for WhatsApp (param undefined).
+            webchatTopicSecret: realtimeTopicSecret,
           });
         } catch (err) {
           console.error('[WebChatChannelHandler.receive] Pipeline error:', err);
@@ -245,7 +256,7 @@ export class WebChatChannelHandler implements IChannelHandler {
     // Buscar la conversacion del lead
     const conversation = await prisma.conversation.findUnique({
       where: { leadId: lead.id },
-      select: { id: true },
+      select: { id: true, realtimeTopicSecret: true },
     });
 
     if (!conversation) {
@@ -268,6 +279,13 @@ export class WebChatChannelHandler implements IChannelHandler {
       },
       select: { id: true },
     });
+
+    // Fase 4.A: Realtime signal — best-effort, never blocks delivery.
+    // Widget receives the signal and refreshes via the authenticated polling
+    // endpoint. If the broadcast fails (network, Supabase down), the widget's
+    // 30s polling fallback ensures eventual consistency. waitUntil keeps the
+    // 2.5s timeout off the request path on Vercel.
+    waitUntil(emitWebChatSignal(conversation.realtimeTopicSecret));
 
     return { success: true, externalMessageId: persisted.id };
   }

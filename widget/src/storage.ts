@@ -57,6 +57,12 @@ interface ConvSnapshot {
   conversationId: string;
   sessionId: string;
   lastMessageAt: string | null;
+  /**
+   * Fase 4.A: per-conversation Realtime topic secret (UUID v4).
+   * Treated as a session secret — never logged, never sent to other origins.
+   * Cleared when the visitor calls `Kairo.reset(publicKey)`.
+   */
+  realtimeTopicSecret?: string | null;
 }
 
 export function getConversation(publicKey: string): ConvSnapshot | null {

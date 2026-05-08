@@ -120,9 +120,14 @@ const leadSelectForHandoffToggle = {
 } as const;
 
 /**
- * Conversation type with optimized messages for chat display
+ * Conversation type with optimized messages for chat display.
+ *
+ * Note: `realtimeTopicSecret` is intentionally omitted — it's a per-conversation
+ * Realtime broadcast secret used only by the public widget. Asesores never need
+ * it and exposing it through dashboard server actions would broaden its blast
+ * radius (XSS in dashboard, debug logs, devtools snapshots, etc.).
  */
-export type ConversationWithMessages = Conversation & {
+export type ConversationWithMessages = Omit<Conversation, 'realtimeTopicSecret'> & {
   messages: MessageForChat[];
 };
 

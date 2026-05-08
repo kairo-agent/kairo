@@ -20,6 +20,7 @@ import { notifyProjectMembers } from '@/lib/actions/notifications';
 import type { FormConfig } from '@/lib/types/form-template';
 import { getLeadFormData, bulkUpdateLeadFormFields } from '@/lib/actions/lead-form-data';
 import { sendToWhatsApp, sendTextToWhatsApp, sendImageToWhatsApp, sendVideoToWhatsApp } from '@/lib/channels/whatsapp/send';
+import { emitWebChatSignal } from '@/lib/channels/webchat/realtime-emit';
 import { getEffectiveTimezone } from '@/lib/timezone';
 import { projectHasMedia, searchRelevantMedia, searchRelevantVideos, getFixedMediaForEvent } from './search-media';
 import type { MediaSearchResult } from '@/lib/types/agent-media';
@@ -61,6 +62,14 @@ export interface AIProcessParams {
   leadSummary: string | null;
   timezone?: string;
   formConfig?: FormConfig | null;
+  /**
+   * Fase 4.A — solo para canal webchat: UUID v4 secreto del topic Realtime
+   * de la conversacion (Conversation.realtimeTopicSecret). Si esta presente,
+   * el pipeline emite un broadcast "new_message" tras persistir la respuesta
+   * AI para que el widget refresque inmediatamente. Para WhatsApp queda
+   * undefined y la emision es no-op.
+   */
+  webchatTopicSecret?: string | null;
   // Advisor info for personalized handoff
   assignedUser?: {
     id: string;
@@ -450,6 +459,13 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
       },
     });
 
+    // Fase 4.A: emit Realtime signal for webchat-only conversations.
+    // Best-effort fire-and-forget: widget refreshes via authenticated polling
+    // endpoint. No-op if `webchatTopicSecret` is not provided (e.g., WhatsApp).
+    if (params.webchatTopicSecret) {
+      void emitWebChatSignal(params.webchatTopicSecret);
+    }
+
     // Update lead: temperature + summary (parallel)
     const leadUpdates: Promise<unknown>[] = [];
 
@@ -674,6 +690,11 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
               },
             },
           });
+
+          // Fase 4.A: signal webchat widget about the new advisor-card message.
+          if (params.webchatTopicSecret) {
+            void emitWebChatSignal(params.webchatTopicSecret);
+          }
 
           console.log(`[AI Pipeline] Handoff advisor card sent: ${advisorName}`);
         } catch (err) {
