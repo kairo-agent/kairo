@@ -23,7 +23,16 @@ import { verifySuperAdmin } from '@/lib/auth-helpers';
 import { verifyAuth, getProjectRole } from '@/lib/actions/auth';
 import { getEffectiveRole } from '@/lib/permissions';
 import { revalidatePath } from 'next/cache';
+import { z } from 'zod';
 import type { ProjectChannelInfo } from '@/lib/types/project-channel';
+import {
+  MAX_STARTER_QUESTIONS,
+  MAX_HEADER_TITLE_LENGTH,
+  MAX_HEADER_SUBTITLE_LENGTH,
+  MAX_TEASER_LENGTH,
+  MAX_STARTER_QUESTION_LENGTH,
+  type WebChatConfig,
+} from '@/lib/types/webchat-config';
 
 /**
  * Obtiene info del ProjectChannel para mostrar en `/settings/{channel}`.
@@ -144,6 +153,99 @@ export async function setChannelEnabled(
   } catch (error) {
     console.error('[setChannelEnabled] Error:', error);
     return { success: false, error: 'Error al actualizar el canal' };
+  }
+}
+
+// ============================================
+// saveWebChatConfig — Fase 3 (v0.25.0)
+// ============================================
+
+const HEX_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const URL_REGEX = /^https?:\/\/[^\s]+$/i;
+
+const webChatConfigSchema = z.object({
+  appearance: z.object({
+    position: z.enum(['bottom-right', 'bottom-left']),
+    bubbleColor: z.string().regex(HEX_REGEX, 'Color hex invalido'),
+    bubbleShape: z.enum(['circle', 'square']),
+    headerBgColor: z.string().regex(HEX_REGEX, 'Color hex invalido'),
+    headerTextColor: z.string().regex(HEX_REGEX, 'Color hex invalido'),
+    visitorBubbleBg: z.string().regex(HEX_REGEX, 'Color hex invalido'),
+    visitorBubbleText: z.string().regex(HEX_REGEX, 'Color hex invalido'),
+    aiBubbleBg: z.string().regex(HEX_REGEX, 'Color hex invalido'),
+    aiBubbleText: z.string().regex(HEX_REGEX, 'Color hex invalido'),
+    logoUrl: z.string().regex(URL_REGEX).nullable(),
+  }),
+  texts: z.object({
+    headerTitleEs: z.string().max(MAX_HEADER_TITLE_LENGTH),
+    headerTitleEn: z.string().max(MAX_HEADER_TITLE_LENGTH),
+    headerSubtitleEs: z.string().max(MAX_HEADER_SUBTITLE_LENGTH),
+    headerSubtitleEn: z.string().max(MAX_HEADER_SUBTITLE_LENGTH),
+    teaserTextEs: z.string().max(MAX_TEASER_LENGTH),
+    teaserTextEn: z.string().max(MAX_TEASER_LENGTH),
+  }),
+  starterQuestions: z
+    .array(
+      z.object({
+        textEs: z.string().max(MAX_STARTER_QUESTION_LENGTH),
+        textEn: z.string().max(MAX_STARTER_QUESTION_LENGTH),
+      })
+    )
+    .max(MAX_STARTER_QUESTIONS),
+  behavior: z.object({
+    autoOpenDelay: z.number().int().min(0).max(60),
+    soundEnabled: z.boolean(),
+    sessionTimeoutHours: z.number().int().min(1).max(24),
+  }),
+  allowedOrigins: z.array(z.string().regex(URL_REGEX, 'URL invalida')),
+});
+
+/**
+ * Guarda WebChat config (campo Json `ProjectChannel.config`).
+ * RBAC: solo super_admin / owner / admin (mismo gate que setChannelEnabled).
+ *
+ * NOTA: este action solo actualiza `config`, no toca `provisioned`/`enabled`/`publicKey`.
+ */
+export async function saveWebChatConfig(
+  projectId: string,
+  config: WebChatConfig
+): Promise<{ success: true } | { success: false; error: string }> {
+  const user = await verifyAuth();
+  if (!user) return { success: false, error: 'No autorizado' };
+
+  const roleInfo = await getProjectRole(user.id, user.systemRole, projectId);
+  if (!roleInfo.hasAccess) return { success: false, error: 'Sin acceso al proyecto' };
+
+  const effectiveRole = getEffectiveRole(
+    user.systemRole,
+    roleInfo.isOrgOwner ?? false,
+    roleInfo.projectRole
+  );
+
+  if (effectiveRole !== 'super_admin' && effectiveRole !== 'owner' && effectiveRole !== 'admin') {
+    return { success: false, error: 'Permisos insuficientes' };
+  }
+
+  const parsed = webChatConfigSchema.safeParse(config);
+  if (!parsed.success) {
+    const firstError = parsed.error.issues[0];
+    const path = firstError?.path.join('.') ?? 'config';
+    return { success: false, error: `Configuracion invalida: ${path} — ${firstError?.message ?? 'invalido'}` };
+  }
+
+  try {
+    await prisma.projectChannel.update({
+      where: { projectId_channel: { projectId, channel: 'webchat' } },
+      // Prisma JSON requires explicit cast to InputJsonValue
+      data: { config: parsed.data as unknown as object },
+    });
+
+    revalidatePath('/settings/webchat');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('[saveWebChatConfig] Error:', error);
+    return { success: false, error: 'Error al guardar la configuracion del WebChat' };
   }
 }
 
