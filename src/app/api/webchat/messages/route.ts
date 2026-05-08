@@ -53,6 +53,45 @@ function deriveSenderType(msg: MessageRow): WidgetSenderType {
   return 'visitor';
 }
 
+/**
+ * Fase 4.D.1: surface media URLs to the widget so it can render thumbnails.
+ *
+ * For visitor uploads (webchat), the widget put `mediaUrl` directly under
+ * `metadata` when posting to /api/webhooks/webchat. For asesor messages
+ * sent from the dashboard (sendMessage action), media goes under
+ * `metadata.mediaAttachments[0].url`. Both shapes are normalised here.
+ *
+ * Returns null when there's no media. The `kind` is best-effort — it lets
+ * the widget pick a renderer (image thumb, audio player) without re-parsing
+ * MIME types client-side.
+ */
+function deriveMedia(msg: MessageRow): { url: string; kind: 'image' | 'audio' | 'document' } | null {
+  if (!msg.metadata || typeof msg.metadata !== 'object') return null;
+  const meta = msg.metadata as Record<string, unknown>;
+
+  // Shape A: visitor upload — { mediaUrl, type: 'image'|... }
+  const directUrl = typeof meta.mediaUrl === 'string' ? meta.mediaUrl : null;
+  if (directUrl) {
+    const t = typeof meta.type === 'string' ? (meta.type as string) : 'image';
+    if (t === 'image' || t === 'audio' || t === 'document') {
+      return { url: directUrl, kind: t };
+    }
+  }
+
+  // Shape B: asesor outbound — { mediaAttachments: [{ url, ... }], mediaType }
+  if (Array.isArray(meta.mediaAttachments) && meta.mediaAttachments.length > 0) {
+    const att = meta.mediaAttachments[0] as Record<string, unknown>;
+    const u = typeof att?.url === 'string' ? att.url : null;
+    if (u) {
+      const mt = typeof meta.mediaType === 'string' ? (meta.mediaType as string) : 'image';
+      const kind = mt === 'video' ? 'document' : mt === 'audio' ? 'audio' : 'image';
+      return { url: u, kind };
+    }
+  }
+
+  return null;
+}
+
 // --------------------------------------------
 // OPTIONS — CORS preflight
 // --------------------------------------------
@@ -165,12 +204,18 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const out = messages.map((m) => ({
-      id: m.id,
-      content: m.content,
-      senderType: deriveSenderType(m),
-      createdAt: m.createdAt.toISOString(),
-    }));
+    const out = messages.map((m) => {
+      const media = deriveMedia(m);
+      return {
+        id: m.id,
+        content: m.content,
+        senderType: deriveSenderType(m),
+        createdAt: m.createdAt.toISOString(),
+        // Fase 4.D.1: media URL + kind for the widget renderer. Null when
+        // text-only. The bucket is public so no signed URLs needed here.
+        ...(media ? { mediaUrl: media.url, mediaKind: media.kind } : {}),
+      };
+    });
 
     return NextResponse.json(
       {

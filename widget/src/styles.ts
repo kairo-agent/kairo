@@ -358,6 +358,35 @@ button { font: inherit; cursor: pointer; }
 .k-send:disabled { opacity: 0.45; cursor: not-allowed; }
 .k-send svg { width: 18px; height: 18px; fill: currentColor; }
 
+/* Fase 4.D.1 — paperclip attach button + image preview/thumbnail */
+.k-attach {
+  width: 36px; height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  color: #64748B;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 120ms ease, color 120ms ease;
+}
+.k-attach:hover { background: #F1F5F9; color: ${v.sendBtnColor}; }
+.k-attach:disabled { opacity: 0.45; cursor: not-allowed; }
+.k-attach svg { width: 18px; height: 18px; fill: currentColor; }
+.k-msg-image {
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 14px;
+  display: block;
+  cursor: pointer;
+  object-fit: cover;
+}
+.k-upload-status {
+  font-size: 11.5px;
+  color: #94A3B8;
+  font-style: italic;
+  padding: 0 12px 4px;
+}
+
 /* ── Footer ──────────────────────────────────────── */
 .k-footer {
   text-align: center;

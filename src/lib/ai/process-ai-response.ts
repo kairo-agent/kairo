@@ -70,6 +70,13 @@ export interface AIProcessParams {
    * undefined y la emision es no-op.
    */
   webchatTopicSecret?: string | null;
+  /**
+   * Fase 4.D.1 — solo para canal webchat: URL publica del Storage Supabase
+   * donde el visitante subio una imagen. Se usa cuando `messageType='image'`
+   * y `mediaId=null` (porque webchat NO usa mediaId de WhatsApp). Para
+   * WhatsApp queda undefined y se sigue usando mediaId como antes.
+   */
+  webchatMediaUrl?: string | null;
   // Advisor info for personalized handoff
   assignedUser?: {
     id: string;
@@ -159,6 +166,15 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
         userMessage = transcription;
       }
       steps.push({ name: 'audio_transcribe', duration: Date.now() - stepStart });
+    }
+
+    // --- Step 1b (webchat 4.D.1): Image already at public URL — feed straight to Vision ---
+    // This branch handles webchat uploads where the visitor PUT the file to
+    // Supabase Storage (bucket=media, prefix=webchat/...) and the widget then
+    // sent us the public URL via the webhook. We don't need WhatsApp media API
+    // calls; the URL is already directly fetchable by GPT-4o.
+    if (params.messageType === 'image' && params.webchatMediaUrl && !params.mediaId) {
+      imageUrl = params.webchatMediaUrl;
     }
 
     // --- Step 1b: Image/Sticker vision - get image URL for GPT ---

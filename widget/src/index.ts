@@ -15,6 +15,7 @@
  */
 import { fetchConfig, pollMessages, sendMessage } from './api';
 import {
+  ICON_ATTACH,
   ICON_CHAT,
   ICON_CLOSE,
   ICON_LOGO,
@@ -22,6 +23,7 @@ import {
   el,
   escapeHtml,
 } from './dom';
+import { uploadImage, type UploadErrorCode } from './upload';
 import { detectLang, t } from './i18n';
 import { playBeep } from './sound';
 import { startRealtime, type RealtimeClient } from './realtime';
@@ -184,6 +186,10 @@ interface Ctx {
     sendBtn: HTMLButtonElement | null;
     typingNode: HTMLDivElement | null;
     errorNode: HTMLDivElement | null;
+    /** Fase 4.D.1 — paperclip button + hidden <input type=file> + status line. */
+    attachBtn: HTMLButtonElement | null;
+    fileInput: HTMLInputElement | null;
+    uploadStatus: HTMLDivElement | null;
   };
   pollTimer: ReturnType<typeof setInterval> | null;
   autoOpenTimer: ReturnType<typeof setTimeout> | null;
@@ -214,6 +220,9 @@ function createContext(opts: EmbedOptions, state: WidgetState, shadow: ShadowRoo
       sendBtn: null,
       typingNode: null,
       errorNode: null,
+      attachBtn: null,
+      fileInput: null,
+      uploadStatus: null,
     },
     pollTimer: null,
     autoOpenTimer: null,
@@ -387,8 +396,39 @@ function buildWindow(ctx: Ctx): HTMLDivElement {
   win.appendChild(list);
   ctx.refs.messages = list;
 
+  // Upload status (Fase 4.D.1) — appears above composer while uploading.
+  const uploadStatus = el('div', 'k-upload-status');
+  uploadStatus.style.display = 'none';
+  uploadStatus.setAttribute('role', 'status');
+  uploadStatus.setAttribute('aria-live', 'polite');
+  win.appendChild(uploadStatus);
+  ctx.refs.uploadStatus = uploadStatus;
+
   // Composer
   const composer = el('form', 'k-composer');
+
+  // Fase 4.D.1 — paperclip button + hidden file input
+  const attachBtn = el('button', 'k-attach');
+  attachBtn.type = 'button';
+  attachBtn.innerHTML = ICON_ATTACH;
+  attachBtn.setAttribute('aria-label', labels.attachImage);
+  attachBtn.title = labels.attachImage;
+  const fileInput = el('input') as HTMLInputElement;
+  fileInput.type = 'file';
+  fileInput.accept = 'image/jpeg,image/png,image/webp,image/gif';
+  fileInput.style.display = 'none';
+  attachBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files?.[0];
+    if (file) void doUploadImage(ctx, file);
+    // Reset so selecting the same file twice still triggers `change`.
+    fileInput.value = '';
+  });
+  composer.appendChild(attachBtn);
+  composer.appendChild(fileInput);
+  ctx.refs.attachBtn = attachBtn;
+  ctx.refs.fileInput = fileInput;
+
   const textarea = el('textarea', 'k-input') as HTMLTextAreaElement;
   textarea.placeholder = labels.composerPlaceholder;
   textarea.rows = 1;
@@ -522,6 +562,24 @@ function renderMsgNode(msg: WidgetMessage, agentBadge: string): HTMLDivElement {
     const badge = el('div', 'k-agent-badge');
     badge.textContent = agentBadge;
     wrap.appendChild(badge);
+  }
+  // Fase 4.D.1 — image bubble: standalone <img>, no surrounding text bubble
+  // unless there's also a caption. Click opens the full image in a new tab.
+  if (msg.mediaKind === 'image' && msg.mediaUrl) {
+    const img = el('img', 'k-msg-image') as HTMLImageElement;
+    img.src = msg.mediaUrl;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.addEventListener('click', () => {
+      window.open(msg.mediaUrl, '_blank', 'noopener,noreferrer');
+    });
+    wrap.appendChild(img);
+    if (msg.content && msg.content.trim() && msg.content.trim() !== '[image]') {
+      const bubble = el('div', 'k-msg-bubble');
+      bubble.textContent = msg.content;
+      wrap.appendChild(bubble);
+    }
+    return wrap;
   }
   const bubble = el('div', 'k-msg-bubble');
   bubble.textContent = msg.content;
@@ -713,6 +771,108 @@ function persistLastMsgTs(ctx: Ctx): void {
   });
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Image upload (Fase 4.D.1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function setUploadStatus(ctx: Ctx, text: string | null): void {
+  const node = ctx.refs.uploadStatus;
+  if (!node) return;
+  if (!text) {
+    node.style.display = 'none';
+    node.textContent = '';
+  } else {
+    node.style.display = '';
+    node.textContent = text;
+  }
+}
+
+function uploadErrorLabel(ctx: Ctx, code: UploadErrorCode): string {
+  const labels = t(ctx.opts.lang);
+  switch (code) {
+    case 'too_large':
+      return labels.fileTooLarge;
+    case 'unsupported_format':
+      return labels.unsupportedFormat;
+    default:
+      return labels.uploadFailed;
+  }
+}
+
+async function doUploadImage(ctx: Ctx, file: File): Promise<void> {
+  if (ctx.state.sending) return;
+  if (ctx.opts.preview) {
+    // Preview mode never hits the network — show a friendly mock and stop.
+    setUploadStatus(ctx, t(ctx.opts.lang).preview);
+    setTimeout(() => setUploadStatus(ctx, null), 1500);
+    return;
+  }
+
+  // The upload-token endpoint requires a conversationId — i.e., the visitor
+  // must have sent at least one text message first. We surface a clear error
+  // instead of synthesising a placeholder message that would pollute the chat.
+  if (!ctx.state.conversationId) {
+    ctx.state.error = t(ctx.opts.lang).composerPlaceholder;
+    renderMessages(ctx);
+    if (ctx.refs.input) ctx.refs.input.focus();
+    return;
+  }
+
+  ctx.state.sending = true;
+  if (ctx.refs.sendBtn) ctx.refs.sendBtn.disabled = true;
+  if (ctx.refs.attachBtn) ctx.refs.attachBtn.disabled = true;
+  setUploadStatus(ctx, t(ctx.opts.lang).uploading);
+  ctx.state.error = null;
+
+  try {
+    const result = await uploadImage(ctx.opts, ctx.state.conversationId, ctx.state.sessionId, file);
+    if (!result.ok) {
+      ctx.state.error = uploadErrorLabel(ctx, result.error);
+      renderMessages(ctx);
+      return;
+    }
+
+    // Optimistic local message so the visitor sees their image immediately.
+    const localMsg: WidgetMessage = {
+      id: `local-img-${Date.now()}`,
+      content: '',
+      senderType: 'visitor',
+      createdAt: new Date().toISOString(),
+      mediaUrl: result.publicUrl,
+      mediaKind: 'image',
+    };
+    ctx.state.messages.push(localMsg);
+    renderMessages(ctx);
+    if (ctx.state.handoffMode !== 'human') appendTyping(ctx);
+
+    // POST the message linking the uploaded URL.
+    const sendRes = await sendMessage(ctx.opts, {
+      publicKey: ctx.opts.publicKey,
+      visitorId: ctx.state.visitorId,
+      sessionId: ctx.state.sessionId,
+      conversationId: ctx.state.conversationId,
+      message: '',
+      media: { kind: 'image', mediaUrl: result.publicUrl },
+    });
+    if (!sendRes.ok) throw new Error(sendRes.error || 'send_failed');
+
+    // Trigger polling so the AI Vision response arrives via the normal path.
+    startPolling(ctx);
+    startRealtimeIfPossible(ctx);
+  } catch (err) {
+    console.warn('[KAIRO] image upload failed', err);
+    removeTyping(ctx);
+    ctx.state.error = t(ctx.opts.lang).uploadFailed;
+    renderMessages(ctx);
+  } finally {
+    setUploadStatus(ctx, null);
+    ctx.state.sending = false;
+    if (ctx.refs.sendBtn) ctx.refs.sendBtn.disabled = false;
+    if (ctx.refs.attachBtn) ctx.refs.attachBtn.disabled = false;
+  }
+}
+
+
 /**
  * Start the polling tick. Always fires an immediate `pollOnce` to catch up
  * on any messages that landed while the widget was offline/closed, then
@@ -823,14 +983,17 @@ async function pollOnce(ctx: Ctx): Promise<void> {
     let gotIncoming = false;
     for (const m of fresh) {
       // Dedup: si el mensaje visitor que llega del polling matchea un local-*
-      // optimista, reemplazarlo en lugar de duplicar (mismo content + sender).
+      // optimista, reemplazarlo en lugar de duplicar.
+      // - Texto: match por content idéntico
+      // - Imagen (4.D.1): match por mediaUrl, ya que el server graba content
+      //   `[image] <url>` mientras el optimistic local va vacío
       if (m.senderType === 'visitor') {
-        const localIdx = ctx.state.messages.findIndex(
-          (x) =>
-            x.id.startsWith('local-') &&
-            x.senderType === 'visitor' &&
-            x.content === m.content
-        );
+        const localIdx = ctx.state.messages.findIndex((x) => {
+          if (!x.id.startsWith('local-')) return false;
+          if (x.senderType !== 'visitor') return false;
+          if (m.mediaUrl && x.mediaUrl) return x.mediaUrl === m.mediaUrl;
+          return x.content === m.content;
+        });
         if (localIdx !== -1) {
           ctx.state.messages[localIdx] = m;
           continue;

@@ -21,6 +21,12 @@ interface Strings {
   preview: string;
   /** Fase 4.C — banner shown when an advisor takes over the conversation */
   handoffBanner: string;
+  /** Fase 4.D.1 — media upload labels */
+  attachImage: string;
+  uploading: string;
+  uploadFailed: string;
+  fileTooLarge: string;
+  unsupportedFormat: string;
 }
 
 const en: Strings = {
@@ -43,6 +49,11 @@ const en: Strings = {
   reconnect: 'Reconnecting...',
   preview: 'Preview mode',
   handoffBanner: 'An advisor has joined the chat',
+  attachImage: 'Attach image',
+  uploading: 'Uploading…',
+  uploadFailed: 'Upload failed. Try again.',
+  fileTooLarge: 'File too large (max 10 MB)',
+  unsupportedFormat: 'Unsupported format. JPEG, PNG, WEBP or GIF only.',
 };
 
 const es: Strings = {
@@ -65,6 +76,11 @@ const es: Strings = {
   reconnect: 'Reconectando...',
   preview: 'Modo vista previa',
   handoffBanner: 'Un asesor se ha unido al chat',
+  attachImage: 'Adjuntar imagen',
+  uploading: 'Subiendo…',
+  uploadFailed: 'No se pudo subir. Intenta de nuevo.',
+  fileTooLarge: 'Archivo muy grande (max 10 MB)',
+  unsupportedFormat: 'Formato no soportado. Solo JPEG, PNG, WEBP o GIF.',
 };
 
 const dict: Record<Lang, Strings> = { en, es };

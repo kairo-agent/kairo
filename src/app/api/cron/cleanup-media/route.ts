@@ -64,8 +64,13 @@ export async function GET(request: Request) {
     let skippedCount = 0;
     const errors: string[] = [];
 
-    // Iterate through project folders (skip protected prefixes)
-    const PROTECTED_PREFIXES = ['avatars', 'incoming'];
+    // Iterate through project folders (skip protected/special prefixes).
+    // - `avatars`: permanent user avatars
+    // - `incoming`: WhatsApp media (handled by its own retention policy)
+    // - `webchat`: webchat visitor uploads — handled below with its own
+    //   nested traversal because the path shape is `webchat/{projectId}/{year}/{month}/{file}`,
+    //   one level deeper than the regular `{projectId}/{year}/{month}/{file}`.
+    const PROTECTED_PREFIXES = ['avatars', 'incoming', 'webchat'];
     for (const folder of folders || []) {
       if (!folder.name) continue;
       if (PROTECTED_PREFIXES.includes(folder.name)) continue;
@@ -90,7 +95,38 @@ export async function GET(request: Request) {
       }
     }
 
-    console.log(`[Cleanup] Deleted ${deletedCount} files older than ${MAX_AGE_HOURS}h (skipped ${skippedCount} agent_media files)`);
+    // ---- Sub-fase 4.D.1: cleanup webchat visitor uploads ----
+    // Path shape: webchat/{projectId}/{YYYY}/{MM}/{conversationId}-{uuid}.{ext}
+    // We list the webchat root, then iterate each project under it with the
+    // same year/month/file traversal already used by getOldFiles.
+    let webchatDeleted = 0;
+    try {
+      const { data: webchatProjects } = await supabase.storage
+        .from(BUCKET_NAME)
+        .list('webchat', { limit: 1000 });
+
+      for (const proj of webchatProjects || []) {
+        if (!proj.name) continue;
+        const oldFiles = await getOldFiles(supabase, `webchat/${proj.name}`, cutoffDate);
+        // No agent_media intersection in this prefix, but stay defensive.
+        const filesToDelete = oldFiles.filter((path) => !protectedPaths.has(path));
+        if (filesToDelete.length > 0) {
+          const { error: deleteError } = await supabase.storage
+            .from(BUCKET_NAME)
+            .remove(filesToDelete);
+          if (deleteError) {
+            errors.push(`Error deleting webchat files in ${proj.name}: ${deleteError.message}`);
+          } else {
+            webchatDeleted += filesToDelete.length;
+            deletedCount += filesToDelete.length;
+          }
+        }
+      }
+    } catch (err) {
+      errors.push(`webchat cleanup failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    console.log(`[Cleanup] Deleted ${deletedCount} files older than ${MAX_AGE_HOURS}h (webchat=${webchatDeleted}, skipped ${skippedCount} agent_media files)`);
 
     return NextResponse.json({
       success: true,

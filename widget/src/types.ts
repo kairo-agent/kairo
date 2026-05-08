@@ -73,12 +73,18 @@ export interface WidgetConfig {
 
 export type SenderType = 'visitor' | 'ai' | 'agent' | 'system';
 
+/** Fase 4.D.1: media kinds the widget knows how to render. */
+export type MediaKind = 'image' | 'audio' | 'document';
+
 export interface WidgetMessage {
   id: string;
   conversationId?: string;
   content: string;
   senderType: SenderType;
   createdAt: string; // ISO
+  /** Fase 4.D.1: optional media URL — drives thumbnail/audio/file rendering. */
+  mediaUrl?: string;
+  mediaKind?: MediaKind;
 }
 
 // ─── Backend responses ───────────────────────────────────────────────────────

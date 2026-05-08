@@ -211,7 +211,7 @@ export class WebChatChannelHandler implements IChannelHandler {
             externalUserId: null,
             message: concatenatedMessage,
             messageType: type,
-            mediaId: null, // webchat: el media va por mediaUrl, no por id (Fase 4 maneja Vision/Whisper aqui)
+            mediaId: null, // webchat does NOT use WhatsApp's mediaId — see webchatMediaUrl below
             agentId,
             agentName,
             globalRules,
@@ -228,6 +228,9 @@ export class WebChatChannelHandler implements IChannelHandler {
             // after persisting AI message so the widget refreshes via polling
             // endpoint (signal-only model). No-op for WhatsApp (param undefined).
             webchatTopicSecret: realtimeTopicSecret,
+            // Fase 4.D.1: webchat image URL (Supabase Storage public URL)
+            // forwarded to processAIResponse so GPT-4o Vision can read it.
+            webchatMediaUrl: mediaUrl ?? null,
           });
         } catch (err) {
           console.error('[WebChatChannelHandler.receive] Pipeline error:', err);

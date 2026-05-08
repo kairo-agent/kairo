@@ -35,6 +35,12 @@ export const ICON_LOGO = svg(
   '<path d="M12 3 4 7v6c0 4.5 3.4 8.5 8 9 4.6-.5 8-4.5 8-9V7l-8-4z"/>'
 );
 
+/** Fase 4.D.1 — paperclip icon for the image upload button. */
+export const ICON_ATTACH = svg(
+  '0 0 24 24',
+  '<path d="M16.5 6.5v9a4.5 4.5 0 1 1-9 0v-10a3 3 0 1 1 6 0v9a1.5 1.5 0 1 1-3 0V7H9v7.5a3 3 0 0 0 6 0v-9a4.5 4.5 0 0 0-9 0v10a6 6 0 0 0 12 0v-9h-1.5z"/>'
+);
+
 export function focus(node: HTMLElement | null): void {
   if (node && typeof node.focus === 'function') {
     setTimeout(() => node.focus(), 0);

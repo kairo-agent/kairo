@@ -18,6 +18,8 @@ interface SendMessageInput {
   sessionId: string;
   conversationId: string | null;
   message: string;
+  /** Fase 4.D.1: optional media payload — when set, the message type flips to image|audio|document. */
+  media?: { kind: 'image' | 'audio' | 'document'; mediaUrl: string } | null;
   meta?: {
     referrer?: string;
     queryString?: string;
@@ -62,6 +64,16 @@ export async function sendMessage(
   const url = `${opts.apiBase}/api/webhooks/webchat`;
   // Shape acordado con /api/webhooks/webchat (Fase 3.2): message es objeto
   // tipado para extensibilidad a image/audio/document (Fase 4).
+  // Fase 4.D.1: cuando hay `media`, type = media.kind y mediaUrl = media.mediaUrl.
+  // El text adjunto sirve como caption opcional.
+  const messagePayload = input.media
+    ? {
+        type: input.media.kind,
+        mediaUrl: input.media.mediaUrl,
+        ...(input.message ? { text: input.message } : {}),
+      }
+    : { type: 'text', text: input.message };
+
   return jsonFetch<SendMessageResponse>(url, {
     method: 'POST',
     body: JSON.stringify({
@@ -69,10 +81,7 @@ export async function sendMessage(
       visitorId: input.visitorId,
       sessionId: input.sessionId,
       conversationId: input.conversationId,
-      message: {
-        type: 'text',
-        text: input.message,
-      },
+      message: messagePayload,
       meta: input.meta || null,
     }),
   });
