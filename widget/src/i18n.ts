@@ -1,0 +1,69 @@
+import type { Lang } from './types';
+
+interface Strings {
+  defaultHeaderTitle: string;
+  defaultHeaderSubtitle: string;
+  defaultWelcomeTitle: string;
+  defaultWelcomeSubtitle: string;
+  defaultTeaser: string;
+  composerPlaceholder: string;
+  send: string;
+  close: string;
+  open: string;
+  sending: string;
+  agentBadge: string;
+  errorSend: string;
+  errorLoad: string;
+  poweredBy: string;
+  reconnect: string;
+  preview: string;
+}
+
+const en: Strings = {
+  defaultHeaderTitle: 'Chat with us',
+  defaultHeaderSubtitle: 'We typically reply within minutes',
+  defaultWelcomeTitle: 'Hi there!',
+  defaultWelcomeSubtitle: 'How can we help you today?',
+  defaultTeaser: 'Have a question?',
+  composerPlaceholder: 'Type a message...',
+  send: 'Send',
+  close: 'Close',
+  open: 'Open chat',
+  sending: 'Sending...',
+  agentBadge: 'Advisor',
+  errorSend: "Couldn't send. Try again.",
+  errorLoad: "Couldn't load chat.",
+  poweredBy: 'Powered by KAIRO',
+  reconnect: 'Reconnecting...',
+  preview: 'Preview mode',
+};
+
+const es: Strings = {
+  defaultHeaderTitle: 'Habla con nosotros',
+  defaultHeaderSubtitle: 'Respondemos en minutos',
+  defaultWelcomeTitle: 'Hola!',
+  defaultWelcomeSubtitle: 'En que podemos ayudarte hoy?',
+  defaultTeaser: 'Tienes alguna pregunta?',
+  composerPlaceholder: 'Escribe un mensaje...',
+  send: 'Enviar',
+  close: 'Cerrar',
+  open: 'Abrir chat',
+  sending: 'Enviando...',
+  agentBadge: 'Asesor',
+  errorSend: 'No se pudo enviar. Intenta de nuevo.',
+  errorLoad: 'No se pudo cargar el chat.',
+  poweredBy: 'Con tecnologia KAIRO',
+  reconnect: 'Reconectando...',
+  preview: 'Modo vista previa',
+};
+
+const dict: Record<Lang, Strings> = { en, es };
+
+export function detectLang(): Lang {
+  const nav = (navigator.language || 'en').toLowerCase();
+  return nav.startsWith('es') ? 'es' : 'en';
+}
+
+export function t(lang: Lang): Strings {
+  return dict[lang] || en;
+}

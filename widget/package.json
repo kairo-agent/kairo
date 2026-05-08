@@ -1,10 +1,17 @@
 {
   "name": "kairo-widget",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "KAIRO embeddable WebChat widget. Bundles Shadow DOM widget served from widget.kairoagent.com.",
+  "type": "module",
   "scripts": {
-    "build": "node ./scripts/build-placeholder.mjs",
-    "dev": "echo \"Widget MVP not implemented yet — Fase 3\" && exit 0"
+    "dev": "vite",
+    "build": "vite build && node ./scripts/copy-index.mjs",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
   }
 }
