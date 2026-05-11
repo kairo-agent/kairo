@@ -13,6 +13,7 @@ import {
   PromptStructure,
   composeSystemPrompt,
 } from '@/lib/knowledge/prompt-builder';
+import { invalidateActiveAgentCache } from '@/lib/ai/get-active-agent';
 
 // ============================================
 // Types
@@ -200,7 +201,10 @@ export async function createAgent(input: CreateAgentInput): Promise<{
         description: input.description || null,
         avatarUrl: input.avatarUrl || null,
         systemInstructions: input.systemInstructions || null,
-        isActive: true,
+        // Nuevos agentes nacen INACTIVOS. El usuario los activa explicitamente
+        // via toggleAgentStatus, que se encarga de desactivar los demas del
+        // proyecto e invalidar el cache del agente activo.
+        isActive: false,
         stats: {
           satisfactionScore: 0,
           totalConversations: 0,
@@ -295,6 +299,10 @@ export async function updateAgent(agentId: string, input: UpdateAgentInput): Pro
       }
     });
 
+    // Invalidar cache: si el agente activo cambia systemInstructions/promptStructure
+    // u otros campos cacheados, el runtime debe releer en la siguiente request.
+    await invalidateActiveAgentCache(agent.projectId);
+
     revalidatePath('/admin');
     revalidatePath('/leads');
 
@@ -356,6 +364,10 @@ export async function deleteAgent(agentId: string): Promise<{
     await prisma.aIAgent.delete({
       where: { id: agentId }
     });
+
+    // Invalidar cache: si el agente eliminado era el activo, el siguiente
+    // resolver re-consultara DB (devolvera null o el siguiente activo).
+    await invalidateActiveAgentCache(agent.projectId);
 
     revalidatePath('/admin');
     revalidatePath('/leads');
@@ -420,6 +432,10 @@ export async function toggleAgentStatus(agentId: string): Promise<{
       }
     });
 
+    // Invalidar cache del agente activo del proyecto — fuerza a runtime AI
+    // (WhatsApp/WebChat) a releer el activo en la siguiente request.
+    await invalidateActiveAgentCache(agent.projectId);
+
     revalidatePath('/admin');
     revalidatePath('/leads');
 
@@ -476,6 +492,10 @@ export async function saveAgentInstructions(
         systemInstructions,
       }
     });
+
+    // Invalidar cache del agente activo (si este es el activo, el cambio entra
+    // en la siguiente request).
+    await invalidateActiveAgentCache(agent.projectId);
 
     revalidatePath('/admin');
     revalidatePath('/leads');

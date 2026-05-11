@@ -28,6 +28,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { getRedis } from '@/lib/redis';
 import { notifyProjectMembers } from '@/lib/actions/notifications';
 import { processAIResponse } from '@/lib/ai/process-ai-response';
+import { getActiveAgentForProject } from '@/lib/ai/get-active-agent';
 import { downloadAndStoreMedia } from './download-media';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
@@ -506,11 +507,9 @@ async function handleIncomingMessage(
     const firstName = nameParts[0] || 'Sin nombre';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    const defaultAgent = await prisma.aIAgent.findFirst({
-      where: { projectId, isActive: true },
-      select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
-      orderBy: { createdAt: 'asc' },
-    });
+    // Agente activo del proyecto (con Redis cache). assignedAgentId queda como
+    // registro historico del agente que atendio al lead originalmente.
+    const defaultAgent = await getActiveAgentForProject(projectId);
 
     const detectedSource = detectLeadSource(message);
     const autoAssignedUserId = await getAutoAssignUserId(projectId);
@@ -609,11 +608,9 @@ async function handleIncomingMessage(
         },
       });
 
-      const defaultAgent = await prisma.aIAgent.findFirst({
-        where: { projectId, isActive: true },
-        select: { id: true, name: true, systemInstructions: true, promptStructure: true, formConfig: true },
-        orderBy: { createdAt: 'asc' },
-      });
+      // Agente activo del proyecto (cache Redis). assignedAgentId del lead
+      // queda como registro historico — el runtime siempre usa el activo abajo.
+      const defaultAgent = await getActiveAgentForProject(projectId);
 
       // Fase 1.5: backfill externalId on read si todavia es null
       const externalIdBackfill = lead.externalId ? {} : { externalId: whatsappId };
@@ -626,8 +623,9 @@ async function handleIncomingMessage(
             data: { lastContactAt: new Date(), assignedAgentId: defaultAgent.id, ...externalIdBackfill },
           }),
         ]);
-        lead.assignedAgent = defaultAgent;
-        console.log(`[OK] Assigned agent ${defaultAgent.name} to existing lead: ${lead.id}`);
+        // No asignamos `lead.assignedAgent` aqui: el bloque AI runtime mas abajo
+        // resuelve el agente activo del proyecto, no de `lead.assignedAgent`.
+        console.log(`[OK] Assigned historical agent ${defaultAgent.name} to existing lead: ${lead.id}`);
       } else {
         await Promise.all([
           messageCreatePromise,
@@ -774,10 +772,13 @@ async function handleIncomingMessage(
 
     if (shouldProcess) {
       const leadFullName = `${lead.firstName} ${lead.lastName || ''}`.trim();
-      const agentId = lead.assignedAgent?.id || null;
-      const agentName = (lead.assignedAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() || DEFAULT_AGENT_NAME;
-      const systemInstructions = lead.assignedAgent?.systemInstructions || null;
-      const agentFormConfig = lead.assignedAgent?.formConfig as FormConfig | null;
+      // Fuente de verdad runtime: agente ACTIVO del proyecto (no `lead.assignedAgent`,
+      // que es historico). Cache hit en Redis si ya fue resuelto en este request.
+      const activeAgent = await getActiveAgentForProject(projectId);
+      const agentId = activeAgent?.id || null;
+      const agentName = (activeAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() || DEFAULT_AGENT_NAME;
+      const systemInstructions = activeAgent?.systemInstructions || null;
+      const agentFormConfig = activeAgent?.formConfig as FormConfig | null;
       const conversationId = lead.conversation?.id || '';
       const organizationId = project?.organizationId || '';
       const companyName = project?.name || 'KAIRO';

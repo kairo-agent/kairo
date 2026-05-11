@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.26.0 (Fase 4 Multi-Canal: Realtime + handoff + media upload + CORS strict) |
+| **Version** | v0.27.0 (Active agent = runtime source of truth; assignedAgentId = historico) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -116,7 +116,7 @@ src/
 7. **i18n**: Usar `Link` de `@/i18n/routing`, NUNCA de `next/link` (causa loop infinito)
 8. **PhoneInput**: SIEMPRE usar `@/components/ui/PhoneInput` para telefonos
 9. **NO eliminar leads**: Usar campo `archivedAt` ("Descartar/Recuperar") en lugar de delete
-10. **1 agente activo por proyecto**: Radio button, no toggle multiple
+10. **1 agente activo por proyecto**: Radio button, no toggle multiple. **El activo SIEMPRE atiende** (lead.assignedAgentId es solo historico). Nuevos agentes nacen inactivos. Ver [src/lib/ai/get-active-agent.ts](src/lib/ai/get-active-agent.ts)
 11. **ExpandableTextarea**: Usar `@/components/ui/ExpandableTextarea` para textareas de contenido largo
 12. **'use server'**: Archivos con `'use server'` solo pueden exportar funciones async. Tipos y constantes van en `lib/types/`
 13. **Cron jobs**: Todos en Supabase `pg_cron` + `pg_net`, NO en `vercel.json` (Hobby = solo diarios). Free tier siempre
@@ -148,9 +148,9 @@ npm run lint     # Verificar codigo
 
 ---
 
-## Estado Actual (v0.26.0 - May 2026)
+## Estado Actual (v0.27.0 - May 2026)
 
-**Completado:** Stack multi-tenant (Auth + RBAC, multi-locale es/en, RLS, OWASP). AI pipeline interno (RAG + Vision + Whisper + handoff + reengagement + form conversacional). WhatsApp bidireccional (incoming/outgoing media, sticker, 24h timer). Dashboard + Conversaciones (10 statuses, filtros, Excel export). Team Settings, Notificaciones 3 canales, Cron pg_cron, PWA. **Multi-canal v0.24-v0.26:** `IChannelHandler`, `ProjectChannel`, WebChat en widget.kairoagent.com (Vercel project #2). **Fase 4 v0.26.0:** Realtime broadcast signal-only (polling 30s fallback), polling pause/resume con WS, banner handoff UI, media upload visitor (imagen Vision + audio Whisper + documento), CORS strict. Historico en [CHANGELOG.md](docs/CHANGELOG.md).
+**Completado:** Stack multi-tenant (Auth + RBAC, multi-locale es/en, RLS, OWASP). AI pipeline interno (RAG + Vision + Whisper + handoff + reengagement + form conversacional). WhatsApp bidireccional (incoming/outgoing media, sticker, 24h timer). Dashboard + Conversaciones (10 statuses, filtros, Excel export). Team Settings, Notificaciones 3 canales, Cron pg_cron, PWA. **Multi-canal v0.24-v0.26:** `IChannelHandler`, `ProjectChannel`, WebChat en widget.kairoagent.com (Vercel project #2). **Fase 4 v0.26.0:** Realtime broadcast signal-only (polling 30s fallback), polling pause/resume con WS, banner handoff UI, media upload visitor (imagen Vision + audio Whisper + documento), CORS strict. **v0.27.0:** Active agent = runtime source of truth — `getActiveAgentForProject(projectId)` helper con Redis cache, `lead.assignedAgentId` queda como historico inmutable, leads viejos responden con agente activo sin scripts. Historico en [CHANGELOG.md](docs/CHANGELOG.md).
 
 **Pendiente:** Crear lead form, reports/agents pages. Meta Ads integration. **Leads Unicos v0.27+** (vista CRM merge lazy email/telefono — nueva tabla `unique_leads`, NUNCA renombrar `leads`). **Scheduled Calls** ([plans/SCHEDULED-CALLS.md](docs/plans/SCHEDULED-CALLS.md)). Ver [plans/IMPERSONATION.md](docs/plans/IMPERSONATION.md).
 

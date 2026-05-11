@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import type { FormConfig } from '@/lib/types/form-template';
 import { DEFAULT_FORM_CONFIG } from '@/lib/types/form-template';
+import { getActiveAgentForProject } from '@/lib/ai/get-active-agent';
 
 // ============================================
 // GET: Obtener datos de formulario de un lead
@@ -43,6 +44,31 @@ export async function getAgentFormConfig(
   } catch (error) {
     console.error('Error getting agent form config:', error);
     return DEFAULT_FORM_CONFIG;
+  }
+}
+
+// ============================================
+// GET: Form config + agentId of project's ACTIVE agent
+//
+// Used by the lead detail panel UI to render the conversational form using
+// the currently-active agent's schema (not the historical agent stored in
+// `lead.assignedAgentId`). The returned `agentId` is the active agent's id —
+// pass it to bulkUpdateLeadFormFields() when persisting edits so the new row
+// in lead_form_data is keyed by the active agent.
+// ============================================
+
+export async function getActiveAgentFormConfigForProject(
+  projectId: string
+): Promise<{ agentId: string | null; formConfig: FormConfig }> {
+  try {
+    const active = await getActiveAgentForProject(projectId);
+    if (!active) return { agentId: null, formConfig: DEFAULT_FORM_CONFIG };
+    const formConfig =
+      (active.formConfig as unknown as FormConfig | null) || DEFAULT_FORM_CONFIG;
+    return { agentId: active.id, formConfig };
+  } catch (error) {
+    console.error('Error getting active agent form config:', error);
+    return { agentId: null, formConfig: DEFAULT_FORM_CONFIG };
   }
 }
 

@@ -5,6 +5,7 @@ import { verifyAuth, verifyProjectAccess, getProjectRole } from '@/lib/actions/a
 import { getEffectiveRole } from '@/lib/permissions';
 import { DEFAULT_FORM_CONFIG, MAX_FORM_FIELDS } from '@/lib/types/form-template';
 import type { FormConfig } from '@/lib/types/form-template';
+import { invalidateActiveAgentCache } from '@/lib/ai/get-active-agent';
 
 // ============================================
 // GET: Obtener configuración de formulario
@@ -83,6 +84,10 @@ export async function saveFormConfig(
         formConfig: JSON.parse(JSON.stringify(config)),
       },
     });
+
+    // Invalidar cache: si este es el agente activo, el runtime AI debe recoger
+    // el nuevo formConfig en la siguiente request.
+    await invalidateActiveAgentCache(agent.projectId);
 
     return { success: true };
   } catch (error) {

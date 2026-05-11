@@ -25,7 +25,7 @@ import {
   type NoteWithAuthor,
   type ActivityWithPerformer,
 } from '@/lib/actions/leads';
-import { getAgentFormConfig } from '@/lib/actions/lead-form-data';
+import { getActiveAgentFormConfigForProject } from '@/lib/actions/lead-form-data';
 import { useEffectiveRole } from '@/hooks/useEffectiveRole';
 import { isViewerOnly, canActOnLead } from '@/lib/permissions';
 import LeadEditModal from './LeadEditModal';
@@ -247,8 +247,10 @@ export function LeadDetailPanel({
   const [newNoteContent, setNewNoteContent] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
 
-  // Form config for form data display
+  // Form config for form data display — resolved from project's ACTIVE agent
+  // (not from lead.assignedAgentId, which is historical).
   const [formConfig, setFormConfig] = useState<FormConfig | null>(null);
+  const [activeFormAgentId, setActiveFormAgentId] = useState<string | null>(null);
 
   // Edit modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -280,14 +282,20 @@ export function LeadDetailPanel({
   useEffect(() => {
     if (isOpen && lead?.id) {
       loadNotesAndActivities();
-      // Load form config if agent is assigned
-      if (lead.assignedAgentId) {
-        getAgentFormConfig(lead.assignedAgentId).then(setFormConfig);
+      // Load form config of the PROJECT'S ACTIVE agent (not lead.assignedAgentId).
+      // The lead's assignedAgentId is preserved as historical, but the form
+      // schema rendered/edited here is whatever the active agent defines today.
+      if (lead.projectId) {
+        getActiveAgentFormConfigForProject(lead.projectId).then(({ agentId, formConfig: cfg }) => {
+          setActiveFormAgentId(agentId);
+          setFormConfig(cfg);
+        });
       } else {
+        setActiveFormAgentId(null);
         setFormConfig(null);
       }
     }
-  }, [isOpen, lead?.id, lead?.assignedAgentId, loadNotesAndActivities]);
+  }, [isOpen, lead?.id, lead?.projectId, loadNotesAndActivities]);
 
   // Handle add note
   const handleAddNote = async () => {
@@ -672,11 +680,13 @@ export function LeadDetailPanel({
             );
           })()}
 
-          {/* Form Data (if agent has active form) */}
-          {lead.assignedAgentId && formConfig?.isActive && (
+          {/* Form Data (rendered from project's ACTIVE agent form schema).
+              `agentId` here is the active agent's id — required so that any
+              edits persist in lead_form_data keyed by the active agent. */}
+          {activeFormAgentId && formConfig?.isActive && (
             <LeadFormDataDisplay
               leadId={lead.id}
-              agentId={lead.assignedAgentId}
+              agentId={activeFormAgentId}
               formConfig={formConfig}
               leadData={{
                 firstName: lead.firstName,

@@ -29,6 +29,7 @@ import type {
 import { prisma } from '@/lib/prisma';
 import { getRedis } from '@/lib/redis';
 import { processAIResponse } from '@/lib/ai/process-ai-response';
+import { getActiveAgentForProject } from '@/lib/ai/get-active-agent';
 import { getActiveGlobalRules } from '@/lib/actions/global-rules';
 import { DEFAULT_AGENT_NAME } from '@/lib/knowledge/prompt-builder';
 import type { PromptStructure } from '@/lib/knowledge/prompt-builder';
@@ -69,18 +70,13 @@ export class WebChatChannelHandler implements IChannelHandler {
 
     const { leadId, conversationId, type, text, mediaUrl } = payload;
 
-    // Solo procesar si el lead esta en modo AI (no en handoff humano)
+    // Solo procesar si el lead esta en modo AI (no en handoff humano).
+    // Nota: NO incluimos `assignedAgent` aqui — el runtime AI usa el agente
+    // ACTIVO del proyecto (resuelto via getActiveAgentForProject mas abajo).
+    // `lead.assignedAgentId` queda como registro historico.
     const lead = await prisma.lead.findUnique({
       where: { id: leadId },
       include: {
-        assignedAgent: {
-          select: {
-            id: true,
-            systemInstructions: true,
-            promptStructure: true,
-            formConfig: true,
-          },
-        },
         // Conversation -> realtimeTopicSecret needed by processAIResponse
         // to emit a Realtime "new message" signal after persisting the AI reply.
         conversation: {
@@ -119,8 +115,8 @@ export class WebChatChannelHandler implements IChannelHandler {
       return;
     }
 
-    // Cargar contexto del proyecto + global rules en paralelo
-    const [project, globalRules] = await Promise.all([
+    // Cargar contexto del proyecto + global rules + agente ACTIVO en paralelo
+    const [project, globalRules, activeAgent] = await Promise.all([
       prisma.project.findUnique({
         where: { id: projectId },
         select: {
@@ -130,15 +126,16 @@ export class WebChatChannelHandler implements IChannelHandler {
         },
       }),
       getActiveGlobalRules(),
+      getActiveAgentForProject(projectId),
     ]);
 
     const leadFullName = `${lead.firstName} ${lead.lastName || ''}`.trim();
-    const agentId = lead.assignedAgent?.id || null;
+    const agentId = activeAgent?.id || null;
     const agentName =
-      (lead.assignedAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() ||
+      (activeAgent?.promptStructure as PromptStructure | null)?.agentName?.trim() ||
       DEFAULT_AGENT_NAME;
-    const systemInstructions = lead.assignedAgent?.systemInstructions || null;
-    const agentFormConfig = lead.assignedAgent?.formConfig as FormConfig | null;
+    const systemInstructions = activeAgent?.systemInstructions || null;
+    const agentFormConfig = activeAgent?.formConfig as FormConfig | null;
     const organizationId = project?.organizationId || '';
     const companyName = project?.name || 'KAIRO';
     const orgTimezone = project?.organization?.defaultTimezone || null;
