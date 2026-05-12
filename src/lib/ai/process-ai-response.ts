@@ -95,23 +95,6 @@ interface PipelineStep {
 // Minimum messages required before saving a summary (defense in depth)
 const SUMMARY_MIN_MESSAGES = 5;
 
-/**
- * Check if a string looks like a real person name (not a phone number, symbols, etc.)
- * Returns false for: pure digits, phone-like strings, pure symbols/emojis, very short garbage
- */
-function isValidPersonName(name: string): boolean {
-  const trimmed = name.trim();
-  if (!trimmed || trimmed.length < 2) return false;
-  // Reject if it's mostly digits (phone numbers used as names)
-  if (/^\+?\d[\d\s\-()]+$/.test(trimmed)) return false;
-  // Reject if it has no letters at all
-  if (!/[a-zA-ZáéíóúñÁÉÍÓÚÑàèìòùâêîôûäëïöü]/i.test(trimmed)) return false;
-  // Reject if more than 50% non-letter characters (symbols, emojis)
-  const letterCount = (trimmed.match(/[a-zA-ZáéíóúñÁÉÍÓÚÑàèìòùâêîôûäëïöü]/g) || []).length;
-  if (letterCount / trimmed.length < 0.5) return false;
-  return true;
-}
-
 // ============================================
 // OpenAI Client Cache (reuses pattern from embeddings.ts)
 // ============================================
@@ -286,36 +269,33 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           }),
         ]);
 
-        // Pre-fill collected with lead data for mapped fields
+        // Pre-fill collected with lead data for mapped fields.
+        // Names (firstName/lastName) are NEVER pre-filled from the WhatsApp
+        // profile: the display name is unreliable (alias, nickname, phone,
+        // business name) and pre-filling it confuses the LLM when the lead
+        // later provides their real name conversationally — the model sees a
+        // conflict between the pre-filled value and the new input and tends
+        // to reset the flow. The agent must always ask for the real name.
         const collected = { ...formCollected };
-        const unconfirmedKeys = new Set<string>(); // Fields from WhatsApp profile that need AI confirmation
 
         if (leadRecord) {
           for (const field of params.formConfig.fields) {
             if (collected[field.key]) continue; // Already collected by AI
             if (!field.leadFieldMapping) continue;
+            // Skip name fields — agent must ask conversationally
+            if (field.leadFieldMapping === 'firstName' || field.leadFieldMapping === 'lastName') continue;
             const leadVal = leadRecord[field.leadFieldMapping as keyof typeof leadRecord];
             if (leadVal === null || leadVal === undefined) continue;
             const strVal = String(leadVal).trim();
             if (!strVal) continue;
 
-            // Names from WhatsApp profile: always need AI confirmation
-            // (could be phone numbers, random text, business names, etc.)
-            if (field.leadFieldMapping === 'firstName' || field.leadFieldMapping === 'lastName') {
-              // Obviously invalid (pure digits/symbols) → skip entirely
-              if (!isValidPersonName(strVal)) continue;
-              // Looks like it could be a name → pre-fill but flag for confirmation
-              collected[field.key] = strVal;
-              unconfirmedKeys.add(field.key);
-            } else {
-              // Phone, email, etc. → reliable data, no confirmation needed
-              collected[field.key] = strVal;
-            }
+            // Phone, email, etc. → reliable data from the channel
+            collected[field.key] = strVal;
           }
         }
 
         const pending = params.formConfig.fields.filter(f => !collected[f.key]);
-        formFields = { pending, collected, unconfirmedKeys: unconfirmedKeys.size > 0 ? unconfirmedKeys : undefined };
+        formFields = { pending, collected };
       }
     }
 

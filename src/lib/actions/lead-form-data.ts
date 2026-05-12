@@ -132,9 +132,25 @@ export async function bulkUpdateLeadFormFields(
         if (!isNaN(parsed)) {
           leadUpdate[mapping] = parsed;
         }
-      } else {
-        leadUpdate[mapping] = value;
+        continue;
       }
+
+      // Smart split: when the form field is mapped to `firstName` and the
+      // captured value contains multiple words (typical for "Nombre completo"
+      // fields), split into firstName + lastName so the dashboard shows the
+      // full name correctly and `lastName` is populated for templating.
+      // The form key may collect "Marcos Roca" — store firstName="Marcos",
+      // lastName="Roca". Overwrites whatever was set from the WhatsApp profile.
+      if (mapping === 'firstName') {
+        const parts = value.trim().split(/\s+/);
+        leadUpdate.firstName = parts[0];
+        if (parts.length > 1) {
+          leadUpdate.lastName = parts.slice(1).join(' ');
+        }
+        continue;
+      }
+
+      leadUpdate[mapping] = value;
     }
 
     if (Object.keys(leadUpdate).length > 0) {
