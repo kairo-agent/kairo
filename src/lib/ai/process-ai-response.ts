@@ -445,50 +445,69 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
 
+    // Two parallel calls when form is active:
+    //   1) Text response (no tools) — what the visitor sees.
+    //   2) Form data extraction (forced tool_choice) — pure structured output.
+    // Forcing tool_choice on a SINGLE call caused the model to emit only the
+    // tool call and skip the visible content (verified in logs). Splitting
+    // keeps each call focused on one job — clean separation of concerns.
+    // Latency stays close to a single call because both run via Promise.all.
+    const userMessageContent: OpenAI.Chat.Completions.ChatCompletionUserMessageParam['content'] = imageUrl
+      ? [
+          { type: 'text', text: (userMessage || 'El usuario envió esta imagen.').slice(0, 4096) },
+          { type: 'image_url', image_url: { url: imageUrl, detail: 'low' } },
+        ]
+      : userMessage.slice(0, 4096);
+
     let rawResponse: string;
     let toolCallArgs: Record<string, string | null> | null = null;
     try {
-      const completion = await openai.chat.completions.create(
+      const textCallPromise = openai.chat.completions.create(
         {
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: systemPrompt },
-            imageUrl
-              ? { role: 'user' as const, content: [
-                  { type: 'text' as const, text: (userMessage || 'El usuario envió esta imagen.').slice(0, 4096) },
-                  { type: 'image_url' as const, image_url: { url: imageUrl, detail: 'low' as const } },
-                ] }
-              : { role: 'user' as const, content: userMessage.slice(0, 4096) },
+            { role: 'user' as const, content: userMessageContent },
           ],
           temperature: 0.7,
           max_tokens: 500,
-          ...(tools
-            ? {
-                tools,
-                // Force the model to call capture_form_data on every turn.
-                // With `auto` the model frequently skipped the call even when
-                // the visitor clearly provided data (confirmed via runtime
-                // logs: tool_calls count was 0 across 3 turns despite tools
-                // being passed). When the visitor didn't provide any new data,
-                // the model emits the function with all fields = null, which
-                // the parser below filters out before persisting.
-                tool_choice: {
-                  type: 'function' as const,
-                  function: { name: 'capture_form_data' },
-                },
-              }
-            : {}),
         },
         { signal: controller.signal }
       );
-      rawResponse = completion.choices[0]?.message?.content || '';
 
-      // Parse tool calls (if any) — capture_form_data is the only tool we declare
-      const toolCalls = completion.choices[0]?.message?.tool_calls ?? [];
+      const extractionCallPromise = tools
+        ? openai.chat.completions.create(
+            {
+              model: 'gpt-4o-mini',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user' as const, content: userMessageContent },
+              ],
+              temperature: 0, // deterministic for extraction
+              max_tokens: 200,
+              tools,
+              tool_choice: {
+                type: 'function' as const,
+                function: { name: 'capture_form_data' },
+              },
+            },
+            { signal: controller.signal }
+          )
+        : Promise.resolve(null);
+
+      const [textCompletion, extractionCompletion] = await Promise.all([
+        textCallPromise,
+        extractionCallPromise,
+      ]);
+
+      rawResponse = textCompletion.choices[0]?.message?.content || '';
+
+      // Parse tool calls from the extraction-only call (capture_form_data)
+      const toolCalls = extractionCompletion?.choices[0]?.message?.tool_calls ?? [];
 
       // TEMP DEBUG (tool_calls diagnosis)
       if (params.formConfig?.isActive) {
-        console.log('[TOOLS DEBUG] leadId:', leadId, '| tool_calls count:', toolCalls.length, '| finish_reason:', completion.choices[0]?.finish_reason, '| first tool:', toolCalls[0] ? JSON.stringify({ type: toolCalls[0].type, name: 'function' in toolCalls[0] && toolCalls[0].function ? toolCalls[0].function.name : 'unknown', argsPreview: 'function' in toolCalls[0] && toolCalls[0].function ? toolCalls[0].function.arguments.substring(0, 200) : '' }) : 'none');
+        console.log('[TOOLS DEBUG] leadId:', leadId, '| tool_calls count:', toolCalls.length, '| text length:', rawResponse.length, '| extraction finish:', extractionCompletion?.choices[0]?.finish_reason, '| first tool:', toolCalls[0] ? JSON.stringify({ type: toolCalls[0].type, name: 'function' in toolCalls[0] && toolCalls[0].function ? toolCalls[0].function.name : 'unknown', argsPreview: 'function' in toolCalls[0] && toolCalls[0].function ? toolCalls[0].function.arguments.substring(0, 200) : '' }) : 'none');
       }
 
       for (const call of toolCalls) {
