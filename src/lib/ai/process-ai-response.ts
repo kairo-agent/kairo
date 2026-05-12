@@ -381,6 +381,12 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     // Extract [FORM-DATA: key=value | key2=value2] marker
     const formDataMatch = rawResponse.match(/\[FORM-DATA:\s*(.+?)\]/i);
+
+    // TEMP DEBUG (form-data emission diagnosis): remove after diagnosis
+    if (params.formConfig?.isActive) {
+      console.log('[FORM-DATA DEBUG] leadId:', leadId, '| marker found:', !!formDataMatch, '| rawResponse first 600 chars:', rawResponse.substring(0, 600));
+    }
+
     if (formDataMatch && params.formConfig && params.agentId) {
       const pairs = formDataMatch[1].split('|').map(p => p.trim());
       const extracted: Record<string, string> = {};
