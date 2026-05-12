@@ -96,6 +96,82 @@ interface PipelineStep {
 const SUMMARY_MIN_MESSAGES = 5;
 
 // ============================================
+// Function Calling: build dynamic tool schema for form data capture
+// ============================================
+
+/**
+ * Build a `tools` array for OpenAI Function Calling from the agent's form config.
+ * The model uses this tool to emit structured data extracted from the visitor's
+ * message — replacing the previous text-marker approach which had ~8% capture
+ * rate due to LLM probabilistic behavior.
+ *
+ * Returns `undefined` (no tool) when:
+ *   - formConfig is missing or inactive
+ *   - no fields are pending (everything already collected)
+ * In those cases the chat completion is called WITHOUT tools — identical to
+ * the previous behavior, so no regression.
+ *
+ * Strict mode (`strict: true`) guarantees that if the model emits the tool
+ * call, the arguments will match this schema exactly.
+ *
+ * @see https://platform.openai.com/docs/guides/function-calling
+ */
+function buildFormCaptureTools(
+  formConfig: FormConfig | null | undefined,
+  formFields: SystemPromptParams['formFields'] | undefined
+): OpenAI.Chat.Completions.ChatCompletionTool[] | undefined {
+  if (!formConfig?.isActive || !formFields?.pending?.length) {
+    return undefined;
+  }
+
+  const properties: Record<string, Record<string, unknown>> = {};
+  const required: string[] = [];
+
+  for (const field of formFields.pending) {
+    // Strict mode requires every property to appear in `required`. To make
+    // a field optional from the LLM's perspective, we widen its type to
+    // include `null` — the model emits `null` when the value wasn't provided.
+    let schema: Record<string, unknown>;
+    if (field.type === 'number') {
+      schema = { type: ['number', 'null'], description: `${field.label} (extract only if explicitly stated)` };
+    } else if (field.type === 'options' && field.options?.length) {
+      // Append null to the enum so the model can opt out
+      schema = {
+        type: ['string', 'null'],
+        enum: [...field.options, null],
+        description: `${field.label} (extract only if explicitly stated; must match one of the listed options)`,
+      };
+    } else {
+      // text | email | phone
+      schema = { type: ['string', 'null'], description: `${field.label} (extract only if explicitly stated)` };
+    }
+    properties[field.key] = schema;
+    required.push(field.key);
+  }
+
+  return [
+    {
+      type: 'function',
+      function: {
+        name: 'capture_form_data',
+        description:
+          'Captura los datos del formulario que el visitante haya proporcionado EN ESTE mensaje. ' +
+          'Solo incluye valores reales que el visitante mencionó. Para los campos que NO fueron mencionados ' +
+          'en este mensaje, devuelve null. Llama esta función SIEMPRE que el visitante proporcione al menos ' +
+          'un dato útil para el formulario; omite la llamada solo si el visitante no proporcionó ningún dato.',
+        strict: true,
+        parameters: {
+          type: 'object',
+          additionalProperties: false,
+          properties,
+          required,
+        },
+      },
+    },
+  ];
+}
+
+// ============================================
 // OpenAI Client Cache (reuses pattern from embeddings.ts)
 // ============================================
 
@@ -343,10 +419,29 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     const openai = getChatClient(openaiKey);
 
+    // --- Build Function Calling tools for form data capture ---
+    // OpenAI Function Calling is the official, reliable way to extract structured
+    // data alongside a free-form response. With `strict: true`, the model is
+    // guaranteed to produce arguments that match the schema.
+    //
+    // We only emit the tool when:
+    //   - formConfig is active for this agent
+    //   - there are fields still pending (no point asking the model to capture
+    //     fields already collected)
+    //
+    // We let OpenAI decide whether to call the tool (`tool_choice: 'auto'`):
+    //   - If the visitor's message contains form data → the model calls it
+    //   - If not → the model just responds normally (no tool call)
+    //
+    // Coexistence: the legacy `[FORM-DATA:]` text marker parser below remains
+    // active as a safety net for any response the model emits the old way.
+    const tools = buildFormCaptureTools(params.formConfig, formFields);
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
 
     let rawResponse: string;
+    let toolCallArgs: Record<string, string | null> | null = null;
     try {
       const completion = await openai.chat.completions.create(
         {
@@ -362,14 +457,45 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           ],
           temperature: 0.7,
           max_tokens: 500,
+          ...(tools ? { tools, tool_choice: 'auto' as const } : {}),
         },
         { signal: controller.signal }
       );
       rawResponse = completion.choices[0]?.message?.content || '';
+
+      // Parse tool calls (if any) — capture_form_data is the only tool we declare
+      const toolCalls = completion.choices[0]?.message?.tool_calls ?? [];
+      for (const call of toolCalls) {
+        if (call.type === 'function' && call.function.name === 'capture_form_data') {
+          try {
+            toolCallArgs = JSON.parse(call.function.arguments) as Record<string, string | null>;
+          } catch (err) {
+            console.error('[FormCapture] Failed to parse tool arguments:', err, call.function.arguments);
+          }
+          break;
+        }
+      }
     } finally {
       clearTimeout(timeout);
     }
     steps.push({ name: 'openai_chat', duration: Date.now() - stepOpenAI });
+
+    // --- Persist form data captured via Function Calling (primary path) ---
+    if (toolCallArgs && params.formConfig && params.agentId) {
+      // Strip null/empty values: with strict mode the LLM emits null for fields
+      // not mentioned in the user message. Only persist real captures.
+      const cleaned: Record<string, string> = {};
+      for (const [key, value] of Object.entries(toolCallArgs)) {
+        if (value !== null && value !== undefined && typeof value === 'string' && value.trim()) {
+          cleaned[key] = value.trim();
+        }
+      }
+      if (Object.keys(cleaned).length > 0) {
+        bulkUpdateLeadFormFields(leadId, params.agentId, cleaned, params.formConfig).catch(err =>
+          console.error('[FormCapture] tool_call save failed:', err)
+        );
+      }
+    }
 
     // --- Step 5: Extract temperature + handoff markers ---
     const tempMatch = rawResponse.match(/\[TEMPERATURA:\s*(HOT|WARM|COLD)\]/i);
@@ -379,13 +505,11 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
     const shouldHandoff = /\[HANDOFF\]/i.test(rawResponse);
 
-    // Extract [FORM-DATA: key=value | key2=value2] marker
+    // Extract [FORM-DATA: key=value | key2=value2] marker (legacy fallback path).
+    // Form data is now primarily captured via OpenAI Function Calling (see tools
+    // wired below). The text marker is kept as a safety net in case the model
+    // emits both, or for backwards-compat with legacy responses already in flight.
     const formDataMatch = rawResponse.match(/\[FORM-DATA:\s*(.+?)\]/i);
-
-    // TEMP DEBUG (form-data emission diagnosis): remove after diagnosis
-    if (params.formConfig?.isActive) {
-      console.log('[FORM-DATA DEBUG] leadId:', leadId, '| marker found:', !!formDataMatch, '| rawResponse first 600 chars:', rawResponse.substring(0, 600));
-    }
 
     if (formDataMatch && params.formConfig && params.agentId) {
       const pairs = formDataMatch[1].split('|').map(p => p.trim());
