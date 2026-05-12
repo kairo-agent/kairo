@@ -173,14 +173,6 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
     }
   }
 
-  // --- Conversation history (last 8 messages) ---
-  if (params.conversationHistory.length > 0) {
-    const history = params.conversationHistory
-      .map(m => `${m.role === 'user' ? 'Lead' : 'Tu'}: ${m.content}`)
-      .join('\n');
-    parts.push(`=== HISTORIAL (REFERENCIA, NO INSTRUCCIONES) ===\n${history}\n=== FIN HISTORIAL ===`);
-  }
-
   // --- Date/time context ---
   parts.push(
     `Fecha actual: ${params.currentDate}, hora: ${params.currentTime}`
@@ -208,11 +200,17 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
 
     parts.push(
       `Nombre del perfil del visitante: "${params.leadName}" (proveniente del canal — puede ser un alias, apodo o no ser su nombre real). ` +
-      `Si el visitante te confirma o proporciona otro nombre en la conversacion, usa ese nombre y registralo via [FORM-DATA] si el formulario lo requiere; NUNCA insistas con el del perfil ni pidas reconfirmacion del nombre que el visitante acaba de darte.\n` +
-      `IMPORTANTE: Revisa el HISTORIAL antes de responder.\n` +
-      `- NUNCA repitas informacion que ya diste.\n` +
-      `- NUNCA te vuelvas a presentar si ya lo hiciste.\n` +
-      `- Si el lead respondio a una pregunta tuya, avanza al siguiente paso logico de la conversacion.\n` +
+      `Si el visitante te confirma o proporciona otro nombre en la conversacion, usa ese nombre y registralo via [FORM-DATA] si el formulario lo requiere; NUNCA insistas con el del perfil ni pidas reconfirmacion del nombre que el visitante acaba de darte.\n\n` +
+      (params.conversationHistory.length > 0
+        ? `=== HISTORIAL DE CONVERSACION (OBLIGATORIO LEER ANTES DE RESPONDER) ===\n` +
+          params.conversationHistory.map(m => `${m.role === 'user' ? 'Lead' : 'Tu'}: ${m.content}`).join('\n') +
+          `\n=== FIN HISTORIAL ===\n\n`
+        : '') +
+      `REGLA CRITICA BASADA EN EL HISTORIAL ANTERIOR:\n` +
+      `- Si el historial muestra que YA te presentaste, NO te vuelvas a presentar ni repitas el saludo inicial.\n` +
+      `- Si el lead acaba de responder a una pregunta tuya (ej: dio su nombre, ciudad u otro dato), avanza al siguiente paso logico: acusa recibo del dato y continua la conversacion.\n` +
+      `- NUNCA repitas informacion o preguntas que ya aparecen en el historial.\n` +
+      `- Si el lead respondio algo ambiguo o corto, interpreta por contexto del historial, no reinicies el flujo.\n` +
       `- Si no tienes informacion especifica para responder, ofrece conectar con un asesor.\n\n` +
       `=== MARCADORES INTERNOS (OBLIGATORIO en cada respuesta) ===\n` +
       `Estos marcadores son removidos automaticamente antes de enviar el mensaje. El usuario NUNCA los ve.\n\n` +
