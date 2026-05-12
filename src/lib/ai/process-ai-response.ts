@@ -437,6 +437,11 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
     // active as a safety net for any response the model emits the old way.
     const tools = buildFormCaptureTools(params.formConfig, formFields);
 
+    // TEMP DEBUG (tool_calls diagnosis): remove once form-capture validated
+    if (params.formConfig?.isActive) {
+      console.log('[TOOLS DEBUG] leadId:', leadId, '| tools generated:', !!tools, '| pending fields:', formFields?.pending?.map(f => f.key).join(',') || 'none');
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000); // 30s timeout
 
@@ -465,6 +470,12 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
 
       // Parse tool calls (if any) — capture_form_data is the only tool we declare
       const toolCalls = completion.choices[0]?.message?.tool_calls ?? [];
+
+      // TEMP DEBUG (tool_calls diagnosis)
+      if (params.formConfig?.isActive) {
+        console.log('[TOOLS DEBUG] leadId:', leadId, '| tool_calls count:', toolCalls.length, '| finish_reason:', completion.choices[0]?.finish_reason, '| first tool:', toolCalls[0] ? JSON.stringify({ type: toolCalls[0].type, name: 'function' in toolCalls[0] && toolCalls[0].function ? toolCalls[0].function.name : 'unknown', argsPreview: 'function' in toolCalls[0] && toolCalls[0].function ? toolCalls[0].function.arguments.substring(0, 200) : '' }) : 'none');
+      }
+
       for (const call of toolCalls) {
         if (call.type === 'function' && call.function.name === 'capture_form_data') {
           try {
