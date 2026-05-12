@@ -207,7 +207,8 @@ export function buildSystemPrompt(params: SystemPromptParams): string {
     }
 
     parts.push(
-      `Responde al lead "${params.leadName}" de forma natural y breve.\n` +
+      `Nombre del perfil del visitante: "${params.leadName}" (proveniente del canal — puede ser un alias, apodo o no ser su nombre real). ` +
+      `Si el visitante te confirma o proporciona otro nombre en la conversacion, usa ese nombre y registralo via [FORM-DATA] si el formulario lo requiere; NUNCA insistas con el del perfil ni pidas reconfirmacion del nombre que el visitante acaba de darte.\n` +
       `IMPORTANTE: Revisa el HISTORIAL antes de responder.\n` +
       `- NUNCA repitas informacion que ya diste.\n` +
       `- NUNCA te vuelvas a presentar si ya lo hiciste.\n` +
