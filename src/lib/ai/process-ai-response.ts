@@ -462,7 +462,22 @@ export async function processAIResponse(params: AIProcessParams): Promise<void> 
           ],
           temperature: 0.7,
           max_tokens: 500,
-          ...(tools ? { tools, tool_choice: 'auto' as const } : {}),
+          ...(tools
+            ? {
+                tools,
+                // Force the model to call capture_form_data on every turn.
+                // With `auto` the model frequently skipped the call even when
+                // the visitor clearly provided data (confirmed via runtime
+                // logs: tool_calls count was 0 across 3 turns despite tools
+                // being passed). When the visitor didn't provide any new data,
+                // the model emits the function with all fields = null, which
+                // the parser below filters out before persisting.
+                tool_choice: {
+                  type: 'function' as const,
+                  function: { name: 'capture_form_data' },
+                },
+              }
+            : {}),
         },
         { signal: controller.signal }
       );
