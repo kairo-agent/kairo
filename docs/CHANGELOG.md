@@ -1,6 +1,66 @@
 # KAIRO - Changelog
 
-> Solo se mantienen las ultimas 5 versiones (v0.20.0+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Solo se mantienen las ultimas 5 versiones. Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+
+---
+
+## [0.27.3] - 2026-05-13
+
+### CharCounter universal en inputs y textareas con maxLength
+
+**Motivacion:** Un input de titulo (maxLength=500) cortaba texto silenciosamente sin ninguna indicacion visual. El usuario perdia contenido sin darse cuenta. Auditoria completa de todos los campos con `maxLength` en la app revelo docenas de inputs/textareas sin feedback de limite.
+
+**Nuevo componente `src/components/ui/CharCounter.tsx`:**
+
+Componente reusable con tres umbrales de color:
+- Normal (< 80% del limite): text-tertiary
+- Advertencia (>= 80%): amber-500
+- Critico (>= 95%): red-500
+
+Muestra `{length} / {max}` alineado a la derecha debajo del campo. `aria-live="polite"` para accesibilidad.
+
+**Integracion automatica en componentes UI base:**
+
+Los dos componentes de input mas usados renderizan `CharCounter` automaticamente cuando reciben `maxLength`, sin que cada sitio de uso tenga que importarlo:
+
+- `src/components/ui/Input.tsx` — prop `showCounter` opcional (default `true`). Se muestra debajo del input cuando `maxLength` esta seteado.
+- `src/components/ui/ExpandableTextarea.tsx` — counter presente en **ambas vistas**: modo compacto y modal expandido. Misma prop `showCounter`.
+
+**Integraciones explicitas (campos que usan `<input>` o `<textarea>` HTML directo):**
+
+Los siguientes componentes usan raw HTML y no heredan la integracion automatica. Se agrego `<CharCounter>` explicitamente en cada uno:
+
+| Archivo | Campos cubiertos |
+|---------|-----------------|
+| `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` | knowledge title (100), knowledge edit (100), criteria (200), edit rule (500), new rule (500), form field label (100) |
+| `src/app/[locale]/(admin)/admin/global-rules/page.tsx` | add rule (500), edit rule (500) |
+| `src/components/knowledge/MultimediaModal.tsx` | titulo (100) |
+| `src/components/knowledge/FAQsForm.tsx` | pregunta + respuesta |
+| `src/components/knowledge/PoliciesForm.tsx` | politica |
+| `src/components/knowledge/PricingForm.tsx` | precio + descripcion |
+| `src/components/knowledge/LocationContactForm.tsx` | 9 campos (address, city, country, contactName, email, website, maps, instagram, facebook) |
+| `src/components/knowledge/BusinessHoursForm.tsx` | notas de horario |
+| `src/components/settings/ReEngagementTab.tsx` | mensajes de reengagement |
+| `src/components/settings/webchat/TextsForm.tsx` | titulo, subtitulo, teaser |
+| `src/components/settings/webchat/StarterQuestionsEditor.tsx` | texto de preguntas sugeridas |
+
+**Omisiones intencionales** (campos de formato corto/especifico donde el counter seria ruido visual):
+
+- password (maxLength=128): formato opaco, el usuario no cuenta caracteres de password
+- phone numbers en LocationContactForm (maxLength=30): formato visual especifico (banderas, prefijos)
+- zipCode en LocationContactForm (maxLength=20): campo de formato estructurado
+- date MM-DD en BusinessHoursForm (maxLength=5): longitud predecible
+- hex color en HexColorField (maxLength=7): siempre exactamente 7 chars (#RRGGBB)
+
+**Bug fixes asociados:**
+
+- `fix(settings): remove duplicate hardcoded char counters in InstructionsTab` (`6740090`) — `InstructionsTab` tenia contadores `<p>{value.length}/N</p>` hardcoded para role, personality, additionalInstructions que ahora duplicaban el auto-counter del `ExpandableTextarea`. Se eliminaron los literales.
+- `fix(settings): add CharCounter to FormTab field-label input` (`1c34eb9`) — El input "Nombre del campo" en el tab Formulario usaba `<input>` raw con `maxLength={100}` sin counter. Detectado en QA en produccion.
+- `fix(settings): add maxLength to knowledge content textarea so counter renders` (`72c2c7f`) — El `ExpandableTextarea` de "Contenido" en el modal "Agregar conocimiento" no tenia prop `maxLength`, por lo que el auto-counter no se renderizaba (gateado por presencia de maxLength). Fix: agregar `maxLength={10000}` alineado con el limite de `additionalInstructions`. El servidor hace chunking de 1000 chars para embeddings y no enforce un hard limit distinto.
+
+**Sin migracion DB. Sin cambios de API.**
+
+**Commits**: `3e798d6` (CharCounter component + integracion automatica) → `6740090` (remove duplicate counters InstructionsTab) → `1c34eb9` (FormTab field-label) → `72c2c7f` (knowledge content maxLength).
 
 ---
 
@@ -219,156 +279,7 @@ Decision #3 del plan multi-canal: la pagina actual muestra una conversacion por 
 
 ---
 
-## [0.23.1] - 2026-04-20
-
-### Filtro "Origen" en /leads (NEW)
-
-Nuevo filtro por `LeadSource` en la pagina de leads. Dropdown dinamico que muestra **solo los orígenes con al menos 1 lead en el scope del usuario** (paridad con el chart del dashboard). Los 9 valores del enum sin uso quedan ocultos automaticamente; aparecen solos cuando llegue el primer lead con ese source.
-
-**Server action `getAvailableSources(projectId?, organizationId?)`** en `src/lib/actions/leads.ts`: reusa `verifyAuth() + getAccessibleProjectIds() + getVisibilityContext() + buildLeadWhereClause()` para garantizar RBAC y visibility correctos. `Prisma.groupBy({ by: ['source'] })` tipado (sin SQL raw). Devuelve solo las keys del enum.
-
-**SourceDropdown** (`src/components/features/LeadFilters.tsx`): lazy-load al abrir (mismo patron que `AssignedToDropdown`), refetch al cambiar de proyecto/org, ordenado por prioridad (Ads → Organico → Otro), spinner + empty state.
-
-**Backend:** `buildLeadWhereClause` ahora tambien filtra por `source`, y `sourceLabels` del Excel export cubre los 13 valores del enum (antes solo 6).
-
-**i18n:** Nueva seccion `leads.sources.*` con los 13 valores en snake_case (es/en).
-
-**Archivos:** `src/types/index.ts` (LeadFilters.source), `src/lib/actions/leads.ts`, `src/components/features/LeadFilters.tsx`, `src/app/[locale]/(dashboard)/leads/LeadsPageClient.tsx`, `src/messages/es.json`, `src/messages/en.json`.
-
-### Mobile UX Fixes — Dropdowns inline + max-height por breakpoint
-
-**Dropdowns flotantes ahora inline en mobile.** Tanto `SourceDropdown` como `AssignedToDropdown` usan `static + w-full` en mobile y `absolute + min-w-[220px]` en `sm+`. En mobile los dropdowns empujan el contenido (FilterSections + cards de leads) hacia abajo en vez de taparlo — patron consistente con iOS/Android.
-
-**Fix preexistente:** El contenedor de filtros tenia `max-h-[600px]` que en mobile (grid-cols-1 con 7 filtros apilados) cortaba ORIGEN / DESCARTADOS / ASIGNADO A. Ahora: `max-h-[2400px]` mobile / `1200px` tablet / `600px` desktop.
-
-**Archivos:** `src/components/features/LeadFilters.tsx`
-
----
-
-## [0.23.0] - 2026-04-07
-
-### Team Settings Page (NEW)
-
-Nueva pagina `/settings/team` con dos tabs accesible desde el sidebar. El sidebar de "Configuracion" es ahora colapsable con sub-items "AI Settings" y "Team Settings". Settings oculto para roles agent/viewer (solo Dashboard + Leads visible).
-
-**Tab 1: Lead Visibility Control**
-
-Controla que leads puede ver cada rol (agent/viewer). Manager+ siempre ve todos. Tres modos:
-
-| Modo | Descripcion |
-|------|-------------|
-| `all_leads` | Todos los leads del proyecto (default) |
-| `assigned_and_unassigned` | Solo leads asignados al usuario + sin asignar |
-| `only_assigned` | Solo leads asignados al usuario |
-
-Configuracion almacenada en `Project.leadVisibilityMode` (TEXT). Restriccion aplicada en: lista de leads, stats, charts del dashboard, `getLeadById`, `getLeadPanelData`, exportacion Excel.
-
-Filtro "Assigned To" se adapta: oculto para `only_assigned`, sin lista de usuarios para `assigned_and_unassigned`.
-
-**Nuevos archivos:**
-- `src/lib/lead-visibility.ts` — modulo puro y reutilizable para aplicar restricciones de visibilidad
-- `src/lib/actions/team-settings.ts` — server actions: `getTeamSettings()`, `saveLeadVisibilityMode()`, `saveLeadAutoAssignment()`
-
-**Tab 2: Lead Auto-Assignment**
-
-Distribucion porcentual de leads entrantes entre miembros del equipo. Shortcut "Equal for all" distribuye uniformemente. Validacion: debe sumar 100%. Lista de miembros con checkboxes, badges de rol e inputs de porcentaje.
-
-Configuracion almacenada como JSON en `Project.leadAutoAssignment` (JSONB). El webhook de WhatsApp auto-asigna nuevos leads basandose en distribucion diaria balanceada.
-
-**Nuevo archivo:** `src/lib/auto-assign.ts` — algoritmo de asignacion ponderada con balance diario.
-
-**Migraciones DB:**
-- `20260407_add_lead_visibility_mode`: `leadVisibilityMode TEXT DEFAULT 'all_leads'` en `Project`
-- `20260407_add_lead_auto_assignment`: `leadAutoAssignment JSONB` en `Project`
-
-### User Phone Field
-
-Campo `phone` (nullable) agregado al modelo `User`. `PhoneInput` (selector de bandera por pais) ahora aparece en:
-- Admin UserModal (crear/editar usuario)
-- Pagina de perfil (edicion self-service)
-
-i18n: "Celular" (es) / "Phone" (en). Migracion: `20260407_add_user_phone`: `phone TEXT` en `User`.
-
-### User Avatar Upload
-
-Sistema de subida de foto de perfil reemplaza el input de URL de texto.
-
-- **Modal de crop interactivo:** `react-easy-crop` con preview circular, drag, zoom slider.
-- **Compresion client-side:** 400x400 JPEG al 85% de calidad.
-- **Supabase Storage:** `avatars/{userId}/{uuid}.jpg`. Auto-eliminacion del avatar anterior al subir uno nuevo.
-- **"Remove photo":** Opcion para volver a las iniciales del usuario.
-- **Cron protection:** El prefix `avatars/` es excluido del cron de limpieza de media.
-
-Disponible en Admin UserModal y pagina de Perfil.
-
-### Debounce WhatsApp: 3s → 5s
-
-El debounce del webhook de WhatsApp se incremento de 3 a 5 segundos para reducir respuestas AI duplicadas cuando el lead envia varios mensajes seguidos.
-
-**Archivo:** `src/app/api/webhooks/whatsapp/route.ts`
-
-### Filtro de Usuarios Inactivos
-
-`getProjectTeamMembers()` ahora excluye usuarios con `isActive=false`. Previene que usuarios inactivos aparezcan en dropdowns de asignacion manual y en la configuracion de auto-asignacion.
-
-**Archivo:** `src/lib/actions/team-settings.ts`
-
-### Handoff Personalizado con Nombre del Asesor
-
-El AI menciona al asesor asignado por nombre durante el handoff: *"Te conecto con Karen, quien sera tu asesor comercial asignado..."*. Si no hay asesor asignado, usa el generico "asesor comercial".
-
-**Advisor card por WhatsApp:** Despues del handoff, se envia una tarjeta con foto (si existe) y nombre del asesor: `*Name*\nAsesor Comercial`. Si no hay foto, solo texto.
-
-- La tarjeta se guarda como mensaje en DB con `metadata.isAdvisorCard = true` y se renderiza en el chat panel.
-- Nueva funcion `sendTextToWhatsApp()`: envia texto a WhatsApp sin guardar en DB (fire-and-forget).
-- `build-system-prompt.ts`: `advisorName` inyectado en las instrucciones de handoff.
-
-**Archivos:** `src/lib/ai/process-ai-response.ts`, `src/lib/ai/build-system-prompt.ts`, `src/lib/whatsapp/send.ts`
-
-### Form Data Display en Lead Detail Panel
-
-Nuevo componente `LeadFormDataDisplay` que muestra todos los campos del formulario conversacional con sus valores o "Pendiente".
-
-- Badge de completitud (ej. `3/7`) con indicador verde (completo) o ambar (incompleto).
-- Cross-reference con datos del lead via `leadFieldMapping`: `phone` y `firstName` se auto-llenan desde el registro del lead.
-- `isValidPersonName()`: rechaza nombres invalidos (numeros de telefono, simbolos provenientes del perfil de WhatsApp).
-- El AI confirma nombres de perfil de WhatsApp con el lead en vez de confiar ciegamente. Nombres no confirmados se marcan en el system prompt para verificacion.
-
-**Archivos:** `src/components/features/LeadFormDataDisplay.tsx`, `src/lib/ai/build-system-prompt.ts`, `src/lib/actions/lead-form-data.ts`
-
-### Resumen IA Form-Aware
-
-Cuando el formulario conversacional esta activo, el resumen generado por IA usa formato estructurado: bullet point por cada campo del formulario + parrafo complementario corto. Sin formulario activo, el formato de resumen no cambia.
-
-**Archivo:** `src/lib/ai/process-ai-response.ts`
-
-### Lead Source: TikTokAds keyword detection
-
-La deteccion de fuente de leads ahora reconoce `TikTokAds` como palabra clave (sin `#`) ademas del hashtag `#tiktokads`. Case-insensitive. Corrige 31 leads historicos de abril que llegaban como "other" a pesar de venir desde TikTok Ads.
-
-**Archivo:** `src/app/api/webhooks/whatsapp/route.ts` (funcion `detectLeadSource`)
-
-### RBAC Documentation
-
-Nuevo archivo `docs/RBAC.md` con documentacion completa de roles y permisos: 3 niveles (sistema/org/proyecto), jerarquia completa, matriz de permisos por accion, calculo de effective role, flujo tecnico con archivos clave.
-
----
-
-## [0.22.3] - 2026-04-07
-
-### Date Filter Improvements
-
-**dateField selector:** Nuevo selector que permite filtrar por "Fecha de creacion" (default) o "Ultimo contacto". UI con layout apilado: etiqueta "FECHA" + dropdown de campo.
-
-**Preset "Este mes":** Reemplaza el anterior "Ultimos 90 dias". Usa `getStartOfMonthInTimezone()` de `src/lib/timezone.ts` para respetar el timezone de la organizacion. El filtro por defecto cambia de "Ultimos 30 dias" a "Este mes".
-
-**Fix: rango personalizado excluia el ultimo dia.** El `endDate` ahora incluye el dia completo hasta las 23:59:59.999 en lugar de 00:00:00 del dia siguiente.
-
-**Archivos:** `src/types/index.ts` (campo `dateField` en `LeadFilters`), `src/lib/actions/leads.ts` (logica de filtro), `src/components/features/LeadFilters.tsx` (UI selector), `LeadsPageClient.tsx`, `es.json`, `en.json`.
-
----
-
-> Versiones v0.22.2 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.25.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 

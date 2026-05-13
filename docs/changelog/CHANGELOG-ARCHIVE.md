@@ -1,6 +1,40 @@
-# KAIRO - Changelog Archive (v0.22.2 y anteriores)
+# KAIRO - Changelog Archive (v0.25.0 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.22.3+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.26.0+).
+
+---
+
+## [0.23.1] - 2026-04-20
+
+### Filtro "Origen" en /leads (NEW)
+
+Nuevo filtro por `LeadSource` en la pagina de leads. Dropdown dinamico que muestra solo los origenes con al menos 1 lead en el scope del usuario (paridad con el chart del dashboard). Los 9 valores del enum sin uso quedan ocultos automaticamente; aparecen solos cuando llegue el primer lead con ese source.
+
+**Server action `getAvailableSources(projectId?, organizationId?)`** en `src/lib/actions/leads.ts`: reusa `verifyAuth() + getAccessibleProjectIds() + getVisibilityContext() + buildLeadWhereClause()` para garantizar RBAC y visibility correctos. `Prisma.groupBy({ by: ['source'] })` tipado (sin SQL raw). Devuelve solo las keys del enum.
+
+**SourceDropdown** (`src/components/features/LeadFilters.tsx`): lazy-load al abrir, refetch al cambiar proyecto/org, ordenado por prioridad (Ads → Organico → Otro), spinner + empty state.
+
+**Backend:** `buildLeadWhereClause` tambien filtra por `source`. `sourceLabels` del Excel export cubre los 13 valores del enum (antes solo 6). i18n: nueva seccion `leads.sources.*` con los 13 valores en snake_case (es/en).
+
+**Mobile UX Fixes:** SourceDropdown y AssignedToDropdown usan `static + w-full` en mobile y `absolute + min-w-[220px]` en `sm+`. Fix max-h por breakpoint: `max-h-[2400px]` mobile / `1200px` tablet / `600px` desktop.
+
+---
+
+## [0.23.0] - 2026-04-07
+
+### Team Settings Page (NEW)
+
+Nueva pagina `/settings/team` con dos tabs: Lead Visibility Control (all_leads / assigned_and_unassigned / only_assigned almacenado en `Project.leadVisibilityMode`) y Lead Auto-Assignment (distribucion porcentual en `Project.leadAutoAssignment` JSONB, algoritmo ponderado con balance diario en `src/lib/auto-assign.ts`). Migraciones: `20260407_add_lead_visibility_mode`, `20260407_add_lead_auto_assignment`.
+
+User Phone Field: `phone` (nullable) en modelo `User`. PhoneInput en Admin UserModal y pagina Perfil. User Avatar Upload: crop interactivo (react-easy-crop), compresion 400x400 JPEG 85%, Supabase Storage `avatars/{userId}/{uuid}.jpg`, cron protection. Debounce WhatsApp 3s → 5s. Filtro usuarios inactivos en dropdowns asignacion. Handoff personalizado con nombre del asesor + tarjeta advisor card. `LeadFormDataDisplay` con badge completitud + isValidPersonName(). Resumen IA form-aware. TikTokAds keyword detection. Nuevo `docs/RBAC.md`.
+
+---
+
+## [0.22.3] - 2026-04-07
+
+### Date Filter Improvements
+
+dateField selector (creacion vs ultimo contacto), preset "Este mes" con timezone (reemplaza "Ultimos 30 dias"), fix rango personalizado excluia ultimo dia (endDate a 23:59:59.999). Archivos: `src/types/index.ts`, `src/lib/actions/leads.ts`, `src/components/features/LeadFilters.tsx`, `LeadsPageClient.tsx`, `es.json`, `en.json`.
 
 ---
 
