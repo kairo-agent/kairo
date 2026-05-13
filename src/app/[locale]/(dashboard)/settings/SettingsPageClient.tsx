@@ -316,9 +316,12 @@ export default function SettingsPageClient() {
 
   const loadInstructions = useCallback(async () => {
     if (!selectedAgent) return;
+    const requestedAgentId = selectedAgent.id;
     setLoadingInstructions(true);
     try {
-      const result = await getAgentInstructions(selectedAgent.id);
+      const result = await getAgentInstructions(requestedAgentId);
+      // Race condition guard: discard result if user switched agents while waiting
+      if (currentAgentIdRef.current !== requestedAgentId) return;
       if (result.success && result.data) {
         const ps = result.data.promptStructure;
         if (ps) {
@@ -332,20 +335,28 @@ export default function SettingsPageClient() {
         }
       }
     } catch {
-      toast.error(tCommon('messages.error'));
+      if (currentAgentIdRef.current === requestedAgentId) {
+        toast.error(tCommon('messages.error'));
+      }
     } finally {
-      setLoadingInstructions(false);
+      if (currentAgentIdRef.current === requestedAgentId) {
+        setLoadingInstructions(false);
+      }
     }
   }, [selectedAgent, tCommon]);
 
   const loadKnowledge = useCallback(async () => {
     if (!selectedAgent || !selectedProject) return;
+    const requestedAgentId = selectedAgent.id;
     setLoadingKnowledge(true);
     try {
       const [structuredResult, entriesResult] = await Promise.all([
-        getAllStructuredKnowledge(selectedAgent.id, selectedProject.id),
-        listAgentKnowledge(selectedAgent.id, selectedProject.id),
+        getAllStructuredKnowledge(requestedAgentId, selectedProject.id),
+        listAgentKnowledge(requestedAgentId, selectedProject.id),
       ]);
+
+      // Race condition guard: discard result if user switched agents while waiting
+      if (currentAgentIdRef.current !== requestedAgentId) return;
 
       if (structuredResult.success && structuredResult.data) {
         const map: StructuredKnowledgeMap = {};
@@ -365,45 +376,59 @@ export default function SettingsPageClient() {
         setKnowledgeEntries(freeText);
       }
     } catch {
-      toast.error(tCommon('messages.error'));
+      if (currentAgentIdRef.current === requestedAgentId) {
+        toast.error(tCommon('messages.error'));
+      }
     } finally {
-      setLoadingKnowledge(false);
+      if (currentAgentIdRef.current === requestedAgentId) {
+        setLoadingKnowledge(false);
+      }
     }
   }, [selectedAgent, selectedProject, tCommon]);
 
   const loadMedia = useCallback(async () => {
     if (!selectedAgent || !selectedProject) return;
+    const requestedAgentId = selectedAgent.id;
     setLoadingMedia(true);
     try {
-      const result = await listAgentMedia(selectedAgent.id, selectedProject.id);
+      const result = await listAgentMedia(requestedAgentId, selectedProject.id);
+      if (currentAgentIdRef.current !== requestedAgentId) return;
       if (result.success && result.data) {
         setMediaEntries(result.data);
       }
     } catch {
       // Silent fail - media is optional
     } finally {
-      setLoadingMedia(false);
+      if (currentAgentIdRef.current === requestedAgentId) {
+        setLoadingMedia(false);
+      }
     }
   }, [selectedAgent, selectedProject]);
 
   const loadVideos = useCallback(async () => {
     if (!selectedAgent || !selectedProject) return;
+    const requestedAgentId = selectedAgent.id;
     setLoadingVideos(true);
     try {
-      const result = await listAgentVideos(selectedAgent.id, selectedProject.id);
+      const result = await listAgentVideos(requestedAgentId, selectedProject.id);
+      if (currentAgentIdRef.current !== requestedAgentId) return;
       if (result.success && result.data) {
         setVideoEntries(result.data);
       }
     } catch {
       // Silent fail - videos are optional
     } finally {
-      setLoadingVideos(false);
+      if (currentAgentIdRef.current === requestedAgentId) {
+        setLoadingVideos(false);
+      }
     }
   }, [selectedAgent, selectedProject]);
 
   const loadForm = useCallback(async (agentId: string) => {
     setLoadingForm(true);
     const config = await getFormConfig(agentId);
+    // Race condition guard: discard result if user switched agents while waiting
+    if (currentAgentIdRef.current !== agentId) return;
     setFormConfig(config);
     setOriginalFormConfig(config);
     setLoadingForm(false);
@@ -412,6 +437,14 @@ export default function SettingsPageClient() {
   // Tracks the agent ID whose data was prefetched during initial load,
   // so the agent-change useEffect skips the redundant fetch.
   const prefetchedAgentId = useRef<string | null>(null);
+
+  // Tracks the currently-selected agent for race condition guarding.
+  // When the user switches agents quickly (A -> B -> A), the in-flight
+  // load functions for the old agent could resolve AFTER the new agent's
+  // loads, overwriting the displayed data with stale results. Each loader
+  // captures the agentId at the start and compares against this ref before
+  // calling setState. If they don't match, the result is discarded as stale.
+  const currentAgentIdRef = useRef<string | null>(null);
 
   // Unified initial load: agents + global rules in parallel,
   // then immediately load instructions + knowledge for the active agent
@@ -432,6 +465,9 @@ export default function SettingsPageClient() {
       // Phase 2: instructions + knowledge in parallel (no re-render needed)
       if (agent) {
         prefetchedAgentId.current = agent.id;
+        // Keep the race-guard ref in sync from the initial load too, so any
+        // late-arriving response from a project switch doesn't overwrite data.
+        currentAgentIdRef.current = agent.id;
         setLoadingInstructions(true);
         setLoadingKnowledge(true);
         const loadInstructionsForAgent = async () => {
@@ -507,6 +543,11 @@ export default function SettingsPageClient() {
   // Load data when agent changes (user manually switches agent after initial load).
   // Skips if this agent's data was already prefetched in the unified initial load.
   useEffect(() => {
+    // Update the ref BEFORE dispatching loads so any in-flight requests for
+    // the previous agent will see a mismatch when they resolve and discard
+    // themselves. This is the linchpin of the race condition guard.
+    currentAgentIdRef.current = selectedAgent?.id ?? null;
+
     if (selectedAgent && prefetchedAgentId.current === selectedAgent.id) {
       // Data already loaded by the initial load - clear the flag and skip
       prefetchedAgentId.current = null;
