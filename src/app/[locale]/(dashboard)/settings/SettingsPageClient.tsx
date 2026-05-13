@@ -1808,10 +1808,7 @@ function InstructionsTab({
           rows={4}
           modalTitle={t('instructions.role')}
         />
-        <div className="flex justify-between mt-1">
-          <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.roleHelp')}</p>
-          <p className="text-xs text-[var(--text-tertiary)]">{instructions.role.length}/1000</p>
-        </div>
+        <p className="text-xs text-[var(--text-tertiary)] mt-1">{t('instructions.roleHelp')}</p>
       </div>
 
       {/* Global Rules (read-only, collapsible) */}
@@ -2028,10 +2025,7 @@ function InstructionsTab({
               rows={3}
               modalTitle={t('instructions.personality')}
             />
-            <div className="flex justify-between mt-1">
-              <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.personalityHelp')}</p>
-              <p className="text-xs text-[var(--text-tertiary)]">{instructions.personality.length}/1000</p>
-            </div>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">{t('instructions.personalityHelp')}</p>
           </div>
         )}
       </div>
@@ -2066,12 +2060,7 @@ function InstructionsTab({
               rows={5}
               modalTitle={t('instructions.additional')}
             />
-            <div className="flex justify-between mt-1">
-              <p className="text-xs text-[var(--text-tertiary)]">{t('instructions.additionalHelp')}</p>
-              <p className="text-xs text-[var(--text-tertiary)]">
-                {instructions.additionalInstructions.length}/10000
-              </p>
-            </div>
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">{t('instructions.additionalHelp')}</p>
           </div>
         )}
       </div>
