@@ -2638,6 +2638,7 @@ function FormTab({
                     className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
                     autoFocus
                   />
+                  <CharCounter value={fieldLabel} max={100} />
                 </div>
 
                 {/* Type */}
