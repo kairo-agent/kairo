@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.27.1 (Function Calling para form data + anti-reset prompt order; +Active agent v0.27.0) |
+| **Version** | v0.27.2 (Settings UX hardening: spinner + race-condition guard al cambiar agentes; +v0.27.1 Function Calling form data) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
