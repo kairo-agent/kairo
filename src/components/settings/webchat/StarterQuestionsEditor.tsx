@@ -101,7 +101,6 @@ export function StarterQuestionsEditor({ value, onChange }: StarterQuestionsEdit
                 onChange={(e) => updateAt(idx, 'textEs', e.target.value)}
                 maxLength={MAX_STARTER_QUESTION_LENGTH}
                 placeholder="¿Cuales son sus precios?"
-                helperText={`${q.textEs.length}/${MAX_STARTER_QUESTION_LENGTH}`}
               />
               <Input
                 label="English"
@@ -109,7 +108,6 @@ export function StarterQuestionsEditor({ value, onChange }: StarterQuestionsEdit
                 onChange={(e) => updateAt(idx, 'textEn', e.target.value)}
                 maxLength={MAX_STARTER_QUESTION_LENGTH}
                 placeholder="What are your prices?"
-                helperText={`${q.textEn.length}/${MAX_STARTER_QUESTION_LENGTH}`}
               />
             </div>
           </div>

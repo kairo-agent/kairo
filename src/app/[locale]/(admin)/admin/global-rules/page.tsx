@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useState, useRef } from 'react';
-import { Card } from '@/components/ui';
+import { Card, CharCounter } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import {
   getGlobalRules,
@@ -157,20 +157,23 @@ export default function GlobalRulesPage() {
       {/* Add rule input */}
       <Card className="p-4 mb-6">
         <div className="flex gap-3">
-          <input
-            ref={inputRef}
-            type="text"
-            value={newRule}
-            onChange={(e) => setNewRule(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-            placeholder={t('placeholder')}
-            maxLength={500}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)]/50 focus:border-[var(--kairo-cyan)]"
-          />
+          <div className="flex-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newRule}
+              onChange={(e) => setNewRule(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+              placeholder={t('placeholder')}
+              maxLength={500}
+              className="w-full px-4 py-2.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)]/50 focus:border-[var(--kairo-cyan)]"
+            />
+            <CharCounter value={newRule} max={500} />
+          </div>
           <button
             onClick={handleAdd}
             disabled={!newRule.trim() || saving}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--kairo-cyan)] text-white text-sm font-medium hover:bg-[var(--kairo-cyan)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--kairo-cyan)] text-white text-sm font-medium hover:bg-[var(--kairo-cyan)]/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap self-start"
           >
             <PlusIcon />
             {t('add')}
@@ -215,19 +218,22 @@ export default function GlobalRulesPage() {
 
                 {/* Content or edit input */}
                 {editingId === rule.id ? (
-                  <div className="flex-1 flex gap-2">
-                    <input
-                      ref={editRef}
-                      type="text"
-                      value={editingContent}
-                      onChange={(e) => setEditingContent(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleUpdate(rule.id);
-                        if (e.key === 'Escape') cancelEditing();
-                      }}
-                      maxLength={500}
-                      className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--kairo-cyan)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)]/50"
-                    />
+                  <div className="flex-1 flex gap-2 items-start">
+                    <div className="flex-1">
+                      <input
+                        ref={editRef}
+                        type="text"
+                        value={editingContent}
+                        onChange={(e) => setEditingContent(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleUpdate(rule.id);
+                          if (e.key === 'Escape') cancelEditing();
+                        }}
+                        maxLength={500}
+                        className="w-full px-3 py-1.5 rounded-lg border border-[var(--kairo-cyan)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--kairo-cyan)]/50"
+                      />
+                      <CharCounter value={editingContent} max={500} />
+                    </div>
                     <button
                       onClick={() => handleUpdate(rule.id)}
                       disabled={saving || !editingContent.trim()}

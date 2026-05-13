@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { PricingData, ServiceItem } from '@/lib/knowledge/pricing';
 import { CURRENCY_OPTIONS } from '@/lib/knowledge/pricing';
+import { CharCounter } from '@/components/ui/CharCounter';
 
 // =============================================================================
 // Types
@@ -171,6 +172,7 @@ export function PricingForm({
                     maxLength={100}
                     className={inputClass}
                   />
+                  <CharCounter value={item.name} max={100} />
                 </div>
                 <div className="space-y-1 sm:w-28">
                   <label className="block text-xs font-medium text-[var(--text-secondary)]">
@@ -227,6 +229,7 @@ export function PricingForm({
                   rows={3}
                   className={inputClass + ' resize-y'}
                 />
+                <CharCounter value={item.description || ''} max={500} />
               </div>
             </div>
           ))}
@@ -263,9 +266,7 @@ export function PricingForm({
           rows={3}
           className={`${inputClass} resize-none`}
         />
-        <p className="text-xs text-[var(--text-tertiary)] text-right">
-          {notes.length}/500
-        </p>
+        <CharCounter value={notes} max={500} />
       </div>
 
       {/* ---- Actions ---- */}

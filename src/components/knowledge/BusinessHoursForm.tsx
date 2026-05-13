@@ -8,6 +8,7 @@ import {
   DAYS_OF_WEEK,
   HOLIDAY_PRESETS,
 } from '@/lib/knowledge/business-hours';
+import { CharCounter } from '@/components/ui/CharCounter';
 
 // =============================================================================
 // Types
@@ -461,9 +462,7 @@ export function BusinessHoursForm({
           rows={3}
           className={`${inputClass} resize-none`}
         />
-        <p className="text-xs text-[var(--text-tertiary)] text-right">
-          {(formData.notes || '').length}/500
-        </p>
+        <CharCounter value={formData.notes || ''} max={500} />
       </div>
 
       {/* ---- Actions ---- */}

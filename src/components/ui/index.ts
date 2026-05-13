@@ -20,3 +20,5 @@ export { DateRangePicker } from './DateRangePicker';
 
 export { PhoneInput } from './PhoneInput';
 export type { PhoneInputProps, E164Number } from './PhoneInput';
+
+export { CharCounter } from './CharCounter';

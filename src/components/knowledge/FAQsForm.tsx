@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import type { FAQsData, FAQItem } from '@/lib/knowledge/faqs';
+import { CharCounter } from '@/components/ui/CharCounter';
 
 // =============================================================================
 // Types
@@ -132,9 +133,7 @@ export function FAQsForm({ data, onSave, onCancel, isSaving }: FAQsFormProps) {
                   maxLength={MAX_QUESTION}
                   className={inputClass}
                 />
-                <p className="text-xs text-[var(--text-tertiary)] text-right">
-                  {item.question.length}/{MAX_QUESTION}
-                </p>
+                <CharCounter value={item.question} max={MAX_QUESTION} />
               </div>
 
               {/* Answer */}
@@ -150,9 +149,7 @@ export function FAQsForm({ data, onSave, onCancel, isSaving }: FAQsFormProps) {
                   rows={3}
                   className={`${inputClass} resize-none`}
                 />
-                <p className="text-xs text-[var(--text-tertiary)] text-right">
-                  {item.answer.length}/{MAX_ANSWER}
-                </p>
+                <CharCounter value={item.answer} max={MAX_ANSWER} />
               </div>
             </div>
           ))}

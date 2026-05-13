@@ -2,6 +2,7 @@
 
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { CharCounter } from './CharCounter';
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
   label?: string;
@@ -10,6 +11,12 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   size?: 'sm' | 'md' | 'lg';
+  /**
+   * When false, suppresses the automatic character counter that normally
+   * shows when `maxLength` is set. Use for inputs where the limit is high
+   * or technical (e.g. URLs) and the counter would be visual noise.
+   */
+  showCounter?: boolean;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
@@ -25,6 +32,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
       size = 'md',
       disabled,
       id,
+      showCounter = true,
       ...props
     },
     ref
@@ -94,6 +102,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           >
             {error || helperText}
           </p>
+        )}
+        {/* Auto-counter when maxLength is set. Reads value from props
+            (controlled inputs); for uncontrolled it just won't show. */}
+        {showCounter && typeof props.maxLength === 'number' && typeof props.value === 'string' && (
+          <CharCounter value={props.value} max={props.maxLength} />
         )}
       </div>
     );

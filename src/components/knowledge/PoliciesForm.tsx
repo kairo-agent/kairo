@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import type { PoliciesData, PolicyItem } from '@/lib/knowledge/policies';
 import { POLICY_PRESETS } from '@/lib/knowledge/policies';
 import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
+import { CharCounter } from '@/components/ui/CharCounter';
 
 // =============================================================================
 // Types
@@ -255,6 +256,7 @@ export function PoliciesForm({
                   maxLength={100}
                   className={inputClass}
                 />
+                <CharCounter value={item.title} max={100} />
               </div>
 
               {/* Content */}
@@ -270,9 +272,6 @@ export function PoliciesForm({
                   rows={5}
                   modalTitle={item.title || labels.policyContent}
                 />
-                <p className="text-xs text-[var(--text-tertiary)] text-right">
-                  {item.content.length}/{MAX_CONTENT}
-                </p>
               </div>
             </div>
           ))}

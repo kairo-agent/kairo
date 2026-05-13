@@ -30,14 +30,14 @@ export function TextsForm({ value, onChange }: TextsFormProps) {
             value={value.headerTitleEs}
             onChange={(e) => update('headerTitleEs', e.target.value)}
             maxLength={MAX_HEADER_TITLE_LENGTH}
-            helperText={`${value.headerTitleEs.length}/${MAX_HEADER_TITLE_LENGTH}`}
+            showCounter={false}
           />
           <Input
             label="English"
             value={value.headerTitleEn}
             onChange={(e) => update('headerTitleEn', e.target.value)}
             maxLength={MAX_HEADER_TITLE_LENGTH}
-            helperText={`${value.headerTitleEn.length}/${MAX_HEADER_TITLE_LENGTH}`}
+            showCounter={false}
           />
         </div>
       </div>
@@ -52,14 +52,12 @@ export function TextsForm({ value, onChange }: TextsFormProps) {
             value={value.headerSubtitleEs}
             onChange={(e) => update('headerSubtitleEs', e.target.value)}
             maxLength={MAX_HEADER_SUBTITLE_LENGTH}
-            helperText={`${value.headerSubtitleEs.length}/${MAX_HEADER_SUBTITLE_LENGTH}`}
           />
           <Input
             label="English"
             value={value.headerSubtitleEn}
             onChange={(e) => update('headerSubtitleEn', e.target.value)}
             maxLength={MAX_HEADER_SUBTITLE_LENGTH}
-            helperText={`${value.headerSubtitleEn.length}/${MAX_HEADER_SUBTITLE_LENGTH}`}
           />
         </div>
       </div>
@@ -74,14 +72,12 @@ export function TextsForm({ value, onChange }: TextsFormProps) {
             value={value.teaserTextEs}
             onChange={(e) => update('teaserTextEs', e.target.value)}
             maxLength={MAX_TEASER_LENGTH}
-            helperText={`${value.teaserTextEs.length}/${MAX_TEASER_LENGTH}`}
           />
           <Input
             label="English"
             value={value.teaserTextEn}
             onChange={(e) => update('teaserTextEn', e.target.value)}
             maxLength={MAX_TEASER_LENGTH}
-            helperText={`${value.teaserTextEn.length}/${MAX_TEASER_LENGTH}`}
           />
         </div>
       </div>

@@ -24,6 +24,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { CharCounter } from '@/components/ui/CharCounter';
 import { Modal, AlertModal } from '@/components/ui/Modal';
 import { getProjectAgents, saveAgentInstructions, getAgentInstructions } from '@/lib/actions/agents';
 import { getAllStructuredKnowledge, upsertStructuredKnowledge, addAgentKnowledge, listAgentKnowledge, deleteAgentKnowledge } from '@/lib/actions/knowledge';
@@ -1296,23 +1297,26 @@ function SortableCriteriaItem({
       )}
     >
       {editingIndex === index ? (
-        <div className="flex-1 flex gap-2 items-center">
-          <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-1">{index + 1}</span>
-          <input
-            type="text"
-            value={editingText}
-            onChange={(e) => setEditingText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onEditSave();
-              if (e.key === 'Escape') onCancelEdit();
-            }}
-            maxLength={300}
-            className="flex-1 px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
-            autoFocus
-          />
+        <div className="flex-1 flex gap-2 items-start">
+          <span className="text-xs text-[var(--text-tertiary)] w-4 text-center mt-1.5 shrink-0">{index + 1}</span>
+          <div className="flex-1">
+            <input
+              type="text"
+              value={editingText}
+              onChange={(e) => setEditingText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onEditSave();
+                if (e.key === 'Escape') onCancelEdit();
+              }}
+              maxLength={300}
+              className="w-full px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
+              autoFocus
+            />
+            <CharCounter value={editingText} max={300} />
+          </div>
           <button
             onClick={onEditSave}
-            className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors"
+            className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors self-start mt-1"
           >
             <CheckIcon />
           </button>
@@ -1440,20 +1444,23 @@ function TemperatureCriteriaLevel({
       </div>
       <div className="p-3 space-y-2">
         {/* Input */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newCriteria}
-            onChange={(e) => setNewCriteria(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
-            placeholder={placeholder}
-            maxLength={300}
-            className="flex-1 px-3 py-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
-          />
+        <div className="flex gap-2 items-start">
+          <div className="flex-1">
+            <input
+              type="text"
+              value={newCriteria}
+              onChange={(e) => setNewCriteria(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
+              placeholder={placeholder}
+              maxLength={300}
+              className="w-full px-3 py-1.5 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+            />
+            <CharCounter value={newCriteria} max={300} />
+          </div>
           <button
             onClick={handleAdd}
             disabled={!newCriteria.trim() || criteria.length >= 20}
-            className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] text-sm hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-start"
           >
             <PlusIcon />
           </button>
@@ -1632,22 +1639,25 @@ function SortableRuleItem({
       )}
     >
       {editingRuleIndex === index ? (
-        <div className="flex-1 flex gap-2">
-          <input
-            type="text"
-            value={editingRuleText}
-            onChange={(e) => setEditingRuleText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onEditRuleSave();
-              if (e.key === 'Escape') onCancelEditRule();
-            }}
-            maxLength={500}
-            className="flex-1 px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
-            autoFocus
-          />
+        <div className="flex-1 flex gap-2 items-start">
+          <div className="flex-1">
+            <input
+              type="text"
+              value={editingRuleText}
+              onChange={(e) => setEditingRuleText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onEditRuleSave();
+                if (e.key === 'Escape') onCancelEditRule();
+              }}
+              maxLength={500}
+              className="w-full px-2 py-1 rounded border border-[var(--accent-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none"
+              autoFocus
+            />
+            <CharCounter value={editingRuleText} max={500} />
+          </div>
           <button
             onClick={onEditRuleSave}
-            className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors"
+            className="p-1 text-green-500 hover:bg-green-500/10 rounded transition-colors self-start mt-1"
             title="Save"
           >
             <CheckIcon />
@@ -1887,7 +1897,7 @@ function InstructionsTab({
             </div>
 
             {/* Add rule input */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-start">
               <div className="flex-1">
                 <input
                   ref={newRuleInputRef}
@@ -1904,13 +1914,14 @@ function InstructionsTab({
                   maxLength={500}
                   className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
                 />
+                <CharCounter value={newRule} max={500} />
               </div>
               <Button
                 variant="secondary"
                 size="sm"
                 onClick={onAddRule}
                 disabled={!newRule.trim() || instructions.rules.length >= 50}
-                className="shrink-0"
+                className="shrink-0 self-start"
               >
                 <PlusIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">{t('instructions.addRule')}</span>

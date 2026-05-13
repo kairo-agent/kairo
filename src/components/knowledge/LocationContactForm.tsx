@@ -7,6 +7,7 @@ import type {
   AdditionalLocation,
 } from '@/lib/knowledge/location-contact';
 import { SOCIAL_PLATFORMS } from '@/lib/knowledge/location-contact';
+import { CharCounter } from '@/components/ui/CharCounter';
 
 // =============================================================================
 // Types
@@ -196,6 +197,7 @@ export function LocationContactForm({
               maxLength={200}
               className={inputClass}
             />
+            <CharCounter value={formData.address || ''} max={200} />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -211,6 +213,7 @@ export function LocationContactForm({
                 maxLength={100}
                 className={inputClass}
               />
+              <CharCounter value={formData.city || ''} max={100} />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-[var(--text-secondary)]">
@@ -224,6 +227,7 @@ export function LocationContactForm({
                 maxLength={100}
                 className={inputClass}
               />
+              <CharCounter value={formData.state || ''} max={100} />
             </div>
           </div>
 
@@ -253,6 +257,7 @@ export function LocationContactForm({
                 maxLength={100}
                 className={inputClass}
               />
+              <CharCounter value={formData.country || ''} max={100} />
             </div>
           </div>
         </div>
@@ -291,6 +296,7 @@ export function LocationContactForm({
                 maxLength={200}
                 className={inputClass}
               />
+              <CharCounter value={formData.email || ''} max={200} />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-[var(--text-secondary)]">
@@ -304,6 +310,7 @@ export function LocationContactForm({
                 maxLength={300}
                 className={inputClass}
               />
+              <CharCounter value={formData.website || ''} max={300} />
             </div>
           </div>
         </div>
@@ -340,14 +347,17 @@ export function LocationContactForm({
                     </option>
                   ))}
                 </select>
-                <input
-                  type="url"
-                  value={sm.url}
-                  onChange={(e) => updateSocial(index, 'url', e.target.value)}
-                  placeholder={labels.socialUrlPlaceholder}
-                  maxLength={500}
-                  className={`${inputClass} flex-1`}
-                />
+                <div className="flex-1">
+                  <input
+                    type="url"
+                    value={sm.url}
+                    onChange={(e) => updateSocial(index, 'url', e.target.value)}
+                    placeholder={labels.socialUrlPlaceholder}
+                    maxLength={500}
+                    className={inputClass}
+                  />
+                  <CharCounter value={sm.url} max={500} />
+                </div>
                 <button
                   type="button"
                   onClick={() => removeSocial(index)}
@@ -422,6 +432,7 @@ export function LocationContactForm({
                     maxLength={100}
                     className={inputClass}
                   />
+                  <CharCounter value={loc.name} max={100} />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -439,6 +450,7 @@ export function LocationContactForm({
                       maxLength={300}
                       className={inputClass}
                     />
+                    <CharCounter value={loc.address} max={300} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="block text-xs font-medium text-[var(--text-secondary)]">

@@ -3,12 +3,18 @@
 import { useState, useRef, useEffect, type TextareaHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 import { Modal } from './Modal';
+import { CharCounter } from './CharCounter';
 
 interface ExpandableTextareaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange'> {
   value: string;
   onChange: (value: string) => void;
   expandLabel?: string;
   modalTitle?: string;
+  /**
+   * When false, suppresses the automatic character counter that normally
+   * shows when `maxLength` is set. Defaults to true.
+   */
+  showCounter?: boolean;
 }
 
 export function ExpandableTextarea({
@@ -19,8 +25,10 @@ export function ExpandableTextarea({
   className,
   placeholder,
   rows = 6,
+  showCounter = true,
   ...rest
 }: ExpandableTextareaProps) {
+  const hasCounter = showCounter && typeof rest.maxLength === 'number';
   const [isExpanded, setIsExpanded] = useState(false);
   const expandedRef = useRef<HTMLTextAreaElement>(null);
 
@@ -75,6 +83,9 @@ export function ExpandableTextarea({
         </button>
       </div>
 
+      {/* Auto-counter outside the textarea (below right) for the compact view */}
+      {hasCounter && <CharCounter value={value} max={rest.maxLength!} />}
+
       {/* Fullscreen modal */}
       <Modal
         isOpen={isExpanded}
@@ -91,6 +102,8 @@ export function ExpandableTextarea({
           maxLength={rest.maxLength}
           className="w-full px-4 py-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)] text-[var(--text-primary)] text-sm resize-none min-h-[60vh] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent whitespace-pre-wrap"
         />
+        {/* Auto-counter inside the modal too, mirroring the compact view */}
+        {hasCounter && <CharCounter value={value} max={rest.maxLength!} />}
       </Modal>
     </>
   );

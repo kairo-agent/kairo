@@ -176,9 +176,6 @@ export function ReEngagementTab({
               maxLength={1000}
               className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none"
             />
-            <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
-              {config.promptTemplate.length}/1000
-            </p>
             {agentId && projectId && (
               <div className="mt-3 space-y-2">
                 <FixedImageSlot
@@ -235,9 +232,6 @@ export function ReEngagementTab({
                 maxLength={500}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none"
               />
-              <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
-                {(config.attempt1Instructions || '').length}/500
-              </p>
               {agentId && projectId && (
                 <div className="mt-3 space-y-2">
                   <FixedImageSlot
@@ -276,9 +270,6 @@ export function ReEngagementTab({
                 maxLength={500}
                 className="w-full px-3 py-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:border-transparent resize-none"
               />
-              <p className="text-xs text-[var(--text-muted)] mt-1 text-right">
-                {(config.attempt2Instructions || '').length}/500
-              </p>
               {agentId && projectId && (
                 <div className="mt-3 space-y-2">
                   <FixedImageSlot

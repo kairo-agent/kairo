@@ -10,6 +10,7 @@ import type { AgentMediaEntry } from '@/lib/types/agent-media';
 import { extractThumbnailFromUrl } from '@/lib/utils/video-thumbnail';
 import { uploadVideoToStorage } from '@/lib/utils/video-upload';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import { CharCounter } from '@/components/ui/CharCounter';
 import { MAX_MEDIA_ITEMS, MAX_VIDEO_ITEMS, MAX_VIDEO_SIZE_MB, MAX_TITLE_LENGTH, MAX_DESCRIPTION_LENGTH } from '@/lib/types/agent-media';
 
 // =============================================================================
@@ -785,12 +786,11 @@ function TitleDescriptionFields({ title, setTitle, description, setDescription, 
       <div className="space-y-1">
         <label className="block text-xs font-medium text-[var(--text-secondary)]">{titleLabel || 'Titulo'}</label>
         <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={titlePlaceholder} maxLength={MAX_TITLE_LENGTH} className={inputCls} />
-        <p className="text-xs text-[var(--text-tertiary)] text-right">{title.length}/{MAX_TITLE_LENGTH}</p>
+        <CharCounter value={title} max={MAX_TITLE_LENGTH} />
       </div>
       <div className="space-y-1">
         <label className="block text-xs font-medium text-[var(--text-secondary)]">Descripcion (el agente usara esto para decidir cuando enviarlo)</label>
         <ExpandableTextarea value={description} onChange={setDescription} placeholder="Describe el contenido en detalle..." maxLength={MAX_DESCRIPTION_LENGTH} rows={3} modalTitle="Descripcion" />
-        <p className="text-xs text-[var(--text-tertiary)] text-right">{description.length}/{MAX_DESCRIPTION_LENGTH}</p>
       </div>
     </>
   );
