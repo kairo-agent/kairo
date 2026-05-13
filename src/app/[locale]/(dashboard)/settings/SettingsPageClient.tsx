@@ -2421,6 +2421,19 @@ function FormTab({
     { value: 'options', label: 'Opciones' },
   ];
 
+  // Mirror the loading pattern used by Instructions tab (line 1725) and
+  // Knowledge tab (line 2082) — show a spinner while form config is being
+  // fetched after switching agents. Without this, the previous agent's
+  // form briefly flashes through before the new one loads, which looks
+  // inconsistent vs the other tabs.
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--accent-primary)]" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
