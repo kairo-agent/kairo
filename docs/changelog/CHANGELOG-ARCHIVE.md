@@ -4,6 +4,14 @@
 
 ---
 
+## [0.25.0] - 2026-05-07
+
+### Fase 3 Multi-Canal: WebChat MVP
+
+Segundo canal en `widget.kairoagent.com` (Vercel #2 separado), Shadow DOM + polling 3s, reusa pipeline AI. 3 endpoints publicos con rate limit + CORS. `WebChatChannelHandler` (IChannelHandler) con debounce Redis NX 5s; pipeline agnostico `whatsappId` → `externalUserId`. Bundle Vite vanilla TS = 23.6 KB raw / 7.8 KB gzip. UX chatflow360 (bubble pulse, hover-expand teaser, side-panel full-height), multi-instancia, localStorage, bilingue. Settings `/settings/webchat` 7 cards (apariencia, textos, preguntas, comportamiento, dominios, embed, preview). Rename `/leads` → `/conversations` con redirects 307; tabla BD `leads` NO se renombra (v0.26+ agregara `unique_leads`).
+
+---
+
 ## [0.23.1] - 2026-04-20
 
 ### Filtro "Origen" en /leads (NEW)
@@ -316,39 +324,7 @@ Mensajes de audio ahora muestran la transcripcion directamente en el chat de KAI
 
 ### Performance Optimizations (Security-Audited)
 
-12 de 15 optimizaciones implementadas tras auditoria de seguridad.
-
-#### Frontend - IMPLEMENTADO (commit `4617060`)
-
-| ID | Optimizacion | Estado | Archivo |
-|----|-------------|--------|---------|
-| P2-1 | `verifyAuth()` lightweight auth (sin memberships) + `verifyProjectAccess()` indexed | DONE | `auth.ts` |
-| P2-2 | `getLeadPanelData()` consolidada (notas+actividades) | DONE | `LeadDetailPanel.tsx`, `leads.ts` |
-| P2-3 | Paralelizar count + messages en `getLeadConversation` | DONE | `messages.ts` |
-| P2-5 | Paralelizar post-send ops (lastContactAt + activity) | DONE | `messages.ts` |
-| P2-6 | Migrar 10 server actions de `getCurrentUser` a `verifyAuth` | DONE | `leads.ts`, `messages.ts` |
-| P2-7 | Indice compuesto `leads(projectId, whatsappId)` | DONE | `schema.prisma` |
-| P2-4 | Batch read receipts WhatsApp | DONE | `messages.ts`, `whatsapp/mark-read/route.ts` |
-
-#### Backend - IMPLEMENTADO (commit `38d2734`)
-
-| ID | Optimizacion | Estado | Archivo |
-|----|-------------|--------|---------|
-| P1-7 | Atomic Lua script para rate limiting Redis (fix race condition) | DONE | `rate-limit.ts` |
-| P1-2 | Cache OpenAI client con SHA-256 key hashing (TTL 5min) | DONE | `openai/embeddings.ts` |
-| P1-4 | Parallel DB ops via Promise.all en webhook handler | DONE | `webhooks/whatsapp/route.ts` |
-| P1-6 | Fire-and-forget status updates (non-blocking) | DONE | `webhooks/whatsapp/route.ts` |
-| P1-8 | Eliminar retry loop en handleStatusUpdate (depende de retries de Meta) | DONE | `webhooks/whatsapp/route.ts` |
-| P1-5 | Fetch paralelo en audio transcription | DONE | `audio/transcribe/route.ts` |
-| P1-1 | Phone number masking en logs | DONE | `whatsapp/send/route.ts` |
-| P1-3 | Fire-and-forget audit logs | RECHAZADO | Integridad obligatoria en SaaS B2B |
-
-### Documentacion
-
-- **CLAUDE.md** reducido de 62KB a 6.5KB (90% reduccion) - previene error de serializacion JSON
-- **docs/INDEX.md** actualizado como hub de navegacion
-- **docs/RULES.md** protocolo context-safe para Playwright MCP
-- Limpieza de emojis above-BMP en CHANGELOG.md
+12 de 15 optimizaciones tras auditoria de seguridad. **Frontend** (commit `4617060`): `verifyAuth()` lightweight + `verifyProjectAccess()` indexed, `getLeadPanelData()` consolidada, paralelizar count+messages en `getLeadConversation` y post-send ops, migrar 10 server actions a `verifyAuth`, indice compuesto `leads(projectId, whatsappId)`, batch read receipts WhatsApp. **Backend** (commit `38d2734`): atomic Lua script rate limiting Redis (fix race), cache OpenAI client SHA-256 + TTL 5min, parallel DB ops Promise.all en webhook, fire-and-forget status updates, eliminar retry en `handleStatusUpdate`, fetch paralelo audio transcription, phone masking en logs. Rechazado: P1-3 fire-and-forget audit logs (integridad obligatoria en SaaS B2B). **Docs:** CLAUDE.md 62KB → 6.5KB (90% reduccion, previene error serializacion JSON), `docs/INDEX.md` hub navegacion, `docs/RULES.md` protocolo context-safe Playwright MCP.
 
 ---
 

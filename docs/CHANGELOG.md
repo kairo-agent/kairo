@@ -58,9 +58,19 @@ Los siguientes componentes usan raw HTML y no heredan la integracion automatica.
 - `fix(settings): add CharCounter to FormTab field-label input` (`1c34eb9`) — El input "Nombre del campo" en el tab Formulario usaba `<input>` raw con `maxLength={100}` sin counter. Detectado en QA en produccion.
 - `fix(settings): add maxLength to knowledge content textarea so counter renders` (`72c2c7f`) — El `ExpandableTextarea` de "Contenido" en el modal "Agregar conocimiento" no tenia prop `maxLength`, por lo que el auto-counter no se renderizaba (gateado por presencia de maxLength). Fix: agregar `maxLength={10000}` alineado con el limite de `additionalInstructions`. El servidor hace chunking de 1000 chars para embeddings y no enforce un hard limit distinto.
 
+**Patch follow-up: ExpandableTextarea (fullscreen) en FAQs + Precios (`b1d1385`):**
+
+Tres `<textarea>` raw del knowledge base que carecian del boton "Expandir" (modal 3xl con min-h 60vh) se migraron al componente `ExpandableTextarea` existente, alineandolos con el resto de textareas largos de la app:
+
+- `src/components/knowledge/FAQsForm.tsx`: campo "Respuesta" (maxLength=1000, `modalTitle` dinamico tipo `"Respuesta - Pregunta 3"`)
+- `src/components/knowledge/PricingForm.tsx`: campo "Descripcion del servicio" (maxLength=500)
+- `src/components/knowledge/PricingForm.tsx`: campo "Notas adicionales" (maxLength=500)
+
+Los `<CharCounter>` explicitos de esos tres campos se eliminaron porque `ExpandableTextarea` ya los renderiza automaticamente (mismo bug-pattern que se cazo en `InstructionsTab` antes).
+
 **Sin migracion DB. Sin cambios de API.**
 
-**Commits**: `3e798d6` (CharCounter component + integracion automatica) → `6740090` (remove duplicate counters InstructionsTab) → `1c34eb9` (FormTab field-label) → `72c2c7f` (knowledge content maxLength).
+**Commits**: `3e798d6` (CharCounter component + integracion automatica) → `6740090` (remove duplicate counters InstructionsTab) → `1c34eb9` (FormTab field-label) → `72c2c7f` (knowledge content maxLength) → `b1d1385` (ExpandableTextarea en FAQs + Precios).
 
 ---
 
@@ -185,97 +195,6 @@ UI `/settings/webchat` Domains form actualizada: warning rojo cuando lista vacia
 **Migracion:** los proyectos webchat existentes con `allowedOrigins=[]` deben agregar sus dominios antes de embeber. Disruptivo (unico proyecto webchat hoy) NO esta embebido en ningun sitio externo aun, por lo que el cambio NO rompe nada en produccion real.
 
 Bundle widget total: 37.23 KB / 11.66 KB gzip (vs 7.8 KB en v0.25.0).
-
----
-
-## [0.25.0] - 2026-05-07
-
-### Fase 3 Multi-Canal: WebChat MVP completo (NEW)
-
-Segundo canal disponible para KAIRO: widget WebChat embebible que reusa el pipeline AI completo (RAG, Vision, form conversacional, handoff). Servido desde subdominio dedicado `widget.kairoagent.com` (Vercel project #2 separado del dashboard) con Shadow DOM aislado y polling cada 3s. Plan completo en [docs/plans/MULTI-CHANNEL-WEBCHAT.md](plans/MULTI-CHANNEL-WEBCHAT.md) e [MULTI-CHANNEL-IMPL.md](plans/MULTI-CHANNEL-IMPL.md).
-
-#### Backend (Fase 3.2 + 3.6)
-
-**3 endpoints publicos:**
-- `GET /api/widget/config?key=<publicKey>` retorna appearance + behavior con defaults brand KAIRO. CORS validado contra `ProjectChannel.config.allowedOrigins` (vacio = permisivo en Fase 3, exact-match en Fase 4). Cache `s-maxage=60`.
-- `POST /api/webhooks/webchat` recibe `{ publicKey, visitorId, sessionId, message: { type, text } }`. Rate limit 30/min IP + 60/min visitor. Persiste Lead anonimo (`firstName: 'Visitante'`) + Conversation + Message stub.
-- `GET /api/webchat/messages?key=...&conversationId=...&since=...` polling endpoint. Tenant isolation por `Conversation.lead.projectId`.
-
-**`WebChatChannelHandler`** ([`src/lib/channels/webchat/WebChatChannelHandler.ts`](../src/lib/channels/webchat/WebChatChannelHandler.ts)) implementa `IChannelHandler`:
-- `receive()`: debounce Redis NX 5s + concatena mensajes pendientes + llama `processAIResponse({ externalUserId: null, leadPhone: null })` para que el bloque "Step 8 Send to WhatsApp" sea skipeado. AI message persistido por el pipeline (paso db_save) y el widget lo recibe via polling.
-- `send()`: para asesor manual desde dashboard. Persiste Message con `sender='human'`. Realtime broadcast viene en Fase 4.
-- Skip si `lead.handoffMode === 'human'` o `lead.archivedAt` (mismo gate que WhatsApp).
-
-**Pipeline AI agnostico:** parametro `whatsappId` en `processAIResponse()` renombrado a `externalUserId` (Fase 3.4). En WhatsApp es el numero de telefono; en WebChat es el `visitorId` del browser; en futuros canales es ID en la plataforma origen.
-
-#### Widget bundle (Fase 3.5)
-
-**Tech stack:** Vite + Vanilla TypeScript (sin framework — Preact descartado por overhead vs LOC). Shadow DOM mode `closed`. CSS inline via template literal. Output `kairo.js` = **23.6 KB raw / 7.8 KB gzip**.
-
-**UX (estilo chatflow360):**
-- **Bubble launcher:** pegado al borde derecho (right:0), pulse animation suave de "rebote", border-radius asimetrico (40px solo izquierda).
-- **Hover-expand:** wrapper se expande mostrando "Tienes preguntas?" + CTA "Conversemos!" (configurable via `appearance.teaserTextEs/En` y `teaserCtaEs/En`). Click en cualquier parte abre el chat.
-- **Window:** side-panel **full-height** pegado al borde derecho (420px desktop, 100vw mobile), animation slide horizontal.
-- **Header:** gradient midnight + avatar 42px con online dot verde + curva de overlap con messages area.
-- **Multi-instancia:** soporta `<script data-key="...">` multiples por pagina; cada bubble tiene su propio host con id `kairo-widget-<key>`.
-- **Persistencia localStorage:** `kairo_visitor_id` (UUID), `kairo_conv_<key>`, `kairo_open_<key>`.
-- **Bilingue es/en** con autodetect via `navigator.language` o `data-lang="es"`.
-- **WebAudio beep** al recibir mensaje (configurable, default ON).
-- **Modo preview** (`data-preview="true"`): no red, no localStorage, simula respuestas — para usar en `/settings/webchat` preview.
-
-**Embed:**
-```html
-<script src="https://widget.kairoagent.com/kairo.js" data-key="<publicKey>" defer></script>
-```
-
-#### Settings UI `/settings/webchat` (Fase 3.6)
-
-7 cards colapsables con sticky save bar:
-1. **Apariencia** — 6 hex pickers (color del boton, fondo header, texto header, burbuja visitor/IA bg+text), select posicion bottom-right/left, forma circulo/cuadrado, URL del logo.
-2. **Textos** — header titulo/subtitulo + teaser bilingue es/en.
-3. **Preguntas sugeridas** — max 5, par textEs/textEn por item, drag-to-reorder.
-4. **Comportamiento** — autoOpenDelay (0-60s), soundEnabled toggle, sessionTimeoutHours (1-24).
-5. **Dominios autorizados** — lista editable de origins con validacion URL (vacio = permisivo en Fase 3 con warning).
-6. **Codigo de instalacion** — read-only embed snippet con publicKey + copy button.
-7. **Preview en vivo** — mock visual estatico (TODO Fase 3.5+: cargar bundle real con `data-preview="true"`).
-
-Server action `saveWebChatConfig(projectId, config)` en [`src/lib/actions/project-channels.ts`](../src/lib/actions/project-channels.ts) valida con zod (regex hex/URL, max-length, max 5 starter questions, autoOpen 0-60, sessionTimeout 1-24). RBAC: super_admin / owner / admin.
-
-Tipo `WebChatConfig` en [`src/lib/types/webchat-config.ts`](../src/lib/types/webchat-config.ts) (no en archivo `'use server'`, sigue Rule 12). `mergeWebChatConfig()` para backward-compat al agregar campos futuros.
-
-#### Rename `/leads` → `/conversations` (Fase 3.7)
-
-Decision #3 del plan multi-canal: la pagina actual muestra una conversacion por canal (Lead 1:1 Conversation hoy). El termino "Conversaciones" refleja con precision lo que el usuario ve, especialmente con multi-canal (WhatsApp + WebChat).
-
-**Cambios:**
-- `src/app/[locale]/(dashboard)/leads/` → `conversations/` (git mv).
-- Componentes internos (`LeadsPageClient.tsx`) NO se renombran — el modelo BD se llama `Lead`, mantener nombres tecnicos consistentes.
-- `next.config.ts` redirects: `/leads` → `/conversations` con status 307 (temporal). Cubre ambos locales (es/en) con y sin sub-paths.
-- Sidebar nav item "leads" eliminado, "conversations" (MessageIcon) es el principal.
-- `src/messages/{es,en}.json`: `leads.title` "Leads" → "Conversaciones" / "Conversations".
-
-**Internamente NO cambia:** tabla BD `leads`, modelo Prisma `Lead`, componentes con prefijo `Lead*`, server actions en `lib/actions/leads.ts`, hooks `useLeadsQuery`. Estos siguen representando "una conversacion con un visitante por un canal especifico". En v0.26+ se agregara NUEVA tabla para vista CRM "Leads Unicos" (deduplicacion por email/telefono).
-
-#### Visual launcher fixes durante QA
-
-- Hydration mismatch en `ThemeContext` y `WorkspaceContext` (lectura de localStorage en `useState` initializer): patron `mounted` flag con useEffect post-mount.
-- `tsconfig.json` excluye `widget/` (vite.config.ts requiere deps que solo viven en `widget/node_modules`).
-- `vite.config.ts` del widget: `css.postcss: {}` deshabilita PostCSS autodiscovery (que cargaba `postcss.config.mjs` del root del repo).
-- Widget shape mismatch entre frentes: payload `message: { type, text }` (no string), response `{ ok, conversationId, messageId }`.
-- Widget polling timestamp con clock drift cliente↔server: removido `lastMessageAt = visitorMsg.createdAt` (client-time futurista hacia que polling excluyera mensajes server-created intermedios).
-
-#### Validacion E2E prod
-
-- WhatsApp E&Z: pipeline AI sigue funcionando identico (validado en cada commit).
-- Widget embebido en HTML local apuntando a `https://widget.kairoagent.com` + `https://app.kairoagent.com`: visitor envia → debounce 5s → Kaira (agente Disruptivo) responde via polling. Sin duplicados (dedup por `local-` ID match).
-- `/es/leads` y `/en/leads` → 307 → `/conversations`.
-
-#### Pendiente Fase 4 (1-2 semanas, futuro)
-
-- Supabase Realtime via WebSocket directo (en lugar de polling 3s).
-- Handoff humano webchat: asesor responde desde dashboard, llega <500ms al widget.
-- Media upload visitor: signed URL → Supabase Storage `webchat-uploads/` → Vision/Whisper analysis.
-- Allowed origins enforcement estricto (en Fase 3 es permisivo si la lista esta vacia).
 
 ---
 
