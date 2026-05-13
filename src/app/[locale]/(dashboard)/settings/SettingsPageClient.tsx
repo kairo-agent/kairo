@@ -1193,6 +1193,7 @@ export default function SettingsPageClient() {
                 onChange={setNewKnowledgeContent}
                 placeholder={t('knowledge.contentPlaceholder')}
                 rows={10}
+                maxLength={10000}
                 modalTitle={t('knowledge.contentLabel')}
               />
             </div>
