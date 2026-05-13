@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import type { FAQsData, FAQItem } from '@/lib/knowledge/faqs';
 import { CharCounter } from '@/components/ui/CharCounter';
+import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 
 // =============================================================================
 // Types
@@ -141,15 +142,14 @@ export function FAQsForm({ data, onSave, onCancel, isSaving }: FAQsFormProps) {
                 <label className="block text-xs font-medium text-[var(--text-secondary)]">
                   {labels.answer}
                 </label>
-                <textarea
+                <ExpandableTextarea
                   value={item.answer}
-                  onChange={(e) => updateItem(index, 'answer', e.target.value)}
+                  onChange={(val) => updateItem(index, 'answer', val)}
                   placeholder={labels.answerPlaceholder}
                   maxLength={MAX_ANSWER}
                   rows={3}
-                  className={`${inputClass} resize-none`}
+                  modalTitle={`${labels.answer} - ${labels.itemNumber} ${index + 1}`}
                 />
-                <CharCounter value={item.answer} max={MAX_ANSWER} />
               </div>
             </div>
           ))}

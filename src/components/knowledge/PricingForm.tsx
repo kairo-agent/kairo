@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import type { PricingData, ServiceItem } from '@/lib/knowledge/pricing';
 import { CURRENCY_OPTIONS } from '@/lib/knowledge/pricing';
 import { CharCounter } from '@/components/ui/CharCounter';
+import { ExpandableTextarea } from '@/components/ui/ExpandableTextarea';
 
 // =============================================================================
 // Types
@@ -219,17 +220,14 @@ export function PricingForm({
                 <label className="block text-xs font-medium text-[var(--text-secondary)]">
                   {labels.description}
                 </label>
-                <textarea
+                <ExpandableTextarea
                   value={item.description || ''}
-                  onChange={(e) =>
-                    updateItem(index, 'description', e.target.value)
-                  }
+                  onChange={(val) => updateItem(index, 'description', val)}
                   placeholder={labels.descriptionPlaceholder}
                   maxLength={500}
                   rows={3}
-                  className={inputClass + ' resize-y'}
+                  modalTitle={`${labels.description} - ${labels.itemNumber} ${index + 1}`}
                 />
-                <CharCounter value={item.description || ''} max={500} />
               </div>
             </div>
           ))}
@@ -258,15 +256,14 @@ export function PricingForm({
         <label className="block text-sm font-medium text-[var(--text-primary)]">
           {labels.notes}
         </label>
-        <textarea
+        <ExpandableTextarea
           value={notes}
-          onChange={(e) => setNotes(e.target.value)}
+          onChange={(val) => setNotes(val)}
           placeholder={labels.notesPlaceholder}
           maxLength={500}
           rows={3}
-          className={`${inputClass} resize-none`}
+          modalTitle={labels.notes}
         />
-        <CharCounter value={notes} max={500} />
       </div>
 
       {/* ---- Actions ---- */}
