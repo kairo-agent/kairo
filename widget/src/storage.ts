@@ -63,6 +63,13 @@ interface ConvSnapshot {
    * Cleared when the visitor calls `Kairo.reset(publicKey)`.
    */
   realtimeTopicSecret?: string | null;
+  /**
+   * v0.27.5: frontera de la sesion visible actual (ISO ts) o null para la
+   * sesion original. Persiste el corte tras una expiracion por inactividad
+   * para que los reloads dentro de la nueva sesion no reaparezcan el historial
+   * viejo.
+   */
+  sessionStartedAt?: string | null;
 }
 
 export function getConversation(publicKey: string): ConvSnapshot | null {

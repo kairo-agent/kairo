@@ -52,6 +52,7 @@ export interface BehaviorConfig {
   soundEnabled?: boolean;
   showBranding?: boolean; // "Powered by KAIRO"
   pollingIntervalMs?: number; // Fase 4.A: fallback polling interval (default 30s)
+  sessionTimeoutHours?: number; // v0.27.5: inactividad tras la cual la sesion se "cierra" visualmente (default 2)
 }
 
 /** Fase 4.A: Realtime broadcast endpoint shipped by /api/widget/config. */
@@ -129,6 +130,19 @@ export interface WidgetState {
   realtimeTopicSecret: string | null;
   /** Fase 4.C: tracked from polling responses; drives the "advisor joined" banner. */
   handoffMode: HandoffMode;
+  /**
+   * v0.27.5: cursor que marca el inicio de la sesion visible actual.
+   * - null = sesion original (se muestra todo el historial).
+   * - ISO ts = frontera tras una expiracion por inactividad; solo se muestran
+   *   mensajes posteriores (el backend sigue siendo el mismo lead/conversacion).
+   */
+  sessionStartedAt: string | null;
+  /**
+   * v0.27.5: true en el arranque en frio cuando se restaura una conversacion
+   * existente. El primer poll usa `since=sessionStartedAt` para recargar el
+   * transcript visible (sin esto, el chat aparecia vacio tras un refresh).
+   */
+  coldBoot: boolean;
 }
 
 // ─── Embed-time options (parsed from <script> attributes) ────────────────────

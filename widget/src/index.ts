@@ -139,6 +139,8 @@ function bootInstance(opts: EmbedOptions): void {
     // response confirms an advisor took over. Never trust local heuristics —
     // the server is the source of truth.
     handoffMode: 'ai',
+    sessionStartedAt: null,
+    coldBoot: false,
   };
 
   if (!opts.preview) {
@@ -148,6 +150,9 @@ function bootInstance(opts: EmbedOptions): void {
       state.sessionId = snap.sessionId;
       state.lastMessageAt = snap.lastMessageAt;
       state.realtimeTopicSecret = snap.realtimeTopicSecret ?? null;
+      state.sessionStartedAt = snap.sessionStartedAt ?? null;
+      // La decision de expirar/recargar se toma en loadConfig, cuando ya
+      // tenemos `sessionTimeoutHours`. Aqui solo restauramos identidad.
     } else {
       state.sessionId = newSessionId();
     }
@@ -253,6 +258,10 @@ async function loadConfig(ctx: Ctx): Promise<void> {
     }
     ctx.state.config = cfg;
     ctx.state.loading = false;
+    // v0.27.5: decidir restaurar (mostrar historial) vs expirar (sesion nueva
+    // visual) ANTES de renderizar/abrir, para que el primer poll use el cursor
+    // correcto.
+    applySessionExpiry(ctx);
     renderAll(ctx);
     scheduleAutoOpen(ctx);
   } catch (err) {
@@ -260,7 +269,49 @@ async function loadConfig(ctx: Ctx): Promise<void> {
     ctx.state.loading = false;
     // Fallback: render with KAIRO defaults so widget still appears
     ctx.state.config = previewConfig();
+    // Aun en fallback respetamos la persistencia de sesion (default 2h) para
+    // que el historial se restaure tras un refresh.
+    applySessionExpiry(ctx);
     renderAll(ctx);
+  }
+}
+
+/**
+ * v0.27.5 — Persistencia de sesion del WebChat.
+ *
+ * En el arranque en frio con una conversacion restaurada, decide:
+ *  - EXPIRADA (inactividad > sessionTimeoutHours): arranca una sesion nueva a
+ *    nivel VISUAL. El backend sigue siendo el mismo lead/conversacion (mapeado
+ *    por visitorId), pero el widget oculta el historial previo usando como
+ *    frontera el ultimo mensaje conocido (`lastMessageAt`, un timestamp real
+ *    del servidor — evita el clock-drift de usar Date.now() del browser).
+ *  - VIGENTE (dentro de la ventana): marca `coldBoot` para que el primer poll
+ *    recargue el transcript visible (since = sessionStartedAt; null = todo).
+ *
+ * No rota el visitorId: una "conversacion separada" en el dashboard se decidio
+ * dejar para despues (requeriria cambios de schema).
+ */
+function applySessionExpiry(ctx: Ctx): void {
+  if (ctx.opts.preview) return;
+  // Sin conversacion previa => visitante nuevo, nada que restaurar/expirar.
+  if (!ctx.state.conversationId) return;
+
+  const hours = ctx.state.config?.behavior?.sessionTimeoutHours ?? 2;
+  const lastSeen = ctx.state.lastMessageAt ? Date.parse(ctx.state.lastMessageAt) : NaN;
+  const expired =
+    Number.isFinite(lastSeen) && Date.now() - lastSeen > hours * 60 * 60 * 1000;
+
+  if (expired) {
+    // Frontera de la nueva sesion = ultimo mensaje de la sesion anterior.
+    // Todo lo posterior pertenece a la sesion nueva (de momento, nada).
+    ctx.state.sessionStartedAt = ctx.state.lastMessageAt;
+    ctx.state.sessionId = newSessionId();
+    ctx.state.messages = [];
+    ctx.state.coldBoot = true; // primer poll: since = sessionStartedAt => 0 msgs aun
+    persistSnapshot(ctx);
+  } else {
+    // Dentro de la ventana: recargar el transcript en el primer poll.
+    ctx.state.coldBoot = true;
   }
 }
 
@@ -782,12 +833,7 @@ async function doSend(ctx: Ctx, text: string): Promise<void> {
       ctx.state.realtimeTopicSecret = res.realtimeTopicSecret;
     }
     if (newConversationId || res.realtimeTopicSecret) {
-      setConversation(ctx.opts.publicKey, {
-        conversationId: ctx.state.conversationId!,
-        sessionId: ctx.state.sessionId,
-        lastMessageAt: ctx.state.lastMessageAt,
-        realtimeTopicSecret: ctx.state.realtimeTopicSecret,
-      });
+      persistSnapshot(ctx);
     }
     // NOTA: NO actualizamos lastMessageAt con visitorMsg.createdAt aqui.
     // Razon: visitorMsg.createdAt es client-time (Date.now() del browser),
@@ -810,16 +856,24 @@ async function doSend(ctx: Ctx, text: string): Promise<void> {
   }
 }
 
-function persistLastMsgTs(ctx: Ctx): void {
+/**
+ * Escribe el snapshot completo de la conversacion a localStorage. Unica fuente
+ * de verdad para persistir — incluye `sessionStartedAt` (v0.27.5) y preserva el
+ * topicSecret (sin el, Realtime se pierde en el siguiente reload).
+ */
+function persistSnapshot(ctx: Ctx): void {
   if (ctx.opts.preview || !ctx.state.conversationId) return;
   setConversation(ctx.opts.publicKey, {
     conversationId: ctx.state.conversationId,
     sessionId: ctx.state.sessionId,
     lastMessageAt: ctx.state.lastMessageAt,
-    // Preserve topicSecret across persists — without this, Realtime is lost
-    // on the next reload after polling updates lastMessageAt.
     realtimeTopicSecret: ctx.state.realtimeTopicSecret,
+    sessionStartedAt: ctx.state.sessionStartedAt,
   });
+}
+
+function persistLastMsgTs(ctx: Ctx): void {
+  persistSnapshot(ctx);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1018,7 +1072,13 @@ async function pollOnce(ctx: Ctx): Promise<void> {
   if (ctx.fetchInflight) return;
   ctx.fetchInflight = true;
   try {
-    const result = await pollMessages(ctx.opts, ctx.state.conversationId, ctx.state.lastMessageAt);
+    // v0.27.5: en el arranque en frio recargamos el transcript visible usando
+    // `sessionStartedAt` como cursor (null = todo el historial; un ts = solo la
+    // sesion actual tras una expiracion). Los polls siguientes son incrementales
+    // con `lastMessageAt`.
+    const since = ctx.state.coldBoot ? ctx.state.sessionStartedAt : ctx.state.lastMessageAt;
+    const result = await pollMessages(ctx.opts, ctx.state.conversationId, since);
+    ctx.state.coldBoot = false; // solo se alcanza si el fetch no lanzo
     const msgs = result.messages;
 
     // Fase 4.C: track handoff transitions on every poll, even if there are
