@@ -192,6 +192,10 @@ export function resolveAppearance(cfg: WebChatChannelConfig | undefined) {
     aiBubbleBg: a.aiBubbleBg ?? DEFAULT_APPEARANCE.aiBubbleBg,
     aiBubbleText: a.aiBubbleText ?? DEFAULT_APPEARANCE.aiBubbleText,
     logoUrl: a.logoUrl ?? DEFAULT_APPEARANCE.logoUrl,
+    // El widget lee `bubbleLogoUrl` (burbuja + logo del header). El form/config
+    // persiste el campo como `logoUrl` — se mapea aqui para que el logo se
+    // renderice (antes el widget caia siempre al icono default).
+    bubbleLogoUrl: a.logoUrl ?? DEFAULT_APPEARANCE.logoUrl,
     bubbleShape: a.bubbleShape ?? DEFAULT_APPEARANCE.bubbleShape,
     headerTitleEs: a.headerTitleEs ?? DEFAULT_APPEARANCE.headerTitleEs,
     headerTitleEn: a.headerTitleEn ?? DEFAULT_APPEARANCE.headerTitleEn,
