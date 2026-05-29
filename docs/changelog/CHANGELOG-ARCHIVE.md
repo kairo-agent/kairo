@@ -1,6 +1,14 @@
-# KAIRO - Changelog Archive (v0.26.0 y anteriores)
+# KAIRO - Changelog Archive (v0.27.0 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.27.0+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.27.1+).
+
+---
+
+## [0.27.0] - 2026-05-11
+
+### Active Agent = Runtime Source of Truth (multi-agent foundation)
+
+Separa **agente activo del proyecto** (fuente de verdad runtime) de **`lead.assignedAgentId`** (historico inmutable). Permite multiples agentes por proyecto sin scripts de reasignacion. Nuevo helper `getActiveAgentForProject(projectId)` (cache Redis 5min + invalidacion explicita en todas las server actions que tocan agentes). `whatsapp/receive` + `WebChatChannelHandler` resuelven el agente activo via helper (ya no leen `lead.assignedAgent`). `createAgent` default `isActive:false`. Form data de `LeadDetailPanel` usa el schema del agente ACTIVO. Beneficio E&Z: activar otro agente hace que los 610 leads historicos respondan con la nueva logica sin UPDATE masivo. Sin migracion DB.
 
 ---
 
@@ -252,21 +260,7 @@ Archivado desde CHANGELOG.md. Contenido: RAG Search Fix (SECURITY DEFINER + thre
 
 ### Settings / Configuration Page + Structured Knowledge Base
 
-Nueva pagina de configuracion de agentes con dos tabs: **Instructions** (prompt structure) y **Knowledge Base** (conocimiento estructurado + RAG free-text).
-
-**Dual-Name System:** `ai_agents.name` = admin label, `promptStructure.agentName` = AI persona (default "Kaira"). Webhook lee `promptStructure.agentName` con fallback Kaira.
-
-**Tab Instructions:** Agent Name, Role, Rules (dynamic list), Personality, Additional Instructions. Guardado en `ai_agents.promptStructure` (JSONB).
-
-**Tab Knowledge Base - 5 secciones estructuradas:** Business Hours, FAQs, Pricing, Location & Contact, Policies. Cada seccion: Zod validation -> compose bilingual text -> OpenAI embedding -> pgvector via RPC.
-
-**Archivos nuevos:** `settings/page.tsx`, `settings/SettingsPageClient.tsx`, `src/lib/knowledge/` (6 files), `src/components/knowledge/` (5 forms).
-
-**Migraciones SQL (4):** `promptStructure JSONB`, `insert_agent_knowledge` (12 params), `list_agent_knowledge` (+ category/structured_data), `delete_structured_knowledge`.
-
-**Bugs RLS corregidos (3):** `.update()` sin UPDATE policy, `.select()` con RLS rota, duplicate key en upsert. Todas las operaciones sobre `agent_knowledge` DEBEN usar RPCs SECURITY DEFINER.
-
-**E2E Testing:** 11 tests WhatsApp pasaron (nombre, rol, reglas, personalidad, instrucciones, 5 KB secciones, RAG free-text).
+Pagina de config de agentes con tabs Instructions (`promptStructure` JSONB) y Knowledge Base (5 secciones estructuradas: Business Hours, FAQs, Pricing, Location & Contact, Policies — Zod → texto bilingue → embedding OpenAI → pgvector via RPC). Dual-name: `ai_agents.name` (admin) vs `promptStructure.agentName` (persona IA, default "Kaira"). 4 migraciones SQL (promptStructure + 3 RPCs). Regla: operaciones sobre `agent_knowledge` DEBEN usar RPCs SECURITY DEFINER (3 bugs RLS corregidos). 11 tests E2E WhatsApp OK.
 
 ---
 

@@ -4,6 +4,24 @@
 
 ---
 
+## [0.27.5] - 2026-05-29
+
+### WebChat widget: persistencia de sesion + contraste automatico (YIQ)
+
+Cuatro mejoras al widget embebible (todas en `widget/` + un par de archivos de Settings; **WhatsApp y backend intactos**).
+
+**1. Recarga de historial tras refresh (bug).** Al recargar la pagina, el chat aparecia vacio aunque el backend mantenia la conversacion. Causa: en cold boot se restauraba `conversationId`+`lastMessageAt` pero el unico fetch era `pollMessages(since=lastMessageAt)` → 0 mensajes. Fix: flag `coldBoot` que en el primer poll usa `since=sessionStartedAt` (`null` = todo el historial) para recargar el transcript visible.
+
+**2. Timeout de sesion configurable.** Viene de `sessionTimeoutHours` en `/settings/webchat` (default **2h**, rango 1-24). Dentro de la ventana: restaura y muestra el historial. Pasada la inactividad: arranca una sesion **visual** nueva (nuevo `sessionId`, oculta el historial previo usando el ultimo mensaje como frontera — timestamp real del server, evita clock-drift). El backend sigue siendo el mismo lead/conversacion (mapeado por `visitorId`); conversaciones separadas en el dashboard = pendiente (requiere schema). Limpiar localStorage / incognito sí genera lead+conversacion nuevos (nuevo `visitorId`).
+
+**3. Contraste automatico YIQ en iconos y boton de enviar.** Nuevo `getContrastColor(hex)` (formula YIQ del estandar NTSC: `Y=(R*299+G*587+B*114)/1000`, umbral 128). El icono de la burbuja y el del boton de enviar eligen claro/oscuro segun la luma del fondo. Ademas el boton de enviar ahora usa `bubbleColor` por default (antes caia al cyan de KAIRO, ignorando el color de marca configurado).
+
+**4. Header con YIQ + se quito "Texto del header".** El texto del header se perdia con fondos claros (blanco fijo). Ahora se calcula con YIQ desde `headerBgColor`. Se removio el campo "Texto del header" de Settings (era redundante y no funcionaba); `headerTextColor` queda `@deprecated` en tipo/schema para no romper configs guardadas. `WidgetPreview` sincronizado con el widget real (antes usaba `headerTextColor` hasta para el icono de la burbuja).
+
+Commits: `222dfc7` (sesion) → `e6d6fa4` (YIQ burbuja/boton) → `2a5e01c` (YIQ header + limpieza). Bundle widget: 38.02 KB / 12.03 KB gzip.
+
+---
+
 ## [0.27.4] - 2026-05-29
 
 ### Corregido — WebChat CORS gate roto: allowedOrigins nunca se leia
@@ -149,29 +167,7 @@ Fix: nuevo `useRef<string | null>` (`currentAgentIdRef`) como fuente de verdad s
 
 ---
 
-## [0.27.0] - 2026-05-11
-
-### Active Agent = Runtime Source of Truth (multi-agent foundation)
-
-Refactor que separa **agente activo del proyecto** (fuente de verdad runtime) de **`lead.assignedAgentId`** (registro historico). Habilita crear multiples agentes por proyecto sin scripts de reasignacion de leads existentes.
-
-**Motivacion**: antes, al cambiar el agente activo del proyecto, los leads ya creados seguian respondiendo con el agente viejo (su `assignedAgent` quedaba pegado). El cron de reengagement ya usaba el activo, pero WhatsApp/WebChat receive seguian leyendo `lead.assignedAgent`. Esto bloqueaba pivots de campana / cambios de agente para clientes con leads existentes (E&Z: 610 leads).
-
-**Cambio**:
-- Nuevo helper `src/lib/ai/get-active-agent.ts` con `getActiveAgentForProject(projectId)` (cache Redis 5min + invalidacion explicita) y `invalidateActiveAgentCache(projectId)`.
-- `whatsapp/receive.ts` + `webchat/WebChatChannelHandler.ts`: el bloque AI runtime resuelve el agente activo via helper en vez de leer `lead.assignedAgent`. `lead.assignedAgentId` se sigue grabando al crear el lead (como historico inmutable), pero NO se usa para decidir que agente responde.
-- `agents.ts createAgent` ahora default `isActive: false`. Crear no activa automaticamente — el usuario activa explicitamente via `toggleAgentStatus` (que sigue desactivando los demas del proyecto).
-- Invalidacion de cache en TODAS las server actions que modifican el agente: `toggleAgentStatus`, `updateAgent`, `deleteAgent`, `saveAgentPromptStructure`, `saveFormConfig`.
-- `LeadDetailPanel` form data: nueva server action `getActiveAgentFormConfigForProject(projectId)`. La UI renderiza el form schema del agente ACTIVO (no del historico). `lead_form_data` rows del agente historico se preservan en BD (clave compuesta `(leadId, agentId)`).
-- `cron/reengagement` ya iteraba sobre `isActive: true` agentes — sin cambios necesarios.
-
-**Beneficio para E&Z**: al activar "Agente Eventos" (manualmente desde /admin), los 610 leads asignados historicamente a "Agente Lotes" responden automaticamente con la logica del evento. Sin scripts de UPDATE masivo.
-
-**Sin migracion DB**: solo cambios de codigo. Schema intacto.
-
----
-
-> Versiones v0.26.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.27.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 
