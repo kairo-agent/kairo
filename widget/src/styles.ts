@@ -12,16 +12,48 @@ interface StyleVars {
   agentBadgeBg: string;
   agentBadgeText: string;
   sendBtnColor: string;
+  sendBtnIconColor: string;
   position: 'right' | 'left';
 }
 
 const KAIRO_CYAN = '#00E5FF';
 const KAIRO_MIDNIGHT = '#0B1220';
+const WHITE = '#FFFFFF';
+
+/** Parsea un hex (#RGB o #RRGGBB) a RGB. Devuelve null si no es valido. */
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  let h = hex.trim().replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length !== 6 || /[^0-9a-fA-F]/.test(h)) return null;
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  };
+}
+
+/**
+ * Elige texto/icono oscuro o claro segun la luma del fondo (formula YIQ del
+ * estandar NTSC — las primeras TVs a color). Garantiza contraste automatico
+ * sobre cualquier color de marca configurado por el cliente.
+ *   Y = (R*299 + G*587 + B*114) / 1000;  Y >= 128 -> fondo claro -> texto oscuro
+ */
+export function getContrastColor(hex: string): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return KAIRO_MIDNIGHT;
+  const yiq = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+  return yiq >= 128 ? KAIRO_MIDNIGHT : WHITE;
+}
 
 export function resolveStyleVars(a: AppearanceConfig): StyleVars {
+  // bubbleColor es el color de marca primario. El boton de enviar (y acentos)
+  // lo siguen por default — NO el cyan de KAIRO — salvo override explicito.
+  const bubbleColor = a.bubbleColor || KAIRO_CYAN;
+  const sendBtnColor = a.sendButtonColor || bubbleColor;
   return {
-    bubbleColor: a.bubbleColor || KAIRO_CYAN,
-    bubbleIconColor: a.bubbleIconColor || KAIRO_MIDNIGHT,
+    bubbleColor,
+    // Icono de la burbuja: contraste YIQ sobre bubbleColor (override manual gana).
+    bubbleIconColor: a.bubbleIconColor || getContrastColor(bubbleColor),
     headerBg: a.headerBgColor || KAIRO_MIDNIGHT,
     headerText: a.headerTextColor || '#FFFFFF',
     visitorBg: a.visitorBubbleBg || KAIRO_CYAN,
@@ -30,7 +62,9 @@ export function resolveStyleVars(a: AppearanceConfig): StyleVars {
     aiText: a.aiBubbleText || '#0B1220',
     agentBadgeBg: a.agentBadgeBg || '#0E7490',
     agentBadgeText: a.agentBadgeText || '#FFFFFF',
-    sendBtnColor: a.sendButtonColor || KAIRO_CYAN,
+    sendBtnColor,
+    // Icono del avion: contraste YIQ sobre el color del boton de enviar.
+    sendBtnIconColor: getContrastColor(sendBtnColor),
     position: a.position || 'right',
   };
 }
@@ -350,7 +384,7 @@ button { font: inherit; cursor: pointer; }
   border: none;
   border-radius: 50%;
   background: ${v.sendBtnColor};
-  color: ${KAIRO_MIDNIGHT};
+  color: ${v.sendBtnIconColor};
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: opacity 120ms ease;
