@@ -4,6 +4,28 @@
 
 ---
 
+## [0.27.4] - 2026-05-29
+
+### Corregido — WebChat CORS gate roto: allowedOrigins nunca se leia
+
+**Sintoma (prod):** widget embebido en `https://leon33.com` no respondia. El log de Vercel mostraba `[Webchat webhook] origin not allowed { origin: 'https://leon33.com', allowedOrigins: [], publicKey: '...' }` **aunque el dominio estaba correctamente guardado** en la config del canal.
+
+**Causa raiz:** desajuste entre el path de escritura y el de lectura de `allowedOrigins`.
+
+- **Escritura** (formulario `/settings/webchat` + `saveWebChatConfig` + tipo canonico `WebChatConfig`): persiste `allowedOrigins` en la **raiz** de `config`.
+- **Lectura** (`getAllowedOrigins` en `public-helpers.ts`): leia `config.behavior.allowedOrigins` (path heredado de un refactor donde el campo se movio a la raiz sin actualizar el helper).
+
+Como `behavior.allowedOrigins` siempre era `undefined`, `getAllowedOrigins` devolvia `[]`. Combinado con el CORS strict de v0.26.0 (Sub-fase 4.E: lista vacia bloquea todo), **bloqueaba todos los requests cross-origin del widget**, en los 4 endpoints publicos (`config`, `webhooks/webchat`, `webchat/messages`, `upload-token`) por compartir el helper.
+
+**Fix** (`src/lib/channels/webchat/public-helpers.ts`):
+- `getAllowedOrigins` lee `cfg.allowedOrigins` (raiz) con fallback defensivo a `cfg.behavior?.allowedOrigins`.
+- `WebChatChannelConfig`: agregado `allowedOrigins?: string[]` a nivel raiz.
+- Comentario obsoleto corregido en `api/widget/config/route.ts`.
+
+**Validacion:** confirmado en BD que `config.allowedOrigins = ["https://leon33.com"]` (raiz) y `behavior.allowedOrigins = undefined`. Unico canal webchat existente (Disruptivo) → sin migracion de datos. Aislado a webchat: WhatsApp y futuros canales usan filas/config por-canal separadas. Probado en prod tras deploy: el agente responde y el warning desaparece. Commit `13a6fe3`.
+
+---
+
 ## [0.27.3] - 2026-05-13
 
 ### CharCounter universal en inputs y textareas con maxLength
@@ -149,56 +171,7 @@ Refactor que separa **agente activo del proyecto** (fuente de verdad runtime) de
 
 ---
 
-## [0.26.0] - 2026-05-08
-
-### Fase 4 Multi-Canal: Realtime + paridad con WhatsApp (NEW)
-
-Cierra el loop multi-canal: el widget WebChat ahora tiene latencia ~instantanea (Realtime broadcast), handoff humano funcional, soporte completo de media (imagen + audio + documento) y CORS strict por defecto. Total: 8 commits productivos en 1 sesion (`e599f7f` → `313bddd` → `<este>`).
-
-#### Sub-fase 4.A — Realtime broadcast como senal (commit `e599f7f`)
-
-Patron "broadcast como senal" rechaza el approach JWT+RLS original (4 issues criticos en security audit) y el broadcast simple (anon key permite spoof). Solucion: server emite broadcast SIN payload sensible, widget IGNORA payload y refetchea via endpoint autenticado. Modelo de amenaza identico al polling — solo gana latencia.
-
-- Nueva columna `Conversation.realtimeTopicSecret` (UUID v4 unique, default `gen_random_uuid()`). Desacoplada de `Conversation.id` — leak de id NO compromete el canal.
-- Helper `emitWebChatSignal(topicSecret)` via REST `/realtime/v1/api/broadcast` con SUPABASE_SERVICE_ROLE_KEY. Timeout 2.5s, sanitiza topic UUID en logs.
-- Widget: `widget/src/realtime.ts` — cliente Phoenix WS vanilla (sin SDK = -15KB), heartbeat 25s, reconnect exponential bounded.
-- `processAIResponse` + `WebChatChannelHandler.send` + `/webhooks/webchat` emiten signal. Widget al recibir → `pollOnce()` (que ya valida publicKey + tenant).
-- Polling DEFAULT_POLL_MS sube de 3s a 30s (fallback duro).
-- Validado en prod: phx_join 131ms, signal latency 276ms (visitor) / 10.9s (AI con debounce 5s + processing).
-
-#### Sub-fase 4.B — Polling pause/resume con WS (commit `ceb6fa3`)
-
-WS healthy → onConnect dispara catch-up poll + `stopPolling`. Reduce ~120 fetches/h innecesarios. WS cae → onDisconnect rearma polling con catch-up. `startPolling` idempotente. Validado: 0 polls en 35s con WS sano, 6 polls + 5 reintentos WS con WS bloqueado por stub.
-
-#### Sub-fase 4.C — Handoff humano UI banner (commits `fffee0a` + `d1c0104`)
-
-Banner sticky "Un asesor se ha unido al chat" cuando `Lead.handoffMode='human'`. AI typing skipped en human mode. `/api/webchat/messages` retorna `handoffMode` por poll.
-
-**Bug critico encontrado y arreglado en `d1c0104`:** dashboard no usa `WebChatChannelHandler.send()`, sino `sendMessage()` server action que persiste directo. Por eso los mensajes del asesor jamas emitian broadcast en 4.A. Fix: emitter agregado en `sendMessage` y `toggleHandoffMode` actions, condicionado a `lead.channel='webchat'`. Validado: 3 broadcasts capturados en orden (take control + asesor msg + return to AI).
-
-#### Sub-fase 4.D — Media upload visitor
-
-Paperclip btn unico acepta imagen + audio + documento. Bucket `media` reusado con prefix `webchat/{projectId}/{YYYY}/{MM}/{conversationId}-{uuid}.{ext}`. Bucket es publico → URL fetcheable directo (sin signed URL para read).
-
-- **4.D.1 imagen** (`9813908` + `bbd0594`): GPT-4o-mini Vision describe contenido. Validado: AI identifico "imagen relacionada con Google" sobre logo subido.
-- **4.D.2 audio** (`780068c`): Whisper-1 transcribe desde URL publica. Hostname guard critico contra SSRF (URL debe matchear `NEXT_PUBLIC_SUPABASE_URL` host + prefix `/storage/v1/object/public/media/webchat/`). Validado: TTS "cuanto cuestan sus servicios de marketing digital" → AI respondio sobre precios.
-- **4.D.3 documento** (`313bddd`): PDF/DOC/DOCX/XLS/XLSX/TXT/CSV. NO AI processing — entrega directa al asesor. Filename sanitizado.
-
-Endpoint `POST /api/widget/upload-token`: signed PUT URL con TTL 5min, rate limit 5/min IP + 30/min publicKey, MIME whitelist por tipo, max 10MB. Cron `cleanup-media` extendido a `webchat/{projectId}/...` (5 dias retention).
-
-#### Sub-fase 4.E — CORS strict + bump v0.26.0 (este commit)
-
-`resolveCorsOrigin`: lista vacia ahora **bloquea** todos los cross-origin requests (Fase 3 era permisiva). Mismo cambio aplicado a las 4 rutas publicas. Same-origin (sin Origin header) sigue funcionando.
-
-UI `/settings/webchat` Domains form actualizada: warning rojo cuando lista vacia advirtiendo "el widget NO funcionara en ningun sitio externo" (antes decia "permisivo" — era enganoso post-fase4).
-
-**Migracion:** los proyectos webchat existentes con `allowedOrigins=[]` deben agregar sus dominios antes de embeber. Disruptivo (unico proyecto webchat hoy) NO esta embebido en ningun sitio externo aun, por lo que el cambio NO rompe nada en produccion real.
-
-Bundle widget total: 37.23 KB / 11.66 KB gzip (vs 7.8 KB en v0.25.0).
-
----
-
-> Versiones v0.25.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.26.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 

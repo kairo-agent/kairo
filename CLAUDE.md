@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.27.3 (CharCounter universal en inputs/textareas con maxLength; +v0.27.2 Settings UX hardening) |
+| **Version** | v0.27.4 (fix WebChat CORS: allowedOrigins se leia del path equivocado; +v0.27.3 CharCounter universal) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -148,15 +148,13 @@ npm run lint     # Verificar codigo
 
 ---
 
-## Estado Actual (v0.27.3 - May 2026)
+## Estado Actual (v0.27.4 - May 2026)
 
-**Completado:** Stack multi-tenant (Auth + RBAC, multi-locale es/en, RLS, OWASP). AI pipeline interno (RAG + Vision + Whisper + handoff + reengagement + form conversacional). WhatsApp bidireccional (incoming/outgoing media, sticker, 24h timer). Dashboard + Conversaciones (10 statuses, filtros, Excel export). Team Settings, Notificaciones 3 canales, Cron pg_cron, PWA. **Multi-canal v0.24-v0.26:** `IChannelHandler`, `ProjectChannel`, WebChat en widget.kairoagent.com (Vercel project #2). **Fase 4 v0.26.0:** Realtime broadcast signal-only (polling 30s fallback), polling pause/resume con WS, banner handoff UI, media upload visitor (imagen Vision + audio Whisper + documento), CORS strict. **v0.27.0:** Active agent = runtime source of truth — `getActiveAgentForProject(projectId)` helper con Redis cache, `lead.assignedAgentId` queda como historico inmutable, leads viejos responden con agente activo sin scripts. **v0.27.1:** Form data capture via OpenAI Function Calling (~100% confiabilidad vs ~8% del marker en texto). Two parallel OpenAI calls (text + structured extraction). Anti-reset prompt order: history + anti-reset rule contiguos al final. WhatsApp display name no contamina form. **v0.27.3:** CharCounter universal en todos los inputs/textareas con maxLength — nuevo componente `CharCounter.tsx`, integracion automatica en `Input` y `ExpandableTextarea`, integraciones explicitas en 11 componentes mas. Historico en [CHANGELOG.md](docs/CHANGELOG.md).
+**Completado:** Stack multi-tenant (Auth + RBAC, multi-locale es/en, RLS, OWASP). AI pipeline interno (RAG + Vision + Whisper + handoff + reengagement + form conversacional). WhatsApp bidireccional (media, sticker, 24h timer). Dashboard + Conversaciones (10 statuses, filtros, Excel). Notificaciones 3 canales, Cron pg_cron, PWA. **Multi-canal v0.24-v0.26:** `IChannelHandler`, `ProjectChannel`, WebChat en widget.kairoagent.com (Vercel #2). Realtime broadcast signal-only + polling fallback, handoff UI, media upload visitor (Vision/Whisper/doc), CORS strict. **v0.27.0:** Active agent = runtime source of truth — `getActiveAgentForProject(projectId)` helper con Redis cache, `lead.assignedAgentId` queda como historico inmutable, leads viejos responden con agente activo sin scripts. **v0.27.1:** Form data capture via OpenAI Function Calling (~100% vs ~8% del marker). **v0.27.3:** CharCounter universal en inputs/textareas con maxLength. **v0.27.4:** fix WebChat CORS — `getAllowedOrigins` leia el path equivocado y bloqueaba todo origin. Historico en [CHANGELOG.md](docs/CHANGELOG.md).
 
 **Pendiente:** Crear lead form, reports/agents pages. Meta Ads integration. **Leads Unicos v0.27+** (vista CRM merge lazy email/telefono — nueva tabla `unique_leads`, NUNCA renombrar `leads`). **Scheduled Calls** ([plans/SCHEDULED-CALLS.md](docs/plans/SCHEDULED-CALLS.md)). Ver [plans/IMPERSONATION.md](docs/plans/IMPERSONATION.md).
 
-**Vercel projects activos:** `kairo` → app.kairoagent.com (dashboard) + `kairo-widget` → widget.kairoagent.com (bundle WebChat IIFE). Ambos buildean del mismo monorepo, root distinto (`./` vs `widget/`).
-
-**Perf completo:** Todas las optimizaciones implementadas. Ver [CHANGELOG.md](docs/CHANGELOG.md).
+**Vercel projects activos:** `kairo` → app.kairoagent.com (dashboard) + `kairo-widget` → widget.kairoagent.com (WebChat IIFE). Mismo monorepo, root distinto (`./` vs `widget/`).
 
 ---
 

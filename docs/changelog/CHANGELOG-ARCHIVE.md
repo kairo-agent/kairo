@@ -1,6 +1,20 @@
-# KAIRO - Changelog Archive (v0.25.0 y anteriores)
+# KAIRO - Changelog Archive (v0.26.0 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.26.0+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.27.0+).
+
+---
+
+## [0.26.0] - 2026-05-08
+
+### Fase 4 Multi-Canal: Realtime + paridad con WhatsApp
+
+Cierra el loop multi-canal del widget WebChat (8 commits, `e599f7f` → `313bddd`):
+
+- **4.A Realtime broadcast como senal** (`e599f7f`): server emite broadcast SIN payload, widget IGNORA payload y refetchea via endpoint autenticado (rechaza JWT+RLS y broadcast-con-content por spoof). Col `Conversation.realtimeTopicSecret` (UUID v4). Cliente Phoenix WS vanilla (-15KB sin SDK). Polling fallback 3s→30s.
+- **4.B Polling pause/resume** (`ceb6fa3`): WS sano detiene polling; WS caido lo rearma. ~120 fetches/h ahorrados.
+- **4.C Handoff humano UI banner** (`fffee0a` + `d1c0104`): banner sticky con `handoffMode='human'`. Bug: el dashboard persiste via `sendMessage()` (no `WebChatChannelHandler.send()`) y no emitia broadcast — emitter agregado a `sendMessage`/`toggleHandoffMode`.
+- **4.D Media upload visitor**: imagen (Vision), audio (Whisper, guard SSRF por hostname), documento (sin AI). Endpoint `POST /api/widget/upload-token` (signed PUT, TTL 5min, MIME whitelist, max 10MB).
+- **4.E CORS strict**: `resolveCorsOrigin` con lista vacia bloquea todo cross-origin. **Nota (v0.27.4):** este gate nunca respeto `allowedOrigins` por un bug en `getAllowedOrigins`. Corregido en v0.27.4.
 
 ---
 
@@ -8,7 +22,7 @@
 
 ### Fase 3 Multi-Canal: WebChat MVP
 
-Segundo canal en `widget.kairoagent.com` (Vercel #2 separado), Shadow DOM + polling 3s, reusa pipeline AI. 3 endpoints publicos con rate limit + CORS. `WebChatChannelHandler` (IChannelHandler) con debounce Redis NX 5s; pipeline agnostico `whatsappId` → `externalUserId`. Bundle Vite vanilla TS = 23.6 KB raw / 7.8 KB gzip. UX chatflow360 (bubble pulse, hover-expand teaser, side-panel full-height), multi-instancia, localStorage, bilingue. Settings `/settings/webchat` 7 cards (apariencia, textos, preguntas, comportamiento, dominios, embed, preview). Rename `/leads` → `/conversations` con redirects 307; tabla BD `leads` NO se renombra (v0.26+ agregara `unique_leads`).
+Segundo canal en `widget.kairoagent.com` (Vercel #2), Shadow DOM + polling 3s, reusa pipeline AI. 3 endpoints publicos con rate limit + CORS. `WebChatChannelHandler` (IChannelHandler) con debounce Redis NX 5s; pipeline agnostico `whatsappId` → `externalUserId`. Bundle Vite vanilla TS = 7.8 KB gzip. UX chatflow360 (bubble pulse, hover-expand teaser), multi-instancia, localStorage, bilingue. Settings `/settings/webchat` 7 cards. Rename `/leads` → `/conversations` (redirects 307); tabla BD `leads` NO se renombra.
 
 ---
 
