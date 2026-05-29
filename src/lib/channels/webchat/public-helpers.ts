@@ -50,6 +50,10 @@ export interface WebChatAppearanceConfig {
 export interface WebChatChannelConfig {
   appearance?: WebChatAppearanceConfig;
   behavior?: WebChatBehaviorConfig;
+  // Canonical location for the CORS whitelist (matches WebChatConfig type, the
+  // settings form, and saveWebChatConfig). The legacy `behavior.allowedOrigins`
+  // path is kept only as a defensive read fallback in getAllowedOrigins().
+  allowedOrigins?: string[];
 }
 
 // --------------------------------------------
@@ -208,7 +212,11 @@ export function resolveBehavior(cfg: WebChatChannelConfig | undefined) {
 }
 
 export function getAllowedOrigins(cfg: WebChatChannelConfig | undefined): string[] {
-  const list = cfg?.behavior?.allowedOrigins;
+  // Read the canonical root-level `allowedOrigins` first (where the settings
+  // form + saveWebChatConfig persist it). Fall back to the legacy
+  // `behavior.allowedOrigins` path for defense-in-depth — no rows use it today,
+  // but this keeps the gate working if an older-shaped row ever appears.
+  const list = cfg?.allowedOrigins ?? cfg?.behavior?.allowedOrigins;
   if (!Array.isArray(list)) return [];
   return list.filter((s) => typeof s === 'string' && s.length > 0);
 }

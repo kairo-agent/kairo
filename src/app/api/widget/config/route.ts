@@ -4,7 +4,7 @@
 //
 // Returns the appearance/behavior config the WebChat widget needs to mount.
 // Auth: publicKey only (no user session). CORS validated against
-// ProjectChannel.config.behavior.allowedOrigins.
+// ProjectChannel.config.allowedOrigins.
 //
 // Cache: 60s edge cache + 5min SWR.
 // ============================================
