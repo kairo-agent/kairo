@@ -50,7 +50,9 @@ export function AppearanceForm({ value, onChange }: AppearanceFormProps) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <HexColorField label="Color del boton" value={value.bubbleColor} onChange={(v) => update('bubbleColor', v)} />
           <HexColorField label="Fondo del header" value={value.headerBgColor} onChange={(v) => update('headerBgColor', v)} />
-          <HexColorField label="Texto del header" value={value.headerTextColor} onChange={(v) => update('headerTextColor', v)} />
+          {/* "Texto del header" se removio: el color del texto/icono del header
+              se calcula automaticamente con la formula YIQ segun el fondo, igual
+              que la burbuja y el boton de enviar (siempre legible). */}
           <HexColorField label="Fondo burbuja visitante" value={value.visitorBubbleBg} onChange={(v) => update('visitorBubbleBg', v)} />
           <HexColorField label="Texto burbuja visitante" value={value.visitorBubbleText} onChange={(v) => update('visitorBubbleText', v)} />
           <HexColorField label="Fondo burbuja IA" value={value.aiBubbleBg} onChange={(v) => update('aiBubbleBg', v)} />

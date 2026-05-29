@@ -50,12 +50,16 @@ export function resolveStyleVars(a: AppearanceConfig): StyleVars {
   // lo siguen por default — NO el cyan de KAIRO — salvo override explicito.
   const bubbleColor = a.bubbleColor || KAIRO_CYAN;
   const sendBtnColor = a.sendButtonColor || bubbleColor;
+  const headerBg = a.headerBgColor || KAIRO_MIDNIGHT;
   return {
     bubbleColor,
     // Icono de la burbuja: contraste YIQ sobre bubbleColor (override manual gana).
     bubbleIconColor: a.bubbleIconColor || getContrastColor(bubbleColor),
-    headerBg: a.headerBgColor || KAIRO_MIDNIGHT,
-    headerText: a.headerTextColor || '#FFFFFF',
+    headerBg,
+    // Texto del header: contraste YIQ automatico sobre headerBg. Mismo criterio
+    // que la burbuja y el boton de enviar — el texto nunca se pierde aunque el
+    // cliente elija un fondo claro u oscuro.
+    headerText: getContrastColor(headerBg),
     visitorBg: a.visitorBubbleBg || KAIRO_CYAN,
     visitorText: a.visitorBubbleText || KAIRO_MIDNIGHT,
     aiBg: a.aiBubbleBg || '#F1F5F9',

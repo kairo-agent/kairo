@@ -13,6 +13,12 @@ export interface WebChatAppearance {
   bubbleColor: string;
   bubbleShape: WebChatBubbleShape;
   headerBgColor: string;
+  /**
+   * @deprecated v0.27.5 — ya no se configura ni se usa. El color del texto del
+   * header se calcula con la formula YIQ segun `headerBgColor` (igual que la
+   * burbuja y el boton de enviar). Se conserva en el tipo/schema para no romper
+   * configs guardadas; el formulario ya no lo expone y el widget lo ignora.
+   */
   headerTextColor: string;
   visitorBubbleBg: string;
   visitorBubbleText: string;

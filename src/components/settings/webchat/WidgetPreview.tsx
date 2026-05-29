@@ -10,6 +10,21 @@ interface WidgetPreviewProps {
 }
 
 /**
+ * Contraste automatico via formula YIQ (NTSC) — mismo criterio que el widget
+ * real (widget/src/styles.ts). Elige texto/icono oscuro o claro segun la luma
+ * del fondo para que nunca se pierda. Mantener en sync con el widget.
+ */
+function getContrastColor(hex: string): string {
+  let h = (hex || '').trim().replace(/^#/, '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  if (h.length !== 6 || /[^0-9a-fA-F]/.test(h)) return '#0B1220';
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 >= 128 ? '#0B1220' : '#FFFFFF';
+}
+
+/**
  * Preview estatica del widget. Renderizada inline (no iframe) usando los
  * mismos colores/textos que el bundle real consumira en Fase 3.5.
  *
@@ -25,6 +40,10 @@ export function WidgetPreview({ config, locale }: WidgetPreviewProps) {
   const teaser = locale === 'en' ? texts.teaserTextEn : texts.teaserTextEs;
 
   const isRight = appearance.position === 'bottom-right';
+
+  // Colores derivados con YIQ (no se configuran a mano; coinciden con el widget).
+  const headerText = getContrastColor(appearance.headerBgColor || '#0B1220');
+  const bubbleIconColor = getContrastColor(appearance.bubbleColor || '#00E5FF');
 
   return (
     <div className="space-y-3">
@@ -65,7 +84,7 @@ export function WidgetPreview({ config, locale }: WidgetPreviewProps) {
                 )}
                 style={{
                   backgroundColor: appearance.headerBgColor,
-                  color: appearance.headerTextColor,
+                  color: headerText,
                 }}
               >
                 {teaser}
@@ -81,7 +100,7 @@ export function WidgetPreview({ config, locale }: WidgetPreviewProps) {
               style={{ backgroundColor: appearance.bubbleColor }}
               aria-label="Abrir widget"
             >
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke={appearance.headerTextColor} strokeWidth={2}>
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke={bubbleIconColor} strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </button>
@@ -100,7 +119,7 @@ export function WidgetPreview({ config, locale }: WidgetPreviewProps) {
             {/* Header */}
             <div
               className="flex items-center gap-3 px-4 py-3"
-              style={{ backgroundColor: appearance.headerBgColor, color: appearance.headerTextColor }}
+              style={{ backgroundColor: appearance.headerBgColor, color: headerText }}
             >
               {appearance.logoUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
