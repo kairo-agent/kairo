@@ -40,16 +40,36 @@ export interface WebChatAppearanceConfig {
   aiBubbleText?: string;
   logoUrl?: string | null;
   bubbleShape?: 'circle' | 'square';
+  // Legacy: estos textos vivian en `appearance`. El form actual los guarda en
+  // `config.texts` (ver WebChatTextsConfig). Se conservan aqui solo como
+  // fallback de lectura defensivo en resolveAppearance().
   headerTitleEs?: string;
   headerTitleEn?: string;
+  headerSubtitleEs?: string;
+  headerSubtitleEn?: string;
   teaserTextEs?: string;
   teaserTextEn?: string;
   starterQuestions?: WebChatStarterQuestion[];
 }
 
+/** Textos del widget — ubicacion canonica (config.texts) que persiste el form. */
+export interface WebChatTextsConfig {
+  headerTitleEs?: string;
+  headerTitleEn?: string;
+  headerSubtitleEs?: string;
+  headerSubtitleEn?: string;
+  teaserTextEs?: string;
+  teaserTextEn?: string;
+}
+
 export interface WebChatChannelConfig {
   appearance?: WebChatAppearanceConfig;
   behavior?: WebChatBehaviorConfig;
+  // Ubicacion canonica de textos y preguntas sugeridas (las guarda el form en
+  // estos campos top-level, NO dentro de `appearance`). resolveAppearance los
+  // lee de aqui con fallback a `appearance.*` por compatibilidad.
+  texts?: WebChatTextsConfig;
+  starterQuestions?: WebChatStarterQuestion[];
   // Canonical location for the CORS whitelist (matches WebChatConfig type, the
   // settings form, and saveWebChatConfig). The legacy `behavior.allowedOrigins`
   // path is kept only as a defensive read fallback in getAllowedOrigins().
@@ -77,6 +97,8 @@ export const DEFAULT_APPEARANCE: Required<
   bubbleShape: 'circle',
   headerTitleEs: 'Hola, ¿en qué te ayudamos?',
   headerTitleEn: 'Hi, how can we help?',
+  headerSubtitleEs: 'Respondemos en minutos',
+  headerSubtitleEn: 'We reply in minutes',
   teaserTextEs: '',
   teaserTextEn: '',
   starterQuestions: [],
@@ -183,8 +205,18 @@ export async function resolveWebChatByPublicKey(
 
 export function resolveAppearance(cfg: WebChatChannelConfig | undefined) {
   const a = cfg?.appearance ?? {};
+  // Textos: ubicacion canonica `config.texts`; fallback al legacy `appearance.*`.
+  const t = cfg?.texts ?? {};
+  // Preguntas sugeridas: top-level `config.starterQuestions`; fallback legacy.
+  const starters = Array.isArray(cfg?.starterQuestions)
+    ? cfg!.starterQuestions!
+    : Array.isArray(a.starterQuestions)
+      ? a.starterQuestions
+      : DEFAULT_APPEARANCE.starterQuestions;
   return {
-    position: a.position ?? DEFAULT_APPEARANCE.position,
+    // El widget espera 'right' | 'left'. El form persiste 'bottom-right' |
+    // 'bottom-left' — se mapea (antes 'bottom-left' renderizaba a la derecha).
+    position: (a.position ?? DEFAULT_APPEARANCE.position) === 'bottom-left' ? 'left' : 'right',
     bubbleColor: a.bubbleColor ?? DEFAULT_APPEARANCE.bubbleColor,
     headerBgColor: a.headerBgColor ?? DEFAULT_APPEARANCE.headerBgColor,
     visitorBubbleBg: a.visitorBubbleBg ?? DEFAULT_APPEARANCE.visitorBubbleBg,
@@ -197,11 +229,14 @@ export function resolveAppearance(cfg: WebChatChannelConfig | undefined) {
     // renderice (antes el widget caia siempre al icono default).
     bubbleLogoUrl: a.logoUrl ?? DEFAULT_APPEARANCE.logoUrl,
     bubbleShape: a.bubbleShape ?? DEFAULT_APPEARANCE.bubbleShape,
-    headerTitleEs: a.headerTitleEs ?? DEFAULT_APPEARANCE.headerTitleEs,
-    headerTitleEn: a.headerTitleEn ?? DEFAULT_APPEARANCE.headerTitleEn,
-    teaserTextEs: a.teaserTextEs ?? DEFAULT_APPEARANCE.teaserTextEs,
-    teaserTextEn: a.teaserTextEn ?? DEFAULT_APPEARANCE.teaserTextEn,
-    starterQuestions: Array.isArray(a.starterQuestions) ? a.starterQuestions : DEFAULT_APPEARANCE.starterQuestions,
+    // Textos desde config.texts (canonico) con fallback al legacy appearance.*.
+    headerTitleEs: t.headerTitleEs ?? a.headerTitleEs ?? DEFAULT_APPEARANCE.headerTitleEs,
+    headerTitleEn: t.headerTitleEn ?? a.headerTitleEn ?? DEFAULT_APPEARANCE.headerTitleEn,
+    headerSubtitleEs: t.headerSubtitleEs ?? a.headerSubtitleEs ?? DEFAULT_APPEARANCE.headerSubtitleEs,
+    headerSubtitleEn: t.headerSubtitleEn ?? a.headerSubtitleEn ?? DEFAULT_APPEARANCE.headerSubtitleEn,
+    teaserTextEs: t.teaserTextEs ?? a.teaserTextEs ?? DEFAULT_APPEARANCE.teaserTextEs,
+    teaserTextEn: t.teaserTextEn ?? a.teaserTextEn ?? DEFAULT_APPEARANCE.teaserTextEn,
+    starterQuestions: starters,
   };
 }
 
