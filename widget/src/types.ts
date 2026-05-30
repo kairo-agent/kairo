@@ -15,6 +15,7 @@ export interface AppearanceConfig {
   bubbleColor?: string;
   bubbleIconColor?: string;
   bubbleLogoUrl?: string;
+  bubbleShape?: 'circle' | 'square';
   position?: 'right' | 'left';
 
   // Welcome / Teaser

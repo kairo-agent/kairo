@@ -13,6 +13,7 @@ interface StyleVars {
   agentBadgeText: string;
   sendBtnColor: string;
   sendBtnIconColor: string;
+  bubbleRadius: string;
   position: 'right' | 'left';
 }
 
@@ -69,6 +70,9 @@ export function resolveStyleVars(a: AppearanceConfig): StyleVars {
     sendBtnColor,
     // Icono del avion: contraste YIQ sobre el color del boton de enviar.
     sendBtnIconColor: getContrastColor(sendBtnColor),
+    // Forma del boton: 'square' => esquinas redondeadas (16px, igual que el
+    // preview); 'circle' (default) => circulo perfecto.
+    bubbleRadius: a.bubbleShape === 'square' ? '16px' : '50%',
     position: a.position || 'right',
   };
 }
@@ -161,7 +165,7 @@ button { font: inherit; cursor: pointer; }
 .k-bubble {
   width: 56px; height: 56px;
   min-width: 56px;
-  border-radius: 50%;
+  border-radius: ${v.bubbleRadius};
   background: ${v.bubbleColor};
   color: ${v.bubbleIconColor};
   display: flex; align-items: center; justify-content: center;
@@ -195,7 +199,7 @@ button { font: inherit; cursor: pointer; }
   opacity: 1;
 }
 .k-bubble--logo { background: transparent; }
-.k-bubble--logo img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.k-bubble--logo img { width: 100%; height: 100%; object-fit: cover; border-radius: ${v.bubbleRadius}; }
 
 @keyframes k-pulse {
   0%, 100% { box-shadow: 0 4px 14px rgba(11,18,32,0.22), 0 0 0 0 ${v.bubbleColor}66; }
