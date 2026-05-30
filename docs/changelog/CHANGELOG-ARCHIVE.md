@@ -1,6 +1,14 @@
-# KAIRO - Changelog Archive (v0.27.0 y anteriores)
+# KAIRO - Changelog Archive (v0.27.1 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.27.1+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.27.2+).
+
+---
+
+## [0.27.1] - 2026-05-12
+
+### Form Data Capture via OpenAI Function Calling + Prompt Order Fix
+
+Captura de form data en prod era ~8% (el marker `[FORM-DATA:]` en texto se ignoraba bajo carga cognitiva). Fix: **Function Calling** oficial de OpenAI — `buildFormCaptureTools()` genera schema desde `formConfig.fields`; **dos llamadas paralelas** (`Promise.all`): A=texto visible (sin tools), B=extraccion con `tool_choice` forzado (`strict:true`). Forzar tool en una sola llamada omitia el texto visible; separarlas resuelve sin sumar latencia. **Anti-reset:** en `build-system-prompt.ts` el conversation history va al ULTIMO bloque con la regla anti-reset contigua (evita reset al saludo con inputs ambiguos). WhatsApp display name no contamina el form (skip firstName/lastName en pre-fill; smart-split "Marcos Roca"→first/last). Impacto: ~8%→~100% (WhatsApp + WebChat via `processAIResponse`). Sin migracion DB.
 
 ---
 
@@ -70,26 +78,7 @@ dateField selector (creacion vs ultimo contacto), preset "Este mes" con timezone
 
 ## [0.22.2] - 2026-04-03
 
-### ReEngagement dual-model (Model A + Model B)
-
-Los seguimientos ahora se envian tanto si el lead responde y vuelve a hacer silencio (Model A, existente) como si nunca responde (Model B, nuevo). El contador de attempts siempre avanza, nunca repite el mismo intento.
-
-**Antes:** attempt 0 → lead debe responder → silencio → attempt 1 → lead debe responder → silencio → attempt 2.
-**Ahora:** attempt 0 → (delayHours) → attempt 1 → (delayHours) → attempt 2, sin importar si el lead respondio o no.
-
-**Cambio:** Query SQL en cron reengagement: eliminada condicion `lead_msg > last_re_at` que requeria respuesta. `completedCycles` reemplazado por `totalReengagements` (total enviados). UI descriptions actualizadas en es/en.
-
-**Archivo:** `src/app/api/cron/reengagement/route.ts`, `es.json`, `en.json`
-
-### Additional Instructions max length 2000 → 10000
-
-**Archivos:** `SettingsPageClient.tsx` (maxLength + counter), `prompt-builder.ts` (zod schema)
-
-### Fix: Save button disappears on hover (Form + ReEngagement tabs)
-
-Causa raiz: `hover:bg-[var(--accent-hover)]` — variable CSS no existe. Fix: usar `Button variant="primary"` con `isLoading` prop. Boton ahora siempre visible con `disabled={!hasUnsavedChanges}` + texto "Tienes cambios sin guardar".
-
-**Archivos:** `SettingsPageClient.tsx`, `es.json`, `en.json`
+**ReEngagement dual-model:** los seguimientos avanzan el contador de attempts respondan o no (Model A: lead respondio y volvio a silencio; Model B: nunca respondio). Query cron: eliminada condicion `lead_msg > last_re_at`; `completedCycles`→`totalReengagements`. **Additional Instructions** max 2000→10000. **Fix** boton Guardar desaparecia en hover (`hover:bg-[var(--accent-hover)]` no existe) → `Button variant="primary"` + `isLoading`.
 
 ---
 

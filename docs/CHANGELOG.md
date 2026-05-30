@@ -4,6 +4,20 @@
 
 ---
 
+## [0.27.6] - 2026-05-29
+
+### WebChat widget: la config de apariencia ahora se refleja de verdad
+
+Tres fixes al contrato `resolveAppearance` ↔ widget (el endpoint enviaba/leia campos en lugares que no coincidian con lo que persiste el form). Todo server-side + `widget/`; **WhatsApp intacto**.
+
+- **Logo no se renderizaba** (`2cc2d72`): el widget lee `appearance.bubbleLogoUrl` pero el form persiste `appearance.logoUrl` y el endpoint solo enviaba `logoUrl` → caia siempre al icono default. Fix: `resolveAppearance` mapea `bubbleLogoUrl = logoUrl`.
+- **Textos/teaser/preguntas/position no se aplicaban** (`ee1b7a4`): `resolveAppearance` leia los textos de `cfg.appearance.*` pero el form los guarda en `cfg.texts.*` y las preguntas en `cfg.starterQuestions` (top-level) → el widget mostraba siempre los defaults. Fix: lee de las ubicaciones canonicas (fallback legacy + defaults), envia `headerSubtitleEs/En` (antes nunca se enviaba) y mapea `position` `bottom-right|bottom-left` → `right|left` (antes `bottom-left` renderizaba a la derecha). Nuevos tipos `WebChatTextsConfig` + `texts`/`starterQuestions` en `WebChatChannelConfig`.
+- **"Forma del boton" (circle/square)** (`155151d`): el widget renderizaba siempre circulo (border-radius fijo 50%) ignorando `bubbleShape`. Fix: `resolveStyleVars` deriva `bubbleRadius` (square → 16px, circle → 50%) aplicado a `.k-bubble` + logo.
+
+Patron recurrente de esta sesion (mismo que `allowedOrigins` en v0.27.4): el contrato entre el form/config canonico y lo que el widget/endpoint leen habia divergido. El preview del dashboard ya leia de las ubicaciones correctas, asi que ahora preview = produccion.
+
+---
+
 ## [0.27.5] - 2026-05-29
 
 ### WebChat widget: persistencia de sesion + contraste automatico (YIQ)
@@ -136,38 +150,7 @@ Fix: nuevo `useRef<string | null>` (`currentAgentIdRef`) como fuente de verdad s
 
 ---
 
-## [0.27.1] - 2026-05-12
-
-### Form Data Capture via OpenAI Function Calling + Prompt Order Fix
-
-**Bug raiz resuelto:** form data capture rate en produccion era ~8% (29 de 364 leads en 6 semanas). El marker `[FORM-DATA: key=value]` en texto era ignorado por el LLM cuando habia carga cognitiva alta — el modelo entendia contextualmente pero omitia emitir el marker.
-
-**Fix arquitectonico — Function Calling (OpenAI oficial):**
-- `process-ai-response.ts`: nueva funcion `buildFormCaptureTools()` genera dinamicamente un schema de Function Calling desde `formConfig.fields`. Cada field se convierte en property del schema (text/email/phone → `['string', 'null']`, number → `['number', 'null']`, options → `['string', 'null']` con `enum`).
-- Patron de **dos llamadas paralelas** via `Promise.all`:
-  - Llamada A: texto visible al usuario (sin tools, temp=0.7, max_tokens=500).
-  - Llamada B: extraccion estructurada (con `tool_choice` forzado a `capture_form_data`, temp=0, max_tokens=200).
-- Forzar `tool_choice` en una sola llamada hacia que el modelo omitiera el contenido visible. Separar en dos llamadas resuelve el conflicto sin sumar latencia (Promise.all ≈ max(call1, call2)).
-- Modo `strict: true` garantiza adherencia al schema. Coexiste con el parser legacy del marker `[FORM-DATA:]` como safety net.
-
-**Anti-reset del LLM — restructuracion del system prompt:**
-- Bug: el LLM hacia reset al saludo inicial cuando recibia inputs ambiguos en turnos tardios (ej. nombre suelto "marcos roca" sin verbo introductorio). La attention se distribuia hacia la primera instruccion imperativa del agente.
-- Fix: en `build-system-prompt.ts`, mover el `conversation history` al ULTIMO bloque del prompt y colocar la regla anti-reset INMEDIATAMENTE despues del historial. La contiguidad cognitiva (historial + interpretacion) ancla la instruccion en el contexto reciente que el modelo acaba de leer.
-
-**WhatsApp display name no contamina el form:**
-- `process-ai-response.ts`: skip firstName/lastName cuando se hace pre-fill del form desde `Lead`. El display name de WhatsApp es no confiable (alias, apodo, telefono, business name). El agente siempre pregunta el nombre real.
-- `lead-form-data.ts bulkUpdateLeadFormFields`: cuando el agente captura un nombre mapeado a `firstName`, smart-split en whitespace para popular `firstName` + `lastName` separados (ej. "Marcos Roca" → firstName=Marcos, lastName=Roca). Sobrescribe el valor del perfil WhatsApp en `Lead`.
-- `build-system-prompt.ts`: el `leadName` se inyecta con disclaimer "puede no ser real". Instruye al LLM a usar el nombre que el visitante confirme conversacionalmente.
-
-**Impacto medido:** captura de form data sube de ~8% a ~100% (en pruebas internas). Flujo conversacional sin resets. Aplicable a TODOS los agentes via el pipeline compartido `processAIResponse` (WhatsApp + WebChat).
-
-**Commits**: `64646a8 → 0dfc130 → c54555d → cc9ab36 → c7f0c47 → fa8253d`.
-
-**Sin migracion DB.** Logs debug temporales (`[TOOLS DEBUG]`, `[FORM-DATA DEBUG]`) en `process-ai-response.ts` quedan por ahora para monitoreo en produccion — remover en proximo release.
-
----
-
-> Versiones v0.27.0 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.27.1 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 

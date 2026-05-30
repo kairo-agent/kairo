@@ -40,7 +40,7 @@ KAIRO es un SaaS B2B que automatiza leads con sub-agentes IA via WhatsApp.
 
 | | |
 |---|---|
-| **Version** | v0.27.5 (WebChat: persistencia de sesion + contraste YIQ; +v0.27.4 fix CORS allowedOrigins) |
+| **Version** | v0.27.6 (WebChat: apariencia/textos/logo/forma reflejan Settings; +v0.27.5 sesion + contraste YIQ) |
 | **Target** | Peru > Latam > USA |
 | **Repo** | https://github.com/kairo-agent/kairo |
 | **Produccion** | https://app.kairoagent.com/ |
@@ -148,9 +148,9 @@ npm run lint     # Verificar codigo
 
 ---
 
-## Estado Actual (v0.27.5 - May 2026)
+## Estado Actual (v0.27.6 - May 2026)
 
-**Completado:** Stack multi-tenant (Auth + RBAC, multi-locale es/en, RLS, OWASP). AI pipeline interno (RAG + Vision + Whisper + handoff + reengagement + form conversacional). WhatsApp bidireccional (media, sticker, 24h timer). Dashboard + Conversaciones (10 statuses, filtros, Excel). Notificaciones 3 canales, Cron pg_cron, PWA. **Multi-canal v0.24-v0.26:** `IChannelHandler`, `ProjectChannel`, WebChat en widget.kairoagent.com (Vercel #2). Realtime broadcast signal-only + polling fallback, handoff UI, media upload visitor (Vision/Whisper/doc), CORS strict. **v0.27.0:** Active agent = runtime source of truth (`getActiveAgentForProject` + Redis cache; `lead.assignedAgentId` historico). **v0.27.1:** Form data via OpenAI Function Calling. **v0.27.3:** CharCounter universal con maxLength. **v0.27.4:** fix WebChat CORS (allowedOrigins path). **v0.27.5:** WebChat widget — persistencia de sesion (historial tras refresh + timeout `sessionTimeoutHours` 2h, sesion visual nueva al expirar) + contraste YIQ en burbuja/boton/header. Historico en [CHANGELOG.md](docs/CHANGELOG.md).
+**Completado:** Stack multi-tenant (Auth + RBAC, multi-locale es/en, RLS, OWASP). AI pipeline interno (RAG + Vision + Whisper + handoff + reengagement + form conversacional). WhatsApp bidireccional (media, sticker, 24h timer). Dashboard + Conversaciones (10 statuses, filtros, Excel). Notificaciones 3 canales, Cron pg_cron, PWA. **Multi-canal v0.24-v0.26:** `IChannelHandler`, `ProjectChannel`, WebChat en widget.kairoagent.com (Vercel #2). Realtime broadcast signal-only + polling fallback, handoff UI, media upload visitor (Vision/Whisper/doc), CORS strict. **v0.27.0:** Active agent = runtime source of truth (`getActiveAgentForProject` + Redis cache). **v0.27.3:** CharCounter universal. **v0.27.4:** fix WebChat CORS. **v0.27.5:** WebChat widget — persistencia de sesion (historial + timeout `sessionTimeoutHours` 2h) + contraste YIQ (burbuja/boton/header). **v0.27.6:** WebChat — la apariencia de Settings por fin se refleja (logo, textos, preguntas, position, forma); `resolveAppearance` leia ubicaciones equivocadas. Historico en [CHANGELOG.md](docs/CHANGELOG.md).
 
 **Pendiente:** Crear lead form, reports/agents pages. Meta Ads integration. **Leads Unicos v0.27+** (vista CRM merge lazy email/telefono — nueva tabla `unique_leads`, NUNCA renombrar `leads`). **Scheduled Calls** ([plans/SCHEDULED-CALLS.md](docs/plans/SCHEDULED-CALLS.md)). Ver [plans/IMPERSONATION.md](docs/plans/IMPERSONATION.md).
 
