@@ -4,6 +4,23 @@
 
 ---
 
+## [0.27.7] - 2026-05-31
+
+### WebChat config en CDN con purga por tag — cambios reflejan al instante
+
+**Problema:** un cambio en `/settings/webchat` tardaba hasta ~6 min en verse en la web del cliente. Causa: `/api/widget/config` usaba `Cache-Control: s-maxage=60, stale-while-revalidate=300` (cache de borde de Vercel) **sin invalidacion** al guardar. Confirmado en prod (`X-Vercel-Cache: STALE`, `Age: 274`).
+
+**Solucion (no parche): cache largo en el edge + purga por cache tag.** En vez de bajar el TTL (mas hits al origen), se cachea "para siempre" y se purga exactamente cuando el owner guarda. Patron documentado por Vercel: purgar por tag limpia las 3 capas (CDN + Runtime + Data Cache) global e instantaneamente.
+
+- `/api/widget/config/route.ts`: respuestas cacheables (enabled + disabled) ahora envian `Vercel-CDN-Cache-Control: public, s-maxage=31536000, stale-while-revalidate=60` + `Vercel-Cache-Tag: webchat-config:<publicKey>`. `Vercel-CDN-Cache-Control` cachea solo en el edge de Vercel (el browser sigue recibiendo `max-age=0, must-revalidate` y revalida contra el edge purgable).
+- `project-channels.ts`: tras CUALQUIER mutacion del canal webchat (`saveWebChatConfig`, `setChannelEnabled`, `provisionProjectChannel`, `unprovisionProjectChannel`, `deleteProjectChannel`) se llama `dangerouslyDeleteByTag('webchat-config:<publicKey>')` (de `@vercel/functions`, ya instalado). Helper `purgeWebchatConfigCache` con try/catch (un fallo de purga nunca rompe el guardado; no-op fuera de Vercel).
+
+**Por que `delete` y no `invalidate`:** `invalidateByTag` sirve la version vieja UNA vez (stale) y refresca en background → el owner guarda, recarga y aun ve lo viejo una vez. `dangerouslyDeleteByTag` trae fresco del origen en la 1ra carga post-guardado. El riesgo de stampede es nulo a esta escala (1 tenant editando, baja concurrencia por `publicKey`).
+
+**Escala:** ~99% HITs en el edge (sin tocar la DB) sin importar el trafico, y purga quirurgica por tenant (tag por `publicKey`). Reusable para futuros endpoints publicos por-tenant. Commit `34e333e`. WhatsApp intacto.
+
+---
+
 ## [0.27.6] - 2026-05-29
 
 ### WebChat widget: la config de apariencia ahora se refleja de verdad
@@ -128,29 +145,7 @@ Los `<CharCounter>` explicitos de esos tres campos se eliminaron porque `Expanda
 
 ---
 
-## [0.27.2] - 2026-05-13
-
-### Settings UX hardening: spinner en FormTab + guard contra race condition al cambiar agentes
-
-Dos fixes de UX en `src/app/[locale]/(dashboard)/settings/SettingsPageClient.tsx` que cerraban brechas de consistencia visual y correctitud de datos al navegar entre agentes rapido.
-
-**Fix 1 — Spinner en FormTab al cambiar agente (`484e71c`):**
-
-El componente `FormTab` recibia la prop `loading` desde el padre pero no la usaba internamente. Las pestanas `InstructionsTab` y `KnowledgeTab` ya tenian un early-return que mostraba un spinner mientras cargaban los datos del nuevo agente; `FormTab` quedaba desincronizada y mostraba el schema del agente anterior durante la transicion. Fix: agregar el mismo patron `if (loading) return <Spinner>` en `FormTab` (lineas ~2424), alineando el comportamiento visual entre las tres pestanas. +13 lineas.
-
-**Fix 2 — Race condition al cambiar agentes rapido (`f0f5f20`):**
-
-Bug: al cambiar de agente A → B rapidamente (o A → B → A), las respuestas async de `loadInstructions`, `loadKnowledge`, `loadMedia`, `loadVideos` y `loadForm` del agente anterior podian resolver DESPUES del nuevo agente seleccionado y sobrescribir el estado en pantalla con datos stale. El resultado era que la UI mostraba los datos del agente equivocado de forma silenciosa.
-
-Fix: nuevo `useRef<string | null>` (`currentAgentIdRef`) como fuente de verdad sincronica del agente actualmente seleccionado. Cada loader captura el `requestedAgentId` al inicio de la llamada async y, antes de cualquier `setState`, compara contra `currentAgentIdRef.current`. Si difieren, la respuesta es stale y se descarta sin actualizar estado. El ref se actualiza en dos puntos: (a) el `useEffect` del agent-change (linchpin principal), (b) la fase 2 del initial load (defensivo, por si el componente monta con agente preseleccionado). +52 / -11 lineas.
-
-**Impacto**: eliminado el "flash" de datos del agente anterior en FormTab y la sobrescritura silenciosa de datos al navegar entre agentes bajo latencia de red normal. Sin migracion DB. Sin cambios de API.
-
-**Commits**: `484e71c` (spinner) → `f0f5f20` (race guard).
-
----
-
-> Versiones v0.27.1 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
+> Versiones v0.27.2 y anteriores archivadas en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md).
 
 ## Formato de Changelog
 

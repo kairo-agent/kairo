@@ -1,6 +1,12 @@
-# KAIRO - Changelog Archive (v0.27.1 y anteriores)
+# KAIRO - Changelog Archive (v0.27.2 y anteriores)
 
-> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.27.2+).
+> Versiones antiguas archivadas. Ver [CHANGELOG.md](../CHANGELOG.md) para versiones recientes (v0.27.3+).
+
+---
+
+## [0.27.2] - 2026-05-13
+
+**Settings UX hardening** (`SettingsPageClient.tsx`). **Spinner en FormTab** (`484e71c`): FormTab no usaba la prop `loading` (mostraba el schema del agente anterior durante la transicion) → mismo `if (loading) return <Spinner>` que Instructions/Knowledge. **Race condition al cambiar agentes rapido** (`f0f5f20`): respuestas async de los loaders del agente previo resolvian despues del nuevo y sobrescribian con datos stale → `currentAgentIdRef` (ref sincronico); cada loader captura `requestedAgentId` y descarta si difiere de `currentAgentIdRef.current`. Sin migracion DB.
 
 ---
 
@@ -108,21 +114,7 @@ Guard en pipeline AI que impide clasificar temperatura hasta que lead haya envia
 
 ## [0.20.0] - 2026-03-30
 
-### Incoming Lead Media (NEW FEATURE)
-
-Descarga y renderizado de media entrante (imagen, video, audio, documento). `src/lib/whatsapp/download-media.ts` baja media WhatsApp API → Supabase Storage via `waitUntil`. Path: `incoming/{projectId}/{year}/{month}/{uuid}.{ext}`. Max 50MB. Chat UI: imagenes lightbox, video player nativo, AudioPlayer custom, documentos download link. Badge "Disponible hasta {date}". Expiracion: cron 5 dias.
-
-### GPT-4o-mini Vision (NEW FEATURE)
-
-Analisis imagenes entrantes via GPT Vision en modo AI. `detail: 'low'`. Fallback: si `downloadedUrl` no esta lista post-debounce, fetch directo de WhatsApp como base64. freshMediaId pattern para mediaId actualizado post-debounce.
-
-### AudioPlayer + Whisper para todos los modos
-
-Nuevo `src/components/ui/AudioPlayer.tsx`. Whisper transcription corre para TODOS los modos (AI + human). Integrado en download-media.ts post-upload.
-
-### PWA + custom favicon + --accent-text + Discard terminology + Dashboard charts + Mobile fixes
-
-PWA: `manifest.json` con maskable icons, meta tags iOS, viewport-fit cover, install banner createPortal. Favicon KAIRO custom. Variable CSS `--accent-text` reemplaza `--accent-primary` para textos cyan en ~40 archivos. "Archivar"→"Descartar" / "Archive"→"Discard". Chart labels visibles + cost-per-lead widget. Mobile: header titulo oculto, admin stats grid 2 cols, icon-only buttons.
+**Incoming Lead Media:** descarga/render de media entrante (img/video/audio/doc). `download-media.ts` baja WhatsApp API → Supabase Storage via `waitUntil` (`incoming/{projectId}/{year}/{month}/{uuid}.{ext}`, max 50MB, expira 5 dias por cron). Chat UI: lightbox, video nativo, AudioPlayer, download link. **GPT-4o-mini Vision** en modo AI (`detail:'low'`; fallback base64 desde WhatsApp si `downloadedUrl` no lista; freshMediaId post-debounce). **AudioPlayer custom** + Whisper para TODOS los modos. **PWA** (manifest, maskable icons, iOS meta, install banner createPortal), favicon KAIRO, var `--accent-text` (reemplaza `--accent-primary`, ~40 archivos), "Archivar"→"Descartar", chart labels + cost-per-lead widget, fixes mobile.
 
 ---
 
