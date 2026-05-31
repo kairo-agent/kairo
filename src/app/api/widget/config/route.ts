@@ -92,7 +92,10 @@ export async function GET(request: NextRequest) {
           status: 200,
           headers: {
             ...buildCorsHeaders(origin),
-            'Cache-Control': 's-maxage=30, stale-while-revalidate=60',
+            // Mismo esquema que la respuesta enabled: cache largo + tag por
+            // publicKey, para que re-activar el canal purgue tambien este path.
+            'Vercel-CDN-Cache-Control': 'public, s-maxage=31536000, stale-while-revalidate=60',
+            'Vercel-Cache-Tag': `webchat-config:${key}`,
           },
         }
       );
@@ -156,7 +159,13 @@ export async function GET(request: NextRequest) {
       status: 200,
       headers: {
         ...buildCorsHeaders(corsOrigin),
-        'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+        // Cache largo en el edge de Vercel + tag por publicKey. La config se
+        // sirve desde el CDN (casi siempre HIT, sin tocar la DB) hasta que el
+        // owner guarda cambios: ahi `dangerouslyDeleteByTag` purga este tag y
+        // la siguiente carga trae fresco. `Vercel-CDN-Cache-Control` cachea solo
+        // en el edge (el browser igual recibe max-age=0 y revalida contra el).
+        'Vercel-CDN-Cache-Control': 'public, s-maxage=31536000, stale-while-revalidate=60',
+        'Vercel-Cache-Tag': `webchat-config:${lookup.channel.publicKey}`,
       },
     });
   } catch (error) {

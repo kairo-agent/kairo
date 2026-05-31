@@ -23,8 +23,26 @@ import { verifySuperAdmin } from '@/lib/auth-helpers';
 import { verifyAuth, getProjectRole } from '@/lib/actions/auth';
 import { getEffectiveRole } from '@/lib/permissions';
 import { revalidatePath } from 'next/cache';
+import { dangerouslyDeleteByTag } from '@vercel/functions';
 import { z } from 'zod';
 import type { ProjectChannelInfo } from '@/lib/types/project-channel';
+
+/**
+ * Purga (delete) el cache del CDN de la config del widget para un publicKey.
+ * Lo llamamos tras CUALQUIER mutacion del canal webchat (config/enabled/provision/
+ * delete) para que el cambio se refleje en la web del cliente al instante en vez
+ * de esperar el TTL del edge. `delete` (no invalidate) => la siguiente carga trae
+ * fresco del origen; riesgo de stampede nulo a esta escala. No-op fuera de Vercel.
+ */
+async function purgeWebchatConfigCache(publicKey: string | null | undefined): Promise<void> {
+  if (!publicKey) return;
+  try {
+    await dangerouslyDeleteByTag(`webchat-config:${publicKey}`);
+  } catch (err) {
+    // Nunca romper el guardado por un fallo de purga (el TTL/SWR cubre el peor caso).
+    console.error('[purgeWebchatConfigCache] error:', err);
+  }
+}
 import {
   MAX_STARTER_QUESTIONS,
   MAX_HEADER_TITLE_LENGTH,
@@ -142,10 +160,13 @@ export async function setChannelEnabled(
   }
 
   try {
-    await prisma.projectChannel.update({
+    const updated = await prisma.projectChannel.update({
       where: { projectId_channel: { projectId, channel } },
       data: { enabled },
+      select: { publicKey: true },
     });
+
+    if (channel === 'webchat') await purgeWebchatConfigCache(updated.publicKey);
 
     revalidatePath('/settings/whatsapp');
     revalidatePath('/settings/webchat');
@@ -257,11 +278,14 @@ export async function saveWebChatConfig(
   }
 
   try {
-    await prisma.projectChannel.update({
+    const updated = await prisma.projectChannel.update({
       where: { projectId_channel: { projectId, channel: 'webchat' } },
       // Prisma JSON requires explicit cast to InputJsonValue
       data: { config: parsed.data as unknown as object },
+      select: { publicKey: true },
     });
+
+    await purgeWebchatConfigCache(updated.publicKey);
 
     revalidatePath('/settings/webchat');
     revalidatePath('/admin');
@@ -313,6 +337,10 @@ export async function provisionProjectChannel(
       },
     });
 
+    // Reactivar un canal pausado debe reflejarse al instante (purga el path
+    // enabled:false que quedo cacheado mientras estaba deshabilitado).
+    if (channel === 'webchat') await purgeWebchatConfigCache(publicKey);
+
     revalidatePath('/admin');
     revalidatePath('/settings');
     return { success: true, publicKey };
@@ -335,10 +363,13 @@ export async function unprovisionProjectChannel(
   }
 
   try {
-    await prisma.projectChannel.update({
+    const updated = await prisma.projectChannel.update({
       where: { projectId_channel: { projectId, channel } },
       data: { provisioned: false },
+      select: { publicKey: true },
     });
+
+    if (channel === 'webchat') await purgeWebchatConfigCache(updated.publicKey);
 
     revalidatePath('/admin');
     revalidatePath('/settings');
@@ -363,9 +394,12 @@ export async function deleteProjectChannel(
   }
 
   try {
-    await prisma.projectChannel.delete({
+    const deleted = await prisma.projectChannel.delete({
       where: { projectId_channel: { projectId, channel } },
+      select: { publicKey: true },
     });
+
+    if (channel === 'webchat') await purgeWebchatConfigCache(deleted.publicKey);
 
     revalidatePath('/admin');
     revalidatePath('/settings');
