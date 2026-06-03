@@ -65,6 +65,7 @@
 |-----------|----------------|
 | [PERFORMANCE.md](PERFORMANCE.md) | Phases 1-3 completadas, React cache(), cursor pagination, React Query |
 | [CHANGELOG.md](CHANGELOG.md) | Ultimas 5 versiones (v0.8.0+). Versiones anteriores en [changelog/CHANGELOG-ARCHIVE.md](changelog/CHANGELOG-ARCHIVE.md) |
+| [../scripts/README.md](../scripts/README.md) | Catalogo de scripts de mantenimiento/setup: kit KB de agentes (check/update genericos + templates), utilidades puntuales, SQL de infra (RLS, RPCs, pg_cron) |
 
 ### Brand
 | Documento | Contenido clave |
@@ -90,6 +91,7 @@
 | Reglas de desarrollo | [RULES.md](RULES.md) |
 | Colores y brand | [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) |
 | Migraciones de BD | [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) |
+| Revisar/actualizar KB de un agente | [../scripts/README.md](../scripts/README.md) seccion "Kit de Knowledge Base" |
 | Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |
 | Formulario conversacional | [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) |
 | Avatar upload (usuarios) | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
