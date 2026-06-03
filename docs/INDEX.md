@@ -2,6 +2,11 @@
 
 ## Documentos por Tema
 
+### Negocio y Monetizacion
+| Documento | Contenido clave |
+|-----------|----------------|
+| [BUSINESS-MODEL.md](BUSINESS-MODEL.md) | **Fuente de verdad comercial.** Pricing (plan unico S/1.200/mes), programa de 5 fundadores, socio 40/60, allowance de cambios, benchmark Peru. Apartado vivo: actualizar + versionar aqui |
+
 ### Arquitectura y Decisiones
 | Documento | Contenido clave |
 |-----------|----------------|
@@ -92,6 +97,7 @@
 | Colores y brand | [/brand/BRANDBOOK.md](/brand/BRANDBOOK.md) |
 | Migraciones de BD | [DATABASE-MIGRATIONS.md](DATABASE-MIGRATIONS.md) |
 | Revisar/actualizar KB de un agente | [../scripts/README.md](../scripts/README.md) seccion "Kit de Knowledge Base" |
+| Precios, planes, modelo de negocio | [BUSINESS-MODEL.md](BUSINESS-MODEL.md) |
 | Subir archivos multimedia | [MEDIA-UPLOAD.md](MEDIA-UPLOAD.md) |
 | Formulario conversacional | [done/CONVERSATIONAL-FORM.md](done/CONVERSATIONAL-FORM.md) |
 | Avatar upload (usuarios) | [CHANGELOG.md](CHANGELOG.md) seccion v0.23.0 |
