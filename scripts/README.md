@@ -45,8 +45,8 @@ Nunca se corren directo: siempre se copia a un `_tmp-*.ts` (gitignorable) y se e
 
 | Script | Qué hace |
 |--------|----------|
-| `reset-user-password.ts` | Resetea la contraseña de un usuario (admin auth). Editar el email/clave dentro |
-| `check-marcos2.ts` | Debug de un lead específico (firstName/formData/mensajes). One-off, hardcoded lead id |
+| `reset-user-password.ts` | Resetea la contraseña de un usuario vía Supabase Admin API. `npx tsx scripts/reset-user-password.ts <email> [password]` (genera una segura si la omites) |
+| `check-lead.ts` | Inspecciona un lead: datos, formData y conversación completa. `npx tsx scripts/check-lead.ts --lead <leadId>` |
 | `check-no-emoji.sh` | Verifica ausencia de emojis (regla KAIRO: usar SVG icons, no emojis) |
 
 ---
